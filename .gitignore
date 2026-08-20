@@ -1,0 +1,32 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+[Dd]ebug/
+[Rr]elease/
+publish/
+
+# Test output
+[Tt]est[Rr]esults/
+coverage/
+coverage.*
+
+# IDE and user state
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*~
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

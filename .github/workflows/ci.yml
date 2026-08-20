@@ -1,0 +1,43 @@
+name: Build and tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delta-xaml-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: delta-xaml-nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: delta-xaml-nuget-${{ runner.os }}-
+      - name: Restore and build
+        run: |
+          dotnet restore DeltaXAML.slnx
+          dotnet build DeltaXAML.slnx -c Release --no-restore
+      - name: Run tests
+        run: dotnet run --project tests/DeltaXAML.Core.Tests/DeltaXAML.Core.Tests.csproj -c Release --no-build --no-restore

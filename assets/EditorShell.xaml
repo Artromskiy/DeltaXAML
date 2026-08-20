@@ -1,0 +1,9 @@
+<StackPanel Orientation="Vertical" Width="960" Height="540">
+  <Panel Width="960" Height="48" Background="#26354A" />
+  <StackPanel Orientation="Horizontal" Width="960" Fill="true">
+    <Panel Width="220" Height="468" Background="#34495E" />
+    <Panel Fill="true" Background="#1F2933" />
+    <Panel Width="220" Height="468" Background="#3D4A5C" />
+  </StackPanel>
+  <Panel Width="960" Height="24" Background="#202A36" />
+</StackPanel>

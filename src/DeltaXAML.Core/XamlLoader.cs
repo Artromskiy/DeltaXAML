@@ -1,0 +1,13 @@
+using System.Xml; using DeltaXAML.Abstractions;
+namespace DeltaXAML.Core;
+public readonly record struct XamlDiagnostic(string Code,string Message,int Line,int Column);
+public sealed record XamlLoadResult(UiElement? Root,IReadOnlyList<XamlDiagnostic> Diagnostics){public bool Success=>Root is not null&&Diagnostics.Count==0; public UiFrame? CreateFrame()=>Success?new UiFrame(Root!):null;}
+public sealed record XamlFrameLoadResult(UiFrame? Frame,IReadOnlyList<XamlDiagnostic> Diagnostics){public bool Success=>Frame is not null&&Diagnostics.Count==0;}
+public static class XamlLoader
+{
+    public static XamlLoadResult Load(string source){var d=new List<XamlDiagnostic>();try{using var r=XmlReader.Create(new StringReader(source),new XmlReaderSettings{DtdProcessing=DtdProcessing.Prohibit,IgnoreComments=true});r.MoveToContent();return new(Read(r,d),d);}catch(XmlException e){d.Add(new("XAML001",e.Message,e.LineNumber,e.LinePosition));return new(null,d);}}
+    public static XamlFrameLoadResult LoadFrame(string source){var result=Load(source);return new(result.CreateFrame(),result.Diagnostics);}
+    private static UiElement? Read(XmlReader r,List<XamlDiagnostic>d){var line=(r as IXmlLineInfo)?.LineNumber??0;UiElement? e=r.LocalName switch{"Panel"=>new Panel(),"StackPanel"=>new StackPanel(),_=>null};if(e is null){d.Add(new("XAML002",$"Unsupported element '{r.LocalName}'.",line,1));if(!r.IsEmptyElement)r.Skip();return null;}while(r.MoveToNextAttribute())Apply(e,r.LocalName,r.Value,line,d);r.MoveToElement();if(r.IsEmptyElement){r.Read();return e;}r.Read();while(!r.EOF&&r.NodeType!=XmlNodeType.EndElement){if(r.NodeType==XmlNodeType.Element){var child=Read(r,d);if(child is not null)((IUiPanel)e).Add(child);}else r.Read();}if(!r.EOF)r.Read();return e;}
+    private static void Apply(UiElement e,string name,string value,int line,List<XamlDiagnostic>d){switch(name){case"Width"when float.TryParse(value,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var w):e.Width=w;break;case"Height"when float.TryParse(value,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var h):e.Height=h;break;case"Fill"when bool.TryParse(value,out var fill):e.Fill=fill;break;case"Background"when TryColor(value,out var c):e.Background=c;break;case"Orientation"when e is StackPanel s&&Enum.TryParse<UiOrientation>(value,true,out var o):s.Orientation=o;break;default:d.Add(new("XAML003",$"Unsupported property '{name}'.",line,1));break;}}
+    private static bool TryColor(string v,out UiColor c){c=default;if(v.Length!=7||v[0]!='#')return false;try{c=new(Convert.ToByte(v[1..3],16),Convert.ToByte(v[3..5],16),Convert.ToByte(v[5..7],16));return true;}catch(FormatException){return false;}}
+}
