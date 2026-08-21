@@ -56,14 +56,32 @@ public readonly record struct UiPointerEvent(UiPointerEventKind Kind,UiPoint Pos
 public readonly record struct UiKeyEvent(int PhysicalKey,bool IsDown,bool IsRepeat=false,bool Shift=false,bool Control=false,bool Alt=false,bool Meta=false);
 public readonly record struct UiTextInput(string Text);
 public readonly record struct UiImeComposition(string Text,int SelectionStart,int SelectionLength,bool IsCommitted);
+public enum UiInputPacketKind:byte { Pointer,Key,Text,Ime }
+public readonly record struct UiInputPacket(UiPointerEvent Pointer,UiKeyEvent Key,UiTextInput Text,UiImeComposition Ime,UiInputPacketKind Kind)
+{
+    public static UiInputPacket From(UiPointerEvent input)=>new(input,default,default,default,UiInputPacketKind.Pointer);
+    public static UiInputPacket From(UiKeyEvent input)=>new(default,input,default,default,UiInputPacketKind.Key);
+    public static UiInputPacket From(UiTextInput input)=>new(default,default,input,default,UiInputPacketKind.Text);
+    public static UiInputPacket From(UiImeComposition input)=>new(default,default,default,input,UiInputPacketKind.Ime);
+}
 public enum UiRoutedEventPhase:byte { Preview, Bubble }
 public readonly record struct UiRoutedEvent(UiElementId Target,UiRoutedEventPhase Phase,UiPointerEventKind Kind,UiPoint Position);
+public interface IUiInputDispatcher { void Dispatch(in UiInputPacket packet); }
 public interface IUiInputRouter
 {
     UiElementId? Focused { get; } UiElementId? Captured { get; }
     void RoutePointer(in UiPointerEvent input); void RouteKey(in UiKeyEvent input); void RouteText(in UiTextInput input); void RouteIme(in UiImeComposition input); void Focus(UiElementId? element);
 }
+public interface IUiClipboard
+{
+    string? GetText();
+    void SetText(string? text);
+    bool HasText { get; }
+}
+public enum UiClipboardCommand:byte { Copy, Cut, Paste, SelectAll, Undo, Redo }
 public interface IUiRoutedEventSink { void OnRoutedEvent(in UiRoutedEvent routedEvent); }
 
 public readonly record struct InspectorFieldRecord(string ComponentKey,string FieldKey,string Label,string ValueText,string EditorKind,bool IsReadOnly=false);
-public interface IInspectorItemSource { int Count { get; } InspectorFieldRecord Get(int index); bool TryCommit(int index,string text,out string? error); event Action? Changed; }
+public enum InspectorItemSourceChangeKind:byte { Reset,Add,Remove,Change }
+public readonly record struct InspectorItemSourceChange(InspectorItemSourceChangeKind Kind,int Index,int Count=1);
+public interface IInspectorItemSource { int Count { get; } InspectorFieldRecord Get(int index); bool TryCommit(int index,string text,out string? error); event Action<InspectorItemSourceChange>? Changed; }

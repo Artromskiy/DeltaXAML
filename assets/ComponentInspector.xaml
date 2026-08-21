@@ -1,1 +1,26 @@
-<ComponentInspector Width="320" Height="540" Background="#202733" />
+<ComponentInspector Width="800" Height="450" Background="#202733">
+  <Border Padding="10,10,10,10">
+    <StackPanel Orientation="Vertical">
+      <TextBlock Text="Component Inspector" FontSize="18" />
+      <Grid>
+        <Border Background="#293241" />
+        <ScrollViewer>
+          <StackPanel Orientation="Vertical">
+            <Grid>
+              <TextBlock Text="Label" />
+              <TextBlock Text="Editor" />
+            </Grid>
+            <Grid>
+              <TextBlock Text="Name" />
+              <TextBox />
+            </Grid>
+            <Grid>
+              <TextBlock Text="Value" />
+              <NumericEditor />
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </StackPanel>
+  </Border>
+</ComponentInspector>
