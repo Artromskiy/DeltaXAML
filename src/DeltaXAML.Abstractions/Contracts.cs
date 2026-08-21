@@ -47,10 +47,13 @@ public enum UiDrawKind:byte { Rectangle,TextRun,Image,Viewport }
 public readonly record struct UiClipId(uint Value);
 public readonly record struct UiClipEntry(UiClipId Id,UiRect Bounds,UiClipId Parent);
 public readonly record struct UiTextRun(string FontKey,float FontSize,string Text,string GlyphRunKey,UiColor Color,UiRect Bounds,UiRect Clip,UiElementId Owner,uint Version);
+public readonly record struct UiDrawRange(int Start,int Count);
+public readonly record struct UiDrawDelta(UiDrawRange Commands,UiDrawRange TextRuns,uint BaseVersion,uint NextVersion);
 public readonly record struct UiDrawCommand(UiDrawKind Kind,UiRect Bounds,UiRect Clip,UiClipId ClipId,UiResourceHandle Resource,UiColor Color,string? Text,int ZIndex,uint Order,UiElementId Owner);
 public interface IUiDrawList
 {
     ReadOnlyMemory<UiDrawCommand> Commands { get; } ReadOnlyMemory<UiClipEntry> Clips { get; } ReadOnlyMemory<UiTextRun> TextRuns { get; } uint Version { get; }
+    UiDrawDelta GetDeltaSince(uint version);
 }
 public readonly record struct UiFrameContext(UiSize Viewport,float DpiScale,uint FrameNumber);
 public interface IUiFrame { IUiElement Root { get; } void ApplyMutations(); void Layout(UiSize viewport,float dpiScale); IUiDrawList ExtractDrawList(in UiFrameContext context); }

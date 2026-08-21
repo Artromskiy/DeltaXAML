@@ -157,16 +157,26 @@ public sealed class InspectorRow:Border
     public IUiElement ActiveEditor=>Record.EditorKind.Equals("Numeric",StringComparison.OrdinalIgnoreCase)?_numeric:_editor;
     public void Apply(InspectorFieldRecord record)
     {
+        var previous=Record;
         Record=record;
         AutomationName=record.Label;
         AutomationRole=record.EditorKind;
-        _label.Text=record.Label;
-        _value.Text=record.ValueText;
+        if(previous.Label!=record.Label)_label.Text=record.Label;
+        _value.Visibility=UiVisibility.Collapsed;
         _diagnostic.Text=record.IsReadOnly?string.Empty:string.Empty;
-        _editor.Text=record.ValueText;
-        _numeric.Initialize(ParseNumeric(record.ValueText));
-        _editor.Visibility=record.EditorKind.Equals("Numeric",StringComparison.OrdinalIgnoreCase)?UiVisibility.Collapsed:UiVisibility.Visible;
-        _numeric.Visibility=record.EditorKind.Equals("Numeric",StringComparison.OrdinalIgnoreCase)?UiVisibility.Visible:UiVisibility.Collapsed;
+        var numeric=record.EditorKind.Equals("Numeric",StringComparison.OrdinalIgnoreCase);
+        if(numeric)
+        {
+            if(previous.ValueText!=record.ValueText)_numeric.Initialize(ParseNumeric(record.ValueText));
+            _numeric.Visibility=UiVisibility.Visible;
+            _editor.Visibility=UiVisibility.Collapsed;
+        }
+        else
+        {
+            if(previous.ValueText!=record.ValueText)_editor.SetText(record.ValueText,false);
+            _editor.Visibility=UiVisibility.Visible;
+            _numeric.Visibility=UiVisibility.Collapsed;
+        }
     }
     private static double ParseNumeric(string text)=>double.TryParse(text,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var value)?value:0;
 }

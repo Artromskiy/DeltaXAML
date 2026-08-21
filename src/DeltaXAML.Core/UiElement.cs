@@ -43,6 +43,11 @@ public class UiElement : IUiElement, IUiPropertyStore
     private static uint _nextId;
     private readonly List<IUiElement> _children=new();
     private readonly UiPropertyStore _properties;
+    private float _layoutScale=1f;
+    private float _dpiScale=1f;
+    private uint _layoutVersion;
+    private uint _dpiVersion;
+    private uint _textVersion;
     public UiElement(){Id=new(++_nextId);_properties=new(this);}
     public UiElementId Id{get;} public virtual string TypeName=>"Element"; public IUiElement? Parent{get;private set;} public IReadOnlyList<IUiElement> Children=>_children;
     public UiVisibility Visibility{get;set;}=UiVisibility.Visible; public bool Focusable{get;set;} public float Width{get;set;}=float.NaN; public float Height{get;set;}=float.NaN; public bool Fill{get;set;}
@@ -55,13 +60,20 @@ public class UiElement : IUiElement, IUiPropertyStore
     public void Add(IUiElement child){if(child is not UiElement owned)throw new ArgumentException("Child must be a DeltaXAML element.",nameof(child));if(owned.Parent is UiElement parent)parent.Remove(owned);owned.Parent=this;_children.Add(owned);Invalidate(UiDirtyFlags.Tree|UiDirtyFlags.Measure|UiDirtyFlags.Visual);}
     public bool Remove(IUiElement child){if(!_children.Remove(child))return false;if(child is UiElement owned)owned.Parent=null;Invalidate(UiDirtyFlags.Tree|UiDirtyFlags.Measure|UiDirtyFlags.Visual);return true;}
     public void ClearChildren(){foreach(var child in _children.ToArray())Remove(child);}
-    public void Invalidate(UiDirtyFlags flags){DirtyFlags|=flags;if((flags&(UiDirtyFlags.Measure|UiDirtyFlags.Arrange))!=0)(Parent as UiElement)?.Invalidate(UiDirtyFlags.Measure);else if((flags&UiDirtyFlags.Visual)!=0)(Parent as UiElement)?.Invalidate(UiDirtyFlags.Visual);}
+    public void Invalidate(UiDirtyFlags flags)
+    {
+        DirtyFlags|=flags;
+        if((flags&(UiDirtyFlags.Measure|UiDirtyFlags.Arrange|UiDirtyFlags.Style|UiDirtyFlags.Resource))!=0)_layoutVersion++;
+        if((flags&(UiDirtyFlags.Binding|UiDirtyFlags.Visual))!=0){_textVersion++;_layoutVersion++;}
+        if((flags&(UiDirtyFlags.Measure|UiDirtyFlags.Arrange))!=0)(Parent as UiElement)?.Invalidate(UiDirtyFlags.Measure);
+        else if((flags&UiDirtyFlags.Visual)!=0)(Parent as UiElement)?.Invalidate(UiDirtyFlags.Visual);
+    }
     public void SetHovered(bool value){if(IsHovered!=value){IsHovered=value;Invalidate(UiDirtyFlags.Visual);}}
     public void SetPressed(bool value){if(IsPressed!=value){IsPressed=value;Invalidate(UiDirtyFlags.Visual);}}
     public void SetFocused(bool value){if(IsFocused!=value){IsFocused=value;Invalidate(UiDirtyFlags.Visual);}}
     public void SetInvalid(bool value){if(IsInvalid!=value){IsInvalid=value;Invalidate(UiDirtyFlags.Visual);}}
-    public virtual void Measure(UiSize available){foreach(var child in _children)child.Measure(available);DesiredSize=RequestedSize(new(0,0));DirtyFlags&=~UiDirtyFlags.Measure;}
-    public virtual void Arrange(UiRect bounds){Bounds=bounds;Clip=bounds;foreach(var child in _children)child.Arrange(bounds);DirtyFlags&=~(UiDirtyFlags.Arrange|UiDirtyFlags.Visual);}
+    public virtual void Measure(UiSize available){foreach(var child in _children)if(child is UiElement element){element._layoutScale=_layoutScale;element.Measure(available);}else child.Measure(available);DesiredSize=RequestedSize(new(0,0));DirtyFlags&=~UiDirtyFlags.Measure;}
+    public virtual void Arrange(UiRect bounds){Bounds=bounds;Clip=bounds;foreach(var child in _children)if(child is UiElement element){element._layoutScale=_layoutScale;element.Arrange(bounds);}else child.Arrange(bounds);DirtyFlags&=~(UiDirtyFlags.Arrange|UiDirtyFlags.Visual);}
     protected UiSize RequestedSize(UiSize measured)=>new(float.IsNaN(Width)?measured.Width:Width,float.IsNaN(Height)?measured.Height:Height);
     public IUiElement? HitTest(UiPoint point){if(Visibility!=UiVisibility.Visible||!Clip.Contains(point))return null;for(var i=_children.Count-1;i>=0;i--)if(_children[i] is UiElement c&&c.HitTest(point)is{} hit)return hit;return this;}
     public void SetLocal(string name,object? value,UiDirtyFlags invalidation)=>_properties.SetLocal(name,value,invalidation); public void SetStyle(string name,object? value,UiDirtyFlags invalidation)=>_properties.SetStyle(name,value,invalidation); public void SetBinding(string name,IUiBinding binding,UiDirtyFlags invalidation)=>_properties.SetBinding(name,binding,invalidation); public bool TryGet(string name,out IUiValue value)=>_properties.TryGet(name,out value);
@@ -72,10 +84,16 @@ public class UiElement : IUiElement, IUiPropertyStore
     protected virtual UiColor GetTextRunColor()=>new(255,255,255);
     protected virtual float GetTextRunFontSize()=>14;
     protected virtual string GetTextRunFontKey()=> "default";
+    public uint TextVersion=>_textVersion;
+    public uint LayoutVersion=>_layoutVersion;
+    public float LayoutScale=>_layoutScale;
+    public float DpiScale=>_dpiScale;
+    public void SetLayoutScale(float scale){if(Math.Abs(_dpiScale-scale)>float.Epsilon){_dpiScale=scale;_dpiVersion++;}_layoutScale=scale;foreach(var child in _children)if(child is UiElement element)element.SetLayoutScale(scale);}
+    protected uint TextRunVersion=>_textVersion ^ (_dpiVersion<<1);
     public bool TryGetTextRun(out UiTextRun run)
     {
         if(!HasTextRun){run=default;return false;}
-        run=new UiTextRun(GetTextRunFontKey(),GetTextRunFontSize(),GetTextRunText(),GetTextRunKey(),GetTextRunColor(),Bounds,Clip,Id,0);
+        run=new UiTextRun(GetTextRunFontKey(),GetTextRunFontSize()*LayoutScale,GetTextRunText(),GetTextRunKey(),GetTextRunColor(),Bounds,Clip,Id,TextRunVersion);
         return true;
     }
 }
@@ -145,12 +163,13 @@ public sealed class ToggleButton:Button
 
 public class TextBlock:UiElement
 {
-    public override string TypeName=>"TextBlock"; public string Text{get;set;}="";public string FontKey{get;set;}="default";public string GlyphRunKey{get;set;}="default";public float FontSize{get;set;}=14;public UiColor Foreground{get;set;}=new(255,255,255);
-    public override void Measure(UiSize available){DesiredSize=RequestedSize(new(MathF.Min(available.Width,Text.Length*FontSize*.55f),FontSize*1.25f));DirtyFlags&=~UiDirtyFlags.Measure;}
-    protected override string GetAutomationValueText()=>Text;
+    private string _text="";
+    public override string TypeName=>"TextBlock"; public string Text{get=>_text;set{if(_text==value)return;_text=value;Invalidate(UiDirtyFlags.Measure|UiDirtyFlags.Visual);}} public string FontKey{get;set;}="default";public string GlyphRunKey{get;set;}="default";public float FontSize{get;set;}=14;public UiColor Foreground{get;set;}=new(255,255,255);
+    public override void Measure(UiSize available){var size=FontSize*LayoutScale;DesiredSize=RequestedSize(new(MathF.Min(available.Width,_text.Length*size*.55f),size*1.25f));DirtyFlags&=~UiDirtyFlags.Measure;}
+    protected override string GetAutomationValueText()=>_text;
     protected override bool HasTextRun=>true;
     protected override string GetTextRunKey()=>GlyphRunKey;
-    protected override string GetTextRunText()=>Text;
+    protected override string GetTextRunText()=>_text;
     protected override UiColor GetTextRunColor()=>Foreground;
     protected override float GetTextRunFontSize()=>FontSize;
     protected override string GetTextRunFontKey()=>FontKey;
@@ -169,6 +188,7 @@ public class TextBox:TextBlock
         SelectionLength=0;
         Diagnostic=null;
         SetInvalid(false);
+        Invalidate(UiDirtyFlags.Binding);
         Invalidate(UiDirtyFlags.Measure|UiDirtyFlags.Visual);
         TextChanged?.Invoke(Text);
     }

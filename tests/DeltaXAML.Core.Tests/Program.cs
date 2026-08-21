@@ -46,6 +46,7 @@ internal static class Program
         PointerFocusAndDispatch();
         ScrollAndClips();
         InspectorRows();
+        TextRunStabilityAndDelta();
         StorageReuse();
         Console.WriteLine("DeltaXAML.Core.Tests: 8 groups passed");
     }
@@ -69,6 +70,8 @@ internal static class Program
         Assert.True(result.Frame!.Root is EditorShell,"editor shell root type");
         result.Frame.Layout(new(960,540),1);
         var list=result.Frame.ExtractDrawList(new UiFrameContext(new(960,540),1,1));
+        var textVersions=new uint[list.TextRuns.Length];
+        for(var i=0;i<textVersions.Length;i++)textVersions[i]=list.TextRuns.Span[i].Version;
         Assert.True(list.Commands.Length>0,"editor shell produces draw commands");
         foreach(var command in list.Commands.Span)Assert.True(command.Clip.IsInside(new UiRect(0,0,960,540)),"editor shell stays inside viewport");
         Assert.True(list.TextRuns.Length>=6,"editor shell emits visible text runs");
@@ -77,6 +80,7 @@ internal static class Program
         var resized=result.Frame.ExtractDrawList(new UiFrameContext(new(960,540),2,2));
         Assert.True(resized.Commands.Length==list.Commands.Length,"dpi change keeps command count stable");
         Assert.True(resized.TextRuns.Length==list.TextRuns.Length,"dpi change keeps text run count stable");
+        Assert.True(resized.TextRuns.Span[0].Version!=textVersions[0],"dpi change updates text run version");
         var template=new UiTemplate(_=>new Border{Padding=new UiThickness(1,1,1,1)});
         var first=template.Build(new Panel());
         var second=template.Build(new Panel());
@@ -223,6 +227,78 @@ internal static class Program
         Assert.True(updated.TextRuns.Length==initial.TextRuns.Length,"inspector run count stays stable after value update");
         source.RemoveAt(1);
         Assert.Equal(1,inspector.Rows.Children.Count,"rows shrink without rebuilding tree");
+    }
+
+    static void TextRunStabilityAndDelta()
+    {
+        var shell=new EditorShell{Width=960,Height=540};
+        var frame=new UiFrame(shell);
+        frame.Layout(new(960,540),1);
+        var draw=frame.ExtractDrawList(new UiFrameContext(new(960,540),1,1));
+        var initialTextRuns=draw.TextRuns.ToArray();
+        var initialCommands=draw.Commands.ToArray();
+        for(var i=0;i<100;i++)
+        {
+            frame.Layout(new(960,540),1);
+            var next=frame.ExtractDrawList(new UiFrameContext(new(960,540),1,(uint)(i+2)));
+            Assert.True(next.TextRuns.Length==initialTextRuns.Length,"unchanged warm frame keeps text run count");
+            Assert.True(next.Commands.Length==initialCommands.Length,"unchanged warm frame keeps command count");
+            for(var j=0;j<next.TextRuns.Length;j++)
+            {
+                Assert.Equal(initialTextRuns[j].Version,next.TextRuns.Span[j].Version,"unchanged warm frame keeps text version");
+                Assert.Equal(initialTextRuns[j].GlyphRunKey,next.TextRuns.Span[j].GlyphRunKey,"unchanged warm frame keeps run identity");
+            }
+        }
+        var inspector=FindFirstInspector(shell);
+        var source=new Source();
+        source.Add(new("Transform","X","X","1","Numeric"));
+        source.Add(new("Transform","Y","Y","2","Numeric"));
+        inspector.ItemSource=source;
+        frame.Layout(new(960,540),1);
+        var before=frame.ExtractDrawList(new UiFrameContext(new(960,540),1,200));
+        var beforeVersion=before.Version;
+        var beforeVersions=before.TextRuns.ToArray();
+        source.Items[1]=source.Items[1] with{ValueText="7"};
+        source.NotifyReset();
+        frame.Layout(new(960,540),1);
+        var after=frame.ExtractDrawList(new UiFrameContext(new(960,540),1,201));
+        Assert.True(after.TextRuns.Length==beforeVersions.Length,"value edit keeps text run count");
+        var changed=0;
+        for(var i=0;i<after.TextRuns.Length;i++)if(after.TextRuns.Span[i].Version!=beforeVersions[i].Version)changed++;
+        Assert.True(changed==1,"one value edit changes one text run");
+        var resizedFrame=new UiFrame(shell);
+        resizedFrame.Layout(new(800,450),1);
+        var resized=resizedFrame.ExtractDrawList(new UiFrameContext(new(800,450),1,1));
+        Assert.True(resized.TextRuns.Length==after.TextRuns.Length,"resize keeps text content identity");
+        var dpiFrame=new UiFrame(shell);
+        dpiFrame.Layout(new(960,540),2);
+        var dpi=dpiFrame.ExtractDrawList(new UiFrameContext(new(960,540),2,1));
+        Assert.True(dpi.TextRuns.Length==after.TextRuns.Length,"dpi keeps text run count");
+        Assert.True(dpi.TextRuns.Span[0].Version!=after.TextRuns.Span[0].Version,"dpi changes required text version");
+        var delta=after.GetDeltaSince(beforeVersion);
+        Assert.True(delta.TextRuns.Count>0,"delta reports changed text range");
+    }
+
+    static ComponentInspector FindFirstInspector(IUiElement root)
+    {
+        if(root is ComponentInspector inspector)return inspector;
+        foreach(var child in root.Children)
+        {
+            if(child is ComponentInspector foundInspector)return foundInspector;
+            if(child.Children.Count>0&&TryFindFirstInspector(child,out var found))
+                return found;
+        }
+        throw new Exception("Inspector not found");
+    }
+
+    static bool TryFindFirstInspector(IUiElement root,out ComponentInspector? inspector)
+    {
+        if(root is ComponentInspector found){inspector=found;return true;}
+        foreach(var child in root.Children)
+            if(TryFindFirstInspector(child,out inspector))
+                return true;
+        inspector=null;
+        return false;
     }
 
     static void StorageReuse()

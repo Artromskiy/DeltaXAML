@@ -8,7 +8,7 @@ public sealed class UiFrame:IUiFrame
     private readonly UiInputRouter _input;
     public UiFrame(IUiElement root){Root=root;_input=new(this);} public IUiElement Root{get;} public IUiInputRouter Input=>_input;
     public void ApplyMutations(){}
-    public void Layout(UiSize viewport,float dpiScale){Root.Measure(viewport);Root.Arrange(new(0,0,viewport.Width,viewport.Height));}
+    public void Layout(UiSize viewport,float dpiScale){if(Root is UiElement element)element.SetLayoutScale(dpiScale);var scaled=new UiSize(viewport.Width*dpiScale,viewport.Height*dpiScale);Root.Measure(scaled);Root.Arrange(new(0,0,viewport.Width,viewport.Height));}
     public IUiDrawList ExtractDrawList(in UiFrameContext context){_drawList.Build(Root,new(0,0,context.Viewport.Width,context.Viewport.Height));return _drawList;}
 }
 
@@ -17,12 +17,19 @@ internal sealed class DrawList:IUiDrawList
     private UiDrawCommand[] _commands=Array.Empty<UiDrawCommand>();
     private UiClipEntry[] _clips=Array.Empty<UiClipEntry>();
     private UiTextRun[] _textRuns=Array.Empty<UiTextRun>();
+    private UiDrawCommand[] _previousCommands=Array.Empty<UiDrawCommand>();
+    private UiTextRun[] _previousTextRuns=Array.Empty<UiTextRun>();
     private int _commandCount,_clipCount,_textCount;
     public ReadOnlyMemory<UiDrawCommand> Commands=>_commands.AsMemory(0,_commandCount);
     public ReadOnlyMemory<UiClipEntry> Clips=>_clips.AsMemory(0,_clipCount);
     public ReadOnlyMemory<UiTextRun> TextRuns=>_textRuns.AsMemory(0,_textCount);
     public uint Version{get;private set;}
-    public void Build(IUiElement root,UiRect clip){_commandCount=0;_clipCount=0;_textCount=0;Version++;Visit(root,clip,new(0));}
+    public UiDrawDelta GetDeltaSince(uint version)
+    {
+        if(version==Version)return new(new(0,0),new(0,0),Version,Version);
+        return new(ChangedRange(_previousCommands.AsSpan(0,_commandCount),_commands.AsSpan(0,_commandCount)),ChangedRange(_previousTextRuns.AsSpan(0,_textCount),_textRuns.AsSpan(0,_textCount)),version,Version);
+    }
+    public void Build(IUiElement root,UiRect clip){CopyCurrentToPrevious();_commandCount=0;_clipCount=0;_textCount=0;Visit(root,clip,new(0));Version++;}
     private void Visit(IUiElement e,UiRect clip,UiClipId parent)
     {
         if(e.Visibility!=UiVisibility.Visible)return;
@@ -39,13 +46,56 @@ internal sealed class DrawList:IUiDrawList
         if(e is UiElement element&&element.TryGetTextRun(out var run))
         {
             EnsureText();
-            _textRuns[_textCount++]=run with { Bounds = e.Bounds, Clip = effective, Owner = e.Id, Version = Version };
+            _textRuns[_textCount++]=run with { Bounds = e.Bounds, Clip = effective, Owner = e.Id };
         }
         foreach(var child in e.Children)Visit(child,effective,id);
     }
     private void EnsureCommand(){if(_commandCount<_commands.Length)return;Array.Resize(ref _commands,Math.Max(8,_commands.Length*2));}
     private void EnsureClip(){if(_clipCount<_clips.Length)return;Array.Resize(ref _clips,Math.Max(8,_clips.Length*2));}
     private void EnsureText(){if(_textCount<_textRuns.Length)return;Array.Resize(ref _textRuns,Math.Max(8,_textRuns.Length*2));}
+    private void CopyCurrentToPrevious()
+    {
+        EnsurePreviousCommands(_commandCount);
+        EnsurePreviousText(_textCount);
+        for(var i=0;i<_commandCount;i++)_previousCommands[i]=_commands[i];
+        for(var i=0;i<_textCount;i++)_previousTextRuns[i]=_textRuns[i];
+    }
+    private void EnsurePreviousCommands(int count){if(_previousCommands.Length<count)Array.Resize(ref _previousCommands,Math.Max(8,Math.Max(count,_previousCommands.Length*2)));}
+    private void EnsurePreviousText(int count){if(_previousTextRuns.Length<count)Array.Resize(ref _previousTextRuns,Math.Max(8,Math.Max(count,_previousTextRuns.Length*2)));}
+    private static UiDrawRange ChangedRange(ReadOnlySpan<UiDrawCommand> previous,ReadOnlySpan<UiDrawCommand> current)
+    {
+        var start=-1;
+        var end=-1;
+        var limit=Math.Max(previous.Length,current.Length);
+        for(var i=0;i<limit;i++)
+        {
+            var prev=i<previous.Length?previous[i]:default;
+            var next=i<current.Length?current[i]:default;
+            if(!EqualityComparer<UiDrawCommand>.Default.Equals(prev,next))
+            {
+                if(start<0)start=i;
+                end=i+1;
+            }
+        }
+        return start<0?new UiDrawRange(0,0):new UiDrawRange(start,end-start);
+    }
+    private static UiDrawRange ChangedRange(ReadOnlySpan<UiTextRun> previous,ReadOnlySpan<UiTextRun> current)
+    {
+        var start=-1;
+        var end=-1;
+        var limit=Math.Max(previous.Length,current.Length);
+        for(var i=0;i<limit;i++)
+        {
+            var prev=i<previous.Length?previous[i]:default;
+            var next=i<current.Length?current[i]:default;
+            if(!EqualityComparer<UiTextRun>.Default.Equals(prev,next))
+            {
+                if(start<0)start=i;
+                end=i+1;
+            }
+        }
+        return start<0?new UiDrawRange(0,0):new UiDrawRange(start,end-start);
+    }
 }
 
 public sealed class UiInputRouter:IUiInputRouter,IUiInputDispatcher
