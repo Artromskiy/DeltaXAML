@@ -47,16 +47,25 @@ public class UiElement : IUiElement, IUiPropertyStore
     public UiElementId Id{get;} public virtual string TypeName=>"Element"; public IUiElement? Parent{get;private set;} public IReadOnlyList<IUiElement> Children=>_children;
     public UiVisibility Visibility{get;set;}=UiVisibility.Visible; public bool Focusable{get;set;} public float Width{get;set;}=float.NaN; public float Height{get;set;}=float.NaN; public bool Fill{get;set;}
     public UiRect Bounds{get;protected set;} public UiRect Clip{get;protected set;} public UiSize DesiredSize{get;protected set;} public UiColor Background{get;set;}
+    public bool IsEnabled{get;set;}=true; public bool IsHovered{get;private set;} public bool IsPressed{get;protected set;} public bool IsSelected{get;set;} public bool IsInvalid{get;protected set;} public string? StyleKey{get;set;} public string? TemplateKey{get;set;} public string? AutomationName{get;set;} public string AutomationRole{get;set;}="generic";
     public UiThickness Margin { get; set; } public UiThickness Padding { get; set; } public UiDirtyFlags DirtyFlags{get;protected set;}=UiDirtyFlags.Tree|UiDirtyFlags.Measure|UiDirtyFlags.Visual;
+    public UiAutomationMetadata Automation=>new(AutomationName??TypeName,AutomationRole,GetAutomationValueText(),IsEnabled,IsInvalid);
+    public UiStateSnapshot VisualState=>new(IsEnabled?IsInvalid?UiVisualState.Invalid:IsPressed?UiVisualState.Pressed:IsHovered?UiVisualState.Hover:IsSelected?UiVisualState.Selected:IsFocused?UiVisualState.Focused:UiVisualState.Normal:UiVisualState.Disabled,IsEnabled,IsInvalid,IsSelected,IsFocused,IsHovered,IsPressed);
+    public bool IsFocused{get;private set;}
     public void Add(IUiElement child){if(child is not UiElement owned)throw new ArgumentException("Child must be a DeltaXAML element.",nameof(child));if(owned.Parent is UiElement parent)parent.Remove(owned);owned.Parent=this;_children.Add(owned);Invalidate(UiDirtyFlags.Tree|UiDirtyFlags.Measure|UiDirtyFlags.Visual);}
     public bool Remove(IUiElement child){if(!_children.Remove(child))return false;if(child is UiElement owned)owned.Parent=null;Invalidate(UiDirtyFlags.Tree|UiDirtyFlags.Measure|UiDirtyFlags.Visual);return true;}
     public void ClearChildren(){foreach(var child in _children.ToArray())Remove(child);}
     public void Invalidate(UiDirtyFlags flags){DirtyFlags|=flags;if((flags&(UiDirtyFlags.Measure|UiDirtyFlags.Arrange))!=0)(Parent as UiElement)?.Invalidate(UiDirtyFlags.Measure);else if((flags&UiDirtyFlags.Visual)!=0)(Parent as UiElement)?.Invalidate(UiDirtyFlags.Visual);}
+    public void SetHovered(bool value){if(IsHovered!=value){IsHovered=value;Invalidate(UiDirtyFlags.Visual);}}
+    public void SetPressed(bool value){if(IsPressed!=value){IsPressed=value;Invalidate(UiDirtyFlags.Visual);}}
+    public void SetFocused(bool value){if(IsFocused!=value){IsFocused=value;Invalidate(UiDirtyFlags.Visual);}}
+    public void SetInvalid(bool value){if(IsInvalid!=value){IsInvalid=value;Invalidate(UiDirtyFlags.Visual);}}
     public virtual void Measure(UiSize available){foreach(var child in _children)child.Measure(available);DesiredSize=RequestedSize(new(0,0));DirtyFlags&=~UiDirtyFlags.Measure;}
     public virtual void Arrange(UiRect bounds){Bounds=bounds;Clip=bounds;foreach(var child in _children)child.Arrange(bounds);DirtyFlags&=~(UiDirtyFlags.Arrange|UiDirtyFlags.Visual);}
     protected UiSize RequestedSize(UiSize measured)=>new(float.IsNaN(Width)?measured.Width:Width,float.IsNaN(Height)?measured.Height:Height);
     public IUiElement? HitTest(UiPoint point){if(Visibility!=UiVisibility.Visible||!Clip.Contains(point))return null;for(var i=_children.Count-1;i>=0;i--)if(_children[i] is UiElement c&&c.HitTest(point)is{} hit)return hit;return this;}
     public void SetLocal(string name,object? value,UiDirtyFlags invalidation)=>_properties.SetLocal(name,value,invalidation); public void SetStyle(string name,object? value,UiDirtyFlags invalidation)=>_properties.SetStyle(name,value,invalidation); public void SetBinding(string name,IUiBinding binding,UiDirtyFlags invalidation)=>_properties.SetBinding(name,binding,invalidation); public bool TryGet(string name,out IUiValue value)=>_properties.TryGet(name,out value);
+    protected virtual string GetAutomationValueText()=>string.Empty;
 }
 
 public class Panel:UiElement,IUiPanel
@@ -111,8 +120,9 @@ public class ContentControl:UiElement
 
 public class Button:ContentControl,IUiRoutedEventSink
 {
-    public override string TypeName=>"Button"; public Button(){Focusable=true;} public event Action? Click; public bool IsPressed{get;private set;}
-    public virtual void OnRoutedEvent(in UiRoutedEvent e){if(e.Phase==UiRoutedEventPhase.Bubble&&e.Kind==UiPointerEventKind.Down)IsPressed=true;if(e.Phase==UiRoutedEventPhase.Bubble&&e.Kind==UiPointerEventKind.Up){IsPressed=false;Click?.Invoke();}}
+    public override string TypeName=>"Button"; public Button(){Focusable=true;AutomationRole="button";} public event Action? Click;
+    public virtual void OnRoutedEvent(in UiRoutedEvent e){if(e.Phase==UiRoutedEventPhase.Bubble&&e.Kind==UiPointerEventKind.Down)SetPressed(true);if(e.Phase==UiRoutedEventPhase.Bubble&&e.Kind==UiPointerEventKind.Up){SetPressed(false);Click?.Invoke();}}
+    protected override string GetAutomationValueText()=>Content is TextBlock t?t.Text:string.Empty;
 }
 
 public sealed class ToggleButton:Button
@@ -125,6 +135,7 @@ public class TextBlock:UiElement
 {
     public override string TypeName=>"TextBlock"; public string Text{get;set;}="";public string FontKey{get;set;}="default";public string GlyphRunKey{get;set;}="default";public float FontSize{get;set;}=14;public UiColor Foreground{get;set;}=new(255,255,255);
     public override void Measure(UiSize available){DesiredSize=RequestedSize(new(MathF.Min(available.Width,Text.Length*FontSize*.55f),FontSize*1.25f));DirtyFlags&=~UiDirtyFlags.Measure;}
+    protected override string GetAutomationValueText()=>Text;
 }
 
 public class TextBox:TextBlock
@@ -139,6 +150,7 @@ public class TextBox:TextBlock
         CaretIndex=Math.Min(CaretIndex,Text.Length);
         SelectionLength=0;
         Diagnostic=null;
+        SetInvalid(false);
         Invalidate(UiDirtyFlags.Measure|UiDirtyFlags.Visual);
         TextChanged?.Invoke(Text);
     }
@@ -167,6 +179,7 @@ public class TextBox:TextBlock
         CaretIndex+=inserted.Length;
         SelectionStart=CaretIndex;SelectionLength=0;
         Diagnostic=null;
+        SetInvalid(false);
         Invalidate(UiDirtyFlags.Measure|UiDirtyFlags.Visual);
         TextChanged?.Invoke(Text);
     }
@@ -193,6 +206,7 @@ public class TextBox:TextBlock
     private void DeleteRange(int start,int length,bool record=true){if(record)PushUndo();Text=Text.Remove(start,length);CaretIndex=start;SelectionStart=start;SelectionLength=0;Invalidate(UiDirtyFlags.Measure|UiDirtyFlags.Visual);TextChanged?.Invoke(Text);}
     private bool HasSelection()=>SelectionLength>0;
     private string GetSelection()=>Text.Substring(SelectionStart,SelectionLength);
+    protected override string GetAutomationValueText()=>Text;
 }
 
 public sealed class NumericEditor:TextBox
@@ -218,11 +232,12 @@ public sealed class NumericEditor:TextBox
     }
     public bool TryApplyInspectorValue(string text,out string? error)
     {
-        if(double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out var v)&&v>=Min&&v<=Max){Value=v;_committedText=Format(v);SetText(_committedText,false);Diagnostic=null;error=null;return true;}
-        Diagnostic=$"Value must be between {Min.ToString(CultureInfo.InvariantCulture)} and {Max.ToString(CultureInfo.InvariantCulture)}.";error=Diagnostic;return false;
+        if(double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out var v)&&v>=Min&&v<=Max){Value=v;_committedText=Format(v);SetText(_committedText,false);Diagnostic=null;SetInvalid(false);error=null;return true;}
+        Diagnostic=$"Value must be between {Min.ToString(CultureInfo.InvariantCulture)} and {Max.ToString(CultureInfo.InvariantCulture)}.";SetInvalid(true);error=Diagnostic;return false;
     }
-    private bool Adjust(double delta){var next=Value+delta;if(next<Min||next>Max){Diagnostic=$"Value must be between {Min.ToString(CultureInfo.InvariantCulture)} and {Max.ToString(CultureInfo.InvariantCulture)}.";return false;}Value=next;_committedText=Format(next);SetText(_committedText,false);Diagnostic=null;return true;}
+    private bool Adjust(double delta){var next=Value+delta;if(next<Min||next>Max){Diagnostic=$"Value must be between {Min.ToString(CultureInfo.InvariantCulture)} and {Max.ToString(CultureInfo.InvariantCulture)}.";SetInvalid(true);return false;}Value=next;_committedText=Format(next);SetText(_committedText,false);Diagnostic=null;SetInvalid(false);return true;}
     private static string Format(double value)=>value.ToString("G17",CultureInfo.InvariantCulture);
+    protected override string GetAutomationValueText()=>Value.ToString(CultureInfo.InvariantCulture);
 }
 
 public class ScrollViewer:ContentControl

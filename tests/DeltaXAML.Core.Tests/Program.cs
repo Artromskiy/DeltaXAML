@@ -39,6 +39,7 @@ internal static class Program
     public static void Main()
     {
         InspectorShellAndLoader();
+        EditorShellAndTheme();
         PropertyInvalidation();
         GridSizing();
         TextClipboardUndoAndValidation();
@@ -61,6 +62,24 @@ internal static class Program
         foreach(var command in list.Commands.Span)Assert.True(command.Clip.IsInside(new UiRect(0,0,800,450)),"inspector stays inside viewport");
     }
 
+    static void EditorShellAndTheme()
+    {
+        var result=XamlLoader.LoadFrame(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"EditorShell.xaml")));
+        Assert.True(result.Success,"EditorShell.xaml loads to a frame");
+        Assert.True(result.Frame!.Root is EditorShell,"editor shell root type");
+        result.Frame.Layout(new(960,540),1);
+        var list=result.Frame.ExtractDrawList(new UiFrameContext(new(960,540),1,1));
+        Assert.True(list.Commands.Length>0,"editor shell produces draw commands");
+        foreach(var command in list.Commands.Span)Assert.True(command.Clip.IsInside(new UiRect(0,0,960,540)),"editor shell stays inside viewport");
+        result.Frame.Layout(new(960,540),2);
+        var resized=result.Frame.ExtractDrawList(new UiFrameContext(new(960,540),2,2));
+        Assert.True(resized.Commands.Length==list.Commands.Length,"dpi change keeps command count stable");
+        var template=new UiTemplate(_=>new Border{Padding=new UiThickness(1,1,1,1)});
+        var first=template.Build(new Panel());
+        var second=template.Build(new Panel());
+        Assert.True(!ReferenceEquals(first,second),"template builds reusable retained instances");
+    }
+
     static void PropertyInvalidation()
     {
         var element=new UiElement();
@@ -79,6 +98,15 @@ internal static class Program
         element.Arrange(new(0,0,100,100));
         binding.NotifyChanged();
         Assert.True((element.DirtyFlags&UiDirtyFlags.Visual)!=0,"binding invalidates visual");
+        var button=new Button();
+        button.SetStyle("Button",null,UiDirtyFlags.Visual);
+        Assert.True(button.VisualState.State==UiVisualState.Normal,"button starts normal");
+        button.SetHovered(true);
+        Assert.True(button.VisualState.State==UiVisualState.Hover,"hover state");
+        button.SetPressed(true);
+        Assert.True(button.VisualState.State==UiVisualState.Pressed,"pressed state");
+        button.SetFocused(true);
+        Assert.True(button.VisualState.IsFocused,"focused state data");
     }
 
     static void GridSizing()

@@ -16,12 +16,16 @@ public readonly record struct UiRect(float X,float Y,float Width,float Height)
 public readonly record struct UiColor(byte R,byte G,byte B,byte A=255);
 public readonly record struct UiElementId(uint Value) { public bool IsValid=>Value!=0; }
 public readonly record struct UiResourceHandle(ulong Value,uint Generation);
+public readonly record struct UiAutomationMetadata(string Name,string Role,string ValueText,bool IsEnabled,bool IsInvalid);
+public enum UiVisualState:byte { Normal,Hover,Pressed,Focused,Disabled,Invalid,Selected }
+public readonly record struct UiStateSnapshot(UiVisualState State,bool IsEnabled,bool IsInvalid,bool IsSelected,bool IsFocused,bool IsHovered,bool IsPressed);
 
 public interface IUiElement
 {
     UiElementId Id { get; } string TypeName { get; } IUiElement? Parent { get; } IReadOnlyList<IUiElement> Children { get; }
     UiVisibility Visibility { get; } bool Focusable { get; } float Width { get; } float Height { get; } bool Fill { get; }
     UiRect Bounds { get; } UiRect Clip { get; } UiSize DesiredSize { get; } UiColor Background { get; } UiDirtyFlags DirtyFlags { get; }
+    UiAutomationMetadata Automation { get; } UiStateSnapshot VisualState { get; }
     void Measure(UiSize available); void Arrange(UiRect bounds);
 }
 public interface IUiPanel:IUiElement { void Add(IUiElement child); bool Remove(IUiElement child); }
@@ -80,6 +84,27 @@ public interface IUiClipboard
 }
 public enum UiClipboardCommand:byte { Copy, Cut, Paste, SelectAll, Undo, Redo }
 public interface IUiRoutedEventSink { void OnRoutedEvent(in UiRoutedEvent routedEvent); }
+public interface IUiResourceDictionary
+{
+    bool TryGet(string key,out object? value);
+}
+public interface IUiTemplate
+{
+    IUiElement Build(IUiElement owner);
+}
+public interface IUiStyle
+{
+    string Key { get; }
+    string TargetType { get; }
+    void Apply(IUiElement element);
+}
+public interface IUiTheme
+{
+    IUiResourceDictionary Resources { get; }
+    IReadOnlyList<IUiStyle> Styles { get; }
+    IUiTemplate? GetTemplate(string key);
+    void Apply(IUiElement root);
+}
 
 public readonly record struct InspectorFieldRecord(string ComponentKey,string FieldKey,string Label,string ValueText,string EditorKind,bool IsReadOnly=false);
 public enum InspectorItemSourceChangeKind:byte { Reset,Add,Remove,Change }

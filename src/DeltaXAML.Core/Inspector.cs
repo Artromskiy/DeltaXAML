@@ -4,26 +4,47 @@ namespace DeltaXAML.Core;
 
 public sealed class ComponentInspector:ContentControl
 {
-    private readonly Grid _shell=new();
-    private readonly StackPanel _header=new(){Orientation=UiOrientation.Horizontal};
+    private readonly StackPanel _root=new(){Orientation=UiOrientation.Vertical};
+    private readonly Border _toolbar=new();
+    private readonly Grid _body=new();
+    private readonly Border _hierarchy=new();
+    private readonly Border _viewport=new();
     private readonly ScrollViewer _scroll=new();
     private readonly StackPanel _rows=new(){Orientation=UiOrientation.Vertical};
+    private readonly Border _status=new();
     private readonly Dictionary<string,InspectorRow> _rowByKey=new(StringComparer.Ordinal);
     private readonly List<string> _activeKeys=new();
     private IInspectorItemSource? _source;
     public ComponentInspector()
     {
-        var root=new StackPanel{Orientation=UiOrientation.Vertical};
-        var title=new TextBlock{Text="Component Inspector",FontSize=18,Foreground=new(235,239,247)};
-        var subtitle=new TextBlock{Text="Live retained component view",FontSize=12,Foreground=new(159,170,186)};
-        _header.Add(title);
-        _header.Add(subtitle);
+        StyleKey="ShellRoot";
+        _toolbar.StyleKey="Toolbar";
+        _hierarchy.StyleKey="Sidebar";
+        _viewport.StyleKey="Inspector";
+        _status.StyleKey="Status";
+        var toolbarRow=new StackPanel{Orientation=UiOrientation.Horizontal};
+        toolbarRow.Add(new TextBlock{Text="Component Inspector",StyleKey="Title",AutomationName="Inspector Title"});
+        toolbarRow.Add(new TextBlock{Text="live retained UI",StyleKey="Muted",AutomationName="Inspector Subtitle"});
+        _toolbar.Add(toolbarRow);
+        var hierarchyContent=new StackPanel{Orientation=UiOrientation.Vertical};
+        hierarchyContent.Add(new TextBlock{Text="Hierarchy",StyleKey="Title"});
+        hierarchyContent.Add(new TextBlock{Text="Placeholder tree",StyleKey="Muted"});
+        _hierarchy.Add(hierarchyContent);
+        var viewportContent=new StackPanel{Orientation=UiOrientation.Vertical};
+        viewportContent.Add(new TextBlock{Text="Viewport",StyleKey="Title"});
+        viewportContent.Add(new TextBlock{Text="Renderer-neutral scene placeholder",StyleKey="Muted"});
+        _viewport.Add(viewportContent);
         _scroll.Content=_rows;
-        _shell.SetColumns(GridLength.Fixed(160),GridLength.Star());
-        _shell.SetRows(GridLength.Auto,GridLength.Star());
-        _shell.Add(_header);
-        _shell.Add(_scroll);
-        Content=root;
+        _body.SetColumns(GridLength.Fixed(220),GridLength.Star(),GridLength.Fixed(280));
+        _body.SetRows(GridLength.Star());
+        _body.Add(_hierarchy);
+        _body.Add(_viewport);
+        _body.Add(_scroll);
+        _status.Add(new TextBlock{Text="Ready",StyleKey="Muted",AutomationName="Diagnostics"});
+        _root.Add(_toolbar);
+        _root.Add(_body);
+        _root.Add(_status);
+        Content=_root;
     }
     public IUiElement Rows=>_rows;
     public IInspectorItemSource? ItemSource
@@ -103,9 +124,13 @@ public sealed class ComponentInspector:ContentControl
     private void CleanupRemovedFocus(InspectorItemSourceChange change)
     {
         if(change.Kind!=InspectorItemSourceChangeKind.Remove||change.Count==0)return;
-        if(Parent is not UiElement parent)return;
-        var frameRoot=parent;
-        while(frameRoot.Parent is UiElement up)frameRoot=up;
+        foreach(var row in _rowByKey.Values)
+        {
+            if(row.ActiveEditor is UiElement editor&&editor.IsFocused)
+            {
+                editor.SetFocused(false);
+            }
+        }
     }
 }
 
@@ -118,6 +143,7 @@ public sealed class InspectorRow:Border
     private readonly NumericEditor _numeric=new(){Focusable=true};
     public InspectorRow()
     {
+        StyleKey="InspectorRow";
         Padding=new UiThickness(6,4,6,4);
         _grid.Add(_label);
         _grid.Add(_value);
@@ -130,6 +156,8 @@ public sealed class InspectorRow:Border
     public void Apply(InspectorFieldRecord record)
     {
         Record=record;
+        AutomationName=record.Label;
+        AutomationRole=record.EditorKind;
         _label.Text=record.Label;
         _value.Text=record.ValueText;
         _editor.Text=record.ValueText;
