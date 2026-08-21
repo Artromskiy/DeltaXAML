@@ -71,9 +71,12 @@ internal static class Program
         var list=result.Frame.ExtractDrawList(new UiFrameContext(new(960,540),1,1));
         Assert.True(list.Commands.Length>0,"editor shell produces draw commands");
         foreach(var command in list.Commands.Span)Assert.True(command.Clip.IsInside(new UiRect(0,0,960,540)),"editor shell stays inside viewport");
+        Assert.True(list.TextRuns.Length>=6,"editor shell emits visible text runs");
+        Assert.Equal("Delta Editor",list.TextRuns.Span[0].Text,"text run order begins with toolbar title");
         result.Frame.Layout(new(960,540),2);
         var resized=result.Frame.ExtractDrawList(new UiFrameContext(new(960,540),2,2));
         Assert.True(resized.Commands.Length==list.Commands.Length,"dpi change keeps command count stable");
+        Assert.True(resized.TextRuns.Length==list.TextRuns.Length,"dpi change keeps text run count stable");
         var template=new UiTemplate(_=>new Border{Padding=new UiThickness(1,1,1,1)});
         var first=template.Build(new Panel());
         var second=template.Build(new Panel());
@@ -198,6 +201,7 @@ internal static class Program
         frame.Layout(new(100,40),1);
         var list=frame.ExtractDrawList(new UiFrameContext(new(100,40),1,1));
         Assert.True(list.Commands.Length==2,"scroll retains both commands");
+        Assert.True(list.TextRuns.Length==0,"plain scrolling content has no text runs");
         foreach(var command in list.Commands.Span)Assert.True(command.Clip.IsInside(new UiRect(0,0,100,40)),"scroll clips to viewport");
     }
 
@@ -209,10 +213,14 @@ internal static class Program
         var inspector=new ComponentInspector{Width=200,Height=100,ItemSource=source};
         inspector.Refresh();
         var first=inspector.Rows.Children[0];
+        var initial= new UiFrame(inspector).ExtractDrawList(new UiFrameContext(new(200,100),1,1));
+        Assert.True(initial.TextRuns.Length>=4,"inspector emits ordered text runs");
         source.Items[0]=source.Items[0] with{ValueText="9"};
         source.NotifyReset();
         Assert.True(ReferenceEquals(first,inspector.Rows.Children[0]),"inspector row identity reused");
         Assert.Equal("9",((InspectorRow)first).Record.ValueText,"row value refreshed");
+        var updated=new UiFrame(inspector).ExtractDrawList(new UiFrameContext(new(200,100),1,2));
+        Assert.True(updated.TextRuns.Length==initial.TextRuns.Length,"inspector run count stays stable after value update");
         source.RemoveAt(1);
         Assert.Equal(1,inspector.Rows.Children.Count,"rows shrink without rebuilding tree");
     }

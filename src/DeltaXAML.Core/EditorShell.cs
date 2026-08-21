@@ -26,13 +26,13 @@ public sealed class EditorShell:ContentControl
         var toolbarRow=new StackPanel{Orientation=UiOrientation.Horizontal};
         toolbarRow.Add(new TextBlock{Text="Delta Editor",StyleKey="Title"});
         toolbarRow.Add(new TextBlock{Text="shell",StyleKey="Muted"});
-        toolbarRow.Add(new Button{StyleKey="Button",AutomationName="Save"});
-        toolbarRow.Add(new Button{StyleKey="Button",AutomationName="Run"});
+        toolbarRow.Add(CreateButton("Save"));
+        toolbarRow.Add(CreateButton("Run"));
         _toolbar.Add(toolbarRow);
         var hierarchyContent=new StackPanel{Orientation=UiOrientation.Vertical};
         hierarchyContent.Add(new TextBlock{Text="Hierarchy",StyleKey="Title"});
         hierarchyContent.Add(new TextBlock{Text="Scene graph placeholder",StyleKey="Muted"});
-        hierarchyContent.Add(new Button{StyleKey="Button",AutomationName="Add Entity"});
+        hierarchyContent.Add(CreateButton("Add Entity"));
         _hierarchy.Add(hierarchyContent);
         var viewportContent=new StackPanel{Orientation=UiOrientation.Vertical};
         viewportContent.Add(new TextBlock{Text="Viewport",StyleKey="Title"});
@@ -53,5 +53,12 @@ public sealed class EditorShell:ContentControl
         _root.Add(_body);
         _root.Add(_status);
         Content=_root;
+    }
+
+    private static Button CreateButton(string text)
+    {
+        var button=new Button{StyleKey="Button",AutomationName=text};
+        button.Content=new TextBlock{Text=text,StyleKey="Muted"};
+        return button;
     }
 }

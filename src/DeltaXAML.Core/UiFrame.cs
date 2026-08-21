@@ -36,10 +36,10 @@ internal sealed class DrawList:IUiDrawList
             _commands[_commandCount]=new(UiDrawKind.Rectangle,e.Bounds,effective,id,default,e.Background,null,0,(uint)_commandCount,e.Id);
             _commandCount++;
         }
-        if(e is TextBlock text)
+        if(e is UiElement element&&element.TryGetTextRun(out var run))
         {
             EnsureText();
-            _textRuns[_textCount++]=new(text.FontKey,text.FontSize,text.Text,text.GlyphRunKey,text.Foreground,e.Bounds,effective,e.Id);
+            _textRuns[_textCount++]=run with { Bounds = e.Bounds, Clip = effective, Owner = e.Id, Version = Version };
         }
         foreach(var child in e.Children)Visit(child,effective,id);
     }

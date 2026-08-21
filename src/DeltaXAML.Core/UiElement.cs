@@ -66,6 +66,18 @@ public class UiElement : IUiElement, IUiPropertyStore
     public IUiElement? HitTest(UiPoint point){if(Visibility!=UiVisibility.Visible||!Clip.Contains(point))return null;for(var i=_children.Count-1;i>=0;i--)if(_children[i] is UiElement c&&c.HitTest(point)is{} hit)return hit;return this;}
     public void SetLocal(string name,object? value,UiDirtyFlags invalidation)=>_properties.SetLocal(name,value,invalidation); public void SetStyle(string name,object? value,UiDirtyFlags invalidation)=>_properties.SetStyle(name,value,invalidation); public void SetBinding(string name,IUiBinding binding,UiDirtyFlags invalidation)=>_properties.SetBinding(name,binding,invalidation); public bool TryGet(string name,out IUiValue value)=>_properties.TryGet(name,out value);
     protected virtual string GetAutomationValueText()=>string.Empty;
+    protected virtual string GetTextRunKey()=>TypeName;
+    protected virtual bool HasTextRun=>false;
+    protected virtual string GetTextRunText()=>string.Empty;
+    protected virtual UiColor GetTextRunColor()=>new(255,255,255);
+    protected virtual float GetTextRunFontSize()=>14;
+    protected virtual string GetTextRunFontKey()=> "default";
+    public bool TryGetTextRun(out UiTextRun run)
+    {
+        if(!HasTextRun){run=default;return false;}
+        run=new UiTextRun(GetTextRunFontKey(),GetTextRunFontSize(),GetTextRunText(),GetTextRunKey(),GetTextRunColor(),Bounds,Clip,Id,0);
+        return true;
+    }
 }
 
 public class Panel:UiElement,IUiPanel
@@ -136,6 +148,12 @@ public class TextBlock:UiElement
     public override string TypeName=>"TextBlock"; public string Text{get;set;}="";public string FontKey{get;set;}="default";public string GlyphRunKey{get;set;}="default";public float FontSize{get;set;}=14;public UiColor Foreground{get;set;}=new(255,255,255);
     public override void Measure(UiSize available){DesiredSize=RequestedSize(new(MathF.Min(available.Width,Text.Length*FontSize*.55f),FontSize*1.25f));DirtyFlags&=~UiDirtyFlags.Measure;}
     protected override string GetAutomationValueText()=>Text;
+    protected override bool HasTextRun=>true;
+    protected override string GetTextRunKey()=>GlyphRunKey;
+    protected override string GetTextRunText()=>Text;
+    protected override UiColor GetTextRunColor()=>Foreground;
+    protected override float GetTextRunFontSize()=>FontSize;
+    protected override string GetTextRunFontKey()=>FontKey;
 }
 
 public class TextBox:TextBlock
@@ -207,6 +225,7 @@ public class TextBox:TextBlock
     private bool HasSelection()=>SelectionLength>0;
     private string GetSelection()=>Text.Substring(SelectionStart,SelectionLength);
     protected override string GetAutomationValueText()=>Text;
+    protected override string GetTextRunKey()=>GlyphRunKey+":"+Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
 public sealed class NumericEditor:TextBox

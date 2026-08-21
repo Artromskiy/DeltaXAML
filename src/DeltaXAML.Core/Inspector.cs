@@ -139,6 +139,7 @@ public sealed class InspectorRow:Border
     private readonly StackPanel _grid=new(){Orientation=UiOrientation.Horizontal};
     private readonly TextBlock _label=new();
     private readonly TextBlock _value=new();
+    private readonly TextBlock _diagnostic=new(){StyleKey="Muted"};
     private readonly TextBox _editor=new(){Focusable=true};
     private readonly NumericEditor _numeric=new(){Focusable=true};
     public InspectorRow()
@@ -147,6 +148,7 @@ public sealed class InspectorRow:Border
         Padding=new UiThickness(6,4,6,4);
         _grid.Add(_label);
         _grid.Add(_value);
+        _grid.Add(_diagnostic);
         _grid.Add(_editor);
         _grid.Add(_numeric);
         Add(_grid);
@@ -160,6 +162,7 @@ public sealed class InspectorRow:Border
         AutomationRole=record.EditorKind;
         _label.Text=record.Label;
         _value.Text=record.ValueText;
+        _diagnostic.Text=record.IsReadOnly?string.Empty:string.Empty;
         _editor.Text=record.ValueText;
         _numeric.Initialize(ParseNumeric(record.ValueText));
         _editor.Visibility=record.EditorKind.Equals("Numeric",StringComparison.OrdinalIgnoreCase)?UiVisibility.Collapsed:UiVisibility.Visible;
