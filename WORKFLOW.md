@@ -22,7 +22,8 @@ for one isolated warning. Refactor when several metrics remain over their
 limits, the issue persists across runs, or profiling identifies a hot path.
 
 For local application run `./eng/format.sh`; for a non-mutating check use
-`FORMAT_CHECK=1 ./eng/format.sh`. Run the check before committing substantial
-changes. The script uses the repository `.editorconfig` and `Directory.Build.props`.
-It skips restore by default; use `FORMAT_RESTORE=1 ./eng/format.sh` only when
-assets are missing or dependencies changed.
+`FORMAT_CHECK=1 ./eng/format.sh`. The script uses `dotnet format whitespace
+--folder` intentionally: it avoids the MSBuild/Roslyn workspace load that can
+hang on macOS with the .NET 10 SDK. It therefore checks/applies whitespace
+formatting only; analyzer/style diagnostics remain covered by the build and
+SARIF metrics workflow. `FORMAT_RESTORE` is no longer needed for this command.
