@@ -60,7 +60,6 @@ public interface IUiElement
     UiRect Clip { get; }
     UiSize DesiredSize { get; }
     UiColor Background { get; }
-    UiDirtyFlags DirtyFlags { get; }
     UiAutomationMetadata Automation { get; }
     UiStateSnapshot VisualState { get; }
     void Measure(UiSize available); void Arrange(UiRect bounds);

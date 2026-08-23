@@ -40,11 +40,12 @@ levels are currently visible in the same public assemblies.
 
 These are layering findings, not immediate breaking-change requests.
 
-1. `IUiElement` exposes `UiElementId`, `Generation`, `DirtyFlags`,
-   `DesiredSize`, `Bounds`, `Clip` and `VisualState`. Stable identity and
-   invalidation are valuable to a retained implementation and to an engine
-   adapter, but a normal control consumer should mainly need hierarchy,
-   properties, layout and input behavior.
+1. `IUiElement` exposes `UiElementId`, `Generation`, `DesiredSize`, `Bounds`,
+   `Clip` and `VisualState`. Stable identity is deliberately retained in the
+   base contract for engine/system interoperability. The element dirty
+   accumulator is internal and no longer part of the public element surface;
+   a normal control consumer observes updates through bindings, properties,
+   layout and visual state.
 2. `IUiPropertyStore` and `UiMutation` expose string names, `object?` values,
    `UiPropertyHandle`, `UiDirtyMask` and generation validation. This is a good
    ECS/engine fast path, not an ergonomic everyday property API. It also makes
@@ -79,8 +80,9 @@ smoke/API.
 The following should be additive facades over the existing implementation:
 
 1. Add an ordinary-control facade for tree ownership, properties, layout and
-   input. It should hide ID/generation/dirty details by default while allowing
-   an advanced adapter to obtain the retained identity explicitly.
+   input. It may hide the retained dirty accumulator, but it must preserve
+   `UiElementId` and `Generation` on the base element contract. The concrete
+   element stores that identity once; handles only carry validation snapshots.
 2. Add a typed property-key/value facade (`UiPropertyKey<T>` or an equivalent
    non-reflection key) for common consumers. Keep `UiPropertyHandle` and
    `UiMutation` as the generation-safe fast path for engine adapters.
@@ -106,7 +108,8 @@ Keep the following in the advanced/adapter-facing layer:
 
 - `UiElementId` generation, `UiPropertyHandle`, `UiMutation`, and
   `UiDirtyMask`, because they provide safe batched writes and precise
-  invalidation for engine-owned systems.
+  invalidation for engine-owned systems. Only the element's dirty accumulator
+  is internal; the low-level mutation/property contracts remain available.
 - `IUiDrawList`, command/clip ranges, `UiDrawDelta`, `UiResourceHandle` and
   `UiTextRun` submission identity, because the renderer needs stable data and
   upload deltas. DeltaXAML must remain ignorant of Vulkan, GPU buffers,
@@ -162,7 +165,10 @@ behavior.
    the new facades. Every removal requires a compatibility decision and a
    before/after allocation/layout check.
 
-## Scope of this commit
+## Follow-up surface decision
 
-Only this review document is added. No public API, runtime type, test, engine
-reference or renderer dependency is changed; no Avalonia dependency is added.
+The retained identity remains in the base element contract. The redundant
+public `HandleGeneration` alias and public element `DirtyFlags` property are
+removed; the implementation keeps one internal dirty accumulator and derives
+handle validation from `UiElement.Id` and `UiElement.Generation`. No engine
+reference, renderer dependency or Avalonia dependency is added.

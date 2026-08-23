@@ -86,12 +86,12 @@ public sealed class UiPropertyStore : IUiPropertyStore
             throw new ArgumentException("A UI property name is required.", nameof(name));
         }
 
-        return new(_owner.Id, _owner.HandleGeneration, name);
+        return new(_owner.Id, _owner.Generation, name);
     }
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic)
     {
         if (string.IsNullOrWhiteSpace(handle.Name)) { diagnostic = "A UI property name is required."; return false; }
-        if (handle.Element != _owner.Id || handle.Generation != _owner.HandleGeneration) { diagnostic = "The UI property handle is stale."; return false; }
+        if (handle.Element != _owner.Id || handle.Generation != _owner.Generation) { diagnostic = "The UI property handle is stale."; return false; }
         SetHandle(handle.Name, value, invalidation); _owner.Invalidate(invalidation); diagnostic = null; return true;
     }
     private void RemoveBinding(string name)
@@ -115,7 +115,6 @@ public class UiElement : IUiElement, IUiPropertyStore
     private uint _dpiVersion;
     private uint _textVersion;
     public UiElement() { Id = new(++_nextId); Generation = ++_nextGeneration; _properties = new(this); }
-    public uint HandleGeneration => Generation;
     public UiElementId Id { get; }
     public uint Generation { get; }
     public virtual string TypeName => "Element"; public IUiElement? Parent { get; private set; }
@@ -136,7 +135,7 @@ public class UiElement : IUiElement, IUiPropertyStore
     public UiAutomationRole AutomationRole { get; set; } = UiAutomationRole.Generic;
     public UiThickness Margin { get; set; }
     public UiThickness Padding { get; set; }
-    public UiDirtyFlags DirtyFlags { get; protected set; } = UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual;
+    internal UiDirtyFlags DirtyFlags { get; set; } = UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual;
     public UiAutomationMetadata Automation => new(AutomationName ?? TypeName, AutomationRole, GetAutomationValueText(), IsEnabled, IsInvalid);
     public UiStateSnapshot VisualState => new(IsEnabled ? IsInvalid ? UiVisualState.Invalid : IsPressed ? UiVisualState.Pressed : IsHovered ? UiVisualState.Hover : IsSelected ? UiVisualState.Selected : IsFocused ? UiVisualState.Focused : UiVisualState.Normal : UiVisualState.Disabled, IsEnabled, IsInvalid, IsSelected, IsFocused, IsHovered, IsPressed);
     public bool IsFocused { get; private set; }

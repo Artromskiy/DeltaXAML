@@ -86,15 +86,18 @@ attached properties, or a general type converter registry.
 
 `UiElement` is the retained node. Each node has a stable `UiElementId` and a
 generation, a `TypeName`, parent/children, visibility, focusability, layout
-geometry, background, automation metadata, visual state, and `UiDirtyMask`
-flags. Concrete controls retain their own state and child identity between
-frames.
+geometry, background, automation metadata and visual state. Concrete controls
+retain their own state and child identity between frames. The retained dirty
+accumulator is internal and is not part of the public `IUiElement` contract;
+bindings and property changes are the external invalidation surface.
 
 `UiPropertyHandle` is `(UiElementId Element, uint Generation, string Name)`.
-`UiPropertyStore` validates the element identity, generation, and non-empty
-property name before applying a handle write. A stale or foreign handle is
-rejected with a diagnostic. `UiMutation` carries a handle, an object value,
-and the `UiDirtyMask` to invalidate.
+`UiPropertyStore` uses the owning `UiElement`'s single `Id`/`Generation` pair
+to validate element identity, generation, and non-empty property name before
+applying a handle write. A stale or foreign handle is rejected with a
+diagnostic. `UiMutation` carries a handle, an object value, and the low-level
+`UiDirtyMask` to invalidate; the element's dirty accumulator itself is not
+public.
 
 The value model is intentionally compact rather than a WPF-style dependency
 property system:

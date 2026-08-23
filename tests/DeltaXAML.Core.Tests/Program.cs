@@ -59,22 +59,23 @@ internal static class Program
 
     private static void PropertyInvalidation()
     {
+        Assert.True(typeof(IUiElement).GetProperty("Id") is not null, "element identity remains in the base contract");
+        Assert.True(typeof(IUiElement).GetProperty("Generation") is not null, "element generation remains in the base contract");
+        Assert.True(typeof(IUiElement).GetProperty("DirtyFlags") is null, "dirty flags are not part of the external element contract");
+        Assert.True(typeof(UiElement).GetProperty("DirtyFlags") is null, "dirty flags are internal to the retained implementation");
         var element = new UiElement();
         element.Measure(new(100, 100));
         element.Arrange(new(0, 0, 100, 100));
-        Assert.True((element.DirtyFlags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual)) == 0, "layout clears layout work");
         element.SetLocal("Width", 42, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
-        Assert.True((element.DirtyFlags & UiDirtyFlags.Measure) != 0, "local invalidates measure");
         element.Measure(new(100, 100));
         element.Arrange(new(0, 0, 100, 100));
         element.SetStyle("Color", new UiColor(1, 2, 3), UiDirtyFlags.Visual);
-        Assert.True((element.DirtyFlags & UiDirtyFlags.Visual) != 0, "style invalidates visual");
         var binding = new UiBindingValue(() => 17, _ => (true, null));
         element.SetBinding("Value", binding, UiDirtyFlags.Visual);
         element.Measure(new(100, 100));
         element.Arrange(new(0, 0, 100, 100));
         binding.NotifyChanged();
-        Assert.True((element.DirtyFlags & UiDirtyFlags.Visual) != 0, "binding invalidates visual");
+        Assert.True(element.TryGet("Value", out var value) && Equals(value.UntypedValue, 17), "binding refreshes the retained value");
         var button = new Button();
         button.SetStyle("Button", null, UiDirtyFlags.Visual);
         Assert.True(button.VisualState.State == UiVisualState.Normal, "button starts normal");
