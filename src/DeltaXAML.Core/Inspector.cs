@@ -89,16 +89,18 @@ public sealed class ComponentInspector : ContentControl
     }
     private void SyncAll()
     {
+        var source = RequireSource();
         _activeKeys.Clear();
-        for (var i = 0; i < _source!.Count; i++)
+        for (var i = 0; i < source.Count; i++)
         {
             ApplyRecord(i);
         }
 
-        Trim(_source.Count);
+        Trim(source.Count);
     }
     private void SyncRange(int index, int count)
     {
+        var source = RequireSource();
         if (index < 0)
         {
             index = 0;
@@ -114,7 +116,7 @@ public sealed class ComponentInspector : ContentControl
             case 0:
                 break;
             default:
-                for (var i = index; i < Math.Min(_source!.Count, index + count); i++)
+                for (var i = index; i < Math.Min(source.Count, index + count); i++)
                 {
                     ApplyRecord(i);
                 }
@@ -126,11 +128,11 @@ public sealed class ComponentInspector : ContentControl
 
                 break;
         }
-        Trim(_source!.Count);
+        Trim(source.Count);
     }
     private void ApplyRecord(int index)
     {
-        var record = _source!.GetRecord(index);
+        var record = RequireSource().GetRecord(index);
         var key = $"{record.ComponentKey}:{record.FieldKey}";
         if (!_rowByKey.TryGetValue(key, out var row))
         {
@@ -148,6 +150,8 @@ public sealed class ComponentInspector : ContentControl
             _activeKeys[index] = key;
         }
     }
+
+    private IInspectorItemSource RequireSource() => _source ?? throw new InvalidOperationException("An inspector item source is required.");
     private void Trim(int count)
     {
         while (_activeKeys.Count > count)
