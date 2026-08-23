@@ -1,5 +1,7 @@
 using DeltaXAML.Abstractions;
 
+using UiDirtyFlags = DeltaXAML.Abstractions.UiDirtyMask;
+
 namespace DeltaXAML.Core;
 
 public sealed class ComponentInspector : ContentControl
@@ -52,14 +54,22 @@ public sealed class ComponentInspector : ContentControl
         get => _source;
         set
         {
-            if (_source is not null) _source.Changed -= OnSourceChanged;
+            if (_source is not null)
+            {
+                _source.Changed -= OnSourceChanged;
+            }
+
             _source = value;
-            if (_source is not null) _source.Changed += OnSourceChanged;
+            if (_source is not null)
+            {
+                _source.Changed += OnSourceChanged;
+            }
+
             Refresh(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Reset, 0, _source?.Count ?? 0));
         }
     }
     public void Refresh() => Refresh(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Reset, 0, _source?.Count ?? 0));
-    private void OnSourceChanged(InspectorItemSourceChange change) => Refresh(change);
+    private void OnSourceChanged(object? sender, InspectorItemSourceChangeEventArgs args) => Refresh(args.Change);
     private void Refresh(InspectorItemSourceChange change)
     {
         if (_source is null) { _rows.ClearChildren(); _rowByKey.Clear(); _activeKeys.Clear(); return; }
@@ -80,27 +90,47 @@ public sealed class ComponentInspector : ContentControl
     private void SyncAll()
     {
         _activeKeys.Clear();
-        for (var i = 0; i < _source!.Count; i++) ApplyRecord(i);
+        for (var i = 0; i < _source!.Count; i++)
+        {
+            ApplyRecord(i);
+        }
+
         Trim(_source.Count);
     }
     private void SyncRange(int index, int count)
     {
-        if (index < 0) index = 0;
-        if (count < 0) count = 0;
+        if (index < 0)
+        {
+            index = 0;
+        }
+
+        if (count < 0)
+        {
+            count = 0;
+        }
+
         switch (count)
         {
             case 0:
                 break;
             default:
-                for (var i = index; i < Math.Min(_source!.Count, index + count); i++) ApplyRecord(i);
-                if (index == 0 && _activeKeys.Count == 0) SyncAll();
+                for (var i = index; i < Math.Min(_source!.Count, index + count); i++)
+                {
+                    ApplyRecord(i);
+                }
+
+                if (index == 0 && _activeKeys.Count == 0)
+                {
+                    SyncAll();
+                }
+
                 break;
         }
         Trim(_source!.Count);
     }
     private void ApplyRecord(int index)
     {
-        var record = _source!.Get(index);
+        var record = _source!.GetRecord(index);
         var key = $"{record.ComponentKey}:{record.FieldKey}";
         if (!_rowByKey.TryGetValue(key, out var row))
         {
@@ -109,8 +139,14 @@ public sealed class ComponentInspector : ContentControl
             _rows.Add(row);
         }
         row.Apply(record);
-        if (index >= _activeKeys.Count) _activeKeys.Add(key);
-        else _activeKeys[index] = key;
+        if (index >= _activeKeys.Count)
+        {
+            _activeKeys.Add(key);
+        }
+        else
+        {
+            _activeKeys[index] = key;
+        }
     }
     private void Trim(int count)
     {
@@ -118,12 +154,19 @@ public sealed class ComponentInspector : ContentControl
         {
             var removed = _activeKeys[^1];
             _activeKeys.RemoveAt(_activeKeys.Count - 1);
-            if (_rowByKey.Remove(removed, out var row)) _rows.Remove(row);
+            if (_rowByKey.Remove(removed, out var row))
+            {
+                _rows.Remove(row);
+            }
         }
     }
     private void CleanupRemovedFocus(InspectorItemSourceChange change)
     {
-        if (change.Kind != InspectorItemSourceChangeKind.Remove || change.Count == 0) return;
+        if (change.Kind != InspectorItemSourceChangeKind.Remove || change.Count == 0)
+        {
+            return;
+        }
+
         foreach (var row in _rowByKey.Values)
         {
             if (row.ActiveEditor is UiElement editor && editor.IsFocused)
@@ -161,19 +204,31 @@ public sealed class InspectorRow : Border
         Record = record;
         AutomationName = record.Label;
         AutomationRole = record.EditorKind;
-        if (previous.Label != record.Label) _label.Text = record.Label;
+        if (previous.Label != record.Label)
+        {
+            _label.Text = record.Label;
+        }
+
         _value.Visibility = UiVisibility.Collapsed;
         _diagnostic.Text = record.IsReadOnly ? string.Empty : string.Empty;
         var numeric = record.EditorKind.Equals("Numeric", StringComparison.OrdinalIgnoreCase);
         if (numeric)
         {
-            if (previous.ValueText != record.ValueText) _numeric.Initialize(ParseNumeric(record.ValueText));
+            if (previous.ValueText != record.ValueText)
+            {
+                _numeric.Initialize(ParseNumeric(record.ValueText));
+            }
+
             _numeric.Visibility = UiVisibility.Visible;
             _editor.Visibility = UiVisibility.Collapsed;
         }
         else
         {
-            if (previous.ValueText != record.ValueText) _editor.SetText(record.ValueText, false);
+            if (previous.ValueText != record.ValueText)
+            {
+                _editor.SetText(record.ValueText, false);
+            }
+
             _editor.Visibility = UiVisibility.Visible;
             _numeric.Visibility = UiVisibility.Collapsed;
         }

@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using DeltaXAML.Abstractions;
 using DeltaXAML.Core;
 
+using UiDirtyFlags = DeltaXAML.Abstractions.UiDirtyMask;
+
 static class Assert
 {
     public static void True(bool value, string message)
@@ -24,7 +26,7 @@ static class Assert
 sealed class FakeClipboard : IUiClipboard
 {
     public string? Text { get; private set; }
-    public string? GetText() => Text;
+    public string? ReadText() => Text;
     public void SetText(string? text) => Text = text;
     public bool HasText => !string.IsNullOrEmpty(Text);
 }
@@ -33,12 +35,12 @@ sealed class Source : IInspectorItemSource
 {
     public List<InspectorFieldRecord> Items { get; } = [];
     public int Count => Items.Count;
-    public InspectorFieldRecord Get(int index) => Items[index];
-    public event Action<InspectorItemSourceChange>? Changed;
-    public bool TryCommit(int index, string text, [NotNullWhen(false)] out string? error) { error = null; Items[index] = Items[index] with { ValueText = text }; Changed?.Invoke(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Change, index, 1)); return true; }
-    public void Add(InspectorFieldRecord record) { Items.Add(record); Changed?.Invoke(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Add, Items.Count - 1, 1)); }
-    public void RemoveAt(int index) { Items.RemoveAt(index); Changed?.Invoke(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Remove, index, 1)); }
-    public void NotifyReset() => Changed?.Invoke(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Reset, 0, Items.Count));
+    public InspectorFieldRecord GetRecord(int index) => Items[index];
+    public event EventHandler<InspectorItemSourceChangeEventArgs>? Changed;
+    public bool TryCommit(int index, string text, [NotNullWhen(false)] out string? diagnostic) { diagnostic = null; Items[index] = Items[index] with { ValueText = text }; Changed?.Invoke(this, new InspectorItemSourceChangeEventArgs(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Change, index, 1))); return true; }
+    public void Add(InspectorFieldRecord record) { Items.Add(record); Changed?.Invoke(this, new InspectorItemSourceChangeEventArgs(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Add, Items.Count - 1, 1))); }
+    public void RemoveAt(int index) { Items.RemoveAt(index); Changed?.Invoke(this, new InspectorItemSourceChangeEventArgs(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Remove, index, 1))); }
+    public void NotifyReset() => Changed?.Invoke(this, new InspectorItemSourceChangeEventArgs(new InspectorItemSourceChange(InspectorItemSourceChangeKind.Reset, 0, Items.Count)));
 }
 
 sealed class EventProbe : UiElement, IUiRoutedEventSink
@@ -231,7 +233,7 @@ internal static class Program
         var frame = new UiFrame(root);
         frame.Layout(new(100, 90), 1);
         var clicked = false;
-        button.Click += () => clicked = true;
+        button.Click += (_, _) => clicked = true;
         frame.Input.Focus(box.Id);
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiTextInput("12")));
         Assert.Equal("12", box.Text, "UTF text is separate input");

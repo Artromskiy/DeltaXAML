@@ -1,8 +1,10 @@
 using DeltaXAML.Abstractions;
 
+using IUiResourceDictionary = DeltaXAML.Abstractions.IUiResourceStore;
+
 namespace DeltaXAML.Core;
 
-public sealed class UiResourceDictionary : IUiResourceDictionary
+public sealed class UiResourceStore : IUiResourceDictionary
 {
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
     public void Set(string key, object? value) => _values[key] = value;
@@ -15,7 +17,13 @@ public sealed class UiStyle : IUiStyle
     public UiStyle(string key, string targetType, Action<UiElement> apply) { Key = key; TargetType = targetType; _apply = apply; }
     public string Key { get; }
     public string TargetType { get; }
-    public void Apply(IUiElement element) { if (element is UiElement concrete) _apply(concrete); }
+    public void Apply(IUiElement element)
+    {
+        if (element is UiElement concrete)
+        {
+            _apply(concrete);
+        }
+    }
 }
 
 public sealed class UiTemplate : IUiTemplate
@@ -35,6 +43,7 @@ public sealed class UiTheme : IUiTheme
     public IUiTemplate? GetTemplate(string key) => _templates.TryGetValue(key, out var template) ? template : null;
     public void Apply(IUiElement root)
     {
+        ArgumentNullException.ThrowIfNull(root);
         ApplyRecursive(root);
     }
     private void ApplyRecursive(IUiElement element)
@@ -43,24 +52,33 @@ public sealed class UiTheme : IUiTheme
         {
             if (concrete.StyleKey is not null)
             {
-                foreach (var style in Styles) if (style.Key == concrete.StyleKey && style.TargetType == concrete.TypeName) style.Apply(concrete);
+                foreach (var style in Styles)
+                {
+                    if (style.Key == concrete.StyleKey && style.TargetType == concrete.TypeName)
+                    {
+                        style.Apply(concrete);
+                    }
+                }
             }
             if (concrete.TemplateKey is not null && GetTemplate(concrete.TemplateKey) is { } template && element.Children.Count == 0 && element is IUiPanel panel)
             {
                 panel.Add(template.Build(element));
             }
         }
-        foreach (var child in element.Children) ApplyRecursive(child);
+        foreach (var child in element.Children)
+        {
+            ApplyRecursive(child);
+        }
     }
 }
 
 public static class DeltaTheme
 {
     public static readonly UiTheme Default = CreateDefault();
-    private static UiColor Color(IUiResourceDictionary resources, string key, UiColor fallback) => resources.TryGet(key, out var value) && value is UiColor color ? color : fallback;
+    private static UiColor Color(UiResourceStore resources, string key, UiColor fallback) => resources.TryGet(key, out var value) && value is UiColor color ? color : fallback;
     private static UiTheme CreateDefault()
     {
-        var resources = new UiResourceDictionary();
+        var resources = new UiResourceStore();
         resources.Set("Color.Window", new UiColor(31, 41, 51));
         resources.Set("Color.Toolbar", new UiColor(38, 53, 74));
         resources.Set("Color.Sidebar", new UiColor(52, 73, 94));
