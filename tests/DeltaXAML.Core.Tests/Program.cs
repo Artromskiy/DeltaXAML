@@ -102,6 +102,15 @@ internal static class Program
         registry.Register("CustomBadge", () => new CustomBadge());
         var loaded = XamlLoader.Load("<CustomBadge Padding=\"1,1,1,1\" />", registry);
         Assert.True(loaded.Success && loaded.Root is CustomBadge, "registered custom type loads");
+        var roleLoaded = XamlLoader.Load("<Button AutomationRole=\"button\" />");
+        if (!roleLoaded.Success || roleLoaded.Root is not Button roleButton)
+        {
+            throw new InvalidOperationException("Closed automation role did not parse.");
+        }
+
+        Assert.Equal(UiAutomationRole.Button, roleButton.AutomationRole, "automation role is typed");
+        var unknownKind = new UiPropertySchema("Transform", "Unknown", "Unknown", "System.Object", UiEditorKind.Unknown);
+        Assert.Equal(UiEditorKind.Unknown, unknownKind.EditorKind, "unknown editor kind is explicit");
     }
 
     private static void GridSizing()
@@ -280,9 +289,9 @@ internal static class Program
         var frame = new UiFrame(root);
         var handle = text.GetHandle("Text");
         var otherHandle = other.GetHandle("Text");
-        var schema = new UiPropertySchema("Transform", "X", "X", "System.Single", "Numeric");
+        var schema = new UiPropertySchema("Transform", "X", "X", "System.Single", UiEditorKind.Numeric);
         var schemaValue = new UiSchemaValue(schema, 3f, UiValueSource.Binding, 1);
-        Assert.Equal("Numeric", schemaValue.Schema.EditorKind, "schema/value record");
+        Assert.Equal(UiEditorKind.Numeric, schemaValue.Schema.EditorKind, "schema/value record");
         frame.Enqueue(new UiMutation(handle, "value", UiDirtyFlags.Binding | UiDirtyFlags.Visual));
         frame.Enqueue(new UiMutation(otherHandle, "other", UiDirtyFlags.Binding | UiDirtyFlags.Visual));
         Assert.Equal(2, frame.PendingMutationCount, "multiple mutations are queued");

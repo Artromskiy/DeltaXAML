@@ -17,7 +17,7 @@ public sealed class UiValue : IUiValue
 public sealed class UiBindingValue : IUiBinding
 {
     private readonly Func<object?> _read; private readonly Func<object?, (bool Success, string? Error)> _write;
-    public UiBindingValue(Func<object?> read, Func<object?, (bool Success, string? Error)> write) { _read = read; _write = write; }
+    public UiBindingValue(Func<object?> read, Func<object?, (bool Success, string? Error)> write) { ArgumentNullException.ThrowIfNull(read); ArgumentNullException.ThrowIfNull(write); _read = read; _write = write; }
     public object? Read() => _read(); public bool TryWrite(object? value, [NotNullWhen(false)] out string? diagnostic) { var r = _write(value); diagnostic = r.Error ?? (r.Success ? null : "Binding write failed."); return r.Success; }
     public event EventHandler? Changed; public void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
 }
@@ -27,7 +27,7 @@ public sealed class UiCompiledBinding<T> : IUiCompiledBinding
     private readonly Func<T> _read;
     private readonly Func<T, (bool Success, string? Error)>? _write;
     public UiCompiledBinding(Func<T> read, Func<T, (bool Success, string? Error)>? write = null, UiBindingMode mode = UiBindingMode.OneWay)
-    { _read = read; _write = write; Mode = mode; }
+    { ArgumentNullException.ThrowIfNull(read); _read = read; _write = write; Mode = mode; }
     public UiBindingMode Mode { get; }
     public Type ValueType => typeof(T);
     public object? Read() => _read();
@@ -55,11 +55,12 @@ public sealed class UiPropertyStore : IUiPropertyStore
     private readonly Dictionary<string, IUiBinding> _bindings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, EventHandler> _bindingHandlers = new(StringComparer.Ordinal);
     private readonly UiElement _owner;
-    public UiPropertyStore(UiElement owner) => _owner = owner;
-    public void SetLocal(string name, object? value, UiDirtyFlags invalidation) { RemoveBinding(name); _values[name] = new UiValue(value, UiValueSource.Local, invalidation); _owner.Invalidate(invalidation); }
-    public void SetStyle(string name, object? value, UiDirtyFlags invalidation) { if (!_values.TryGetValue(name, out var old) || old.Source != UiValueSource.Local) { _values[name] = new UiValue(value, UiValueSource.Style, invalidation); _owner.Invalidate(invalidation); } }
+    public UiPropertyStore(UiElement owner) { ArgumentNullException.ThrowIfNull(owner); _owner = owner; }
+    public void SetLocal(string name, object? value, UiDirtyFlags invalidation) { ArgumentException.ThrowIfNullOrWhiteSpace(name); RemoveBinding(name); _values[name] = new UiValue(value, UiValueSource.Local, invalidation); _owner.Invalidate(invalidation); }
+    public void SetStyle(string name, object? value, UiDirtyFlags invalidation) { ArgumentException.ThrowIfNullOrWhiteSpace(name); if (!_values.TryGetValue(name, out var old) || old.Source != UiValueSource.Local) { _values[name] = new UiValue(value, UiValueSource.Style, invalidation); _owner.Invalidate(invalidation); } }
     public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(binding);
         RemoveBinding(name);
         _bindings[name] = binding;
@@ -76,8 +77,8 @@ public sealed class UiPropertyStore : IUiPropertyStore
         binding.Changed += handler;
         _owner.Invalidate(invalidation);
     }
-    public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _values[name] = new UiValue(value, UiValueSource.Handle, invalidation);
-    public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _values.TryGetValue(name, out value);
+    public void SetHandle(string name, object? value, UiDirtyFlags invalidation) { ArgumentException.ThrowIfNullOrWhiteSpace(name); _values[name] = new UiValue(value, UiValueSource.Handle, invalidation); }
+    public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) { ArgumentException.ThrowIfNullOrWhiteSpace(name); return _values.TryGetValue(name, out value); }
     public UiPropertyHandle GetHandle(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -132,14 +133,14 @@ public class UiElement : IUiElement, IUiPropertyStore
     public string? StyleKey { get; set; }
     public string? TemplateKey { get; set; }
     public string? AutomationName { get; set; }
-    public string AutomationRole { get; set; } = "generic";
+    public UiAutomationRole AutomationRole { get; set; } = UiAutomationRole.Generic;
     public UiThickness Margin { get; set; }
     public UiThickness Padding { get; set; }
     public UiDirtyFlags DirtyFlags { get; protected set; } = UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual;
     public UiAutomationMetadata Automation => new(AutomationName ?? TypeName, AutomationRole, GetAutomationValueText(), IsEnabled, IsInvalid);
     public UiStateSnapshot VisualState => new(IsEnabled ? IsInvalid ? UiVisualState.Invalid : IsPressed ? UiVisualState.Pressed : IsHovered ? UiVisualState.Hover : IsSelected ? UiVisualState.Selected : IsFocused ? UiVisualState.Focused : UiVisualState.Normal : UiVisualState.Disabled, IsEnabled, IsInvalid, IsSelected, IsFocused, IsHovered, IsPressed);
     public bool IsFocused { get; private set; }
-    public void Add(IUiElement child) { if (child is not UiElement owned) { throw new ArgumentException("Child must be a DeltaXAML element.", nameof(child)); } if (owned.Parent is UiElement parent) { parent.Remove(owned); } owned.Parent = this; _children.Add(owned); Invalidate(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); }
+    public void Add(IUiElement child) { ArgumentNullException.ThrowIfNull(child); if (child is not UiElement owned) { throw new ArgumentException("Child must be a DeltaXAML element.", nameof(child)); } if (owned.Parent is UiElement parent) { parent.Remove(owned); } owned.Parent = this; _children.Add(owned); Invalidate(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); }
     public bool Remove(IUiElement child) { if (!_children.Remove(child)) { return false; } if (child is UiElement owned) { owned.Parent = null; } Invalidate(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); return true; }
     public void ClearChildren()
     {
@@ -241,8 +242,8 @@ public sealed class Grid : UiElement
     private float[] _resolvedColumns = Array.Empty<float>();
     private float[] _resolvedRows = Array.Empty<float>();
     public override string TypeName => "Grid"; public int ColumnCount => _columns.Length; public int RowCount => _rows.Length;
-    public void SetColumns(params GridLength[] columns) { _columns = columns; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange); }
-    public void SetRows(params GridLength[] rows) { _rows = rows; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange); }
+    public void SetColumns(params GridLength[] columns) { ArgumentNullException.ThrowIfNull(columns); _columns = columns; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange); }
+    public void SetRows(params GridLength[] rows) { ArgumentNullException.ThrowIfNull(rows); _rows = rows; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange); }
     public override void Measure(UiSize available) { foreach (var c in Children) { c.Measure(available); } AutoSizes(_columns, true, ref _measuredColumns); AutoSizes(_rows, false, ref _measuredRows); DesiredSize = RequestedSize(new(Sum(_measuredColumns, _columns.Length), Sum(_measuredRows, _rows.Length))); DirtyFlags &= ~UiDirtyFlags.Measure; }
     public override void Arrange(UiRect bounds) { Bounds = bounds; Clip = bounds; var cols = Resolve(_columns, bounds.Width, _measuredColumns, ref _resolvedColumns); var rows = Resolve(_rows, bounds.Height, _measuredRows, ref _resolvedRows); for (var i = 0; i < Children.Count; i++) { var col = i % Math.Max(1, cols.Length); var row = i / Math.Max(1, cols.Length); if (row >= rows.Length) { break; } var x = bounds.X + Sum(cols, col); var y = bounds.Y + Sum(rows, row); Children[i].Arrange(new(x, y, cols[col], rows[row])); } DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
     private void AutoSizes(GridLength[] defs, bool columns, ref float[] result)
@@ -311,7 +312,7 @@ public class ContentControl : UiElement
 
 public class Button : ContentControl, IUiRoutedEventSink
 {
-    public override string TypeName => "Button"; public Button() { Focusable = true; AutomationRole = "button"; }
+    public override string TypeName => "Button"; public Button() { Focusable = true; AutomationRole = UiAutomationRole.Button; }
     public event EventHandler? Click;
     public virtual void OnRoutedEvent(in UiRoutedEvent routedEvent) { if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Down) { SetPressed(true); } if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Up) { SetPressed(false); Click?.Invoke(this, EventArgs.Empty); } }
     protected override string GetAutomationValueText() => Content is TextBlock t ? t.Text : string.Empty;
@@ -332,7 +333,7 @@ public sealed class ToggleButton : Button
 public class TextBlock : UiElement
 {
     private string _text = "";
-    public override string TypeName => "TextBlock"; public string Text { get => _text; set { if (_text == value) { return; } _text = value; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
+    public override string TypeName => "TextBlock"; public string Text { get => _text; set { ArgumentNullException.ThrowIfNull(value); if (_text == value) { return; } _text = value; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
     public string FontKey { get; set; } = "default"; public string GlyphRunKey { get; set; } = "default"; public float FontSize { get; set; } = 14; public UiColor Foreground { get; set; } = new(255, 255, 255);
     public override void Measure(UiSize available) { var size = FontSize * LayoutScale; DesiredSize = RequestedSize(new(MathF.Min(available.Width, _text.Length * size * .55f), size * 1.25f)); DirtyFlags &= ~UiDirtyFlags.Measure; }
     protected override string GetAutomationValueText() => _text;
@@ -356,6 +357,7 @@ public class TextBox : TextBlock
     public event EventHandler<TextChangedEventArgs>? TextChanged;
     public void SetText(string text, bool recordUndo = true)
     {
+        ArgumentNullException.ThrowIfNull(text);
         if (recordUndo)
         {
             PushUndo();

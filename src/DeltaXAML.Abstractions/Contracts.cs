@@ -21,7 +21,8 @@ public readonly record struct UiColor(byte R, byte G, byte B, byte A = 255);
 public readonly record struct UiElementId(uint Value) { public bool IsValid => Value != 0; }
 public readonly record struct UiPropertyHandle(UiElementId Element, uint Generation, string Name);
 public readonly record struct UiMutation(UiPropertyHandle Target, object? Value, UiDirtyFlags Invalidation);
-public readonly record struct UiPropertySchema(string ComponentKey, string FieldKey, string Label, string ValueType, string EditorKind, bool IsReadOnly = false);
+public enum UiEditorKind { None, Unknown, Text, Numeric }
+public readonly record struct UiPropertySchema(string ComponentKey, string FieldKey, string Label, string ValueType, UiEditorKind EditorKind, bool IsReadOnly = false);
 public readonly record struct UiSchemaValue(UiPropertySchema Schema, object? Value, UiValueSource Source, uint Version);
 public enum UiPropertySourceChangeKind { Reset, Add, Remove, Change }
 public readonly record struct UiPropertySourceChange(UiPropertySourceChangeKind Kind, int Index, int Count = 1);
@@ -38,7 +39,8 @@ public interface IUiPropertySource
 }
 public enum UiBindingMode { OneWay, TwoWay, OneTime }
 public readonly record struct UiResourceHandle(ulong Value, uint Generation);
-public readonly record struct UiAutomationMetadata(string Name, string Role, string ValueText, bool IsEnabled, bool IsInvalid);
+public enum UiAutomationRole { None, Unknown, Generic, Button, Window, Text, TextBox, NumericEditor }
+public readonly record struct UiAutomationMetadata(string Name, UiAutomationRole Role, string ValueText, bool IsEnabled, bool IsInvalid);
 public enum UiVisualState { Normal, Hover, Pressed, Focused, Disabled, Invalid, Selected }
 public readonly record struct UiStateSnapshot(UiVisualState State, bool IsEnabled, bool IsInvalid, bool IsSelected, bool IsFocused, bool IsHovered, bool IsPressed);
 

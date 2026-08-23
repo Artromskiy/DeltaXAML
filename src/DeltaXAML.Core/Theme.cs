@@ -7,18 +7,19 @@ namespace DeltaXAML.Core;
 public sealed class UiResourceStore : IUiResourceDictionary
 {
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
-    public void Set(string key, object? value) => _values[key] = value;
-    public bool TryGet(string key, out object? value) => _values.TryGetValue(key, out value);
+    public void Set(string key, object? value) { ArgumentException.ThrowIfNullOrWhiteSpace(key); _values[key] = value; }
+    public bool TryGet(string key, out object? value) { ArgumentException.ThrowIfNullOrWhiteSpace(key); return _values.TryGetValue(key, out value); }
 }
 
 public sealed class UiStyle : IUiStyle
 {
     private readonly Action<UiElement> _apply;
-    public UiStyle(string key, string targetType, Action<UiElement> apply) { Key = key; TargetType = targetType; _apply = apply; }
+    public UiStyle(string key, string targetType, Action<UiElement> apply) { ArgumentException.ThrowIfNullOrWhiteSpace(key); ArgumentException.ThrowIfNullOrWhiteSpace(targetType); ArgumentNullException.ThrowIfNull(apply); Key = key; TargetType = targetType; _apply = apply; }
     public string Key { get; }
     public string TargetType { get; }
     public void Apply(IUiElement element)
     {
+        ArgumentNullException.ThrowIfNull(element);
         if (element is UiElement concrete)
         {
             _apply(concrete);
@@ -29,18 +30,18 @@ public sealed class UiStyle : IUiStyle
 public sealed class UiTemplate : IUiTemplate
 {
     private readonly Func<IUiElement, IUiElement> _build;
-    public UiTemplate(Func<IUiElement, IUiElement> build) => _build = build;
-    public IUiElement Build(IUiElement owner) => _build(owner);
+    public UiTemplate(Func<IUiElement, IUiElement> build) { ArgumentNullException.ThrowIfNull(build); _build = build; }
+    public IUiElement Build(IUiElement owner) { ArgumentNullException.ThrowIfNull(owner); return _build(owner); }
 }
 
 public sealed class UiTheme : IUiTheme
 {
     private readonly Dictionary<string, IUiTemplate> _templates = new(StringComparer.Ordinal);
-    public UiTheme(IUiResourceDictionary resources, IReadOnlyList<IUiStyle> styles) { Resources = resources; Styles = styles; }
+    public UiTheme(IUiResourceDictionary resources, IReadOnlyList<IUiStyle> styles) { ArgumentNullException.ThrowIfNull(resources); ArgumentNullException.ThrowIfNull(styles); Resources = resources; Styles = styles; }
     public IUiResourceDictionary Resources { get; }
     public IReadOnlyList<IUiStyle> Styles { get; }
-    public void RegisterTemplate(string key, IUiTemplate template) => _templates[key] = template;
-    public IUiTemplate? GetTemplate(string key) => _templates.TryGetValue(key, out var template) ? template : null;
+    public void RegisterTemplate(string key, IUiTemplate template) { ArgumentException.ThrowIfNullOrWhiteSpace(key); ArgumentNullException.ThrowIfNull(template); _templates[key] = template; }
+    public IUiTemplate? GetTemplate(string key) { ArgumentException.ThrowIfNullOrWhiteSpace(key); return _templates.TryGetValue(key, out var template) ? template : null; }
     public void Apply(IUiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -94,7 +95,7 @@ public static class DeltaTheme
             new UiStyle("Muted","TextBlock",e=>{if(e is TextBlock t){t.Foreground=Color(resources,"Color.TextMuted",default);t.FontSize=12;}}),
             new UiStyle("TextEditor","TextBox",e=>{if(e is TextBox t){t.Background=new UiColor(19,24,32);t.Foreground=Color(resources,"Color.Text",default);}}),
             new UiStyle("NumericEditor","NumericEditor",e=>{if(e is NumericEditor t){t.Background=new UiColor(19,24,32);t.Foreground=Color(resources,"Color.Text",default);}}),
-            new UiStyle("Button","Button",e=>{e.Background=Color(resources,"Color.Accent",default);e.AutomationRole="button";}),
+            new UiStyle("Button","Button",e=>{e.Background=Color(resources,"Color.Accent",default);e.AutomationRole=UiAutomationRole.Button;}),
         };
 
         var theme = new UiTheme(resources, styles);

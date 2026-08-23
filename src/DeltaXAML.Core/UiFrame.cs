@@ -7,7 +7,7 @@ public sealed class UiFrame : IUiFrame
     private readonly DrawList _drawList = new();
     private readonly UiInputRouter _input;
     private readonly List<UiMutation> _mutations = new();
-    public UiFrame(IUiElement root) { Root = root; _input = new(this); }
+    public UiFrame(IUiElement root) { ArgumentNullException.ThrowIfNull(root); Root = root; _input = new(this); }
     public IUiElement Root { get; }
     public IUiInputRouter Input => _input;
     public int AppliedMutationCount { get; private set; }
@@ -166,7 +166,7 @@ public sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 {
     private readonly UiFrame _frame;
     private UiElement? _focused, _captured, _hovered;
-    public UiInputRouter(UiFrame frame) => _frame = frame;
+    public UiInputRouter(UiFrame frame) { ArgumentNullException.ThrowIfNull(frame); _frame = frame; }
     public UiElementId? Focused => _focused?.Id;
     public UiElementId? Captured => _captured?.Id;
     public void Dispatch(in UiInputPacket packet)

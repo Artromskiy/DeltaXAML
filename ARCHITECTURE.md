@@ -231,6 +231,12 @@ contains no ECS, reflection, engine, or editor types. The current
 DeltaEditorShell consumes this contract for retained rows; DeltaXAML itself
 does not contain an inspector or an editor shell.
 
+`UiEditorKind` is the closed editor-control set (`None`, `Unknown`, `Text`,
+`Numeric`). `UiAutomationRole` is the closed neutral role set used by the
+current controls (`None`, `Unknown`, `Generic`, `Button`, `Window`, `Text`,
+`TextBox`, `NumericEditor`). Dynamic type names, property names, component and
+field identifiers, resource/style keys, and font/glyph keys remain strings.
+
 ## Nullable contracts
 
 The first-party projects use nullable reference types. The following contracts
