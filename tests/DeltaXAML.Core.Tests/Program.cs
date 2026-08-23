@@ -9,14 +9,14 @@ static class Assert
     {
         if (!value)
         {
-            throw new Exception(message);
+            throw new InvalidOperationException(message);
         }
     }
     public static void Equal<T>(T expected, T actual, string message)
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
         {
-            throw new Exception($"{message}: {expected} != {actual}");
+            throw new InvalidOperationException($"{message}: {expected} != {actual}");
         }
     }
 }
@@ -64,7 +64,6 @@ internal static class Program
         StorageReuse();
         HandlesCompiledBindingsAndCustomTypes();
         FrameContractAndBatchedMutations();
-        Console.WriteLine("DeltaXAML.Core.Tests: 10 groups passed");
     }
 
     static void InspectorShellAndLoader()
@@ -349,13 +348,8 @@ internal static class Program
         Assert.True(delta.TextRuns.Count > 0, "delta reports changed text range");
     }
 
-    static ComponentInspector FindFirstInspector(IUiElement root)
+    static ComponentInspector FindFirstInspector(EditorShell root)
     {
-        if (root is ComponentInspector inspector)
-        {
-            return inspector;
-        }
-
         foreach (var child in root.Children)
         {
             if (child is ComponentInspector foundInspector)
@@ -370,7 +364,7 @@ internal static class Program
                 return found;
             }
         }
-        throw new Exception("Inspector not found");
+        throw new InvalidOperationException("Inspector not found");
     }
 
     static bool TryFindFirstInspector(IUiElement root, [NotNullWhen(true)] out ComponentInspector? inspector)
