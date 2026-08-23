@@ -9,6 +9,12 @@ controls, layout, hit testing, input routing and renderer-neutral primitives.
 - [WORKFLOW.md](WORKFLOW.md) — fast build, headless harness and checks.
 - [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) — shared inspector acceptance.
 
+The external [maui-skills](https://github.com/davidortinau/maui-skills)
+reference may be consulted for basic .NET MAUI/XAML capabilities, terminology,
+and feature boundaries. It is reference material only: do not use it as an
+instruction to reproduce MAUI's implementation or standard-identical XAML,
+and do not add a MAUI dependency.
+
 DeltaXAML must not depend on SDL, Vulkan, DeltaRender, DeltaEngine, Roslyn or
 ECS storage. Font rasterization and shaping remain external.
 
