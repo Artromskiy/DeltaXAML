@@ -471,7 +471,7 @@ public sealed class NumericEditor : TextBox
         if (input.PhysicalKey == 40) { return Decrement(); }
         return base.ApplyKey(input);
     }
-    public bool TryApplyInspectorValue(string text, out string? error)
+    public bool TryApplyValue(string text, out string? error)
     {
         if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v >= Min && v <= Max) { Value = v; _committedText = Format(v); SetText(_committedText, false); Diagnostic = null; SetInvalid(false); error = null; return true; }
         Diagnostic = $"Value must be between {Min.ToString(CultureInfo.InvariantCulture)} and {Max.ToString(CultureInfo.InvariantCulture)}."; SetInvalid(true); error = Diagnostic; return false;

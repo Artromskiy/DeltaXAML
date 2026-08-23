@@ -8,7 +8,7 @@ compatibility. The runtime API is unchanged by this document.
 
 DeltaXAML owns the small XAML dialect, parsing diagnostics, the retained
 `UiElement` tree, property values and invalidation, controls, layout, hit
-testing, routed input, inspector composition, and renderer-neutral draw data.
+testing, routed input, and renderer-neutral draw data.
 
 The renderer boundary is `IUiDrawList`. DeltaXAML produces ordered
 `UiDrawCommand` values, clip entries, and `UiTextRun` values. A DeltaRender
@@ -33,8 +33,8 @@ flowchart LR
     Draw --> Adapter["DeltaRender adapter boundary"]
     Adapter --> Renderer["External renderer / GPU owner"]
     Tree --> Input["Hit test / focus / routed input"]
-    InspectorSource["IInspectorItemSource"] --> Inspector["ComponentInspector"]
-    Inspector --> Tree
+    PropertySource["IUiPropertySource"] --> Shell["DeltaEditorShell"]
+    Shell --> Tree
 ```
 
 ### 1. Parse and load
@@ -46,7 +46,7 @@ when a root exists and there are no diagnostics.
 
 The built-in element names are `Panel`, `StackPanel`, `Border`, `Grid`,
 `ContentControl`, `Button`, `ToggleButton`, `TextBlock`, `TextBox`,
-`NumericEditor`, `ScrollViewer`, `ComponentInspector`, and `EditorShell`.
+and `ScrollViewer`.
 Children are added to `IUiPanel` elements or assigned to a
 `ContentControl`. The current loader recognizes these attributes:
 
@@ -75,6 +75,9 @@ the dialect.
 
 This is the current custom-type extension point. It supports factory-created
 `UiElement` types without a dependency on an engine or a platform type system.
+The editor-owned DeltaEditorShell uses this mechanism to register
+`ComponentInspector` and `EditorShell`; those names are intentionally not
+built into DeltaXAML.
 It does not provide reflection-based property discovery, constructors with
 XAML arguments, markup extensions, namespace mapping, generic type syntax,
 attached properties, or a general type converter registry.
@@ -179,7 +182,7 @@ is in `DeltaXAML.Core`.
 | Draw | `IUiDrawList`, `UiDrawCommand`, `UiClipEntry`, `UiTextRun`, `UiDrawDelta` | Renderer-neutral commands, clips, text runs, and versioned slices. |
 | Theme | `IUiResourceStore`, `UiResourceStore`, `IUiStyle`, `UiStyle`, `IUiTemplate`, `UiTemplate`, `IUiTheme`, `UiTheme` | Resources, code-defined styles, reusable templates, and recursive theme application. |
 | Input | `UiInputPacket`, pointer/key/text/IME records, `IUiInputRouter` | Separate physical key and UTF text paths, hit testing, focus, capture, and routed preview/bubble events. |
-| Inspector | `IInspectorItemSource`, `InspectorFieldRecord`, `ComponentInspector`, `InspectorRow` | Incremental source changes, stable row reuse, editor selection, and diagnostics/status composition. |
+| Property source | `IUiPropertySource`, `UiPropertySchema`, `UiSchemaValue`, `UiPropertySourceChange` | Neutral schema/value snapshots and incremental source changes for a consumer such as an editor shell. |
 | Automation | `UiAutomationMetadata`, `UiStateSnapshot` | Value-level name, role, enabled/invalid state, and visual state without a platform backend. |
 
 ## Bindings, styles, and resources
@@ -207,7 +210,7 @@ The loader accepts `StyleKey` and `TemplateKey` attributes, but it does not
 parse resource dictionaries, style setters, template markup, or resource
 lookup expressions from XAML.
 
-## Input and inspector behavior
+## Input behavior
 
 `UiInputPacket` keeps spatial pointer/wheel input, physical key events, UTF
 text input, and `UiImeComposition` packets distinct. `IUiInputRouter` performs
@@ -221,12 +224,12 @@ parses and validates edits, exposes an inline diagnostic, supports
 commit/cancel, and increments/decrements from keyboard input. Neither control
 calls an OS API.
 
-`ComponentInspector.ItemSource` subscribes to `IInspectorItemSource.Changed`.
-Reset, add, remove, and change notifications update only the affected range
-when possible. Rows are keyed by `ComponentKey:FieldKey` and retained for
-reuse. Removing a row also clears focus on active editors in the affected
-inspector state. The item source is supplied by a caller; DeltaXAML does not
-know DeltaECS or editor component schemas.
+`IUiPropertySource` is the neutral data boundary for a consumer that needs
+schema/value rows. It exposes indexed `UiSchemaValue` snapshots, an explicit
+write method, and `Reset`, `Add`, `Remove`, and `Change` notifications. It
+contains no ECS, reflection, engine, or editor types. The current
+DeltaEditorShell consumes this contract for retained rows; DeltaXAML itself
+does not contain an inspector or an editor shell.
 
 ## Nullable contracts
 
@@ -238,9 +241,12 @@ are part of the current API:
 - `XamlTypeRegistry.TryCreate(string, [NotNullWhen(true)] out UiElement? element)`
   is the internal registry lookup guarantee used by the loader.
 - `IUiBinding.TryWrite`, `IUiPropertyStore.TrySet`, and
-  `IInspectorItemSource.TryCommit` use
+  `IUiPropertySource.TrySet` use
   `[NotNullWhen(false)] out string? diagnostic`: a failed operation supplies a
   diagnostic, while success may leave it null.
+- `IUiPropertySource.TrySet` uses the same
+  `[NotNullWhen(false)] out string? diagnostic` convention for rejected
+  value writes.
 - `IUiResourceStore.TryGet` intentionally has no `NotNullWhen` annotation,
   because a present resource is allowed to have a null object value.
 - `XamlLoadResult.CreateFrame()` returns `UiFrame?` and uses an explicit
@@ -267,9 +273,9 @@ The following are limits of the implementation, not hidden promises:
   no platform IME or accessibility backend.
 - Mutation target lookup is recursive `O(n)` until profiling justifies a
   neutral retained index.
-- The inspector has the retained shell and source lifecycle, but its source
-  schema/value adapter remains caller-owned; it is not an ECS or editor
-  integration.
+- The editor shell and component inspector are outside DeltaXAML in the
+  DeltaEditorShell repository. Their source schema/value adapter remains
+  caller-owned; it is not an ECS or engine integration in this project.
 
 ## API relationship diagram
 
@@ -286,8 +292,8 @@ classDiagram
     class IUiTheme
     class IUiResourceStore
     class IUiDrawList
-    class ComponentInspector
-    class IInspectorItemSource
+    class DeltaEditorShell
+    class IUiPropertySource
 
     XamlLoader --> XamlTypeRegistry : optional factories
     XamlLoader --> XamlLoadResult : returns
@@ -298,8 +304,8 @@ classDiagram
     IUiPropertyStore --> IUiBinding : binding source
     UiFrame --> IUiDrawList : extracts
     IUiTheme --> IUiResourceStore : owns resources
-    ComponentInspector ..|> UiElement
-    ComponentInspector --> IInspectorItemSource : subscribes
+    DeltaEditorShell ..|> UiElement
+    DeltaEditorShell --> IUiPropertySource : consumes
 ```
 
 The `IUiDrawList` arrow stops at the external adapter boundary shown in the

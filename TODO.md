@@ -19,8 +19,9 @@
 
 - Connect real positioned DeltaText glyph runs to `TextBlock`, editors and
   diagnostics without giving DeltaXAML font rasterization ownership.
-- Drive `ComponentInspector.xaml` from stable editor-owned schema/value records
-  and preserve retained row identity across value-only updates.
+- Keep the neutral `IUiPropertySource` schema/value boundary stable for the
+  external DeltaEditorShell inspector, including retained row identity across
+  value-only updates.
 - Finish resize, focus, pointer/keyboard editing and scroll acceptance in the
   end-to-end editor shell.
 

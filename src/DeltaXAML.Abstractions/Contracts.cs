@@ -23,6 +23,19 @@ public readonly record struct UiPropertyHandle(UiElementId Element, uint Generat
 public readonly record struct UiMutation(UiPropertyHandle Target, object? Value, UiDirtyFlags Invalidation);
 public readonly record struct UiPropertySchema(string ComponentKey, string FieldKey, string Label, string ValueType, string EditorKind, bool IsReadOnly = false);
 public readonly record struct UiSchemaValue(UiPropertySchema Schema, object? Value, UiValueSource Source, uint Version);
+public enum UiPropertySourceChangeKind { Reset, Add, Remove, Change }
+public readonly record struct UiPropertySourceChange(UiPropertySourceChangeKind Kind, int Index, int Count = 1);
+public sealed class UiPropertySourceChangeEventArgs(UiPropertySourceChange change) : EventArgs
+{
+    public UiPropertySourceChange Change { get; } = change;
+}
+public interface IUiPropertySource
+{
+    int Count { get; }
+    UiSchemaValue GetValue(int index);
+    bool TrySet(int index, object? value, [NotNullWhen(false)] out string? diagnostic);
+    event EventHandler<UiPropertySourceChangeEventArgs>? Changed;
+}
 public enum UiBindingMode { OneWay, TwoWay, OneTime }
 public readonly record struct UiResourceHandle(ulong Value, uint Generation);
 public readonly record struct UiAutomationMetadata(string Name, string Role, string ValueText, bool IsEnabled, bool IsInvalid);
@@ -144,15 +157,7 @@ public interface IUiTheme
     void Apply(IUiElement root);
 }
 
-public readonly record struct InspectorFieldRecord(string ComponentKey, string FieldKey, string Label, string ValueText, string EditorKind, bool IsReadOnly = false);
-public enum InspectorItemSourceChangeKind { Reset, Add, Remove, Change }
-public readonly record struct InspectorItemSourceChange(InspectorItemSourceChangeKind Kind, int Index, int Count = 1);
 public sealed class TextChangedEventArgs(string text) : EventArgs
 {
     public string Text { get; } = text;
 }
-public sealed class InspectorItemSourceChangeEventArgs(InspectorItemSourceChange change) : EventArgs
-{
-    public InspectorItemSourceChange Change { get; } = change;
-}
-public interface IInspectorItemSource { int Count { get; } InspectorFieldRecord GetRecord(int index); bool TryCommit(int index, string text, [NotNullWhen(false)] out string? diagnostic); event EventHandler<InspectorItemSourceChangeEventArgs>? Changed; }

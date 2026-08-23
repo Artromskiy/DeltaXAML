@@ -80,10 +80,6 @@ public static class DeltaTheme
     {
         var resources = new UiResourceStore();
         resources.Set("Color.Window", new UiColor(31, 41, 51));
-        resources.Set("Color.Toolbar", new UiColor(38, 53, 74));
-        resources.Set("Color.Sidebar", new UiColor(52, 73, 94));
-        resources.Set("Color.Inspector", new UiColor(61, 74, 92));
-        resources.Set("Color.Status", new UiColor(32, 42, 54));
         resources.Set("Color.Text", new UiColor(230, 236, 244));
         resources.Set("Color.TextMuted", new UiColor(155, 166, 182));
         resources.Set("Color.Accent", new UiColor(76, 111, 164));
@@ -94,14 +90,8 @@ public static class DeltaTheme
 
         var styles = new List<IUiStyle>
         {
-            new UiStyle("ShellRoot","ComponentInspector",e=>{e.Background=Color(resources,"Color.Window",default);e.AutomationName="Component Inspector";e.AutomationRole="window";}),
-            new UiStyle("ShellRoot","EditorShell",e=>{e.Background=Color(resources,"Color.Window",default);e.AutomationName="Editor Shell";e.AutomationRole="window";}),
             new UiStyle("Title","TextBlock",e=>{if(e is TextBlock t){t.Foreground=Color(resources,"Color.Text",default);t.FontSize=18;}}),
             new UiStyle("Muted","TextBlock",e=>{if(e is TextBlock t){t.Foreground=Color(resources,"Color.TextMuted",default);t.FontSize=12;}}),
-            new UiStyle("Toolbar","Border",e=>e.Background=Color(resources,"Color.Toolbar",default)),
-            new UiStyle("Sidebar","Border",e=>e.Background=Color(resources,"Color.Sidebar",default)),
-            new UiStyle("Inspector","Border",e=>e.Background=Color(resources,"Color.Inspector",default)),
-            new UiStyle("Status","Border",e=>e.Background=Color(resources,"Color.Status",default)),
             new UiStyle("TextEditor","TextBox",e=>{if(e is TextBox t){t.Background=new UiColor(19,24,32);t.Foreground=Color(resources,"Color.Text",default);}}),
             new UiStyle("NumericEditor","NumericEditor",e=>{if(e is NumericEditor t){t.Background=new UiColor(19,24,32);t.Foreground=Color(resources,"Color.Text",default);}}),
             new UiStyle("Button","Button",e=>{e.Background=Color(resources,"Color.Accent",default);e.AutomationRole="button";}),
