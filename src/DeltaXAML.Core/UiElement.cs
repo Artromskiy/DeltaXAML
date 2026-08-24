@@ -55,11 +55,34 @@ public sealed class UiPropertyStore : IUiPropertyStore
     private readonly Dictionary<string, SourceSlots> _slots = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IUiBinding> _bindings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, EventHandler> _bindingHandlers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ResourceBinding> _resourceBindings = new(StringComparer.Ordinal);
     private readonly UiElement _owner;
+    private static readonly UiValueSource[] Precedence = [UiValueSource.Handle, UiValueSource.Local, UiValueSource.Binding, UiValueSource.Style, UiValueSource.Default];
     public UiPropertyStore(UiElement owner) { ArgumentNullException.ThrowIfNull(owner); _owner = owner; }
-    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) { SetSlot(name, new UiValue(value, UiValueSource.Default, invalidation), static slots => slots.Default = true); }
-    public void SetLocal(string name, object? value, UiDirtyFlags invalidation) { RemoveBinding(name); SetSlot(name, new UiValue(value, UiValueSource.Local, invalidation), static slots => slots.Local = true); }
-    public void SetStyle(string name, object? value, UiDirtyFlags invalidation) { SetSlot(name, new UiValue(value, UiValueSource.Style, invalidation), static slots => slots.Style = true); }
+    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => SetSource(name, new(value, UiValueSource.Default, invalidation));
+    public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => SetSource(name, new(value, UiValueSource.Local, invalidation));
+    public void SetStyle(string name, object? value, UiDirtyFlags invalidation)
+    {
+        RemoveResourceBinding(name);
+        SetSource(name, new(value, UiValueSource.Style, invalidation));
+    }
+    public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation, Action<object?>? apply = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(resources);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reference.Key);
+        RemoveResourceBinding(name);
+        var binding = new ResourceBinding(resources, reference, invalidation, apply);
+        _resourceBindings[name] = binding;
+        binding.Handler = (_, _) =>
+        {
+            var slots = GetSlots(name);
+            slots.StyleValue = new UiValue(ResolveResource(binding), UiValueSource.Style, invalidation);
+            ApplyEffective(name, slots);
+        };
+        resources.Changed += binding.Handler;
+        SetSource(name, new(ResolveResource(binding), UiValueSource.Style, invalidation));
+    }
     public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -68,21 +91,28 @@ public sealed class UiPropertyStore : IUiPropertyStore
         _bindings[name] = binding;
         var slots = GetSlots(name);
         slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
-        Resolve(name, slots);
+        ApplyEffective(name, slots);
         EventHandler handler = (_, _) =>
         {
-            if (!HasHigherSource(name, UiValueSource.Binding))
-            {
-                slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
-                Resolve(name, slots);
-                _owner.Invalidate(invalidation);
-            }
+            slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
+            ApplyEffective(name, slots);
         };
         _bindingHandlers[name] = handler;
         binding.Changed += handler;
-        _owner.Invalidate(invalidation);
     }
-    public void SetHandle(string name, object? value, UiDirtyFlags invalidation) { SetSlot(name, new UiValue(value, UiValueSource.Handle, invalidation), static slots => slots.Handle = true); }
+    public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => SetSource(name, new(value, UiValueSource.Handle, invalidation));
+    public void Clear(string name, UiValueSource source)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (source == UiValueSource.Default) { throw new ArgumentException("Default values cannot be cleared.", nameof(source)); }
+        if (source == UiValueSource.Binding) { RemoveBinding(name); }
+        if (source == UiValueSource.Style) { RemoveResourceBinding(name); }
+        if (_slots.TryGetValue(name, out var slots))
+        {
+            SetValue(slots, source, null);
+            ApplyEffective(name, slots);
+        }
+    }
     public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) { ArgumentException.ThrowIfNullOrWhiteSpace(name); return _values.TryGetValue(name, out value); }
     public UiPropertyHandle GetHandle(string name)
     {
@@ -97,7 +127,7 @@ public sealed class UiPropertyStore : IUiPropertyStore
     {
         if (string.IsNullOrWhiteSpace(handle.Name)) { diagnostic = "A UI property name is required."; return false; }
         if (handle.Element != _owner.Id || handle.Generation != _owner.Generation) { diagnostic = "The UI property handle is stale."; return false; }
-        SetHandle(handle.Name, value, invalidation); _owner.Invalidate(invalidation); diagnostic = null; return true;
+        SetHandle(handle.Name, value, invalidation); diagnostic = null; return true;
     }
     private void RemoveBinding(string name)
     {
@@ -105,43 +135,79 @@ public sealed class UiPropertyStore : IUiPropertyStore
         {
             binding.Changed -= handler;
         }
-        if (_slots.TryGetValue(name, out var slots))
+        if (_slots.TryGetValue(name, out var slots)) { slots.BindingValue = null; ApplyEffective(name, slots); }
+    }
+    private void RemoveResourceBinding(string name)
+    {
+        if (_resourceBindings.Remove(name, out var binding))
         {
-            slots.BindingValue = null;
-            Resolve(name, slots);
+            binding.Resources.Changed -= binding.Handler;
         }
     }
-    private void SetSlot(string name, UiValue value, Action<SourceSlots> assign)
+    private void SetSource(string name, UiValue value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var slots = GetSlots(name);
-        assign(slots);
-        switch (value.Source)
+        SetValue(slots, value.Source, value);
+        ApplyEffective(name, slots);
+    }
+    private static void SetValue(SourceSlots slots, UiValueSource source, UiValue? value)
+    {
+        switch (source)
         {
             case UiValueSource.Default: slots.DefaultValue = value; break;
-            case UiValueSource.Local: slots.LocalValue = value; break;
             case UiValueSource.Style: slots.StyleValue = value; break;
+            case UiValueSource.Binding: slots.BindingValue = value; break;
+            case UiValueSource.Local: slots.LocalValue = value; break;
             case UiValueSource.Handle: slots.HandleValue = value; break;
         }
-        Resolve(name, slots);
-        _owner.Invalidate(value.Invalidation);
     }
     private SourceSlots GetSlots(string name) => _slots.TryGetValue(name, out var slots) ? slots : AddSlots(name);
     private SourceSlots AddSlots(string name) { var slots = new SourceSlots(); _slots.Add(name, slots); return slots; }
-    private bool HasHigherSource(string name, UiValueSource source) => _values.TryGetValue(name, out var value) && value.Source > source;
-    private void Resolve(string name, SourceSlots slots)
+    private void ApplyEffective(string name, SourceSlots slots)
     {
-        _values.Remove(name);
-        if (slots.Handle && slots.HandleValue is not null) { _values[name] = slots.HandleValue; }
-        else if (slots.Local && slots.LocalValue is not null) { _values[name] = slots.LocalValue; }
-        else if (slots.BindingValue is not null) { _values[name] = slots.BindingValue; }
-        else if (slots.Style && slots.StyleValue is not null) { _values[name] = slots.StyleValue; }
-        else if (slots.Default && slots.DefaultValue is not null) { _values[name] = slots.DefaultValue; }
+        _values.TryGetValue(name, out var previous);
+        UiValue? effective = null;
+        foreach (var source in Precedence)
+        {
+            effective = source switch
+            {
+                UiValueSource.Handle => slots.HandleValue,
+                UiValueSource.Local => slots.LocalValue,
+                UiValueSource.Binding => slots.BindingValue,
+                UiValueSource.Style => slots.StyleValue,
+                UiValueSource.Default => slots.DefaultValue,
+                _ => null
+            };
+            if (effective is not null) { break; }
+        }
+        if (effective is null) { _values.Remove(name); }
+        else { _values[name] = effective; }
+        if (Same(previous, effective)) { return; }
+        var invalidation = effective?.Invalidation ?? previous?.Invalidation ?? UiDirtyFlags.Visual;
+        _owner.Invalidate(invalidation);
+        if (_resourceBindings.TryGetValue(name, out var resource) && effective?.Source == UiValueSource.Style)
+        {
+            resource.Apply?.Invoke(effective.UntypedValue);
+        }
     }
+    private object? ResolveResource(ResourceBinding binding) => binding.Resources.TryResolve(binding.Reference.Key, out var value, out _) ? value : null;
+    private static bool Same(IUiValue? left, UiValue? right) => left?.Source == right?.Source && Equals(left?.UntypedValue, right?.UntypedValue);
     private sealed class SourceSlots
     {
-        public bool Default, Style, Local, Handle;
-        public IUiValue? DefaultValue, StyleValue, LocalValue, BindingValue, HandleValue;
+        public UiValue? DefaultValue, StyleValue, BindingValue, LocalValue, HandleValue;
+    }
+    private sealed class ResourceBinding
+    {
+        public ResourceBinding(UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation, Action<object?>? apply)
+        {
+            Resources = resources; Reference = reference; Invalidation = invalidation; Apply = apply;
+        }
+        public UiResourceStore Resources { get; }
+        public UiResourceReference Reference { get; }
+        public UiDirtyFlags Invalidation { get; }
+        public Action<object?>? Apply { get; }
+        public EventHandler<UiResourceChangedEventArgs>? Handler { get; set; }
     }
 }
 
@@ -216,7 +282,8 @@ public class UiElement : IUiElement, IUiPropertyStore
     public virtual void Arrange(UiRect bounds) { Bounds = bounds; Clip = bounds; foreach (var child in _children) { if (child is UiElement element) { element._layoutScale = _layoutScale; element.Arrange(bounds); } else { child.Arrange(bounds); } } DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
     protected UiSize RequestedSize(UiSize measured) => new(float.IsNaN(Width) ? measured.Width : Width, float.IsNaN(Height) ? measured.Height : Height);
     public IUiElement? HitTest(UiPoint point) { if (Visibility != UiVisibility.Visible || !Clip.Contains(point)) { return null; } for (var i = _children.Count - 1; i >= 0; i--) { if (_children[i] is UiElement c && c.HitTest(point) is { } hit) { return hit; } } return this; }
-    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
+    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation, value => ApplyStyleResourceValue(name, value)); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
+    protected virtual void ApplyStyleResourceValue(string name, object? value) { }
     public UiPropertyHandle GetHandle(string name) => _properties.GetHandle(name);
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic) => _properties.TrySet(handle, value, invalidation, out diagnostic);
     protected virtual string GetAutomationValueText() => string.Empty;
@@ -383,6 +450,11 @@ public class TextBlock : UiElement
     public string GlyphRunKey { get => _glyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_glyphRunKey == value) { return; } _glyphRunKey = value; Invalidate(UiDirtyFlags.Visual); } }
     public float FontSize { get => _fontSize; set { if (_fontSize.Equals(value)) { return; } _fontSize = value; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
     public UiColor Foreground { get => _foreground; set { if (_foreground == value) { return; } _foreground = value; Invalidate(UiDirtyFlags.Visual); } }
+    protected override void ApplyStyleResourceValue(string name, object? value)
+    {
+        if (name == "Foreground" && value is UiColor color) { _foreground = color; }
+        else if (name == "FontSize" && value is float size) { _fontSize = size; }
+    }
     public override void Measure(UiSize available) { var size = FontSize * LayoutScale; DesiredSize = RequestedSize(new(MathF.Min(available.Width, _text.Length * size * .55f), size * 1.25f)); DirtyFlags &= ~UiDirtyFlags.Measure; }
     protected override string GetAutomationValueText() => _text;
     protected override bool HasTextRun => true;

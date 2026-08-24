@@ -55,6 +55,7 @@ internal static class Program
         StorageReuse();
         HandlesCompiledBindingsAndCustomTypes();
         ResourceLookupDiagnostics();
+        ResourceBackedPrecedenceAndXaml();
         FrameContractAndBatchedMutations();
     }
 
@@ -329,12 +330,58 @@ internal static class Program
     {
         var resources = new UiResourceStore();
         resources.Set("Color.Text", new UiColor(1, 2, 3));
-        resources.Set("Color.Alias", "@Color.Text");
+        resources.Set("Color.Alias", new UiResourceReference("Color.Text"));
         Assert.True(resources.TryResolve("Color.Alias", out var resolved, out var diagnostic) && resolved is UiColor && diagnostic is null, "resource alias resolves");
         Assert.True(!resources.TryResolve("Color.Missing", out _, out diagnostic) && diagnostic?.Contains("not found", StringComparison.Ordinal) == true, "missing resource has diagnostic");
-        resources.Set("Cycle.A", "@Cycle.B");
-        resources.Set("Cycle.B", "@Cycle.A");
+        resources.Set("Cycle.A", new UiResourceReference("Cycle.B"));
+        resources.Set("Cycle.B", new UiResourceReference("Cycle.A"));
         Assert.True(!resources.TryResolve("Cycle.A", out _, out diagnostic) && diagnostic?.Contains("cycle", StringComparison.OrdinalIgnoreCase) == true, "resource cycle has diagnostic");
+    }
+
+    private static void ResourceBackedPrecedenceAndXaml()
+    {
+        var resources = new UiResourceStore();
+        resources.Set("Color.Text", new UiColor(10, 20, 30));
+        resources.Set("Color.Alias", new UiResourceReference("Color.Text"));
+        var element = new TextBlock { Text = "Value" };
+        element.SetDefault("Value", "default", UiDirtyFlags.Visual);
+        element.SetStyleResource("Value", resources, new("Color.Alias"), UiDirtyFlags.Visual);
+        var bindingValue = "binding";
+        var binding = new UiBindingValue(() => bindingValue, _ => (true, null));
+        element.SetBinding("Value", binding, UiDirtyFlags.Visual);
+        element.SetLocal("Value", "local", UiDirtyFlags.Visual);
+        element.SetHandle("Value", "handle", UiDirtyFlags.Visual);
+        Assert.True(element.TryGet("Value", out var value) && Equals(value.UntypedValue, "handle"), "precedence reaches handle");
+        bindingValue = "latest binding";
+        binding.NotifyChanged();
+        element.Clear("Value", UiValueSource.Handle);
+        Assert.True(element.TryGet("Value", out value) && Equals(value.UntypedValue, "local"), "clear handle reveals local");
+        element.Clear("Value", UiValueSource.Local);
+        Assert.True(element.TryGet("Value", out value) && Equals(value.UntypedValue, "latest binding"), "clear local reveals latest hidden binding");
+        element.Clear("Value", UiValueSource.Binding);
+        Assert.True(element.TryGet("Value", out value) && value.Source == UiValueSource.Style, "clear binding reveals resource style");
+        element.Clear("Value", UiValueSource.Style);
+        Assert.True(element.TryGet("Value", out value) && Equals(value.UntypedValue, "default"), "clear style reveals default");
+
+        var loaded = XamlLoader.LoadFrame("<Panel><TextBlock Text=\"Label\" ForegroundResource=\"Color.Text\" /></Panel>", resources);
+        Assert.True(loaded.Success && loaded.Frame?.Root.Children[0] is TextBlock, "XAML resource fixture loads");
+        var root = (Panel)loaded.Frame!.Root;
+        var first = (TextBlock)root.Children[0];
+        var second = new TextBlock { Text = "Other" };
+        root.Add(second);
+        var frame = loaded.Frame;
+        frame.Layout(new(200, 40), 1);
+        var before = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 1));
+        var beforeVersion = before.Version;
+        resources.Set("Color.Text", new UiColor(40, 50, 60));
+        var unchangedAssignment = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 2));
+        Assert.True(unchangedAssignment.Version != beforeVersion, "dependent resource change invalidates output");
+        Assert.Equal(new UiDrawRange(0, 1), unchangedAssignment.GetDeltaSince(beforeVersion).TextRuns, "resource change has bounded text delta");
+        resources.Set("Color.Text", new UiColor(40, 50, 60));
+        var unchanged = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 3));
+        Assert.Equal(unchangedAssignment.Version, unchanged.Version, "unchanged resource assignment has no draw delta");
+        Assert.Equal(new UiColor(40, 50, 60), first.Foreground, "resource style updates the consuming property");
+        Assert.Equal(new UiColor(255, 255, 255), second.Foreground, "unrelated property remains unchanged");
     }
 
     private static void FrameContractAndBatchedMutations()

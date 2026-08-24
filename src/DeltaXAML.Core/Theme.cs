@@ -5,10 +5,22 @@ using IUiResourceDictionary = DeltaXAML.Abstractions.IUiResourceStore;
 
 namespace DeltaXAML.Core;
 
+public sealed class UiResourceChangedEventArgs(string key) : EventArgs
+{
+    public string Key { get; } = key;
+}
+
 public sealed class UiResourceStore : IUiResourceDictionary
 {
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
-    public void Set(string key, object? value) { ArgumentException.ThrowIfNullOrWhiteSpace(key); _values[key] = value; }
+    public event EventHandler<UiResourceChangedEventArgs>? Changed;
+    public void Set(string key, object? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (_values.TryGetValue(key, out var current) && Equals(current, value)) { return; }
+        _values[key] = value;
+        Changed?.Invoke(this, new(key));
+    }
     public bool TryGet(string key, out object? value) { ArgumentException.ThrowIfNullOrWhiteSpace(key); return _values.TryGetValue(key, out value); }
     public bool TryResolve(string key, out object? value, [NotNullWhen(false)] out string? diagnostic)
     {
@@ -19,8 +31,8 @@ public sealed class UiResourceStore : IUiResourceDictionary
         {
             if (!visited.Add(current)) { value = null; diagnostic = $"Resource cycle detected at '{current}'."; return false; }
             if (!_values.TryGetValue(current, out var candidate)) { value = null; diagnostic = $"Resource '{current}' was not found."; return false; }
-            if (candidate is not string reference || !reference.StartsWith('@')) { value = candidate; diagnostic = null; return true; }
-            current = reference[1..];
+            if (candidate is not UiResourceReference reference) { value = candidate; diagnostic = null; return true; }
+            current = reference.Key;
         }
     }
 }

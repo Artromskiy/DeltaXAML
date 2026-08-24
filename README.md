@@ -80,5 +80,8 @@ is `Default < Style < Binding < Local < Handle`; `Handle` is the transient,
 generation-safe mutation layer and remains compatible with the existing
 engine-neutral handle API. `SetDefault`, `SetStyle`, `SetBinding`,
 `SetLocal`, and `SetHandle` update one effective value without replacing the
-other source slots. `UiResourceStore.TryResolve` follows `@Resource.Key`
-aliases and reports missing-resource and cycle diagnostics.
+other source slots. `SetStyleResource` uses the typed
+`UiResourceReference`; aliases report missing-resource and cycle diagnostics.
+The minimal XAML form is `ForegroundResource="Color.Text"` together with
+`XamlLoader.LoadFrame(source, resources)`; it binds the TextBlock foreground
+without making resource syntax a general string metadata convention.
