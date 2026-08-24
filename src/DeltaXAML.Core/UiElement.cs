@@ -312,7 +312,7 @@ public class UiElement : IUiElement, IUiPropertyStore
     public bool TryGetTextRun(out UiTextRun run)
     {
         if (!HasTextRun) { run = default; return false; }
-        run = new UiTextRun(GetTextRunFontKey(), GetTextRunFontSize() * LayoutScale, GetTextRunText(), GetTextRunKey(), GetTextRunColor(), Bounds, Clip, Id, TextRunVersion);
+        run = new UiTextRun(GetTextRunFontKey(), GetTextRunFontSize() * LayoutScale, GetTextRunText(), GetTextRunKey(), GetTextRunColor(), Bounds, Clip, Id, Generation, TextRunVersion);
         return true;
     }
 }

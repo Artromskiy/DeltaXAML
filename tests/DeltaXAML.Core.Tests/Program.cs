@@ -243,6 +243,7 @@ internal static class Program
         Assert.Equal("default", initialRuns[0].FontKey, "text request font key");
         Assert.Equal("first", initialRuns[0].Text, "text request content");
         Assert.Equal(first.Id, initialRuns[0].Owner, "text request owner");
+        Assert.Equal(first.Generation, initialRuns[0].OwnerGeneration, "text request owner generation");
         for (var index = 0; index < 20; index++)
         {
             frame.Layout(new(200, 40), 1);
@@ -258,6 +259,7 @@ internal static class Program
             {
                 Assert.Equal(initialRuns[runIndex].Version, next.TextRuns.Span[runIndex].Version, "unchanged frame keeps text version");
                 Assert.Equal(initialRuns[runIndex].Owner, next.TextRuns.Span[runIndex].Owner, "unchanged frame keeps text owner");
+                Assert.Equal(initialRuns[runIndex].OwnerGeneration, next.TextRuns.Span[runIndex].OwnerGeneration, "unchanged frame keeps owner generation");
             }
         }
 
@@ -276,6 +278,8 @@ internal static class Program
         var changed = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 23));
         var changedVersion = changed.Version;
         Assert.True(changed.TextRuns.Span[0].Version != initialRuns[0].Version, "changed text updates its version");
+        Assert.Equal(initialRuns[0].Owner, changed.TextRuns.Span[0].Owner, "text mutation keeps owner identity");
+        Assert.Equal(initialRuns[0].OwnerGeneration, changed.TextRuns.Span[0].OwnerGeneration, "text mutation keeps owner generation");
         Assert.Equal(initialRuns[1].Version, changed.TextRuns.Span[1].Version, "unchanged text keeps its version");
         var valueDelta = changed.GetDeltaSince(initialVersion);
         Assert.Equal(new UiDrawRange(0, 1), valueDelta.TextRuns, "value update changes one text range");

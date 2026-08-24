@@ -48,7 +48,7 @@ the retained controls without depending on ECS, DeltaEngine or Vulkan.
 `IUiDrawList` is the single DeltaXAML renderer-neutral producer contract. It
 publishes ordered rectangle commands, clip entries and `UiTextRun` requests.
 `UiTextRun` contains content, font/style data, positioned bounds, clip,
-`GlyphRunKey`, `Owner` and owner-data `Version`; it is not shaped glyph data,
+`GlyphRunKey`, `Owner`, `OwnerGeneration` and dirty-data `Version`; it is not shaped glyph data,
 atlas data or GPU state. DeltaText may consume the request, while DeltaRender
 owns shaping results, atlases, batching and uploads.
 

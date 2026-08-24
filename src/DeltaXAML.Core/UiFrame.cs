@@ -105,7 +105,7 @@ internal sealed class DrawList : IUiDrawList
         if (e is UiElement element && element.TryGetTextRun(out var run))
         {
             EnsureText();
-            _textRuns[_textCount++] = run with { Bounds = e.Bounds, Clip = effective, Owner = e.Id };
+            _textRuns[_textCount++] = run with { Bounds = e.Bounds, Clip = effective, Owner = e.Id, OwnerGeneration = e.Generation };
         }
         foreach (var child in e.Children)
         {

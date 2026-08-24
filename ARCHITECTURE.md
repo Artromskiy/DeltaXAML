@@ -156,7 +156,9 @@ color, optional text, z-order, order, and owner. `UiTextRun` contains:
 - `FontKey`, `FontSize`, and `Color`;
 - source `Text` and renderer-facing `GlyphRunKey` identity;
 - positioned `Bounds` and `Clip`;
-- owning `UiElementId` and an owning-data `Version`.
+- owning `UiElementId`, `OwnerGeneration` and an owning-data `Version`;
+  `Owner` plus `OwnerGeneration` identify lifetime, while `Version` identifies
+  text/style/layout dirtiness.
 
 The text run is a submission boundary, not a glyph representation. DeltaXAML
 does not create glyph indices, atlas pages, UVs, rasterized bitmaps, or
@@ -173,8 +175,8 @@ range, while a layout change may update positioned bounds/clips without
 changing the text owner's content/style version.
 
 `UiTextRun` is the neutral text-request record. It carries text content,
-font/style values, `GlyphRunKey`, positioned bounds, clip, owner and owner-data
-version. It contains no shaped glyphs, atlas pages, UVs, rasterized pixels or
+font/style values, `GlyphRunKey`, positioned bounds, clip, owner,
+`OwnerGeneration` and owner-data version. It contains no shaped glyphs, atlas pages, UVs, rasterized pixels or
 GPU handles.
 
 ## Public API map
