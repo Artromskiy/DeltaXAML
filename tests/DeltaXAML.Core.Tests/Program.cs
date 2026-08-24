@@ -230,11 +230,21 @@ internal static class Program
         var initial = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 1));
         var initialRuns = initial.TextRuns.ToArray();
         var initialVersion = initial.Version;
+        Assert.True(MemoryMarshal.TryGetArray(initial.TextRuns, out ArraySegment<UiTextRun> initialTextStorage), "text request backing array");
+        Assert.Equal("default", initialRuns[0].FontKey, "text request font key");
+        Assert.Equal("first", initialRuns[0].Text, "text request content");
+        Assert.Equal(first.Id, initialRuns[0].Owner, "text request owner");
         for (var index = 0; index < 20; index++)
         {
             frame.Layout(new(200, 40), 1);
             var next = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, (uint)(index + 2)));
+            Assert.Equal(initialVersion, next.Version, "unchanged frame keeps draw-list version");
             Assert.Equal(initialRuns.Length, next.TextRuns.Length, "unchanged frame keeps text run count");
+            Assert.True(MemoryMarshal.TryGetArray(next.TextRuns, out ArraySegment<UiTextRun> nextTextStorage) && ReferenceEquals(initialTextStorage.Array, nextTextStorage.Array), "unchanged frame reuses text backing array");
+            var unchangedDelta = next.GetDeltaSince(initialVersion);
+            Assert.Equal(0, unchangedDelta.Commands.Count, "unchanged frame has no command delta");
+            Assert.Equal(0, unchangedDelta.Clips.Count, "unchanged frame has no clip delta");
+            Assert.Equal(0, unchangedDelta.TextRuns.Count, "unchanged frame has no text delta");
             for (var runIndex = 0; runIndex < next.TextRuns.Length; runIndex++)
             {
                 Assert.Equal(initialRuns[runIndex].Version, next.TextRuns.Span[runIndex].Version, "unchanged frame keeps text version");
@@ -242,13 +252,40 @@ internal static class Program
             }
         }
 
+        first.Foreground = new UiColor(200, 210, 220);
+        frame.Layout(new(200, 40), 1);
+        var styled = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 22));
+        var styleDelta = styled.GetDeltaSince(initialVersion);
+        Assert.Equal(new UiDrawRange(0, 1), styleDelta.TextRuns, "style update changes one text range");
+        Assert.True(styled.TextRuns.Span[0].Version != initialRuns[0].Version, "style update changes the owning text version");
+        Assert.Equal(initialRuns[1].Version, styled.TextRuns.Span[1].Version, "style update keeps the other text version");
+        initialRuns = styled.TextRuns.ToArray();
+        initialVersion = styled.Version;
+
         first.Text = "changed";
         frame.Layout(new(200, 40), 1);
-        var changed = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 22));
+        var changed = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 23));
+        var changedVersion = changed.Version;
         Assert.True(changed.TextRuns.Span[0].Version != initialRuns[0].Version, "changed text updates its version");
         Assert.Equal(initialRuns[1].Version, changed.TextRuns.Span[1].Version, "unchanged text keeps its version");
-        var delta = changed.GetDeltaSince(initialVersion);
-        Assert.True(delta.TextRuns.Count > 0, "delta reports changed text range");
+        var valueDelta = changed.GetDeltaSince(initialVersion);
+        Assert.Equal(new UiDrawRange(0, 1), valueDelta.TextRuns, "value update changes one text range");
+        Assert.Equal(new UiDrawRange(0, 0), valueDelta.Clips, "value update does not change clips");
+
+        root.Width = 240;
+        frame.Layout(new(240, 40), 1);
+        var layoutChanged = frame.ExtractDrawList(new UiFrameContext(new(240, 40), 1, 24));
+        var layoutChangedVersion = layoutChanged.Version;
+        var layoutDelta = layoutChanged.GetDeltaSince(changedVersion);
+        Assert.Equal(new UiDrawRange(0, layoutChanged.Clips.Length), layoutDelta.Clips, "layout update changes the clip ranges");
+        Assert.Equal(new UiDrawRange(0, 2), layoutDelta.TextRuns, "layout update changes positioned text ranges");
+        Assert.Equal(changed.TextRuns.Span[0].Version, layoutChanged.TextRuns.Span[0].Version, "layout update preserves first text identity");
+        Assert.Equal(changed.TextRuns.Span[1].Version, layoutChanged.TextRuns.Span[1].Version, "layout update preserves second text identity");
+
+        frame.Layout(new(240, 40), 2);
+        var dpiChanged = frame.ExtractDrawList(new UiFrameContext(new(240, 40), 2, 25));
+        var dpiDelta = dpiChanged.GetDeltaSince(layoutChangedVersion);
+        Assert.Equal(new UiDrawRange(0, 2), dpiDelta.TextRuns, "DPI update changes both text layout requests");
     }
 
     private static void StorageReuse()

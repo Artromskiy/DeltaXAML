@@ -90,15 +90,23 @@ public interface IUiPropertyStore
 public enum UiDrawKind { Rectangle, TextRun, Image, Viewport }
 public readonly record struct UiClipId(uint Value);
 public readonly record struct UiClipEntry(UiClipId Id, UiRect Bounds, UiClipId Parent);
+/// <summary>Renderer-neutral text request; it is not shaped glyph data.</summary>
+/// <remarks>DeltaXAML owns content, style, layout and owner/version identity; it does not own shaping or glyph pixels.</remarks>
 public readonly record struct UiTextRun(string FontKey, float FontSize, string Text, string GlyphRunKey, UiColor Color, UiRect Bounds, UiRect Clip, UiElementId Owner, uint Version);
 public readonly record struct UiDrawRange(int Start, int Count);
-public readonly record struct UiDrawDelta(UiDrawRange Commands, UiDrawRange TextRuns, uint BaseVersion, uint NextVersion);
+public readonly record struct UiDrawDelta(UiDrawRange Commands, UiDrawRange TextRuns, uint BaseVersion, uint NextVersion)
+{
+    public UiDrawRange Clips { get; init; }
+}
 public readonly record struct UiDrawCommand(UiDrawKind Kind, UiRect Bounds, UiRect Clip, UiClipId ClipId, UiResourceHandle Resource, UiColor Color, string? Text, int ZIndex, uint Order, UiElementId Owner);
+/// <summary>Canonical renderer-neutral producer for one retained UI frame.</summary>
+/// <remarks>Memory views borrow the producing frame storage until its next extraction; copy them to retain data beyond that boundary.</remarks>
 public interface IUiDrawList
 {
     ReadOnlyMemory<UiDrawCommand> Commands { get; }
     ReadOnlyMemory<UiClipEntry> Clips { get; }
     ReadOnlyMemory<UiTextRun> TextRuns { get; }
+    /// <summary>Changes only when commands, clips or text requests change.</summary>
     uint Version { get; }
     UiDrawDelta GetDeltaSince(uint version);
 }

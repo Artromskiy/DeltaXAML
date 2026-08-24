@@ -1,5 +1,9 @@
 # DeltaXAML TODO
 
+Public facade sequencing follows [API_REVIEW.md](API_REVIEW.md); the
+cross-project handoff order is in
+[../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md).
+
 ## XAML capability expansion
 
 - [ ] Add resource-backed style precedence and explicit style invalidation for

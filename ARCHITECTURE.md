@@ -142,10 +142,13 @@ uses font size and a text-length estimate. It is not a shaping result.
 
 ### 5. Frame extraction and renderer handoff
 
-`IUiFrame.ExtractDrawList(UiFrameContext)` fills a retained `UiDrawList` with
-ordered commands, clips, and text runs. The backing arrays are reused and
+`IUiDrawList` is the canonical DeltaXAML renderer-neutral producer. The
+`IUiFrame.ExtractDrawList(UiFrameContext)` call fills its retained storage with
+ordered commands, clips, and text requests. The backing arrays are reused and
 exposed through bounded `ReadOnlyMemory` slices, so the consumer reads the
-current counts without a per-frame replacement array.
+current counts without a per-frame replacement array. Those memory views are
+borrowed: they remain valid until the producing frame's next extraction. A
+renderer must consume them before that call or copy them explicitly.
 
 `UiDrawCommand` contains draw kind, bounds, clip and clip ID, resource handle,
 color, optional text, z-order, order, and owner. `UiTextRun` contains:
@@ -161,10 +164,18 @@ Vulkan resources. A renderer adapter is responsible for interpreting the
 font/glyph identity and producing its own shaped or rasterized data.
 
 `IUiDrawList.Version` and `GetDeltaSince(uint)` provide a compact change view.
-`UiDrawDelta` reports command and text-run ranges plus base/next versions. The
-draw-list extraction keeps the owner/version of unchanged text data stable;
-changes such as a value edit update the affected owner/subtree instead of
-using the extraction count as a global text-cache version.
+The version changes only when commands, clips, or text-request values change;
+unchanged extraction keeps the version and backing arrays stable. `UiDrawDelta`
+reports command, clip, and text-request ranges plus base/next versions. The
+immediately preceding version receives precise ranges; an older version
+receives full current ranges. A value edit updates only the affected text
+range, while a layout change may update positioned bounds/clips without
+changing the text owner's content/style version.
+
+`UiTextRun` is the neutral text-request record. It carries text content,
+font/style values, `GlyphRunKey`, positioned bounds, clip, owner and owner-data
+version. It contains no shaped glyphs, atlas pages, UVs, rasterized pixels or
+GPU handles.
 
 ## Public API map
 

@@ -44,8 +44,11 @@ internal sealed class DrawList : IUiDrawList
     private UiClipEntry[] _clips = Array.Empty<UiClipEntry>();
     private UiTextRun[] _textRuns = Array.Empty<UiTextRun>();
     private UiDrawCommand[] _previousCommands = Array.Empty<UiDrawCommand>();
+    private UiClipEntry[] _previousClips = Array.Empty<UiClipEntry>();
     private UiTextRun[] _previousTextRuns = Array.Empty<UiTextRun>();
     private int _commandCount, _clipCount, _textCount;
+    private int _previousCommandCount, _previousClipCount, _previousTextCount;
+    private uint _previousVersion;
     public ReadOnlyMemory<UiDrawCommand> Commands => _commands.AsMemory(0, _commandCount);
     public ReadOnlyMemory<UiClipEntry> Clips => _clips.AsMemory(0, _clipCount);
     public ReadOnlyMemory<UiTextRun> TextRuns => _textRuns.AsMemory(0, _textCount);
@@ -54,12 +57,34 @@ internal sealed class DrawList : IUiDrawList
     {
         if (version == Version)
         {
-            return new(new(0, 0), new(0, 0), Version, Version);
+            return EmptyDelta(version);
         }
 
-        return new(ChangedRange(_previousCommands.AsSpan(0, _commandCount), _commands.AsSpan(0, _commandCount)), ChangedRange(_previousTextRuns.AsSpan(0, _textCount), _textRuns.AsSpan(0, _textCount)), version, Version);
+        if (version != _previousVersion)
+        {
+            return new(new(0, _commandCount), new(0, _textCount), version, Version) { Clips = new(0, _clipCount) };
+        }
+
+        return new(ChangedRange<UiDrawCommand>(_previousCommands.AsSpan(0, _previousCommandCount), _commands.AsSpan(0, _commandCount)), ChangedRange<UiTextRun>(_previousTextRuns.AsSpan(0, _previousTextCount), _textRuns.AsSpan(0, _textCount)), version, Version)
+        {
+            Clips = ChangedRange<UiClipEntry>(_previousClips.AsSpan(0, _previousClipCount), _clips.AsSpan(0, _clipCount))
+        };
     }
-    public void Build(IUiElement root, UiRect clip) { CopyCurrentToPrevious(); _commandCount = 0; _clipCount = 0; _textCount = 0; Visit(root, clip, new(0)); Version++; }
+    public void Build(IUiElement root, UiRect clip)
+    {
+        CopyCurrentToPrevious();
+        _commandCount = 0;
+        _clipCount = 0;
+        _textCount = 0;
+        Visit(root, clip, new(0));
+        _previousVersion = Version;
+        if (!Same<UiDrawCommand>(_previousCommands.AsSpan(0, _previousCommandCount), _commands.AsSpan(0, _commandCount)) ||
+            !Same<UiClipEntry>(_previousClips.AsSpan(0, _previousClipCount), _clips.AsSpan(0, _clipCount)) ||
+            !Same<UiTextRun>(_previousTextRuns.AsSpan(0, _previousTextCount), _textRuns.AsSpan(0, _textCount)))
+        {
+            Version++;
+        }
+    }
     private void Visit(IUiElement e, UiRect clip, UiClipId parent)
     {
         if (e.Visibility != UiVisibility.Visible)
@@ -93,15 +118,31 @@ internal sealed class DrawList : IUiDrawList
     private void CopyCurrentToPrevious()
     {
         EnsurePreviousCommands(_commandCount);
+        EnsurePreviousClips(_clipCount);
         EnsurePreviousText(_textCount);
+        _previousCommandCount = _commandCount;
+        _previousClipCount = _clipCount;
+        _previousTextCount = _textCount;
         for (var i = 0; i < _commandCount; i++)
         {
             _previousCommands[i] = _commands[i];
         }
 
+        for (var i = 0; i < _clipCount; i++)
+        {
+            _previousClips[i] = _clips[i];
+        }
+
         for (var i = 0; i < _textCount; i++)
         {
             _previousTextRuns[i] = _textRuns[i];
+        }
+    }
+    private void EnsurePreviousClips(int count)
+    {
+        if (_previousClips.Length < count)
+        {
+            Array.Resize(ref _previousClips, Math.Max(8, Math.Max(count, _previousClips.Length * 2)));
         }
     }
     private void EnsurePreviousCommands(int count)
@@ -118,7 +159,9 @@ internal sealed class DrawList : IUiDrawList
             Array.Resize(ref _previousTextRuns, Math.Max(8, Math.Max(count, _previousTextRuns.Length * 2)));
         }
     }
-    private static UiDrawRange ChangedRange(ReadOnlySpan<UiDrawCommand> previous, ReadOnlySpan<UiDrawCommand> current)
+    private static UiDrawDelta EmptyDelta(uint version) => new(new(0, 0), new(0, 0), version, version) { Clips = new(0, 0) };
+    private static bool Same<T>(ReadOnlySpan<T> left, ReadOnlySpan<T> right) => left.SequenceEqual(right);
+    private static UiDrawRange ChangedRange<T>(ReadOnlySpan<T> previous, ReadOnlySpan<T> current)
     {
         var start = -1;
         var end = -1;
@@ -127,28 +170,7 @@ internal sealed class DrawList : IUiDrawList
         {
             var prev = i < previous.Length ? previous[i] : default;
             var next = i < current.Length ? current[i] : default;
-            if (!EqualityComparer<UiDrawCommand>.Default.Equals(prev, next))
-            {
-                if (start < 0)
-                {
-                    start = i;
-                }
-
-                end = i + 1;
-            }
-        }
-        return start < 0 ? new UiDrawRange(0, 0) : new UiDrawRange(start, end - start);
-    }
-    private static UiDrawRange ChangedRange(ReadOnlySpan<UiTextRun> previous, ReadOnlySpan<UiTextRun> current)
-    {
-        var start = -1;
-        var end = -1;
-        var limit = Math.Max(previous.Length, current.Length);
-        for (var i = 0; i < limit; i++)
-        {
-            var prev = i < previous.Length ? previous[i] : default;
-            var next = i < current.Length ? current[i] : default;
-            if (!EqualityComparer<UiTextRun>.Default.Equals(prev, next))
+            if (!EqualityComparer<T>.Default.Equals(prev, next))
             {
                 if (start < 0)
                 {

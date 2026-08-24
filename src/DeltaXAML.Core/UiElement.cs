@@ -332,8 +332,15 @@ public sealed class ToggleButton : Button
 public class TextBlock : UiElement
 {
     private string _text = "";
+    private string _fontKey = "default";
+    private string _glyphRunKey = "default";
+    private float _fontSize = 14;
+    private UiColor _foreground = new(255, 255, 255);
     public override string TypeName => "TextBlock"; public string Text { get => _text; set { ArgumentNullException.ThrowIfNull(value); if (_text == value) { return; } _text = value; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
-    public string FontKey { get; set; } = "default"; public string GlyphRunKey { get; set; } = "default"; public float FontSize { get; set; } = 14; public UiColor Foreground { get; set; } = new(255, 255, 255);
+    public string FontKey { get => _fontKey; set { ArgumentNullException.ThrowIfNull(value); if (_fontKey == value) { return; } _fontKey = value; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
+    public string GlyphRunKey { get => _glyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_glyphRunKey == value) { return; } _glyphRunKey = value; Invalidate(UiDirtyFlags.Visual); } }
+    public float FontSize { get => _fontSize; set { if (_fontSize.Equals(value)) { return; } _fontSize = value; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
+    public UiColor Foreground { get => _foreground; set { if (_foreground == value) { return; } _foreground = value; Invalidate(UiDirtyFlags.Visual); } }
     public override void Measure(UiSize available) { var size = FontSize * LayoutScale; DesiredSize = RequestedSize(new(MathF.Min(available.Width, _text.Length * size * .55f), size * 1.25f)); DirtyFlags &= ~UiDirtyFlags.Measure; }
     protected override string GetAutomationValueText() => _text;
     protected override bool HasTextRun => true;

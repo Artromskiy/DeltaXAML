@@ -6,7 +6,7 @@ storage dependency.
 
 ```text
 XAML -> retained tree -> properties/styles -> measure/arrange
-  -> hit testing/input -> renderer-neutral primitives and positioned text
+  -> hit testing/input -> text layout requests + renderer-neutral IUiDrawList
 ```
 
 `DeltaXAML.Abstractions` owns neutral element/frame/draw contracts.
@@ -43,11 +43,33 @@ The adapter split is additive. Existing frame, mutation and draw contracts stay
 available for the game/editor integration while ordinary UI consumers can use
 the retained controls without depending on ECS, DeltaEngine or Vulkan.
 
+## Canonical draw producer and text request
+
+`IUiDrawList` is the single DeltaXAML renderer-neutral producer contract. It
+publishes ordered rectangle commands, clip entries and `UiTextRun` requests.
+`UiTextRun` contains content, font/style data, positioned bounds, clip,
+`GlyphRunKey`, `Owner` and owner-data `Version`; it is not shaped glyph data,
+atlas data or GPU state. DeltaText may consume the request, while DeltaRender
+owns shaping results, atlases, batching and uploads.
+
+`IUiDrawList.Version` changes only when commands, clips or text-request values
+change. Unchanged extraction keeps the version, text owners, text versions and
+backing arrays stable. `GetDeltaSince` reports precise command, clip and text
+ranges for the immediately preceding version; an older version receives full
+current ranges and must reread the current snapshot.
+
+The `ReadOnlyMemory` properties are borrowed views into the producing
+`UiFrame`. They remain valid only until that frame's next
+`ExtractDrawList` call. Consumers must finish reading before the next
+extraction, or copy the values when retaining them beyond the frame.
+
 The dialect intentionally does not reproduce WPF/Avalonia's full dependency
 property system. Unsupported elements/properties produce source diagnostics.
 ECS/editor data enters through neutral schema/value/edit records rather than
 storage handles or reflection objects.
 
 See [WORKFLOW.md](WORKFLOW.md) for headless checks, [TODO.md](TODO.md) for
-selected work, [IDEAS.md](IDEAS.md) for deferred tooling and
+selected work, [API_REVIEW.md](API_REVIEW.md) for the additive facade plan,
+[ARCHITECTURE.md](ARCHITECTURE.md) for the implemented boundary,
+[IDEAS.md](IDEAS.md) for deferred tooling and
 [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) for shared acceptance.
