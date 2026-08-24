@@ -52,6 +52,7 @@ internal static class Program
         PointerFocusAndDispatch();
         ScrollAndClips();
         TextRunStabilityAndDelta();
+        DrawListProducerContract();
         StorageReuse();
         HandlesCompiledBindingsAndCustomTypes();
         ResourceLookupDiagnostics();
@@ -299,6 +300,47 @@ internal static class Program
         var dpiChanged = frame.ExtractDrawList(new UiFrameContext(new(240, 40), 2, 25));
         var dpiDelta = dpiChanged.GetDeltaSince(layoutChangedVersion);
         Assert.Equal(new UiDrawRange(0, 2), dpiDelta.TextRuns, "DPI update changes both text layout requests");
+    }
+
+    private static void DrawListProducerContract()
+    {
+        var root = new Panel { Width = 120, Height = 40, Background = new UiColor(10, 20, 30) };
+        var border = new Border { Background = new UiColor(40, 50, 60) };
+        var text = new TextBlock { Text = "Draw", GlyphRunKey = "draw-key" };
+        border.Add(text);
+        root.Add(border);
+        var frame = new UiFrame(root);
+        frame.Layout(new(120, 40), 1);
+        var first = frame.ExtractDrawList(new UiFrameContext(new(120, 40), 1, 1));
+        Assert.Equal(2, first.Commands.Length, "producer keeps rectangle commands");
+        Assert.Equal(3, first.Clips.Length, "producer keeps each clip node");
+        Assert.Equal(1, first.TextRuns.Length, "producer keeps positioned text request");
+        Assert.Equal(first.Clips.Span[0].Id, first.Commands.Span[0].ClipId, "root command keeps clip id");
+        Assert.Equal(first.Clips.Span[1].Id, first.Commands.Span[1].ClipId, "child command keeps clip id");
+        Assert.Equal(first.Clips.Span[0].Id, first.Clips.Span[1].Parent, "clip hierarchy keeps parent");
+        Assert.Equal(first.Clips.Span[1].Id, first.Clips.Span[2].Parent, "text clip keeps parent");
+        Assert.Equal(default, first.Commands.Span[0].Resource, "rectangle resource handle is preserved");
+        Assert.Equal(default, first.Commands.Span[1].Resource, "child resource handle is preserved");
+        var firstVersion = first.Version;
+        var firstRun = first.TextRuns.Span[0];
+        Assert.Equal("draw-key", firstRun.GlyphRunKey, "positioned text reference is preserved");
+        Assert.Equal(text.Id, firstRun.Owner, "text owner is preserved");
+        Assert.Equal(text.Generation, firstRun.OwnerGeneration, "text owner generation is preserved");
+
+        border.Background = new UiColor(70, 80, 90);
+        var changed = frame.ExtractDrawList(new UiFrameContext(new(120, 40), 1, 2));
+        var delta = changed.GetDeltaSince(firstVersion);
+        Assert.Equal(new UiDrawRange(1, 1), delta.Commands, "one rectangle produces one command delta");
+        Assert.Equal(new UiDrawRange(0, 0), delta.Clips, "unchanged clip hierarchy produces no clip delta");
+        Assert.Equal(new UiDrawRange(0, 0), delta.TextRuns, "unchanged text produces no text delta");
+        Assert.Equal(firstVersion, delta.BaseVersion, "delta keeps base version");
+        Assert.Equal(changed.Version, delta.NextVersion, "delta keeps next version");
+        Assert.Equal(firstRun, changed.TextRuns.Span[0], "rectangle-only update preserves text request");
+
+        var stale = changed.GetDeltaSince(0);
+        Assert.Equal(new UiDrawRange(0, changed.Commands.Length), stale.Commands, "stale version requests all commands");
+        Assert.Equal(new UiDrawRange(0, changed.Clips.Length), stale.Clips, "stale version requests all clips");
+        Assert.Equal(new UiDrawRange(0, changed.TextRuns.Length), stale.TextRuns, "stale version requests all text");
     }
 
     private static void StorageReuse()
