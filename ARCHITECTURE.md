@@ -158,7 +158,8 @@ color, optional text, z-order, order, and owner. `UiTextRun` contains:
 - positioned `Bounds` and `Clip`;
 - owning `UiElementId`, `OwnerGeneration` and an owning-data `Version`;
   `Owner` plus `OwnerGeneration` identify lifetime, while `Version` identifies
-  text/style/layout dirtiness.
+  text/style/DPI dirtiness; layout changes are represented by bounds, clips and
+  draw-list deltas.
 
 The text run is a submission boundary, not a glyph representation. DeltaXAML
 does not create glyph indices, atlas pages, UVs, rasterized bitmaps, or
@@ -172,7 +173,7 @@ reports command, clip, and text-request ranges plus base/next versions. The
 immediately preceding version receives precise ranges; an older version
 receives full current ranges. A value edit updates only the affected text
 range, while a layout change may update positioned bounds/clips without
-changing the text owner's content/style version.
+changing the text owner's content/style/DPI version.
 
 `UiTextRun` is the neutral text-request record. It carries text content,
 font/style values, `GlyphRunKey`, positioned bounds, clip, owner,
