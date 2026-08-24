@@ -73,3 +73,12 @@ selected work, [API_REVIEW.md](API_REVIEW.md) for the additive facade plan,
 [ARCHITECTURE.md](ARCHITECTURE.md) for the implemented boundary,
 [IDEAS.md](IDEAS.md) for deferred tooling and
 [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) for shared acceptance.
+### Resource-backed value precedence
+
+`UiPropertyStore` is the single retained value store. Its deterministic order
+is `Default < Style < Binding < Local < Handle`; `Handle` is the transient,
+generation-safe mutation layer and remains compatible with the existing
+engine-neutral handle API. `SetDefault`, `SetStyle`, `SetBinding`,
+`SetLocal`, and `SetHandle` update one effective value without replacing the
+other source slots. `UiResourceStore.TryResolve` follows `@Resource.Key`
+aliases and reports missing-resource and cycle diagnostics.

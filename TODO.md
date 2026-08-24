@@ -6,7 +6,7 @@ cross-project handoff order is in
 
 ## XAML capability expansion
 
-- [ ] Add resource-backed style precedence and explicit style invalidation for
+- [x] Add resource-backed style precedence and explicit style invalidation for
   local, style, binding, and transient handle values.
 - [x] Add generation-safe `UiPropertyHandle` writes and a batched mutation
   surface for game/editor systems without an ECS dependency.

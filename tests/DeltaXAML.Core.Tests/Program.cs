@@ -54,6 +54,7 @@ internal static class Program
         TextRunStabilityAndDelta();
         StorageReuse();
         HandlesCompiledBindingsAndCustomTypes();
+        ResourceLookupDiagnostics();
         FrameContractAndBatchedMutations();
     }
 
@@ -70,6 +71,13 @@ internal static class Program
         element.Measure(new(100, 100));
         element.Arrange(new(0, 0, 100, 100));
         element.SetStyle("Color", new UiColor(1, 2, 3), UiDirtyFlags.Visual);
+        element.SetDefault("Priority", "default", UiDirtyFlags.Visual);
+        element.SetStyle("Priority", "style", UiDirtyFlags.Visual);
+        element.SetBinding("Priority", new UiBindingValue(() => "binding", _ => (true, null)), UiDirtyFlags.Visual);
+        element.SetLocal("Priority", "local", UiDirtyFlags.Visual);
+        Assert.True(element.TryGet("Priority", out var priority) && Equals(priority.UntypedValue, "local"), "local value wins precedence");
+        element.SetHandle("Priority", "transient", UiDirtyFlags.Visual);
+        Assert.True(element.TryGet("Priority", out priority) && Equals(priority.UntypedValue, "transient"), "transient handle wins precedence");
         var binding = new UiBindingValue(() => 17, _ => (true, null));
         element.SetBinding("Value", binding, UiDirtyFlags.Visual);
         element.Measure(new(100, 100));
@@ -315,6 +323,18 @@ internal static class Program
 
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.True(allocated == 0, $"warm frame allocated {allocated} bytes");
+    }
+
+    private static void ResourceLookupDiagnostics()
+    {
+        var resources = new UiResourceStore();
+        resources.Set("Color.Text", new UiColor(1, 2, 3));
+        resources.Set("Color.Alias", "@Color.Text");
+        Assert.True(resources.TryResolve("Color.Alias", out var resolved, out var diagnostic) && resolved is UiColor && diagnostic is null, "resource alias resolves");
+        Assert.True(!resources.TryResolve("Color.Missing", out _, out diagnostic) && diagnostic?.Contains("not found", StringComparison.Ordinal) == true, "missing resource has diagnostic");
+        resources.Set("Cycle.A", "@Cycle.B");
+        resources.Set("Cycle.B", "@Cycle.A");
+        Assert.True(!resources.TryResolve("Cycle.A", out _, out diagnostic) && diagnostic?.Contains("cycle", StringComparison.OrdinalIgnoreCase) == true, "resource cycle has diagnostic");
     }
 
     private static void FrameContractAndBatchedMutations()

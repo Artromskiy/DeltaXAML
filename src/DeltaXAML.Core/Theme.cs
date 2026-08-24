@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DeltaXAML.Abstractions;
 
 using IUiResourceDictionary = DeltaXAML.Abstractions.IUiResourceStore;
@@ -9,6 +10,19 @@ public sealed class UiResourceStore : IUiResourceDictionary
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
     public void Set(string key, object? value) { ArgumentException.ThrowIfNullOrWhiteSpace(key); _values[key] = value; }
     public bool TryGet(string key, out object? value) { ArgumentException.ThrowIfNullOrWhiteSpace(key); return _values.TryGetValue(key, out value); }
+    public bool TryResolve(string key, out object? value, [NotNullWhen(false)] out string? diagnostic)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var current = key;
+        while (true)
+        {
+            if (!visited.Add(current)) { value = null; diagnostic = $"Resource cycle detected at '{current}'."; return false; }
+            if (!_values.TryGetValue(current, out var candidate)) { value = null; diagnostic = $"Resource '{current}' was not found."; return false; }
+            if (candidate is not string reference || !reference.StartsWith('@')) { value = candidate; diagnostic = null; return true; }
+            current = reference[1..];
+        }
+    }
 }
 
 public sealed class UiStyle : IUiStyle

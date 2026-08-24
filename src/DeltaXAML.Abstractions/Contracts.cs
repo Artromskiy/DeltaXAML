@@ -82,7 +82,7 @@ public interface IUiCompiledBinding : IUiBinding
 }
 public interface IUiPropertyStore
 {
-    void SetLocal(string name, object? value, UiDirtyFlags invalidation); void SetStyle(string name, object? value, UiDirtyFlags invalidation);
+    void SetDefault(string name, object? value, UiDirtyFlags invalidation); void SetLocal(string name, object? value, UiDirtyFlags invalidation); void SetStyle(string name, object? value, UiDirtyFlags invalidation);
     void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation); void SetHandle(string name, object? value, UiDirtyFlags invalidation); bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value);
     UiPropertyHandle GetHandle(string name); bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic);
 }

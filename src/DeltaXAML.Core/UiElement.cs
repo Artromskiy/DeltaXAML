@@ -52,24 +52,29 @@ public sealed class UiClipboard : IUiClipboard
 public sealed class UiPropertyStore : IUiPropertyStore
 {
     private readonly Dictionary<string, IUiValue> _values = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, SourceSlots> _slots = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IUiBinding> _bindings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, EventHandler> _bindingHandlers = new(StringComparer.Ordinal);
     private readonly UiElement _owner;
     public UiPropertyStore(UiElement owner) { ArgumentNullException.ThrowIfNull(owner); _owner = owner; }
-    public void SetLocal(string name, object? value, UiDirtyFlags invalidation) { ArgumentException.ThrowIfNullOrWhiteSpace(name); RemoveBinding(name); _values[name] = new UiValue(value, UiValueSource.Local, invalidation); _owner.Invalidate(invalidation); }
-    public void SetStyle(string name, object? value, UiDirtyFlags invalidation) { ArgumentException.ThrowIfNullOrWhiteSpace(name); if (!_values.TryGetValue(name, out var old) || old.Source != UiValueSource.Local) { _values[name] = new UiValue(value, UiValueSource.Style, invalidation); _owner.Invalidate(invalidation); } }
+    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) { SetSlot(name, new UiValue(value, UiValueSource.Default, invalidation), static slots => slots.Default = true); }
+    public void SetLocal(string name, object? value, UiDirtyFlags invalidation) { RemoveBinding(name); SetSlot(name, new UiValue(value, UiValueSource.Local, invalidation), static slots => slots.Local = true); }
+    public void SetStyle(string name, object? value, UiDirtyFlags invalidation) { SetSlot(name, new UiValue(value, UiValueSource.Style, invalidation), static slots => slots.Style = true); }
     public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(binding);
         RemoveBinding(name);
         _bindings[name] = binding;
-        _values[name] = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
+        var slots = GetSlots(name);
+        slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
+        Resolve(name, slots);
         EventHandler handler = (_, _) =>
         {
-            if (!_values.TryGetValue(name, out var current) || current.Source == UiValueSource.Binding)
+            if (!HasHigherSource(name, UiValueSource.Binding))
             {
-                _values[name] = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
+                slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
+                Resolve(name, slots);
                 _owner.Invalidate(invalidation);
             }
         };
@@ -77,7 +82,7 @@ public sealed class UiPropertyStore : IUiPropertyStore
         binding.Changed += handler;
         _owner.Invalidate(invalidation);
     }
-    public void SetHandle(string name, object? value, UiDirtyFlags invalidation) { ArgumentException.ThrowIfNullOrWhiteSpace(name); _values[name] = new UiValue(value, UiValueSource.Handle, invalidation); }
+    public void SetHandle(string name, object? value, UiDirtyFlags invalidation) { SetSlot(name, new UiValue(value, UiValueSource.Handle, invalidation), static slots => slots.Handle = true); }
     public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) { ArgumentException.ThrowIfNullOrWhiteSpace(name); return _values.TryGetValue(name, out value); }
     public UiPropertyHandle GetHandle(string name)
     {
@@ -100,6 +105,43 @@ public sealed class UiPropertyStore : IUiPropertyStore
         {
             binding.Changed -= handler;
         }
+        if (_slots.TryGetValue(name, out var slots))
+        {
+            slots.BindingValue = null;
+            Resolve(name, slots);
+        }
+    }
+    private void SetSlot(string name, UiValue value, Action<SourceSlots> assign)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var slots = GetSlots(name);
+        assign(slots);
+        switch (value.Source)
+        {
+            case UiValueSource.Default: slots.DefaultValue = value; break;
+            case UiValueSource.Local: slots.LocalValue = value; break;
+            case UiValueSource.Style: slots.StyleValue = value; break;
+            case UiValueSource.Handle: slots.HandleValue = value; break;
+        }
+        Resolve(name, slots);
+        _owner.Invalidate(value.Invalidation);
+    }
+    private SourceSlots GetSlots(string name) => _slots.TryGetValue(name, out var slots) ? slots : AddSlots(name);
+    private SourceSlots AddSlots(string name) { var slots = new SourceSlots(); _slots.Add(name, slots); return slots; }
+    private bool HasHigherSource(string name, UiValueSource source) => _values.TryGetValue(name, out var value) && value.Source > source;
+    private void Resolve(string name, SourceSlots slots)
+    {
+        _values.Remove(name);
+        if (slots.Handle && slots.HandleValue is not null) { _values[name] = slots.HandleValue; }
+        else if (slots.Local && slots.LocalValue is not null) { _values[name] = slots.LocalValue; }
+        else if (slots.BindingValue is not null) { _values[name] = slots.BindingValue; }
+        else if (slots.Style && slots.StyleValue is not null) { _values[name] = slots.StyleValue; }
+        else if (slots.Default && slots.DefaultValue is not null) { _values[name] = slots.DefaultValue; }
+    }
+    private sealed class SourceSlots
+    {
+        public bool Default, Style, Local, Handle;
+        public IUiValue? DefaultValue, StyleValue, LocalValue, BindingValue, HandleValue;
     }
 }
 
@@ -174,7 +216,7 @@ public class UiElement : IUiElement, IUiPropertyStore
     public virtual void Arrange(UiRect bounds) { Bounds = bounds; Clip = bounds; foreach (var child in _children) { if (child is UiElement element) { element._layoutScale = _layoutScale; element.Arrange(bounds); } else { child.Arrange(bounds); } } DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
     protected UiSize RequestedSize(UiSize measured) => new(float.IsNaN(Width) ? measured.Width : Width, float.IsNaN(Height) ? measured.Height : Height);
     public IUiElement? HitTest(UiPoint point) { if (Visibility != UiVisibility.Visible || !Clip.Contains(point)) { return null; } for (var i = _children.Count - 1; i >= 0; i--) { if (_children[i] is UiElement c && c.HitTest(point) is { } hit) { return hit; } } return this; }
-    public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
+    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
     public UiPropertyHandle GetHandle(string name) => _properties.GetHandle(name);
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic) => _properties.TrySet(handle, value, invalidation, out diagnostic);
     protected virtual string GetAutomationValueText() => string.Empty;
