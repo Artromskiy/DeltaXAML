@@ -5,10 +5,10 @@ using Delta.Diagnostics;
 using Delta.Maths;
 using Delta.Text.Contract;
 using Delta.XAML.Contract;
-using Legacy = DeltaXAML.Core;
-using LegacyAbstractions = DeltaXAML.Abstractions;
-using LegacyDirty = DeltaXAML.Abstractions.UiDirtyMask;
-using LegacyElement = DeltaXAML.Core.UiElement;
+using Legacy = DeltaXAML.Internal;
+using LegacyAbstractions = DeltaXAML.Internal;
+using LegacyDirty = DeltaXAML.Internal.UiDirtyMask;
+using LegacyElement = DeltaXAML.Internal.UiElement;
 
 namespace Delta.XAML;
 

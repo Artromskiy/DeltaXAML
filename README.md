@@ -18,5 +18,5 @@ Authoritative documents:
 Ownership is intentionally split: DeltaXAML owns the retained document and
 display-list production, DeltaText owns shaping, DeltaRender owns GPU/atlas
 submission, and DeltaEngine owns platform event acquisition and scheduling.
-The canonical cross-project namespace is `DeltaXAML.Contract`; the previous
-implementation surface is migration-only.
+The canonical cross-project namespace is `Delta.XAML.Contract`; retained
+implementation details are internal.

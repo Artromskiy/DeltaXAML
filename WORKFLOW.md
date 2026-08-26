@@ -4,7 +4,7 @@
 dotnet restore DeltaXAML.slnx
 dotnet build DeltaXAML.slnx -c Release --no-restore \
   --disable-build-servers -m:1 /p:UseSharedCompilation=false -v:minimal
-dotnet run --project tests/DeltaXAML.Core.Tests/DeltaXAML.Core.Tests.csproj \
+dotnet run --project tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj \
   -c Release --no-build
 ```
 

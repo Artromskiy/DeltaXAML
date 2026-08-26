@@ -1,11 +1,10 @@
 using System.Runtime.InteropServices;
-using DeltaXAML.Abstractions;
-using DeltaXAML.Core;
+using DeltaXAML.Internal;
 using Library = Delta.XAML;
 using LibraryContract = Delta.XAML.Contract;
 using TextContract = Delta.Text.Contract;
 
-using UiDirtyFlags = DeltaXAML.Abstractions.UiDirtyMask;
+using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 static class Assert
 {
@@ -191,8 +190,6 @@ internal static class Program
         }
 
         Assert.Equal(UiAutomationRole.Button, roleButton.AutomationRole, "automation role is typed");
-        var unknownKind = new UiPropertySchema("Transform", "Unknown", "Unknown", "System.Object", UiEditorKind.Unknown);
-        Assert.Equal(UiEditorKind.Unknown, unknownKind.EditorKind, "unknown editor kind is explicit");
     }
 
     private static void GridSizing()
@@ -548,9 +545,6 @@ internal static class Program
         var frame = new UiFrame(root);
         var handle = text.GetHandle("Text");
         var otherHandle = other.GetHandle("Text");
-        var schema = new UiPropertySchema("Transform", "X", "X", "System.Single", UiEditorKind.Numeric);
-        var schemaValue = new UiSchemaValue(schema, 3f, UiValueSource.Binding, 1);
-        Assert.Equal(UiEditorKind.Numeric, schemaValue.Schema.EditorKind, "schema/value record");
         frame.Enqueue(new UiMutation(handle, "value", UiDirtyFlags.Binding | UiDirtyFlags.Visual));
         frame.Enqueue(new UiMutation(otherHandle, "other", UiDirtyFlags.Binding | UiDirtyFlags.Visual));
         Assert.Equal(2, frame.PendingMutationCount, "multiple mutations are queued");

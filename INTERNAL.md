@@ -5,11 +5,11 @@ must not be treated as a consumer or cross-project contract.
 
 ## Current retained implementation
 
-`DeltaXAML.Core` currently contains the retained `UiElement` tree, controls,
+The primary `DeltaXAML` project currently contains the retained `UiElement` tree, controls,
 `UiPropertyStore`, bindings, resource/style stores, measure/arrange,
-hit-testing, input routing and reusable draw-list storage. These types still
-use the temporary compatibility assembly while the public facade migration is
-in progress.
+hit-testing, input routing and reusable draw-list storage. Retained
+implementation contracts live under `src/DeltaXAML/Internal/`; they are
+not a separate consumer or cross-project assembly.
 
 The retained dirty accumulator, generations, local/style/binding/handle
 source slots, recursive mutation lookup and reusable arrays are internal

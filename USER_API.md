@@ -45,10 +45,10 @@ represented by the canonical display list; `BuildDisplayList` throws an
 
 ## Current implementation status
 
-The repository is migrating from its temporary implementation surface to this
-library shape. Existing compatibility names are implementation-only and must
-not be used for new cross-project integration. The migration is intentionally
-additive until direct consumers move to `DeltaXAML.Contract`.
+The repository's retained implementation names are internal implementation
+details and must not be used for new cross-project integration. Cross-project
+integration uses `Delta.XAML.Contract`; the library-shaped API above is the
+consumer entry point.
 
 The current public library contract does not include a control-specific
 compatibility promise. Controls, templates, dirty propagation, focus,

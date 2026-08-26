@@ -1,9 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Xml;
-using DeltaXAML.Abstractions;
-using UiDirtyFlags = DeltaXAML.Abstractions.UiDirtyMask;
-namespace DeltaXAML.Core;
+using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
+namespace DeltaXAML.Internal;
 
 public readonly record struct XamlDiagnostic(string Code, string Message, int Line, int Column);
 public sealed record XamlLoadResult(UiElement? Root, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Root is not null && Diagnostics.Count == 0; public UiFrame? CreateFrame() { if (!Success || Root is null) { return null; } return new UiFrame(Root); } }

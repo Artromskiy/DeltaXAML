@@ -6,15 +6,14 @@ cross-project handoff order is in
 
 ## XAML capability expansion
 
-- [ ] Implement the additive facade selected in
+- [x] Implement the additive facade selected in
   [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md): `IXamlLoader`, concrete
   `UiDocument`, the common typed/untyped property and binding surfaces,
   GUID-backed resource/type resolution, and validated `UiParticipation`.
   Reuse the current retained tree and stores; do not create a second UI engine.
-- [ ] Migrate the remaining compatibility implementation path and direct
-  consumers to the authoritative `DeltaXAML.Contract`; remove the temporary
-  compatibility project only after all consumers use the new library-shaped
-  document/display-list boundary.
+- [ ] Complete migration of the remaining retained adapter path and direct
+  consumers to the authoritative `Delta.XAML.Contract` display-list boundary;
+  the former compatibility project and inspector source boundary are removed.
 
 - [x] Add resource-backed style precedence and explicit style invalidation for
   local, style, binding, and transient handle values.
@@ -33,9 +32,6 @@ cross-project handoff order is in
 
 - Connect real positioned DeltaText glyph runs to `TextBlock`, editors and
   diagnostics without giving DeltaXAML font rasterization ownership.
-- Keep the neutral `IUiPropertySource` schema/value boundary stable for the
-  external DeltaEditorShell inspector, including retained row identity across
-  value-only updates.
 - Finish resize, focus, pointer/keyboard editing and scroll acceptance in the
   end-to-end editor shell.
 

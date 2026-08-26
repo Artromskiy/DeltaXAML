@@ -1,8 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
-using IUiResourceDictionary = DeltaXAML.Abstractions.IUiResourceStore;
-using UiDirtyFlags = DeltaXAML.Abstractions.UiDirtyMask;
+using IUiResourceDictionary = DeltaXAML.Internal.IUiResourceStore;
+using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
-namespace DeltaXAML.Abstractions;
+namespace DeltaXAML.Internal;
 
 [Flags] public enum UiDirtyMask { None = 0, Tree = 1, Style = 2, Binding = 4, Measure = 8, Arrange = 16, Visual = 32, HitTest = 64, Resource = 128 }
 public enum UiVisibility { Visible, Hidden, Collapsed }
@@ -21,22 +21,6 @@ public readonly record struct UiColor(byte R, byte G, byte B, byte A = 255);
 public readonly record struct UiElementId(uint Value) { public bool IsValid => Value != 0; }
 public readonly record struct UiPropertyHandle(UiElementId Element, uint Generation, string Name);
 public readonly record struct UiMutation(UiPropertyHandle Target, object? Value, UiDirtyFlags Invalidation);
-public enum UiEditorKind { None, Unknown, Text, Numeric }
-public readonly record struct UiPropertySchema(string ComponentKey, string FieldKey, string Label, string ValueType, UiEditorKind EditorKind, bool IsReadOnly = false);
-public readonly record struct UiSchemaValue(UiPropertySchema Schema, object? Value, UiValueSource Source, uint Version);
-public enum UiPropertySourceChangeKind { Reset, Add, Remove, Change }
-public readonly record struct UiPropertySourceChange(UiPropertySourceChangeKind Kind, int Index, int Count = 1);
-public sealed class UiPropertySourceChangeEventArgs(UiPropertySourceChange change) : EventArgs
-{
-    public UiPropertySourceChange Change { get; } = change;
-}
-public interface IUiPropertySource
-{
-    int Count { get; }
-    UiSchemaValue GetValue(int index);
-    bool TrySet(int index, object? value, [NotNullWhen(false)] out string? diagnostic);
-    event EventHandler<UiPropertySourceChangeEventArgs>? Changed;
-}
 public enum UiBindingMode { OneWay, TwoWay, OneTime }
 public readonly record struct UiResourceHandle(ulong Value, uint Generation);
 public readonly record struct UiResourceReference(string Key);

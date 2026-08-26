@@ -1,6 +1,4 @@
-using DeltaXAML.Abstractions;
-
-namespace DeltaXAML.Core;
+namespace DeltaXAML.Internal;
 
 public sealed class UiFrame : IUiFrame
 {

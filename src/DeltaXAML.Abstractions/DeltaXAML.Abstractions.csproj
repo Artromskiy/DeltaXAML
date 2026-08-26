@@ -1,1 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><RootNamespace>DeltaXAML.Abstractions</RootNamespace><AssemblyName>DeltaXAML.Abstractions</AssemblyName></PropertyGroup></Project>

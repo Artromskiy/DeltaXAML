@@ -1,9 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using DeltaXAML.Abstractions;
+using IUiResourceDictionary = DeltaXAML.Internal.IUiResourceStore;
 
-using IUiResourceDictionary = DeltaXAML.Abstractions.IUiResourceStore;
-
-namespace DeltaXAML.Core;
+namespace DeltaXAML.Internal;
 
 public sealed class UiResourceChangedEventArgs(string key) : EventArgs
 {

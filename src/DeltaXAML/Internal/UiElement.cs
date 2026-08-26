@@ -1,10 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using DeltaXAML.Abstractions;
 
-using UiDirtyFlags = DeltaXAML.Abstractions.UiDirtyMask;
+using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
-namespace DeltaXAML.Core;
+namespace DeltaXAML.Internal;
 
 public sealed class UiValue : IUiValue
 {
