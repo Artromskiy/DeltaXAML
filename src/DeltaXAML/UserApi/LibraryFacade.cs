@@ -17,7 +17,7 @@ public readonly record struct UiTypeId(Guid Value) { public bool IsValid => Valu
 public readonly record struct XamlQualifiedName(string Namespace, string LocalName);
 
 [Flags]
-public enum UiParticipation : byte
+public enum UiParticipation
 {
     None = 0,
     Layout = 1 << 0,
@@ -39,7 +39,7 @@ public interface IUiProperty<T> : IUiProperty
     new T DefaultValue { get; }
 }
 
-public enum UiBindingMode : byte { OneTime, OneWay, TwoWay }
+public enum UiBindingMode { OneTime, OneWay, TwoWay }
 
 public interface IUiBinding
 {

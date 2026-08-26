@@ -37,6 +37,12 @@ CA1501/CA1502/CA1505/CA1506 are report-only signals; do not refactor a method
 for one isolated warning. Refactor when several metrics remain over their
 limits, the issue persists across runs, or profiling identifies a hot path.
 
+NuGet `NU1900` is an infrastructure advisory, not a DeltaXAML source
+diagnostic: it is emitted when the restore cannot reach the package
+vulnerability feed. A successful restore with feed access should clear it; when
+the feed is unavailable, record the count and keep it separate from analyzer
+warnings. Do not disable package auditing merely to hide a feed outage.
+
 For local application run `./eng/format.sh`; for a non-mutating check use
 `FORMAT_CHECK=1 ./eng/format.sh`. The script uses `dotnet format whitespace
 --folder` intentionally: it avoids the MSBuild/Roslyn workspace load that can

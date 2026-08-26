@@ -36,7 +36,7 @@ public readonly record struct XamlQualifiedName(
     string LocalName);
 
 [Flags]
-public enum UiParticipation : byte
+public enum UiParticipation
 {
     None = 0,
     Layout = 1 << 0,
@@ -58,7 +58,7 @@ public interface IUiProperty<T> : IUiProperty
     new T DefaultValue { get; }
 }
 
-public enum UiBindingMode : byte
+public enum UiBindingMode
 {
     OneTime,
     OneWay,
