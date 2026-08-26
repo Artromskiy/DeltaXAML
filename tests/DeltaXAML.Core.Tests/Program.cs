@@ -1,6 +1,10 @@
 using System.Runtime.InteropServices;
 using DeltaXAML.Abstractions;
 using DeltaXAML.Core;
+using Library = Delta.XAML;
+using LibraryContract = Delta.XAML.Contract;
+using TextContract = Delta.Text.Contract;
+using Maths = Delta.Maths;
 
 using UiDirtyFlags = DeltaXAML.Abstractions.UiDirtyMask;
 
@@ -42,6 +46,73 @@ sealed class CustomBadge : Border
     public override string TypeName => "CustomBadge";
 }
 
+sealed class EmptyLibraryTypeResolver : Library.IXamlTypeResolver
+{
+    public bool TryResolveName(in Library.XamlQualifiedName name, out Library.UiTypeId type) { type = default; return false; }
+    public bool TryCreate(Library.UiTypeId type, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Library.UiElement? element) { element = null; return false; }
+}
+
+sealed class EmptyLibraryResourceResolver : Library.IUiResourceResolver
+{
+    public bool TryResolve(LibraryContract.UiResourceId resource, out object? value) { value = null; return false; }
+}
+
+sealed class FixedLibraryResourceResolver(LibraryContract.UiResourceId resource, object? value) : Library.IUiResourceResolver
+{
+    public bool TryResolve(LibraryContract.UiResourceId requested, out object? resolved)
+    {
+        if (requested == resource)
+        {
+            resolved = value;
+            return true;
+        }
+
+        resolved = null;
+        return false;
+    }
+}
+
+sealed class LibraryCustomBadge : Library.UiElement { }
+
+sealed class CustomLibraryTypeResolver : Library.IXamlTypeResolver
+{
+    private static readonly Library.UiTypeId BadgeType = new(new Guid("5B35E6E5-9B17-4F77-9BD4-63F25B89F7B5"));
+
+    public bool TryResolveName(in Library.XamlQualifiedName name, out Library.UiTypeId type)
+    {
+        if (name.LocalName == "CustomBadge")
+        {
+            type = BadgeType;
+            return true;
+        }
+
+        type = default;
+        return false;
+    }
+
+    public bool TryCreate(Library.UiTypeId type, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Library.UiElement? element)
+    {
+        if (type == BadgeType)
+        {
+            element = new LibraryCustomBadge();
+            return true;
+        }
+
+        element = null;
+        return false;
+    }
+}
+
+sealed class EmptyTextService : TextContract.ITextService
+{
+    public TextContract.FontInstanceId OpenFont(in TextContract.FontOpenRequest request) => throw new NotSupportedException();
+    public void CloseFont(TextContract.FontInstanceId font) { }
+    public TextContract.FontMetrics GetFontMetrics(TextContract.FontInstanceId font, float pixelsPerEm) => throw new NotSupportedException();
+    public TextContract.ShapedText Shape(in TextContract.TextShapeRequest request) => throw new NotSupportedException();
+    public TextContract.GlyphImage GenerateGlyphImage(in TextContract.GlyphImageRequest request) => throw new NotSupportedException();
+    public void Dispose() { }
+}
+
 internal static class Program
 {
     public static void Main()
@@ -57,6 +128,7 @@ internal static class Program
         HandlesCompiledBindingsAndCustomTypes();
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
+        LibraryFacadeSmoke();
         FrameContractAndBatchedMutations();
     }
 
@@ -428,6 +500,43 @@ internal static class Program
         Assert.Equal(unchangedAssignment.Version, unchanged.Version, "unchanged resource assignment has no draw delta");
         Assert.Equal(new UiColor(40, 50, 60), first.Foreground, "resource style updates the consuming property");
         Assert.Equal(new UiColor(255, 255, 255), second.Foreground, "unrelated property remains unchanged");
+    }
+
+    private static void LibraryFacadeSmoke()
+    {
+        var loader = new Library.XamlLoader();
+        var context = new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
+        var loaded = loader.Load("<Panel Width=\"80\" Height=\"20\" Background=\"#102030\" />", in context);
+        Assert.True(loaded.Success && loaded.Root is not null, "library loader returns retained root");
+        if (loaded.Root is not { } root) { throw new InvalidOperationException("library loader root missing"); }
+        using var text = new EmptyTextService();
+        var document = new Library.UiDocument(root, text);
+        document.Layout(new Maths.float2(80, 20), 1);
+        var display = document.BuildDisplayList();
+        Assert.Equal(1, display.Visuals.Length, "library document builds canonical visual display list");
+        Assert.Equal(1, display.Clips.Length, "library document builds canonical clip list");
+
+        var invalid = loader.Load("<Unsupported />", in context);
+        Assert.True(!invalid.Success && invalid.Diagnostics.Length == 1, "library loader returns canonical diagnostics");
+        Assert.Equal("XAML002", invalid.Diagnostics.Span[0].Code.Value, "library diagnostic code is preserved");
+
+        var customContext = new Library.XamlLoadContext(new CustomLibraryTypeResolver(), new EmptyLibraryResourceResolver());
+        var custom = loader.Load("<CustomBadge />", in customContext);
+        Assert.True(custom.Success && custom.Root is LibraryCustomBadge, "library type resolver creates custom element");
+
+        var resourceId = new LibraryContract.UiResourceId(new Guid("F25871B4-23F7-4DA5-ADED-AF3F38C4E55F"));
+        var resourceContext = new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), new FixedLibraryResourceResolver(resourceId, new UiColor(7, 8, 9)));
+        var resource = loader.Load($"<TextBlock ForegroundResource=\"{resourceId.Value:D}\" />", in resourceContext);
+        Assert.True(resource.Success && resource.Root is not null, "library resource resolver is consumed by loader");
+        var missingResource = loader.Load($"<TextBlock ForegroundResource=\"{resourceId.Value:D}\" />", in context);
+        Assert.True(!missingResource.Success && missingResource.Diagnostics.Length == 1 && missingResource.Diagnostics.Span[0].Code.Value == "XAML006", "missing canonical resource is diagnostic");
+
+        using var textDocument = new EmptyTextService();
+        var textRoot = loader.Load("<TextBlock Text=\"Hello\" />", in context).Root;
+        if (textRoot is null) { throw new InvalidOperationException("library text root missing"); }
+        var textDocumentOwner = new Library.UiDocument(textRoot, textDocument);
+        textDocumentOwner.Layout(new Maths.float2(80, 20), 1);
+        Assert.True(!textDocumentOwner.TryBuildDisplayList(out _, out var textDiagnostic) && textDiagnostic is { } unsupported && unsupported.Code.Value == "XAML_DISPLAY_TEXT_UNSUPPORTED", "unsupported text returns a diagnostic");
     }
 
     private static void FrameContractAndBatchedMutations()

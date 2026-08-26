@@ -25,17 +25,22 @@ public sealed class XamlTypeRegistry
 }
 public static class XamlLoader
 {
-    public static XamlLoadResult Load(string source) => Load(source, null);
-    public static XamlLoadResult Load(string source, XamlTypeRegistry? registry) => Load(source, registry, null);
-    private static XamlLoadResult Load(string source, XamlTypeRegistry? registry, UiResourceStore? resources) { ArgumentNullException.ThrowIfNull(source); var d = new List<XamlDiagnostic>(); try { using var r = XmlReader.Create(new StringReader(source), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, IgnoreComments = true }); r.MoveToContent(); return new(Read(r, d, registry, resources), d); } catch (XmlException e) { d.Add(new("XAML001", e.Message, e.LineNumber, e.LinePosition)); return new(null, d); } }
+    public static XamlLoadResult Load(string source) => Load(source, null, null, null);
+    public static XamlLoadResult Load(string source, XamlTypeRegistry? registry) => Load(source, registry, null, null);
+    internal static XamlLoadResult LoadForAdapter(string source, Func<string, string, UiElement?>? factory, UiResourceStore? resources) => Load(source, null, resources, factory);
+    private static XamlLoadResult Load(string source, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory) { ArgumentNullException.ThrowIfNull(source); var d = new List<XamlDiagnostic>(); try { using var r = XmlReader.Create(new StringReader(source), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, IgnoreComments = true }); r.MoveToContent(); return new(Read(r, d, registry, resources, factory), d); } catch (XmlException e) { d.Add(new("XAML001", e.Message, e.LineNumber, e.LinePosition)); return new(null, d); } }
     public static XamlFrameLoadResult LoadFrame(string source) => LoadFrame(source, (XamlTypeRegistry?)null);
     public static XamlFrameLoadResult LoadFrame(string source, XamlTypeRegistry? registry) { var result = Load(source, registry); var frame = result.CreateFrame(); if (frame is not null) { DeltaTheme.Default.Apply(frame.Root); } return new(frame, result.Diagnostics); }
-    public static XamlFrameLoadResult LoadFrame(string source, UiResourceStore resources) { ArgumentNullException.ThrowIfNull(resources); var result = Load(source, null, resources); var frame = result.CreateFrame(); if (frame is not null) { DeltaTheme.Default.Apply(frame.Root); } return new(frame, result.Diagnostics); }
-    private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, XamlTypeRegistry? registry, UiResourceStore? resources)
+    public static XamlFrameLoadResult LoadFrame(string source, UiResourceStore resources) { ArgumentNullException.ThrowIfNull(resources); var result = Load(source, null, resources, null); var frame = result.CreateFrame(); if (frame is not null) { DeltaTheme.Default.Apply(frame.Root); } return new(frame, result.Diagnostics); }
+    private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
     {
         var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => new Panel(), "StackPanel" => new StackPanel(), "Border" => new Border(), "Grid" => new Grid(), "ContentControl" => new ContentControl(), "Button" => new Button(), "ToggleButton" => new ToggleButton(), "TextBlock" => new TextBlock(), "TextBox" => new TextBox(), "NumericEditor" => new NumericEditor(), "ScrollViewer" => new ScrollViewer(), _ => null }; if (e is null && registry is not null)
         {
             registry.TryCreate(r.LocalName, out e);
+        }
+        if (e is null && factory is not null)
+        {
+            e = factory(r.NamespaceURI, r.LocalName);
         }
         if (e is null) { d.Add(new("XAML002", $"Unsupported element '{r.LocalName}'.", line, 1)); if (!r.IsEmptyElement) { r.Skip(); } return null; } while (r.MoveToNextAttribute())
         {
@@ -46,7 +51,7 @@ public static class XamlLoader
         {
             if (r.NodeType == XmlNodeType.Element)
             {
-                var child = Read(r, d, registry, resources); if (child is not null && e is IUiPanel p)
+                var child = Read(r, d, registry, resources, factory); if (child is not null && e is IUiPanel p)
                 {
                     p.Add(child);
                 }

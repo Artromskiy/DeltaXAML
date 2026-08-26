@@ -11,10 +11,10 @@ cross-project handoff order is in
   `UiDocument`, the common typed/untyped property and binding surfaces,
   GUID-backed resource/type resolution, and validated `UiParticipation`.
   Reuse the current retained tree and stores; do not create a second UI engine.
-- [ ] Migrate `DeltaXAML.Core`, DeltaEditorShell and DeltaEditor from the
-  legacy `DeltaXAML.Abstractions` surface to the authoritative
-  `Delta.XAML.Contract`; remove the legacy project only after all consumers
-  use the new library-shaped document/display-list boundary.
+- [ ] Migrate the remaining compatibility implementation path and direct
+  consumers to the authoritative `Delta.XAML.Contract`; remove the temporary
+  compatibility project only after all consumers use the new library-shaped
+  document/display-list boundary.
 
 - [x] Add resource-backed style precedence and explicit style invalidation for
   local, style, binding, and transient handle values.

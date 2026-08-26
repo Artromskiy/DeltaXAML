@@ -147,12 +147,18 @@ public sealed class UiDocument
     public void Layout(float2 viewport, float dpiScale);
 
     public UiDisplayList BuildDisplayList();
+    public bool TryBuildDisplayList(
+        out UiDisplayList displayList,
+        out Diagnostic? diagnostic);
 }
 ```
 
 The declarations above specify public shape and ownership; they are not a
 second implementation. `DeltaXAML.Core` supplies the concrete retained storage,
 loader, document and property/binding implementations.
+
+`TryBuildDisplayList` is the diagnostic form for a retained value that cannot
+be represented by the canonical display-list contract during migration.
 
 ## Participation invariant
 

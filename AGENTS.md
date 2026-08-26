@@ -4,6 +4,8 @@ Scope: Delta-owned XAML dialect, retained UI tree, properties/bindings,
 controls, layout, hit testing, input routing and renderer-neutral primitives.
 
 - [README.md](README.md) — stable UI ownership and pipeline.
+- [USER_API.md](USER_API.md) — explicitly user-facing library API.
+- [INTERNAL.md](INTERNAL.md) — internal retained implementation notes.
 - [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) — authoritative cross-project input
   and display-list contract; do not duplicate or edit it as implementation
   cleanup.
