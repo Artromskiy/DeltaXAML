@@ -5,10 +5,10 @@ using Delta.Diagnostics;
 using Delta.Maths;
 using Delta.Text.Contract;
 using Delta.XAML.Contract;
-using Legacy = DeltaXAML.Internal;
-using LegacyAbstractions = DeltaXAML.Internal;
-using LegacyDirty = DeltaXAML.Internal.UiDirtyMask;
-using LegacyElement = DeltaXAML.Internal.UiElement;
+using Retained = DeltaXAML.Internal;
+using RetainedContracts = DeltaXAML.Internal;
+using RetainedDirty = DeltaXAML.Internal.UiDirtyMask;
+using RetainedElement = DeltaXAML.Internal.UiElement;
 
 namespace Delta.XAML;
 
@@ -70,17 +70,17 @@ public readonly record struct XamlLoadContext(IXamlTypeResolver Types, IUiResour
 
 public abstract class UiElement
 {
-    private readonly LegacyElement _legacy;
-    private readonly IReadOnlyDictionary<LegacyElement, UiElement>? _views;
+    private readonly RetainedElement _retained;
+    private readonly IReadOnlyDictionary<RetainedElement, UiElement>? _views;
     private UiParticipation _participation = UiParticipation.All;
 
-    protected UiElement() : this(new LegacyElement(), null) { }
-    internal UiElement(LegacyElement legacy, IReadOnlyDictionary<LegacyElement, UiElement>? views) { ArgumentNullException.ThrowIfNull(legacy); _legacy = legacy; _views = views; }
-    internal LegacyElement LegacyElement => _legacy;
+    protected UiElement() : this(new RetainedElement(), null) { }
+    internal UiElement(RetainedElement retained, IReadOnlyDictionary<RetainedElement, UiElement>? views) { ArgumentNullException.ThrowIfNull(retained); _retained = retained; _views = views; }
+    internal RetainedElement RetainedElement => _retained;
 
-    public UiElement? Parent => _legacy.Parent is LegacyElement parent ? Wrap(parent, _views) : null;
-    public IReadOnlyList<UiElement> Children => new LegacyChildrenView(_legacy, _views);
-    protected IList<UiElement> MutableChildren => new LegacyChildrenEditor(_legacy, _views);
+    public UiElement? Parent => _retained.Parent is RetainedElement parent ? Wrap(parent, _views) : null;
+    public IReadOnlyList<UiElement> Children => new RetainedChildrenView(_retained, _views);
+    protected IList<UiElement> MutableChildren => new RetainedChildrenEditor(_retained, _views);
     public UiParticipation Participation
     {
         get => _participation;
@@ -99,13 +99,13 @@ public abstract class UiElement
     public object? GetValue(IUiProperty property)
     {
         ArgumentNullException.ThrowIfNull(property);
-        return _legacy.TryGet(property.Name, out var value) ? value.UntypedValue : property.DefaultValue;
+        return _retained.TryGet(property.Name, out var value) ? value.UntypedValue : property.DefaultValue;
     }
 
     public bool TrySetValue(IUiProperty property, object? value, [NotNullWhen(false)] out Diagnostic? diagnostic)
     {
         ArgumentNullException.ThrowIfNull(property);
-        _legacy.SetLocal(property.Name, value, LegacyDirty.Binding | LegacyDirty.Visual);
+        _retained.SetLocal(property.Name, value, RetainedDirty.Binding | RetainedDirty.Visual);
         diagnostic = null;
         return true;
     }
@@ -120,52 +120,52 @@ public abstract class UiElement
     public void SetValue<T>(IUiProperty<T> property, T value)
     {
         ArgumentNullException.ThrowIfNull(property);
-        _legacy.SetLocal(property.Name, value, LegacyDirty.Binding | LegacyDirty.Visual);
+        _retained.SetLocal(property.Name, value, RetainedDirty.Binding | RetainedDirty.Visual);
     }
 
-    internal static UiElement Wrap(LegacyElement element, IReadOnlyDictionary<LegacyElement, UiElement>? views = null)
+    internal static UiElement Wrap(RetainedElement element, IReadOnlyDictionary<RetainedElement, UiElement>? views = null)
     {
         ArgumentNullException.ThrowIfNull(element);
-        return views is not null && views.TryGetValue(element, out var view) ? view : new LegacyElementView(element, views);
+        return views is not null && views.TryGetValue(element, out var view) ? view : new RetainedElementView(element, views);
     }
 
-    private sealed class LegacyElementView : UiElement
+    private sealed class RetainedElementView : UiElement
     {
-        public LegacyElementView(LegacyElement element, IReadOnlyDictionary<LegacyElement, UiElement>? views) : base(element, views) { }
+        public RetainedElementView(RetainedElement element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
     }
 
-    private sealed class LegacyChildrenView : IReadOnlyList<UiElement>
+    private sealed class RetainedChildrenView : IReadOnlyList<UiElement>
     {
-        private readonly LegacyElement _owner;
-        private readonly IReadOnlyDictionary<LegacyElement, UiElement>? _views;
-        public LegacyChildrenView(LegacyElement owner, IReadOnlyDictionary<LegacyElement, UiElement>? views) { _owner = owner; _views = views; }
+        private readonly RetainedElement _owner;
+        private readonly IReadOnlyDictionary<RetainedElement, UiElement>? _views;
+        public RetainedChildrenView(RetainedElement owner, IReadOnlyDictionary<RetainedElement, UiElement>? views) { _owner = owner; _views = views; }
         public int Count => _owner.Children.Count;
-        public UiElement this[int index] => Wrap((LegacyElement)_owner.Children[index], _views);
+        public UiElement this[int index] => Wrap((RetainedElement)_owner.Children[index], _views);
         public IEnumerator<UiElement> GetEnumerator() { for (var i = 0; i < Count; i++) { yield return this[i]; } }
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
-    private sealed class LegacyChildrenEditor : IList<UiElement>
+    private sealed class RetainedChildrenEditor : IList<UiElement>
     {
-        private readonly LegacyElement _owner;
-        private readonly IReadOnlyDictionary<LegacyElement, UiElement>? _views;
-        public LegacyChildrenEditor(LegacyElement owner, IReadOnlyDictionary<LegacyElement, UiElement>? views) { _owner = owner; _views = views; }
-        public UiElement this[int index] { get => new LegacyChildrenView(_owner, _views)[index]; set => throw new NotSupportedException("Replace is not supported; remove and add the child."); }
+        private readonly RetainedElement _owner;
+        private readonly IReadOnlyDictionary<RetainedElement, UiElement>? _views;
+        public RetainedChildrenEditor(RetainedElement owner, IReadOnlyDictionary<RetainedElement, UiElement>? views) { _owner = owner; _views = views; }
+        public UiElement this[int index] { get => new RetainedChildrenView(_owner, _views)[index]; set => throw new NotSupportedException("Replace is not supported; remove and add the child."); }
         public int Count => _owner.Children.Count;
         public bool IsReadOnly => false;
-        public void Add(UiElement item) { ArgumentNullException.ThrowIfNull(item); _owner.Add(item.LegacyElement); }
+        public void Add(UiElement item) { ArgumentNullException.ThrowIfNull(item); _owner.Add(item.RetainedElement); }
         public void Clear() => _owner.ClearChildren();
-        public bool Contains(UiElement item) => item is not null && _owner.Children.Contains(item.LegacyElement);
+        public bool Contains(UiElement item) => item is not null && _owner.Children.Contains(item.RetainedElement);
         public void CopyTo(UiElement[] array, int arrayIndex) { for (var i = 0; i < Count; i++) { array[arrayIndex + i] = this[i]; } }
-        public IEnumerator<UiElement> GetEnumerator() => new LegacyChildrenView(_owner, _views).GetEnumerator();
+        public IEnumerator<UiElement> GetEnumerator() => new RetainedChildrenView(_owner, _views).GetEnumerator();
         public int IndexOf(UiElement item)
         {
             if (item is null) { return -1; }
-            for (var i = 0; i < Count; i++) { if (ReferenceEquals(_owner.Children[i], item.LegacyElement)) { return i; } }
+            for (var i = 0; i < Count; i++) { if (ReferenceEquals(_owner.Children[i], item.RetainedElement)) { return i; } }
             return -1;
         }
         public void Insert(int index, UiElement item) { if (index != Count) { throw new NotSupportedException("Only append is supported by the retained tree."); } Add(item); }
-        public bool Remove(UiElement item) => item is not null && _owner.Remove(item.LegacyElement);
+        public bool Remove(UiElement item) => item is not null && _owner.Remove(item.RetainedElement);
         public void RemoveAt(int index) => _owner.Remove(_owner.Children[index]);
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
@@ -194,7 +194,7 @@ public sealed class XamlLoader : IXamlLoader
 
         var typeResolver = context.Types;
         var resourceResolver = context.Resources;
-        var views = new Dictionary<LegacyElement, UiElement>();
+        var views = new Dictionary<RetainedElement, UiElement>();
         var contextDiagnostics = new List<Diagnostic>();
         var resources = ResolveResources(source, resourceResolver, contextDiagnostics);
         if (contextDiagnostics.Count != 0)
@@ -202,15 +202,15 @@ public sealed class XamlLoader : IXamlLoader
             return new(null, contextDiagnostics.ToArray());
         }
 
-        var legacy = Legacy.XamlLoader.LoadForAdapter(
+        var retained = Retained.XamlLoader.LoadForAdapter(
             source,
             (namespaceUri, localName) => CreateCustomElement(namespaceUri, localName, typeResolver, views),
             resources);
-        var diagnostics = ConvertDiagnostics(legacy.Diagnostics);
-        return new(legacy.Root is null ? null : UiElement.Wrap(legacy.Root, views), diagnostics);
+        var diagnostics = ConvertDiagnostics(retained.Diagnostics);
+        return new(retained.Root is null ? null : UiElement.Wrap(retained.Root, views), diagnostics);
     }
 
-    private static LegacyElement? CreateCustomElement(string namespaceUri, string localName, IXamlTypeResolver resolver, Dictionary<LegacyElement, UiElement> views)
+    private static RetainedElement? CreateCustomElement(string namespaceUri, string localName, IXamlTypeResolver resolver, Dictionary<RetainedElement, UiElement> views)
     {
         if (!resolver.TryResolveName(new XamlQualifiedName(namespaceUri, localName), out var type) ||
             !resolver.TryCreate(type, out var element) ||
@@ -219,13 +219,13 @@ public sealed class XamlLoader : IXamlLoader
             return null;
         }
 
-        views[element.LegacyElement] = element;
-        return element.LegacyElement;
+        views[element.RetainedElement] = element;
+        return element.RetainedElement;
     }
 
-    private static Legacy.UiResourceStore? ResolveResources(string source, IUiResourceResolver resolver, List<Diagnostic> diagnostics)
+    private static Retained.UiResourceStore? ResolveResources(string source, IUiResourceResolver resolver, List<Diagnostic> diagnostics)
     {
-        Legacy.UiResourceStore? resources = null;
+        Retained.UiResourceStore? resources = null;
         try
         {
             using var reader = XmlReader.Create(new StringReader(source), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, IgnoreComments = true });
@@ -255,7 +255,7 @@ public sealed class XamlLoader : IXamlLoader
                         continue;
                     }
 
-                    resources ??= new Legacy.UiResourceStore();
+                    resources ??= new Retained.UiResourceStore();
                     resources.Set(reader.Value, value);
                 }
 
@@ -270,7 +270,7 @@ public sealed class XamlLoader : IXamlLoader
         return resources;
     }
 
-    private static Diagnostic[] ConvertDiagnostics(IReadOnlyList<Legacy.XamlDiagnostic> diagnostics)
+    private static Diagnostic[] ConvertDiagnostics(IReadOnlyList<Retained.XamlDiagnostic> diagnostics)
     {
         if (diagnostics.Count == 0)
         {
@@ -300,7 +300,7 @@ public sealed class XamlLoader : IXamlLoader
 
 public sealed class UiDocument
 {
-    private readonly Legacy.UiFrame _legacyFrame;
+    private readonly Retained.UiFrame _retainedFrame;
     private readonly ITextService _textService;
     private UiVisualCommand[] _visuals = Array.Empty<UiVisualCommand>();
     private UiClip[] _clips = Array.Empty<UiClip>();
@@ -315,7 +315,7 @@ public sealed class UiDocument
         ArgumentNullException.ThrowIfNull(textService);
         Root = root;
         _textService = textService;
-        _legacyFrame = new Legacy.UiFrame(root.LegacyElement);
+        _retainedFrame = new Retained.UiFrame(root.RetainedElement);
     }
 
     public UiElement Root { get; }
@@ -325,17 +325,17 @@ public sealed class UiDocument
         switch (input.Kind)
         {
             case UiInputEventKind.PointingDevice:
-                _legacyFrame.Input.RoutePointer(new LegacyAbstractions.UiPointerEvent(ToLegacyPointerKind(input.PointingDevice.Kind), new(input.PointingDevice.Position.x, input.PointingDevice.Position.y), (int)input.PointingDevice.ChangedButton.Value, input.PointingDevice.WheelDelta.y));
+                _retainedFrame.Input.RoutePointer(new RetainedContracts.UiPointerEvent(ToRetainedPointerKind(input.PointingDevice.Kind), new(input.PointingDevice.Position.x, input.PointingDevice.Position.y), (int)input.PointingDevice.ChangedButton.Value, input.PointingDevice.WheelDelta.y));
                 break;
             case UiInputEventKind.Key:
-                _legacyFrame.Input.RouteKey(new LegacyAbstractions.UiKeyEvent(checked((int)input.Key.PhysicalKey.Value), input.Key.Kind == UiKeyEventKind.Down, input.Key.IsRepeat));
+                _retainedFrame.Input.RouteKey(new RetainedContracts.UiKeyEvent(checked((int)input.Key.PhysicalKey.Value), input.Key.Kind == UiKeyEventKind.Down, input.Key.IsRepeat));
                 break;
             case UiInputEventKind.Text:
-                _legacyFrame.Input.RouteText(new LegacyAbstractions.UiTextInput(input.Text.Text.ToString()));
+                _retainedFrame.Input.RouteText(new RetainedContracts.UiTextInput(input.Text.Text.ToString()));
                 break;
             case UiInputEventKind.Composition:
                 var composition = input.Composition;
-                _legacyFrame.Input.RouteIme(new LegacyAbstractions.UiImeComposition(composition.Preedit.ToString(), composition.Selection.StartUtf16, composition.Selection.LengthUtf16, composition.Stage == UiCompositionStage.Finished));
+                _retainedFrame.Input.RouteIme(new RetainedContracts.UiImeComposition(composition.Preedit.ToString(), composition.Selection.StartUtf16, composition.Selection.LengthUtf16, composition.Stage == UiCompositionStage.Finished));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(input));
@@ -347,7 +347,7 @@ public sealed class UiDocument
         for (var i = 0; i < input.Length; i++) { Dispatch(input[i]); }
     }
 
-    public void Layout(float2 viewport, float dpiScale) => _legacyFrame.Layout(new(viewport.x, viewport.y), dpiScale);
+    public void Layout(float2 viewport, float dpiScale) => _retainedFrame.Layout(new(viewport.x, viewport.y), dpiScale);
 
     public UiDisplayList BuildDisplayList()
     {
@@ -366,18 +366,18 @@ public sealed class UiDocument
 
     public bool TryBuildDisplayList(out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
-        var legacy = _legacyFrame.ExtractDrawList(new LegacyAbstractions.UiFrameContext(new(Root.LegacyElement.Bounds.Width, Root.LegacyElement.Bounds.Height), Root.LegacyElement.DpiScale, 0));
-        if (legacy.TextRuns.Length != 0)
+        var retained = _retainedFrame.ExtractDrawList(new RetainedContracts.UiFrameContext(new(Root.RetainedElement.Bounds.Width, Root.RetainedElement.Bounds.Height), Root.RetainedElement.DpiScale, 0));
+        if (retained.TextRuns.Length != 0)
         {
             displayList = default;
             diagnostic = new Diagnostic(new DiagnosticCode("XAML_DISPLAY_TEXT_UNSUPPORTED"), DiagnosticSeverity.Error, "The retained text run has no DeltaText font-instance mapping.", null);
             return false;
         }
 
-        for (var i = 0; i < legacy.Commands.Length; i++)
+        for (var i = 0; i < retained.Commands.Length; i++)
         {
-            var source = legacy.Commands.Span[i];
-            if (source.Kind != LegacyAbstractions.UiDrawKind.Rectangle)
+            var source = retained.Commands.Span[i];
+            if (source.Kind != RetainedContracts.UiDrawKind.Rectangle)
             {
                 displayList = default;
                 diagnostic = new Diagnostic(new DiagnosticCode("XAML_DISPLAY_KIND_UNSUPPORTED"), DiagnosticSeverity.Error, $"The retained visual kind '{source.Kind}' has no canonical adapter mapping.", null);
@@ -399,22 +399,22 @@ public sealed class UiDocument
             }
         }
 
-        _visualCount = legacy.Commands.Length;
-        _clipCount = legacy.Clips.Length;
+        _visualCount = retained.Commands.Length;
+        _clipCount = retained.Clips.Length;
         _textCount = 0;
         EnsureCapacity(ref _visuals, _visualCount);
         EnsureCapacity(ref _clips, _clipCount);
         EnsureCapacity(ref _text, 0);
         for (var i = 0; i < _clipCount; i++)
         {
-            var source = legacy.Clips.Span[i];
+            var source = retained.Clips.Span[i];
             var parent = source.Parent.Value == 0 ? UiClipId.None : new UiClipId((int)source.Parent.Value - 1);
             _clips[i] = new(ToFloat4(source.Bounds), parent);
         }
 
         for (var i = 0; i < _visualCount; i++)
         {
-            var source = legacy.Commands.Span[i];
+            var source = retained.Commands.Span[i];
             var clip = source.ClipId.Value == 0 ? UiClipId.None : new UiClipId((int)source.ClipId.Value - 1);
             _visuals[i] = new(UiVisualKind.SolidRectangle, default, ToFloat4(source.Bounds), ToColor(source.Color), clip, UiResourceId.Empty);
         }
@@ -424,14 +424,14 @@ public sealed class UiDocument
         return true;
     }
 
-    private static LegacyAbstractions.UiPointerEventKind ToLegacyPointerKind(UiPointerEventKind kind) => kind switch
+    private static RetainedContracts.UiPointerEventKind ToRetainedPointerKind(UiPointerEventKind kind) => kind switch
     {
-        UiPointerEventKind.ButtonDown => LegacyAbstractions.UiPointerEventKind.Down,
-        UiPointerEventKind.ButtonUp => LegacyAbstractions.UiPointerEventKind.Up,
-        UiPointerEventKind.Wheel => LegacyAbstractions.UiPointerEventKind.Wheel,
-        _ => LegacyAbstractions.UiPointerEventKind.Move,
+        UiPointerEventKind.ButtonDown => RetainedContracts.UiPointerEventKind.Down,
+        UiPointerEventKind.ButtonUp => RetainedContracts.UiPointerEventKind.Up,
+        UiPointerEventKind.Wheel => RetainedContracts.UiPointerEventKind.Wheel,
+        _ => RetainedContracts.UiPointerEventKind.Move,
     };
-    private static float4 ToFloat4(LegacyAbstractions.UiRect value) => new(value.X, value.Y, value.Width, value.Height);
-    private static float4 ToColor(LegacyAbstractions.UiColor value) => new(value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
+    private static float4 ToFloat4(RetainedContracts.UiRect value) => new(value.X, value.Y, value.Width, value.Height);
+    private static float4 ToColor(RetainedContracts.UiColor value) => new(value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
     private static void EnsureCapacity<T>(ref T[] storage, int count) { if (storage.Length < count) { Array.Resize(ref storage, Math.Max(8, count)); } }
 }

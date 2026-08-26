@@ -17,6 +17,12 @@ policy. They must not be copied into a second public tree or property engine.
 The legacy draw storage is borrowed until the next extraction and is not a
 long-lived renderer resource.
 
+`PUBLIC_CONTRACT.md` is a frozen historical contract snapshot. Its references
+to `DeltaXAML.Core` and `DeltaXAML.Abstractions` describe the former migration
+boundary only; they are not active projects or supported integration names.
+Active source, solution and workflow paths use the `DeltaXAML` primary project
+and `Delta.XAML.Contract`.
+
 ## Adapter boundary
 
 `src/DeltaXAML.Contract` is the only cross-project packet producer. It owns:
