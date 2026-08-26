@@ -15,11 +15,11 @@ legacy surfaces.
 ```csharp
 using System.Diagnostics.CodeAnalysis;
 using Delta.Diagnostics;
-using DeltaMaths;
-using DeltaText.Contract;
-using DeltaXAML.Contract;
+using Delta.Maths;
+using Delta.Text.Contract;
+using Delta.XAML.Contract;
 
-namespace DeltaXAML;
+namespace Delta.XAML;
 
 public readonly record struct UiPropertyId(Guid Value)
 {

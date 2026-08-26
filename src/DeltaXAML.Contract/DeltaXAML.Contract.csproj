@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DeltaXAML.Contract</AssemblyName>
-    <RootNamespace>DeltaXAML.Contract</RootNamespace>
+    <RootNamespace>Delta.XAML.Contract</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

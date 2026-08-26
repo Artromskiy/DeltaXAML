@@ -1,9 +1,9 @@
 using System.Runtime.InteropServices;
 using DeltaXAML.Abstractions;
 using DeltaXAML.Core;
-using Library = DeltaXAML;
-using LibraryContract = DeltaXAML.Contract;
-using TextContract = DeltaText.Contract;
+using Library = Delta.XAML;
+using LibraryContract = Delta.XAML.Contract;
+using TextContract = Delta.Text.Contract;
 
 using UiDirtyFlags = DeltaXAML.Abstractions.UiDirtyMask;
 
@@ -510,7 +510,7 @@ internal static class Program
         if (loaded.Root is not { } root) { throw new InvalidOperationException("library loader root missing"); }
         using var text = new EmptyTextService();
         var document = new Library.UiDocument(root, text);
-        document.Layout(new DeltaMaths.float2(80, 20), 1);
+        document.Layout(new Delta.Maths.float2(80, 20), 1);
         var display = document.BuildDisplayList();
         Assert.Equal(1, display.Visuals.Length, "library document builds canonical visual display list");
         Assert.Equal(1, display.Clips.Length, "library document builds canonical clip list");
@@ -534,7 +534,7 @@ internal static class Program
         var textRoot = loader.Load("<TextBlock Text=\"Hello\" />", in context).Root;
         if (textRoot is null) { throw new InvalidOperationException("library text root missing"); }
         var textDocumentOwner = new Library.UiDocument(textRoot, textDocument);
-        textDocumentOwner.Layout(new DeltaMaths.float2(80, 20), 1);
+        textDocumentOwner.Layout(new Delta.Maths.float2(80, 20), 1);
         Assert.True(!textDocumentOwner.TryBuildDisplayList(out _, out var textDiagnostic) && textDiagnostic is { } unsupported && unsupported.Code.Value == "XAML_DISPLAY_TEXT_UNSUPPORTED", "unsupported text returns a diagnostic");
     }
 
