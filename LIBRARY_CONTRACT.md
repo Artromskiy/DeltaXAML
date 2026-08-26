@@ -6,9 +6,9 @@ library contract owns loading, the retained document, element/property access,
 bindings and resource/type resolution; the cross-project contract owns neutral
 input packets and the borrowed renderer-facing display list.
 
-The current `DeltaXAML.Core` and `DeltaXAML.Abstractions` types are migration
-surfaces. New API work converges on this contract instead of extending those
-legacy surfaces.
+The concrete implementation and compatibility packet types are migration
+surfaces. New API work converges on this contract instead of extending legacy
+surfaces.
 
 ## Selected public shape
 
@@ -154,8 +154,9 @@ public sealed class UiDocument
 ```
 
 The declarations above specify public shape and ownership; they are not a
-second implementation. `DeltaXAML.Core` supplies the concrete retained storage,
-loader, document and property/binding implementations.
+second implementation. The primary implementation project supplies the
+concrete retained storage, loader, document and property/binding
+implementations.
 
 `TryBuildDisplayList` is the diagnostic form for a retained value that cannot
 be represented by the canonical display-list contract during migration.

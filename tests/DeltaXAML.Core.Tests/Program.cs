@@ -326,7 +326,7 @@ internal static class Program
             var unchangedDelta = next.GetDeltaSince(initialVersion);
             Assert.Equal(0, unchangedDelta.Commands.Count, "unchanged frame has no command delta");
             Assert.Equal(0, unchangedDelta.Clips.Count, "unchanged frame has no clip delta");
-            Assert.Equal(0, unchangedDeltaTextRuns.Count, "unchanged frame has no text delta");
+            Assert.Equal(0, unchangedDelta.TextRuns.Count, "unchanged frame has no text delta");
             for (var runIndex = 0; runIndex < next.TextRuns.Length; runIndex++)
             {
                 Assert.Equal(initialRuns[runIndex].Version, next.TextRuns.Span[runIndex].Version, "unchanged frame keeps text version");
@@ -339,7 +339,7 @@ internal static class Program
         frame.Layout(new(200, 40), 1);
         var styled = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 22));
         var styleDelta = styled.GetDeltaSince(initialVersion);
-        Assert.Equal(new UiDrawRange(0, 1), styleDeltaTextRuns, "style update changes one text range");
+        Assert.Equal(new UiDrawRange(0, 1), styleDelta.TextRuns, "style update changes one text range");
         Assert.True(styled.TextRuns.Span[0].Version != initialRuns[0].Version, "style update changes the owning text version");
         Assert.Equal(initialRuns[1].Version, styled.TextRuns.Span[1].Version, "style update keeps the other text version");
         initialRuns = styled.TextRuns.ToArray();
@@ -354,7 +354,7 @@ internal static class Program
         Assert.Equal(initialRuns[0].OwnerGeneration, changed.TextRuns.Span[0].OwnerGeneration, "text mutation keeps owner generation");
         Assert.Equal(initialRuns[1].Version, changed.TextRuns.Span[1].Version, "unchanged text keeps its version");
         var valueDelta = changed.GetDeltaSince(initialVersion);
-        Assert.Equal(new UiDrawRange(0, 1), valueDeltaTextRuns, "value update changes one text range");
+        Assert.Equal(new UiDrawRange(0, 1), valueDelta.TextRuns, "value update changes one text range");
         Assert.Equal(new UiDrawRange(0, 0), valueDelta.Clips, "value update does not change clips");
 
         root.Width = 240;
@@ -363,14 +363,14 @@ internal static class Program
         var layoutChangedVersion = layoutChanged.Version;
         var layoutDelta = layoutChanged.GetDeltaSince(changedVersion);
         Assert.Equal(new UiDrawRange(0, layoutChanged.Clips.Length), layoutDelta.Clips, "layout update changes the clip ranges");
-        Assert.Equal(new UiDrawRange(0, 2), layoutDeltaTextRuns, "layout update changes positioned text ranges");
+        Assert.Equal(new UiDrawRange(0, 2), layoutDelta.TextRuns, "layout update changes positioned text ranges");
         Assert.Equal(changed.TextRuns.Span[0].Version, layoutChanged.TextRuns.Span[0].Version, "layout update preserves first text identity");
         Assert.Equal(changed.TextRuns.Span[1].Version, layoutChanged.TextRuns.Span[1].Version, "layout update preserves second text identity");
 
         frame.Layout(new(240, 40), 2);
         var dpiChanged = frame.ExtractDrawList(new UiFrameContext(new(240, 40), 2, 25));
         var dpiDelta = dpiChanged.GetDeltaSince(layoutChangedVersion);
-        Assert.Equal(new UiDrawRange(0, 2), dpiDeltaTextRuns, "DPI update changes both text layout requests");
+        Assert.Equal(new UiDrawRange(0, 2), dpiDelta.TextRuns, "DPI update changes both text layout requests");
     }
 
     private static void DrawListProducerContract()
