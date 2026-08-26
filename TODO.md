@@ -6,6 +6,11 @@ cross-project handoff order is in
 
 ## XAML capability expansion
 
+- [ ] Implement the additive facade selected in
+  [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md): `IXamlLoader`, concrete
+  `UiDocument`, the common typed/untyped property and binding surfaces,
+  GUID-backed resource/type resolution, and validated `UiParticipation`.
+  Reuse the current retained tree and stores; do not create a second UI engine.
 - [ ] Migrate `DeltaXAML.Core`, DeltaEditorShell and DeltaEditor from the
   legacy `DeltaXAML.Abstractions` surface to the authoritative
   `Delta.XAML.Contract`; remove the legacy project only after all consumers

@@ -7,6 +7,9 @@ controls, layout, hit testing, input routing and renderer-neutral primitives.
 - [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) — authoritative cross-project input
   and display-list contract; do not duplicate or edit it as implementation
   cleanup.
+- [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md) — authoritative consumer-facing
+  loader/document/element/property boundary; implementation work converges on
+  it without extending the legacy abstractions.
 - [TODO.md](TODO.md) — selected UI work.
 - [IDEAS.md](IDEAS.md) — deferred language/designer features.
 - [WORKFLOW.md](WORKFLOW.md) — fast build, headless harness and checks.

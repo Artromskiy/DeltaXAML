@@ -4,6 +4,10 @@
 platform input, the retained DeltaXAML library and DeltaRender. It is a small
 contract assembly, not an abstract UI framework and not a second rendering API.
 
+The ordinary loader/document/element/property API is specified separately in
+[LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md). Do not move retained implementation
+mechanics into this cross-project packet contract.
+
 ```text
 DeltaEngine input -> Delta.XAML.Contract input packets -> DeltaXAML.Core
 DeltaXAML.Core -> UiDisplayList -> DeltaRender adapter -> Vulkan render graph

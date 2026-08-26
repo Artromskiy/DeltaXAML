@@ -5,9 +5,11 @@ on 2026-08-23. This is a compatibility and layering review, not a proposal to
 copy Avalonia's dependency-property or control model. No runtime API is
 changed by this document.
 
-[PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) supersedes this review's provisional
-facade names. The selected library boundary is the concrete `UiDocument` plus
-`Delta.XAML.Contract.UiDisplayList`; `IUiRenderSnapshot` is not planned.
+[LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md) supersedes this review's provisional
+consumer-facing facade names. [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) owns the
+cross-project input/display-list packets. The selected library boundary is the
+concrete `UiDocument` plus `Delta.XAML.Contract.UiDisplayList`;
+`IUiRenderSnapshot` is not planned.
 
 ## Baseline
 

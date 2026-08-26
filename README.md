@@ -16,6 +16,20 @@ implementation and consumers migrate to that smaller contract.
 bindings, layout, clipping, focus and routed input. Font shaping/rasterization
 and GPU atlases remain behind external contracts.
 
+Two documents define the selected public boundary:
+
+- [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md) is the ordinary library API:
+  loader, document, retained element tree, typed/untyped properties and
+  bindings, and GUID-backed type/resource resolution;
+- [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) is the cross-project adapter API:
+  neutral input and the borrowed display list consumed by DeltaRender.
+
+The library API uses `UiParticipation` flags. Rendering and hit testing require
+layout participation; an element excluded from layout excludes its whole
+subtree from all three stages. The base element does not promise opacity or an
+abstract enabled state. Concrete controls and visuals expose those capabilities
+only when they can define their behavior precisely.
+
 ## Public layering decisions
 
 `UiElementId` and `Generation` remain on the base `IUiElement` contract. The
@@ -31,8 +45,8 @@ batched-mutation contracts until those contracts receive a typed facade.
 
 The intended ownership split is:
 
-- consumer-facing DeltaXAML: elements, controls, layout, bindings, styles,
-  resources, input, clipboard and automation;
+- consumer-facing DeltaXAML: document, elements, controls, layout, bindings,
+  styles, resources, input and automation;
 - retained implementation: `UiElement`, `UiPropertyStore`, `UiFrame`, stores,
   routers and reusable backing storage;
 - XAML layer: `XamlLoader`, `XamlTypeRegistry` and load diagnostics;
@@ -74,6 +88,7 @@ storage handles or reflection objects.
 
 See [WORKFLOW.md](WORKFLOW.md) for headless checks, [TODO.md](TODO.md) for
 selected work, [API_REVIEW.md](API_REVIEW.md) for the additive facade plan,
+[LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md) for the selected consumer-facing API,
 [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) for the authoritative cross-project
 contract,
 [ARCHITECTURE.md](ARCHITECTURE.md) for the implemented boundary,
