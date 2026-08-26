@@ -2,15 +2,15 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Xml;
 using Delta.Diagnostics;
-using Delta.Maths;
-using Delta.Text.Contract;
-using Delta.XAML.Contract;
+using DeltaMaths;
+using DeltaText.Contract;
+using DeltaXAML.Contract;
 using Legacy = DeltaXAML.Core;
 using LegacyAbstractions = DeltaXAML.Abstractions;
 using LegacyDirty = DeltaXAML.Abstractions.UiDirtyMask;
 using LegacyElement = DeltaXAML.Core.UiElement;
 
-namespace Delta.XAML;
+namespace DeltaXAML;
 
 public readonly record struct UiPropertyId(Guid Value) { public bool IsValid => Value != Guid.Empty; }
 public readonly record struct UiTypeId(Guid Value) { public bool IsValid => Value != Guid.Empty; }

@@ -19,7 +19,7 @@ long-lived renderer resource.
 
 ## Adapter boundary
 
-`src/Delta.XAML.Contract` is the only cross-project packet producer. It owns:
+`src/DeltaXAML.Contract` is the only cross-project packet producer. It owns:
 
 - `UiInputEvent` and its pointer/key/text/composition payloads;
 - `UiDisplayList`, `UiVisualCommand`, `UiClip` and `UiTextDraw`;

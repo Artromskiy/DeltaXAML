@@ -1,7 +1,7 @@
-using Delta.Maths;
-using Delta.Text.Contract;
+using DeltaMaths;
+using DeltaText.Contract;
 
-namespace Delta.XAML.Contract;
+namespace DeltaXAML.Contract;
 
 /// <summary>Stable cross-project identity of a UI resource.</summary>
 public readonly record struct UiResourceId(Guid Value)

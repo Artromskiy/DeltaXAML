@@ -1,7 +1,7 @@
-using Delta.Maths;
-using Delta.Text.Contract;
+using DeltaMaths;
+using DeltaText.Contract;
 
-namespace Delta.XAML.Contract;
+namespace DeltaXAML.Contract;
 
 /// <summary>Kind of platform-neutral input delivered to a retained UI document.</summary>
 public enum UiInputEventKind : byte

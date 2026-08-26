@@ -1,6 +1,6 @@
-# Delta.XAML.Contract
+# DeltaXAML.Contract
 
-`Delta.XAML.Contract` is the authoritative producer-owned boundary between
+`DeltaXAML.Contract` is the authoritative producer-owned boundary between
 platform input, the retained DeltaXAML library and DeltaRender. It is a small
 contract assembly, not an abstract UI framework and not a second rendering API.
 
@@ -9,7 +9,7 @@ The ordinary loader/document/element/property API is specified separately in
 mechanics into this cross-project packet contract.
 
 ```text
-DeltaEngine input -> Delta.XAML.Contract input packets -> DeltaXAML.Core
+DeltaEngine input -> DeltaXAML.Contract input packets -> DeltaXAML.Core
 DeltaXAML.Core -> UiDisplayList -> DeltaRender adapter -> Vulkan render graph
 DeltaText ShapedText ------------------^
 ```
@@ -36,9 +36,9 @@ xamlRenderer.AddToGraph(displayList, graph, target);
 There is no `Update`, frame clock, delta time, command buffer, renderer service
 or application lifecycle in this contract.
 
-## Maths and coordinates
+## DeltaMaths and coordinates
 
-Geometry and color reuse `Delta.Maths`: `float2` represents positions, sizes
+Geometry and color reuse `DeltaMaths`: `float2` represents positions, sizes
 and deltas; `float4` represents rectangles and colors. Rectangle properties
 document the `(X, Y, Width, Height)` convention. Colors are linear RGBA. UI
 coordinates use logical units until the consumer applies its DPI transform.
@@ -81,5 +81,5 @@ integer values.
 
 The existing `DeltaXAML.Abstractions` assembly is a temporary migration surface
 for the current implementation and consumers. It is not the source of truth for
-new cross-project API. Migrate consumers to `Delta.XAML.Contract` before
+new cross-project API. Migrate consumers to `DeltaXAML.Contract` before
 removing the legacy assembly.

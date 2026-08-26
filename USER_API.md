@@ -48,7 +48,7 @@ represented by the canonical display list; `BuildDisplayList` throws an
 The repository is migrating from its temporary implementation surface to this
 library shape. Existing compatibility names are implementation-only and must
 not be used for new cross-project integration. The migration is intentionally
-additive until direct consumers move to `Delta.XAML.Contract`.
+additive until direct consumers move to `DeltaXAML.Contract`.
 
 The current public library contract does not include a control-specific
 compatibility promise. Controls, templates, dirty propagation, focus,

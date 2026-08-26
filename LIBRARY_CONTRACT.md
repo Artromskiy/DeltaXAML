@@ -15,11 +15,11 @@ legacy surfaces.
 ```csharp
 using System.Diagnostics.CodeAnalysis;
 using Delta.Diagnostics;
-using Delta.Maths;
-using Delta.Text.Contract;
-using Delta.XAML.Contract;
+using DeltaMaths;
+using DeltaText.Contract;
+using DeltaXAML.Contract;
 
-namespace Delta.XAML;
+namespace DeltaXAML;
 
 public readonly record struct UiPropertyId(Guid Value)
 {
@@ -186,7 +186,7 @@ capability and is not part of the contract.
 ## Identity and resolution
 
 Stable property, type and resource identities are typed wrappers over `Guid`.
-The library reuses `Delta.XAML.Contract.UiResourceId` instead of declaring a
+The library reuses `DeltaXAML.Contract.UiResourceId` instead of declaring a
 second resource identity. XAML names are source aliases, not identities.
 `IXamlTypeResolver` remains a
 DeltaXAML-owned resolver because it creates retained UI elements. Do not add a
@@ -201,7 +201,7 @@ Loading, binding and property failures use `Delta.Diagnostics.Contract`.
 Project-specific diagnostic codes remain extensible strings such as `XAML001`.
 Programmer contract violations use exceptions; expected absence uses `Try...`.
 
-`ITextService` is `Delta.Text.Contract.ITextService`. It is required by
+`ITextService` is `DeltaText.Contract.ITextService`. It is required by
 `UiDocument` for text layout and is not a loader option. Clipboard access is a
 platform-host concern and is not part of this minimal library contract.
 
