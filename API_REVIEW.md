@@ -5,6 +5,10 @@ on 2026-08-23. This is a compatibility and layering review, not a proposal to
 copy Avalonia's dependency-property or control model. No runtime API is
 changed by this document.
 
+[PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) supersedes this review's provisional
+facade names. The selected library boundary is the concrete `UiDocument` plus
+`Delta.XAML.Contract.UiDisplayList`; `IUiRenderSnapshot` is not planned.
+
 ## Baseline
 
 Avalonia presents a consumer-facing control hierarchy above several distinct
@@ -86,9 +90,9 @@ The following should be additive facades over the existing implementation:
 2. Add a typed property-key/value facade (`UiPropertyKey<T>` or an equivalent
    non-reflection key) for common consumers. Keep `UiPropertyHandle` and
    `UiMutation` as the generation-safe fast path for engine adapters.
-3. Separate a high-level frame/layout boundary from a render submission
-   boundary. A future `IUiRenderSnapshot`/adapter can consume the existing
-   draw list without forcing ordinary consumers to inspect command storage.
+3. Separate the concrete document/layout API from render submission. The
+   selected `UiDisplayList` adapter boundary consumes retained output without
+   forcing ordinary consumers to inspect legacy command storage.
 4. Keep `IUiPropertySource` as the current neutral bridge, but introduce a
    generic schema/value source before adding more inspector terminology. The
    DeltaEditorShell adapter can map component/field metadata to that generic

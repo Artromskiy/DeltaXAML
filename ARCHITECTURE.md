@@ -4,13 +4,18 @@ This document describes the behavior implemented by the current DeltaXAML
 source tree. It is an API and integration map, not a promise of full XAML
 compatibility. The runtime API is unchanged by this document.
 
+The authoritative target boundary is [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md).
+Names such as `IUiFrame` and `IUiDrawList` below describe the legacy
+implementation being migrated; they are not the source of truth for new
+cross-project API.
+
 ## Boundary and ownership
 
 DeltaXAML owns the small XAML dialect, parsing diagnostics, the retained
 `UiElement` tree, property values and invalidation, controls, layout, hit
 testing, routed input, and renderer-neutral draw data.
 
-The renderer boundary is `IUiDrawList`. DeltaXAML produces ordered
+The current legacy renderer boundary is `IUiDrawList`. DeltaXAML produces ordered
 `UiDrawCommand` values, clip entries, and `UiTextRun` values. A DeltaRender
 adapter may consume those values, but this repository has no dependency on
 DeltaRender, DeltaEngine, ECS, SDL, Vulkan, a font atlas, or a shaping
@@ -142,7 +147,7 @@ uses font size and a text-length estimate. It is not a shaping result.
 
 ### 5. Frame extraction and renderer handoff
 
-`IUiDrawList` is the canonical DeltaXAML renderer-neutral producer. The
+`IUiDrawList` is the legacy renderer-neutral producer. The
 `IUiFrame.ExtractDrawList(UiFrameContext)` call fills its retained storage with
 ordered commands, clips, and text requests. The backing arrays are reused and
 exposed through bounded `ReadOnlyMemory` slices, so the consumer reads the
@@ -182,8 +187,8 @@ GPU handles.
 
 ## Public API map
 
-The main public contracts are in `DeltaXAML.Abstractions`; concrete behavior
-is in `DeltaXAML.Core`.
+The legacy public contracts are in `DeltaXAML.Abstractions`; concrete behavior
+is in `DeltaXAML.Core`. New integration targets `Delta.XAML.Contract`.
 
 | Area | Public API | Current role |
 | --- | --- | --- |

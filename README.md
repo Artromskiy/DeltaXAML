@@ -6,10 +6,12 @@ storage dependency.
 
 ```text
 XAML -> retained tree -> properties/styles -> measure/arrange
-  -> hit testing/input -> text layout requests + renderer-neutral IUiDrawList
+  -> hit testing/input -> shaped text + renderer-neutral UiDisplayList
 ```
 
-`DeltaXAML.Abstractions` owns neutral element/frame/draw contracts.
+`Delta.XAML.Contract` owns the canonical neutral input/display-list boundary.
+`DeltaXAML.Abstractions` is the temporary legacy surface used while the current
+implementation and consumers migrate to that smaller contract.
 `DeltaXAML.Core` owns parsing, retained identity, invalidation, controls,
 bindings, layout, clipping, focus and routed input. Font shaping/rasterization
 and GPU atlases remain behind external contracts.
@@ -43,16 +45,18 @@ The adapter split is additive. Existing frame, mutation and draw contracts stay
 available for the game/editor integration while ordinary UI consumers can use
 the retained controls without depending on ECS, DeltaEngine or Vulkan.
 
-## Canonical draw producer and text request
+## Legacy draw producer and migration
 
-`IUiDrawList` is the single DeltaXAML renderer-neutral producer contract. It
+`Delta.XAML.Contract.UiDisplayList` is the authoritative cross-project output.
+The current implementation still produces the legacy `IUiDrawList` while its
+consumers migrate. That legacy surface
 publishes ordered rectangle commands, clip entries and `UiTextRun` requests.
 `UiTextRun` contains content, font/style data, positioned bounds, clip,
 `GlyphRunKey`, `Owner`, `OwnerGeneration` and dirty-data `Version`; it is not shaped glyph data,
 atlas data or GPU state. DeltaText may consume the request, while DeltaRender
 owns shaping results, atlases, batching and uploads.
 
-`IUiDrawList.Version` changes only when commands, clips or text-request values
+Legacy `IUiDrawList.Version` changes only when commands, clips or text-request values
 change. Unchanged extraction keeps the version, text owners, text versions and
 backing arrays stable. `GetDeltaSince` reports precise command, clip and text
 ranges for the immediately preceding version; an older version receives full
@@ -70,6 +74,8 @@ storage handles or reflection objects.
 
 See [WORKFLOW.md](WORKFLOW.md) for headless checks, [TODO.md](TODO.md) for
 selected work, [API_REVIEW.md](API_REVIEW.md) for the additive facade plan,
+[PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) for the authoritative cross-project
+contract,
 [ARCHITECTURE.md](ARCHITECTURE.md) for the implemented boundary,
 [IDEAS.md](IDEAS.md) for deferred tooling and
 [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) for shared acceptance.

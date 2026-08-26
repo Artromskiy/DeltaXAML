@@ -6,6 +6,11 @@ cross-project handoff order is in
 
 ## XAML capability expansion
 
+- [ ] Migrate `DeltaXAML.Core`, DeltaEditorShell and DeltaEditor from the
+  legacy `DeltaXAML.Abstractions` surface to the authoritative
+  `Delta.XAML.Contract`; remove the legacy project only after all consumers
+  use the new library-shaped document/display-list boundary.
+
 - [x] Add resource-backed style precedence and explicit style invalidation for
   local, style, binding, and transient handle values.
 - [x] Add generation-safe `UiPropertyHandle` writes and a batched mutation
