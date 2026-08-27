@@ -267,7 +267,16 @@ internal static class Program
         var stale = new UiPropertyHandle(element.Id, handle.Generation + 1, "Value");
         Assert.True(!element.TrySet(stale, 7, UiDirtyFlags.Binding, out error) && error is not null, "stale handle is rejected");
         var backing = 3;
-        var binding = new UiCompiledBinding<int>(() => backing, v => { backing = v; return (true, null); }, UiBindingMode.TwoWay);
+        var binding = new UiBindingValue(() => backing, value =>
+        {
+            if (value is not int next)
+            {
+                return (false, "Expected int.");
+            }
+
+            backing = next;
+            return (true, null);
+        });
         element.SetBinding("Count", binding, UiDirtyFlags.Binding);
         Assert.True(binding.TryWrite(9, out error) && backing == 9, "compiled binding writes typed value");
         var registry = new XamlTypeRegistry();

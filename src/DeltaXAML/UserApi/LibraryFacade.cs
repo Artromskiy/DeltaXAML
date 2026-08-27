@@ -6,7 +6,6 @@ using Delta.Maths;
 using Delta.Text.Contract;
 using Delta.XAML.Contract;
 using Retained = DeltaXAML.Internal;
-using RetainedContracts = DeltaXAML.Internal;
 using RetainedDirty = DeltaXAML.Internal.UiDirtyMask;
 using RetainedElement = DeltaXAML.Internal.UiElement;
 
@@ -115,10 +114,7 @@ public abstract class UiElement
     {
         ArgumentNullException.ThrowIfNull(retained);
         _retained = retained;
-        _views = views ?? new Dictionary<RetainedElement, UiElement>();
-        _views[retained] = this;
-        _childrenView = new RetainedChildrenView(retained, _views);
-        _childrenEditor = new RetainedChildrenEditor(retained, _views);
+        SetViewCache(views ?? new Dictionary<RetainedElement, UiElement>());
     }
     internal RetainedElement RetainedElement => _retained;
 
@@ -384,10 +380,7 @@ public abstract class UiElement
             return;
         }
 
-        _views = views;
-        _views[_retained] = this;
-        _childrenView = new RetainedChildrenView(_retained, _views);
-        _childrenEditor = new RetainedChildrenEditor(_retained, _views);
+        SetViewCache(views);
         foreach (var child in _retained.Children)
         {
             if (child is RetainedElement retainedChild && _views.TryGetValue(retainedChild, out var childView))
@@ -395,6 +388,14 @@ public abstract class UiElement
                 childView.AdoptViewCache(views);
             }
         }
+    }
+
+    private void SetViewCache(Dictionary<RetainedElement, UiElement> views)
+    {
+        _views = views;
+        _views[_retained] = this;
+        _childrenView = new RetainedChildrenView(_retained, _views);
+        _childrenEditor = new RetainedChildrenEditor(_retained, _views);
     }
 
     private static object? ToRetainedValue(object? value) => value switch
@@ -457,15 +458,10 @@ public sealed class UiItemsControl : UiPanel
         ItemsElement.SetItems(items, item =>
         {
             var created = factory(item);
+            ArgumentNullException.ThrowIfNull(created, nameof(item));
             RegisterView(created);
-            return CreateRetainedItem(created);
+            return created.RetainedElement;
         });
-    }
-
-    private static RetainedElement CreateRetainedItem(UiElement? item)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-        return item.RetainedElement;
     }
 }
 
@@ -481,13 +477,12 @@ public sealed class UiBorder : UiElement
 
     public void SetChild(UiElement? child)
     {
+        BorderElement.ClearChildren();
         if (child is null)
         {
-            BorderElement.ClearChildren();
             return;
         }
 
-        BorderElement.ClearChildren();
         BorderElement.Add(child.RetainedElement);
         RegisterView(child);
     }
@@ -555,12 +550,10 @@ public readonly record struct UiGridLength(float Value, UiGridUnitType Unit)
     public static UiGridLength Star(float weight = 1) => new(weight, UiGridUnitType.Star);
 }
 
-
 /// <summary>Convenience retained text editor for code-authored composition.</summary>
 public class UiTextBox : UiTextBlock
 {
     private Retained.TextBox TextBoxElement => (Retained.TextBox)RetainedElement;
-    private IUiClipboard? _clipboard;
     private ClipboardBridge? _clipboardBridge;
 
     public UiTextBox() : base(new Retained.TextBox()) { }
@@ -578,10 +571,9 @@ public class UiTextBox : UiTextBlock
 
     public IUiClipboard? Clipboard
     {
-        get => _clipboard;
+        get => _clipboardBridge?.Source;
         set
         {
-            _clipboard = value;
             _clipboardBridge = value is null ? null : new ClipboardBridge(value);
             TextBoxElement.Clipboard = _clipboardBridge;
         }
@@ -596,6 +588,7 @@ public class UiTextBox : UiTextBlock
 
     private sealed class ClipboardBridge(IUiClipboard clipboard) : Retained.IUiClipboard
     {
+        public IUiClipboard Source => clipboard;
         public string? ReadText() => clipboard.ReadText();
         public void SetText(string? text) => clipboard.SetText(text);
         public bool HasText => clipboard.HasText;
@@ -758,7 +751,7 @@ public sealed class XamlLoader : IXamlLoader
                         continue;
                     }
 
-                    if (!TryParseResourceReference(reader.Value, out var resourceKey))
+                    if (!Retained.XamlLoader.TryParseResourceReference(reader.Value, out var resourceKey))
                     {
                         continue;
                     }
@@ -782,25 +775,6 @@ public sealed class XamlLoader : IXamlLoader
         }
 
         return resources;
-    }
-
-    private static bool TryParseResourceReference(string value, out string key)
-    {
-        key = string.Empty;
-        if ((!value.StartsWith("{DynamicResource ", StringComparison.Ordinal) && !value.StartsWith("{StaticResource ", StringComparison.Ordinal)) || !value.EndsWith('}'))
-        {
-            return false;
-        }
-
-        var body = value[1..^1].Trim();
-        var separator = body.IndexOf(' ', StringComparison.Ordinal);
-        if (separator < 0)
-        {
-            return false;
-        }
-
-        key = body[(separator + 1)..].Trim();
-        return key.Length != 0;
     }
 
     private static Diagnostic[] ConvertDiagnostics(IReadOnlyList<Retained.XamlDiagnostic> diagnostics)
@@ -884,17 +858,17 @@ public sealed class UiDocument : IDisposable
         switch (input.Kind)
         {
             case UiInputEventKind.PointingDevice:
-                _retainedFrame.Input.RoutePointer(new RetainedContracts.UiPointerEvent(ToRetainedPointerKind(input.PointingDevice.Kind), new(input.PointingDevice.Position.x, input.PointingDevice.Position.y), (int)input.PointingDevice.ChangedButton.Value, input.PointingDevice.WheelDelta.y));
+                _retainedFrame.Input.RoutePointer(new Retained.UiPointerEvent(ToRetainedPointerKind(input.PointingDevice.Kind), new(input.PointingDevice.Position.x, input.PointingDevice.Position.y), (int)input.PointingDevice.ChangedButton.Value, input.PointingDevice.WheelDelta.y));
                 break;
             case UiInputEventKind.Key:
-                _retainedFrame.Input.RouteKey(new RetainedContracts.UiKeyEvent(checked((int)input.Key.PhysicalKey.Value), input.Key.Kind == UiKeyEventKind.Down, input.Key.IsRepeat));
+                _retainedFrame.Input.RouteKey(new Retained.UiKeyEvent(checked((int)input.Key.PhysicalKey.Value), input.Key.Kind == UiKeyEventKind.Down, input.Key.IsRepeat));
                 break;
             case UiInputEventKind.Text:
-                _retainedFrame.Input.RouteText(new RetainedContracts.UiTextInput(input.Text.Text.ToString()));
+                _retainedFrame.Input.RouteText(new Retained.UiTextInput(input.Text.Text.ToString()));
                 break;
             case UiInputEventKind.Composition:
                 var composition = input.Composition;
-                _retainedFrame.Input.RouteIme(new RetainedContracts.UiImeComposition(composition.Preedit.ToString(), composition.Selection.StartUtf16, composition.Selection.LengthUtf16, composition.Stage == UiCompositionStage.Finished));
+                _retainedFrame.Input.RouteIme(new Retained.UiImeComposition(composition.Preedit.ToString(), composition.Selection.StartUtf16, composition.Selection.LengthUtf16, composition.Stage == UiCompositionStage.Finished));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(input));
@@ -925,12 +899,12 @@ public sealed class UiDocument : IDisposable
 
     public bool TryBuildDisplayList(out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
-        var retained = _retainedFrame.ExtractDrawList(new RetainedContracts.UiFrameContext(new(Root.RetainedElement.Bounds.Width, Root.RetainedElement.Bounds.Height), Root.RetainedElement.DpiScale, 0));
+        var retained = _retainedFrame.ExtractDrawList(new Retained.UiFrameContext(new(Root.RetainedElement.Bounds.Width, Root.RetainedElement.Bounds.Height), Root.RetainedElement.DpiScale, 0));
 
         for (var i = 0; i < retained.Commands.Length; i++)
         {
             var source = retained.Commands.Span[i];
-            if (source.Kind != RetainedContracts.UiDrawKind.Rectangle)
+            if (source.Kind != Retained.UiDrawKind.Rectangle)
             {
                 displayList = default;
                 diagnostic = new Diagnostic(new DiagnosticCode("XAML_DISPLAY_KIND_UNSUPPORTED"), DiagnosticSeverity.Error, $"The retained visual kind '{source.Kind}' has no canonical adapter mapping.", null);
@@ -986,7 +960,7 @@ public sealed class UiDocument : IDisposable
         return true;
     }
 
-    private bool TryBuildTextDraw(RetainedContracts.UiTextRun run, out UiTextDraw draw, out Diagnostic? diagnostic)
+    private bool TryBuildTextDraw(Retained.UiTextRun run, out UiTextDraw draw, out Diagnostic? diagnostic)
     {
         draw = default;
         if (!_fontResolver.TryResolve(run.FontKey, out var request))
@@ -1085,7 +1059,7 @@ public sealed class UiDocument : IDisposable
     private static Diagnostic TextDiagnostic(string code, string message) =>
         new(new DiagnosticCode(code), DiagnosticSeverity.Error, message, null);
 
-    private readonly record struct UiTextCacheKey(RetainedContracts.UiElementId Owner, uint Generation, string GlyphRunKey);
+    private readonly record struct UiTextCacheKey(Retained.UiElementId Owner, uint Generation, string GlyphRunKey);
 
     private sealed record UiTextCacheEntry(string FontKey, string Text, float FontSize, ShapedText Shaped);
 
@@ -1101,15 +1075,15 @@ public sealed class UiDocument : IDisposable
         }
     }
 
-    private static RetainedContracts.UiPointerEventKind ToRetainedPointerKind(UiPointerEventKind kind) => kind switch
+    private static Retained.UiPointerEventKind ToRetainedPointerKind(UiPointerEventKind kind) => kind switch
     {
-        UiPointerEventKind.ButtonDown => RetainedContracts.UiPointerEventKind.Down,
-        UiPointerEventKind.ButtonUp => RetainedContracts.UiPointerEventKind.Up,
-        UiPointerEventKind.Wheel => RetainedContracts.UiPointerEventKind.Wheel,
-        _ => RetainedContracts.UiPointerEventKind.Move,
+        UiPointerEventKind.ButtonDown => Retained.UiPointerEventKind.Down,
+        UiPointerEventKind.ButtonUp => Retained.UiPointerEventKind.Up,
+        UiPointerEventKind.Wheel => Retained.UiPointerEventKind.Wheel,
+        _ => Retained.UiPointerEventKind.Move,
     };
 
-    private static float4 ToFloat4(RetainedContracts.UiRect value) => new(value.X, value.Y, value.Width, value.Height);
-    private static float4 ToColor(RetainedContracts.UiColor value) => new(value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
+    private static float4 ToFloat4(Retained.UiRect value) => new(value.X, value.Y, value.Width, value.Height);
+    private static float4 ToColor(Retained.UiColor value) => new(value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
     private static void EnsureCapacity<T>(ref T[] storage, int count) { if (storage.Length < count) { Array.Resize(ref storage, Math.Max(8, count)); } }
 }

@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using IUiResourceDictionary = DeltaXAML.Internal.IUiResourceStore;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 namespace DeltaXAML.Internal;
@@ -60,11 +59,6 @@ internal interface IUiValue
 internal interface IUiBinding
 {
     object? Read(); bool TryWrite(object? value, [NotNullWhen(false)] out string? diagnostic); event EventHandler? Changed;
-}
-internal interface IUiCompiledBinding : IUiBinding
-{
-    UiBindingMode Mode { get; }
-    Type ValueType { get; }
 }
 internal interface IUiPropertyStore
 {
@@ -131,30 +125,7 @@ internal interface IUiClipboard
     void SetText(string? text);
     bool HasText { get; }
 }
-internal enum UiClipboardCommand { Copy, Cut, Paste, SelectAll, Undo, Redo }
 internal interface IUiRoutedEventSink { void OnRoutedEvent(in UiRoutedEvent routedEvent); }
-internal interface IUiResourceStore
-{
-    bool TryGet(string key, out object? value);
-}
-internal interface IUiTemplate
-{
-    IUiElement Build(IUiElement owner);
-}
-internal interface IUiStyle
-{
-    string Key { get; }
-    string TargetType { get; }
-    void Apply(IUiElement element);
-}
-internal interface IUiTheme
-{
-    IUiResourceDictionary Resources { get; }
-    IReadOnlyList<IUiStyle> Styles { get; }
-    IUiTemplate? GetTemplate(string key);
-    void Apply(IUiElement root);
-}
-
 internal sealed class TextChangedEventArgs(string text) : EventArgs
 {
     public string Text { get; } = text;

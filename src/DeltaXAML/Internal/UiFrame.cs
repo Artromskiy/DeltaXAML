@@ -33,7 +33,7 @@ internal sealed class UiFrame : IUiFrame
     public IUiDrawList ExtractDrawList(in UiFrameContext context) { _drawList.Build(Root, new(0, 0, context.Viewport.Width, context.Viewport.Height)); return _drawList; }
     // Temporary O(n) lookup: correct for the current small retained trees. Replace with a
     // frame-local neutral index after profiling shows mutation volume warrants its maintenance cost.
-    private static UiElement? Find(IUiElement root, UiElementId id) { if (root.Id == id) { return root as UiElement; } foreach (var child in root.Children) { if (Find(child, id) is { } found) { return found; } } return null; }
+    internal static UiElement? Find(IUiElement root, UiElementId id) { if (root.Id == id) { return root as UiElement; } foreach (var child in root.Children) { if (Find(child, id) is { } found) { return found; } } return null; }
 }
 
 internal sealed class DrawList : IUiDrawList
@@ -199,7 +199,7 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
             case UiInputPacketKind.Ime: { var ime = packet.Ime; RouteIme(in ime); break; }
         }
     }
-    public void Focus(UiElementId? element) => _focused = element is null ? null : Find(_frame.Root, element.Value);
+    public void Focus(UiElementId? element) => _focused = element is null ? null : UiFrame.Find(_frame.Root, element.Value);
     public void RoutePointer(in UiPointerEvent input)
     {
         PruneDetachedState();
@@ -250,17 +250,17 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     }
     private void PruneDetachedState()
     {
-        if (_focused is not null && Find(_frame.Root, _focused.Id) is null)
+        if (_focused is not null && UiFrame.Find(_frame.Root, _focused.Id) is null)
         {
             _focused = null;
         }
 
-        if (_captured is not null && Find(_frame.Root, _captured.Id) is null)
+        if (_captured is not null && UiFrame.Find(_frame.Root, _captured.Id) is null)
         {
             _captured = null;
         }
 
-        if (_hovered is not null && Find(_frame.Root, _hovered.Id) is null)
+        if (_hovered is not null && UiFrame.Find(_frame.Root, _hovered.Id) is null)
         {
             _hovered = null;
         }
@@ -314,5 +314,4 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
         }
     }
     private static UiElement? FindHit(IUiElement root, UiPoint p) => root is UiElement e ? e.HitTest(p) as UiElement : null;
-    private static UiElement? Find(IUiElement root, UiElementId id) { if (root.Id == id) { return root as UiElement; } foreach (var child in root.Children) { if (Find(child, id) is { } found) { return found; } } return null; }
 }

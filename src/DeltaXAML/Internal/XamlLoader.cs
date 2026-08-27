@@ -29,8 +29,9 @@ internal static class XamlLoader
     internal static XamlLoadResult LoadForAdapter(string source, Func<string, string, UiElement?>? factory, UiResourceStore? resources) => Load(source, null, resources, factory);
     private static XamlLoadResult Load(string source, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory) { ArgumentNullException.ThrowIfNull(source); var d = new List<XamlDiagnostic>(); try { using var r = XmlReader.Create(new StringReader(source), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, IgnoreComments = true }); r.MoveToContent(); return new(Read(r, d, registry, resources, factory), d); } catch (XmlException e) { d.Add(new("XAML001", e.Message, e.LineNumber, e.LinePosition)); return new(null, d); } }
     public static XamlFrameLoadResult LoadFrame(string source) => LoadFrame(source, (XamlTypeRegistry?)null);
-    public static XamlFrameLoadResult LoadFrame(string source, XamlTypeRegistry? registry) { var result = Load(source, registry); var frame = result.CreateFrame(); if (frame is not null) { DeltaTheme.Default.Apply(frame.Root); } return new(frame, result.Diagnostics); }
-    public static XamlFrameLoadResult LoadFrame(string source, UiResourceStore resources) { ArgumentNullException.ThrowIfNull(resources); var result = Load(source, null, resources, null); var frame = result.CreateFrame(); if (frame is not null) { DeltaTheme.Default.Apply(frame.Root); } return new(frame, result.Diagnostics); }
+    public static XamlFrameLoadResult LoadFrame(string source, XamlTypeRegistry? registry) { var result = Load(source, registry); return new(CreateThemedFrame(result), result.Diagnostics); }
+    public static XamlFrameLoadResult LoadFrame(string source, UiResourceStore resources) { ArgumentNullException.ThrowIfNull(resources); var result = Load(source, null, resources, null); return new(CreateThemedFrame(result), result.Diagnostics); }
+    private static UiFrame? CreateThemedFrame(XamlLoadResult result) { var frame = result.CreateFrame(); if (frame is not null) { DeltaTheme.Default.Apply(frame.Root); } return frame; }
     private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
     {
         var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => new Panel(), "StackPanel" => new StackPanel(), "ItemsControl" => new ItemsControl(), "Border" => new Border(), "Grid" => new Grid(), "ContentControl" => new ContentControl(), "Button" => new Button(), "ToggleButton" => new ToggleButton(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => new TextBox(), "NumericEditor" => new NumericEditor(), "ScrollViewer" => new ScrollViewer(), _ => null }; if (e is null && registry is not null)
@@ -135,7 +136,7 @@ internal static class XamlLoader
             default: d.Add(new("XAML003", $"Unsupported property '{name}'.", line, 1)); break;
         }
     }
-    private static bool TryParseResourceReference(string value, out string key)
+    internal static bool TryParseResourceReference(string value, out string key)
     {
         key = string.Empty;
         if (!value.StartsWith("{DynamicResource ", StringComparison.Ordinal) && !value.StartsWith("{StaticResource ", StringComparison.Ordinal))

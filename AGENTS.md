@@ -5,7 +5,9 @@ controls, layout, hit testing, input routing and renderer-neutral primitives.
 
 - [README.md](README.md) — stable UI ownership and pipeline.
 - [USER_API.md](USER_API.md) — explicitly user-facing library API.
-- [INTERNAL.md](INTERNAL.md) — internal retained implementation notes.
+- [INTERNAL.md](INTERNAL.md) — authoritative internal architecture for typed
+  state, static generic mixins, generated descriptors, compiled XAML and the
+  retained stage pipeline. Read it before implementation work.
 - [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) — authoritative cross-project input
   and display-list contract; do not duplicate or edit it as implementation
   cleanup.

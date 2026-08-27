@@ -21,33 +21,6 @@ internal sealed class UiBindingValue : IUiBinding
     public event EventHandler? Changed; public void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
 }
 
-internal sealed class UiCompiledBinding<T> : IUiCompiledBinding
-{
-    private readonly Func<T> _read;
-    private readonly Func<T, (bool Success, string? Error)>? _write;
-    public UiCompiledBinding(Func<T> read, Func<T, (bool Success, string? Error)>? write = null, UiBindingMode mode = UiBindingMode.OneWay)
-    { ArgumentNullException.ThrowIfNull(read); _read = read; _write = write; Mode = mode; }
-    public UiBindingMode Mode { get; }
-    public Type ValueType => typeof(T);
-    public object? Read() => _read();
-    public bool TryWrite(object? value, [NotNullWhen(false)] out string? diagnostic)
-    {
-        if (Mode != UiBindingMode.TwoWay || _write is null) { diagnostic = "Binding is read-only."; return false; }
-        if (value is not T typed) { diagnostic = $"Expected {typeof(T).Name}."; return false; }
-        var result = _write(typed); diagnostic = result.Error ?? (result.Success ? null : "Binding write failed."); return result.Success;
-    }
-    public event EventHandler? Changed;
-    public void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
-}
-
-internal sealed class UiClipboard : IUiClipboard
-{
-    public string? Text { get; private set; }
-    public string? ReadText() => Text;
-    public void SetText(string? text) => Text = text;
-    public bool HasText => !string.IsNullOrEmpty(Text);
-}
-
 internal sealed class UiPropertyStore : IUiPropertyStore
 {
     private readonly Dictionary<string, IUiValue> _values = new(StringComparer.Ordinal);
@@ -68,7 +41,6 @@ internal sealed class UiPropertyStore : IUiPropertyStore
     public void SetStyle(string name, object? value, UiDirtyFlags invalidation, Action<object?>? apply = null)
     {
         RemoveResourceBinding(name);
-        if (apply is not null) { _valueApplications[name] = apply; }
         SetSource(name, new(value, UiValueSource.Style, invalidation), apply);
     }
     public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation, Action<object?>? apply = null)
@@ -77,8 +49,7 @@ internal sealed class UiPropertyStore : IUiPropertyStore
         ArgumentNullException.ThrowIfNull(resources);
         ArgumentException.ThrowIfNullOrWhiteSpace(reference.Key);
         RemoveResourceBinding(name);
-        if (apply is not null) { _valueApplications[name] = apply; }
-        var binding = new ResourceBinding(resources, reference, invalidation, apply);
+        var binding = new ResourceBinding(resources, reference, invalidation);
         _resourceBindings[name] = binding;
         binding.Handler = (_, _) =>
         {
@@ -207,14 +178,13 @@ internal sealed class UiPropertyStore : IUiPropertyStore
     }
     private sealed class ResourceBinding
     {
-        public ResourceBinding(UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation, Action<object?>? apply)
+        public ResourceBinding(UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation)
         {
-            Resources = resources; Reference = reference; Invalidation = invalidation; Apply = apply;
+            Resources = resources; Reference = reference; Invalidation = invalidation;
         }
         public UiResourceStore Resources { get; }
         public UiResourceReference Reference { get; }
         public UiDirtyFlags Invalidation { get; }
-        public Action<object?>? Apply { get; }
         public EventHandler<UiResourceChangedEventArgs>? Handler { get; set; }
     }
 }

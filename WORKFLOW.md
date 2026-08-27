@@ -13,6 +13,80 @@ tests must cover original and resized viewports, clips and stable backing-array
 reuse. The real window command lives in
 [../DeltaEditor/WORKFLOW.md](../DeltaEditor/WORKFLOW.md).
 
+## Descriptor/mixin architecture (mandatory)
+
+Read [INTERNAL.md](INTERNAL.md) before changing retained controls, properties,
+bindings, layout, input or visual extraction. The hard rule is:
+
+> An element class owns identity and composite state. A generic interface
+> describes one capability. A stateless `readonly struct` implements the
+> algorithm. Generated code binds the concrete element, state and algorithms.
+
+Use the required locations:
+
+- `src/DeltaXAML/Internal/State/*State.cs`: fields and constants only;
+- `src/DeltaXAML/Internal/Mixins/*Mixin.cs`: stateless algorithms implementing
+  static generic capability interfaces;
+- `src/DeltaXAML/Internal/Descriptors/`: immutable operation/property metadata
+  and generated thunks;
+- `src/DeltaXAML/UserApi/Controls/Ui*.cs`: state, constructors and public
+  property/event accessors only.
+
+Do not place algorithms in default interface methods, use control inheritance
+to share behavior, discover state through `Type`, store runtime values in
+`Dictionary<Type, object>`, or require user controls to be `partial`. Generated
+code resolves element/state/mixin combinations at compile time. Runtime layout,
+input and visual paths may perform one descriptor dispatch per element/stage,
+then operate on typed state by `ref`.
+
+The architecture gate in `DeltaXAML.Tests` is mandatory and must reject:
+
+- control domain/helper methods and algorithm inheritance;
+- state methods, service ownership and allocation behavior;
+- mixins with instance storage;
+- object-valued or type-keyed runtime stores;
+- reflection, LINQ or string property lookup in frame stages;
+- per-control behavior delegates/subscriptions;
+- new references to compatibility APIs;
+- invalid `State`, `Mixins`, `Descriptors` and `Controls` locations.
+
+If the gate cannot express a rule through assembly inspection, add a bounded
+source/project check instead of weakening the rule.
+
+Missing or empty designated folders are reported as `PENDING` and fail the
+headless command. This keeps the gate active before the first migrated type;
+the old retained files are not silently treated as new controls.
+
+## Migration completeness (mandatory)
+
+A migration must classify every replaced API, implementation, test and
+benchmark. Remove it in the same change whenever possible. If temporary
+retention is necessary, mark it `[Obsolete]` immediately with the replacement
+and removal milestone:
+
+```csharp
+[Obsolete(
+    "Use generated UiTypeDescriptor operations; remove during DXAML-MIXIN-4.",
+    error: true)]
+internal void LegacyMeasure()
+{
+}
+```
+
+Use `error: true` when no supported caller may remain. A warning is allowed
+only for a bounded compatibility step that must compile while consumers move.
+New production code, tests and benchmarks may not call obsolete paths. Do not
+optimize, extend or document compatibility APIs as alternatives. The migration
+is not complete while an unmarked old path remains.
+
+Before handing off a migration, report:
+
+1. removed old files and symbols;
+2. retained obsolete symbols and their removal milestone;
+3. callers still using each retained symbol;
+4. architecture-gate result;
+5. whether the work still maintains exactly one retained tree/property model.
+
 ## Code metrics
 
 Run the same analyzer/code-metrics build locally and in the manual GitHub

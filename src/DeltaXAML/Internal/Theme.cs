@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using IUiResourceDictionary = DeltaXAML.Internal.IUiResourceStore;
 
 namespace DeltaXAML.Internal;
 
@@ -8,7 +7,7 @@ internal sealed class UiResourceChangedEventArgs(string key) : EventArgs
     public string Key { get; } = key;
 }
 
-internal sealed class UiResourceStore : IUiResourceDictionary
+internal sealed class UiResourceStore
 {
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
     public event EventHandler<UiResourceChangedEventArgs>? Changed;
@@ -49,7 +48,7 @@ internal sealed class UiResourceStore : IUiResourceDictionary
     }
 }
 
-internal sealed class UiStyle : IUiStyle
+internal sealed class UiStyle
 {
     private readonly Action<UiElement> _apply;
     public UiStyle(string key, string targetType, Action<UiElement> apply) { ArgumentException.ThrowIfNullOrWhiteSpace(key); ArgumentException.ThrowIfNullOrWhiteSpace(targetType); ArgumentNullException.ThrowIfNull(apply); Key = key; TargetType = targetType; _apply = apply; }
@@ -65,21 +64,21 @@ internal sealed class UiStyle : IUiStyle
     }
 }
 
-internal sealed class UiTemplate : IUiTemplate
+internal sealed class UiTemplate
 {
     private readonly Func<IUiElement, IUiElement> _build;
     public UiTemplate(Func<IUiElement, IUiElement> build) { ArgumentNullException.ThrowIfNull(build); _build = build; }
     public IUiElement Build(IUiElement owner) { ArgumentNullException.ThrowIfNull(owner); return _build(owner); }
 }
 
-internal sealed class UiTheme : IUiTheme
+internal sealed class UiTheme
 {
-    private readonly Dictionary<string, IUiTemplate> _templates = new(StringComparer.Ordinal);
-    public UiTheme(IUiResourceDictionary resources, IReadOnlyList<IUiStyle> styles) { ArgumentNullException.ThrowIfNull(resources); ArgumentNullException.ThrowIfNull(styles); Resources = resources; Styles = styles; }
-    public IUiResourceDictionary Resources { get; }
-    public IReadOnlyList<IUiStyle> Styles { get; }
-    public void RegisterTemplate(string key, IUiTemplate template) { ArgumentException.ThrowIfNullOrWhiteSpace(key); ArgumentNullException.ThrowIfNull(template); _templates[key] = template; }
-    public IUiTemplate? GetTemplate(string key) { ArgumentException.ThrowIfNullOrWhiteSpace(key); return _templates.TryGetValue(key, out var template) ? template : null; }
+    private readonly Dictionary<string, UiTemplate> _templates = new(StringComparer.Ordinal);
+    public UiTheme(UiResourceStore resources, IReadOnlyList<UiStyle> styles) { ArgumentNullException.ThrowIfNull(resources); ArgumentNullException.ThrowIfNull(styles); Resources = resources; Styles = styles; }
+    public UiResourceStore Resources { get; }
+    public IReadOnlyList<UiStyle> Styles { get; }
+    public void RegisterTemplate(string key, UiTemplate template) { ArgumentException.ThrowIfNullOrWhiteSpace(key); ArgumentNullException.ThrowIfNull(template); _templates[key] = template; }
+    public UiTemplate? GetTemplate(string key) { ArgumentException.ThrowIfNullOrWhiteSpace(key); return _templates.TryGetValue(key, out var template) ? template : null; }
     public void Apply(IUiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -127,7 +126,7 @@ internal static class DeltaTheme
         resources.Set("Font.Body", "DeltaBody");
         resources.Set("Font.Mono", "DeltaMono");
 
-        var styles = new List<IUiStyle>
+        var styles = new List<UiStyle>
         {
             new UiStyle("Title","TextBlock",e=>{if(e is TextBlock t){t.Foreground=Color(resources,"Color.Text",default);t.FontSize=18;}}),
             new UiStyle("Muted","TextBlock",e=>{if(e is TextBlock t){t.Foreground=Color(resources,"Color.TextMuted",default);t.FontSize=12;}}),

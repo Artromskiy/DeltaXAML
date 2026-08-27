@@ -6,6 +6,63 @@ cross-project handoff order is in
 
 ## XAML capability expansion
 
+### P0 — typed descriptor runtime
+
+- [ ] `DXAML-MIXIN-1`: finish the executable architecture gate from
+  [WORKFLOW.md](WORKFLOW.md). It must validate state-only structs, flat control
+  classes, stateless readonly mixins, generated descriptor locations and the
+  absence of object/type-keyed frame storage. Classify current retained files
+  as migrated, obsolete compatibility or forbidden new work.
+- [ ] `DXAML-MIXIN-2`: introduce the minimal static generic capability set for
+  measure, arrange, input and visual extraction. Move one representative leaf
+  control (`UiTextBlock`) to composite state plus stateless mixins without
+  creating a second retained identity/property store.
+- [ ] `DXAML-MIXIN-3`: add immutable `UiTypeDescriptor` operations and generated
+  typed thunks. Resolve control/state/mixin/property mappings at compile time;
+  do not use `Dictionary<string, Action<...>>`, `Type` lookup, reflection or
+  per-instance behavior delegates in frame stages.
+- [ ] `DXAML-MIXIN-4`: migrate the remaining built-in controls in coherent
+  groups: content/visual leaves, containers/layout, input/editing, then
+  items/scrolling. Remove the old operation path after each group. Any old API,
+  implementation, test or benchmark that must remain temporarily is marked
+  `[Obsolete]` with its replacement and this removal milestone.
+- [ ] `DXAML-MIXIN-5`: make the canonical typed property path write effective
+  values directly into concrete composite state. Retain untyped access only for
+  loader/editor cold paths; layout/input/visual extraction must not box.
+
+### P0 — compiled XAML artifacts
+
+- [ ] `DXAML-COMPILE-1`: define one typed semantic model shared by production
+  source generation and optional designer/hot-reload inflation. Preserve exact
+  `Delta.Diagnostics` source ranges and stable GUID type/property/resource IDs.
+- [ ] `DXAML-COMPILE-2`: generate direct factories, typed setters, content/child
+  attachment, name scopes and descriptor registration without requiring user
+  controls to be `partial`.
+- [ ] `DXAML-COMPILE-3`: generate typed binding read/write plans for `OneTime`,
+  `OneWay` and `TwoWay`. Production bindings must not walk string paths or
+  allocate closures; `OneTime` must register no notification.
+- [ ] `DXAML-COMPILE-4`: compile resources, styles, selectors, visual states and
+  templates into cached plans. Runtime fallback is tooling-only and must never
+  be selected silently in a shipping build.
+
+### P1 — retained stages and game use
+
+- [ ] Split retained execution into explicit mutation, binding, style, measure,
+  arrange, input/focus and visual stages. Keep `UiDocument` as the small public
+  owner; do not create a service-locator facade or allow stages to invoke one
+  another recursively.
+- [ ] Store logical and visual relations under one generation-safe `UiNodeId`.
+  Template expansion may create a visual subtree but not a second logical
+  document or per-frame translated tree.
+- [ ] Add precise property invalidation and dirty-subtree processing. Layout
+  must not invoke bindings, perform reflection, allocate child collections or
+  reshape unchanged text.
+- [ ] Complete the screen-space game HUD flow: host input -> `UiDocument` ->
+  borrowed `UiDisplayList` -> DeltaRender graph target. Keep off-screen/world-
+  space UI a consumer-side target choice, not a second DeltaXAML runtime.
+- [ ] Complete custom visual registration through stable `UiVisualTypeId` and
+  keep Vulkan resources, pipelines and shader artifacts outside DeltaXAML.
+
 - [x] Implement the additive facade selected in
   [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md): `IXamlLoader`, concrete
   `UiDocument`, the common typed/untyped property and binding surfaces,
