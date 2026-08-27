@@ -515,7 +515,7 @@ public class UiButton : UiContentControl
 {
     private Retained.Button ButtonElement => (Retained.Button)RetainedElement;
 
-    public UiButton() : base(new Retained.Button(), null) { }
+    public UiButton() : base(Retained.UiButtonGenerated.Create(), null) { }
     internal UiButton(Retained.Button element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public event EventHandler? Click

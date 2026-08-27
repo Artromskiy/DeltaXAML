@@ -32,7 +32,9 @@ cross-project handoff order is in
   implementation, test or benchmark that must remain temporarily is marked
   `[Obsolete]` with its replacement and this removal milestone. The
   `StackPanel`, `Border`/`ContentControl`, `Panel` and `Grid` layout slices are
-  migrated; the remaining control groups are still on the compatibility path.
+  migrated. Button/ToggleButton input state is migrated; TextBox,
+  NumericEditor, ItemsControl and ScrollViewer remain on the compatibility
+  path.
 - [ ] `DXAML-MIXIN-5`: make the canonical typed property path write effective
   values directly into concrete composite state. Retain untyped access only for
   loader/editor cold paths; layout/input/visual extraction must not box.

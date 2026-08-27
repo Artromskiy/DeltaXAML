@@ -202,6 +202,7 @@ internal static class Program
         StackPanelArchitectureTests.Run();
         ContentLayoutArchitectureTests.Run();
         PanelGridArchitectureTests.Run();
+        ButtonArchitectureTests.Run();
         PropertyInvalidation();
         GridSizing();
         TextClipboardUndoAndValidation();

@@ -223,7 +223,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public UiSize DesiredSize { get; protected set; }
     public UiColor Background { get => _background; set { if (_background != value) { SetLocalProperty("Background", value, UiDirtyFlags.Visual, ApplyBackgroundValue); } } }
     public bool IsEnabled { get; set; } = true; public bool IsHovered { get; private set; }
-    public bool IsPressed { get; protected set; }
+    public virtual bool IsPressed => false;
     public bool IsSelected { get; set; }
     public bool IsInvalid { get; protected set; }
     public string? StyleKey { get; set; }
@@ -293,7 +293,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
         }
     }
     public void SetHovered(bool value) { if (IsHovered != value) { IsHovered = value; Invalidate(UiDirtyFlags.Visual); } }
-    public void SetPressed(bool value) { if (IsPressed != value) { IsPressed = value; Invalidate(UiDirtyFlags.Visual); } }
+    public virtual void SetPressed(bool value) { if (IsPressed != value) { Invalidate(UiDirtyFlags.Visual); } }
     public void SetFocused(bool value) { if (IsFocused != value) { IsFocused = value; Invalidate(UiDirtyFlags.Visual); } }
     public void SetInvalid(bool value) { if (IsInvalid != value) { IsInvalid = value; Invalidate(UiDirtyFlags.Visual); } }
     public void SetParticipation(Delta.XAML.UiParticipation value)
@@ -792,21 +792,46 @@ internal class ContentControl : UiElement
 
 internal class Button : ContentControl, IUiRoutedEventSink
 {
-    public override string TypeName => "Button"; public Button() { Focusable = true; AutomationRole = UiAutomationRole.Button; }
+    private ButtonState _state;
+
+    internal new ref ButtonState State => ref _state;
+
+    public override bool IsPressed => _state.IsPressed;
+    public override string TypeName => "Button";
+    public Button() { Focusable = true; AutomationRole = UiAutomationRole.Button; }
     public event EventHandler? Click;
-    public virtual void OnRoutedEvent(in UiRoutedEvent routedEvent) { if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Down) { SetPressed(true); } if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Up) { SetPressed(false); Click?.Invoke(this, EventArgs.Empty); } }
+    public override void SetPressed(bool value)
+    {
+        if (_state.IsPressed != value)
+        {
+            _state.IsPressed = value;
+            Invalidate(UiDirtyFlags.Visual);
+        }
+    }
+
+    public virtual void OnRoutedEvent(in UiRoutedEvent routedEvent)
+    {
+        var clicked = UiButtonGenerated.Process(ref _state, in routedEvent);
+        SetPressed(_state.IsPressed);
+        if (clicked)
+        {
+            Click?.Invoke(this, EventArgs.Empty);
+        }
+    }
     protected override string GetAutomationValueText() => Content is TextBlock t ? t.Text : string.Empty;
 }
 
 internal sealed class ToggleButton : Button
 {
-    public bool IsChecked { get; private set; }
+    private ToggleButtonState _state;
+
+    internal new ref ToggleButtonState State => ref _state;
+
+    public bool IsChecked => _state.IsChecked;
     public override void OnRoutedEvent(in UiRoutedEvent routedEvent)
     {
-        base.OnRoutedEvent(routedEvent); if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Up)
-        {
-            IsChecked = !IsChecked;
-        }
+        base.OnRoutedEvent(routedEvent);
+        UiToggleButtonGenerated.Process(ref _state, in routedEvent);
     }
 }
 

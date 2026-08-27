@@ -281,6 +281,12 @@ the panel slot. `GridState` owns reusable definition and resolved-size arrays;
 without per-layout replacement arrays. `UiPanelGridDescriptors.cs` is the
 typed factory, layout and property-setter companion for these controls.
 
+The button/input slice adds `ButtonState` and `ToggleButtonState`. The
+`ButtonInputMixin` and `ToggleButtonInputMixin` keep pointer transition
+algorithms stateless; generated companions expose factory/input dispatch, and
+the retained button classes only synchronize state with the existing routed
+event and Click surfaces.
+
 A mixin owns one coherent capability. It must not discover other capabilities
 through service lookup. If two algorithms share data, that data belongs to an
 explicit state component or a typed stage context.
@@ -760,6 +766,10 @@ architecture pass.
 | `Internal/State/GridState.cs` | migrated grid state | Grid definitions and reusable measure/arrange buffers; no child ownership. |
 | `Internal/Mixins/PanelLayoutMixin.cs` | migrated container capabilities | Stateless panel and fixed/auto/star grid measure/arrange algorithms. |
 | `Internal/Descriptors/UiPanelGridDescriptors.cs` | migrated container descriptors | Compact typed factories, layout dispatch and grid definition setters. |
+| `Internal/State/ButtonState.cs` | migrated input state | Pressed state only; event ownership remains on the existing retained button. |
+| `Internal/State/ToggleButtonState.cs` | migrated input state | Checked state only; it composes with the button state through the existing class hierarchy. |
+| `Internal/Mixins/ButtonInputMixin.cs` | migrated input capabilities | Stateless routed pointer transitions for Button and ToggleButton. |
+| `Internal/Descriptors/UiButtonDescriptors.cs` | migrated input descriptors | Compact typed factories and routed-input dispatch for Button and ToggleButton. |
 | `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
 | `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
 
