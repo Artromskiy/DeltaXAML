@@ -411,7 +411,7 @@ public abstract class UiElement
 /// <summary>Convenience retained panel for code-authored composition.</summary>
 public class UiPanel : UiElement
 {
-    public UiPanel() : base(new Retained.Panel(), null) { }
+    public UiPanel() : base(Retained.UiPanelGenerated.Create(), null) { }
     internal UiPanel(RetainedElement element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public void Add(UiElement child)
@@ -530,7 +530,7 @@ public sealed class UiGrid : UiElement
 {
     private Retained.Grid GridElement => (Retained.Grid)RetainedElement;
 
-    public UiGrid() : base(new Retained.Grid(), null) { }
+    public UiGrid() : base(Retained.UiGridGenerated.Create(), null) { }
     internal UiGrid(Retained.Grid element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public void SetColumns(params UiGridLength[] columns) => GridElement.SetColumns(columns.Select(ToRetained).ToArray());

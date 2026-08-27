@@ -511,26 +511,23 @@ internal class UiElement : IUiElement, IUiPropertyStore
 
 internal class Panel : UiElement, IUiPanel
 {
+    private PanelState _state;
+
+    internal ref PanelState State => ref _state;
+
     public override string TypeName => "Panel";
     public override void Measure(UiSize available)
     {
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
+            _state.DesiredSize = default;
             DirtyFlags &= ~UiDirtyFlags.Measure;
             return;
         }
 
-        var w = 0f;
-        var h = 0f;
-        foreach (var child in Children)
-        {
-            child.Measure(available);
-            w = MathF.Max(w, child.DesiredSize.Width);
-            h = MathF.Max(h, child.DesiredSize.Height);
-        }
-
-        DesiredSize = RequestedSize(new(w, h));
+        UiPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        DesiredSize = RequestedSize(_state.DesiredSize);
         DirtyFlags &= ~UiDirtyFlags.Measure;
     }
     public override void Arrange(UiRect bounds)
@@ -539,16 +536,15 @@ internal class Panel : UiElement, IUiPanel
         {
             Bounds = default;
             Clip = default;
+            _state.Bounds = default;
+            _state.Clip = default;
             DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
             return;
         }
 
-        Bounds = bounds;
-        Clip = bounds;
-        foreach (var child in Children)
-        {
-            child.Arrange(bounds);
-        }
+        UiPanelGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        Bounds = _state.Bounds;
+        Clip = _state.Clip;
 
         DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }
@@ -685,37 +681,56 @@ internal class Border : UiElement, IUiPanel
     }
 }
 
-internal readonly record struct GridLength(float Value, GridUnitType Type) { public static GridLength Fixed(float v) => new(v, GridUnitType.Pixel); public static GridLength Auto => new(1, GridUnitType.Auto); public static GridLength Star(float weight = 1) => new(weight, GridUnitType.Star); }
+internal readonly record struct GridLength(float Value, GridUnitType Unit) { public static GridLength Fixed(float v) => new(v, GridUnitType.Pixel); public static GridLength Auto => new(1, GridUnitType.Auto); public static GridLength Star(float weight = 1) => new(weight, GridUnitType.Star); }
 internal enum GridUnitType { Pixel, Auto, Star }
 
 internal sealed class Grid : UiElement, IUiPanel
 {
-    private GridLength[] _columns = Array.Empty<GridLength>();
-    private GridLength[] _rows = Array.Empty<GridLength>();
-    private float[] _measuredColumns = Array.Empty<float>();
-    private float[] _measuredRows = Array.Empty<float>();
-    private float[] _resolvedColumns = Array.Empty<float>();
-    private float[] _resolvedRows = Array.Empty<float>();
-    public override string TypeName => "Grid"; public int ColumnCount => _columns.Length; public int RowCount => _rows.Length;
-    public void SetColumns(params GridLength[] columns) { ArgumentNullException.ThrowIfNull(columns); _columns = columns; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange); }
-    public void SetRows(params GridLength[] rows) { ArgumentNullException.ThrowIfNull(rows); _rows = rows; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange); }
+    private GridState _state;
+
+    internal ref GridState State => ref _state;
+
+    public Grid()
+    {
+        _state.Columns = Array.Empty<GridLength>();
+        _state.Rows = Array.Empty<GridLength>();
+        _state.MeasuredColumns = Array.Empty<float>();
+        _state.MeasuredRows = Array.Empty<float>();
+        _state.ResolvedColumns = new float[1];
+        _state.ResolvedRows = new float[1];
+    }
+
+    public override string TypeName => "Grid";
+    public int ColumnCount => _state.Columns.Length;
+    public int RowCount => _state.Rows.Length;
+    public void SetColumns(params GridLength[] columns)
+    {
+        if (UiGridGenerated.TrySetColumns(ref _state, columns))
+        {
+            Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
+        }
+    }
+
+    public void SetRows(params GridLength[] rows)
+    {
+        if (UiGridGenerated.TrySetRows(ref _state, rows))
+        {
+            Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
+        }
+    }
+
     public override void Measure(UiSize available)
     {
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
+            _state.DesiredSize = default;
             DirtyFlags &= ~UiDirtyFlags.Measure;
             return;
         }
 
-        foreach (var child in Children)
-        {
-            child.Measure(available);
-        }
-
-        AutoSizes(_columns, true, ref _measuredColumns);
-        AutoSizes(_rows, false, ref _measuredRows);
-        DesiredSize = RequestedSize(new(Sum(_measuredColumns, _columns.Length), Sum(_measuredRows, _rows.Length)));
+        UiGridGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        DesiredSize = RequestedSize(_state.DesiredSize);
         DirtyFlags &= ~UiDirtyFlags.Measure;
     }
     public override void Arrange(UiRect bounds)
@@ -724,85 +739,18 @@ internal sealed class Grid : UiElement, IUiPanel
         {
             Bounds = default;
             Clip = default;
+            _state.Bounds = default;
+            _state.Clip = default;
             DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
             return;
         }
 
-        Bounds = bounds;
-        Clip = bounds;
-        var columns = Resolve(_columns, bounds.Width, _measuredColumns, ref _resolvedColumns);
-        var rows = Resolve(_rows, bounds.Height, _measuredRows, ref _resolvedRows);
-        for (var i = 0; i < Children.Count; i++)
-        {
-            var column = i % Math.Max(1, columns.Length);
-            var row = i / Math.Max(1, columns.Length);
-            if (row >= rows.Length)
-            {
-                break;
-            }
-
-            var x = bounds.X + Sum(columns, column);
-            var y = bounds.Y + Sum(rows, row);
-            Children[i].Arrange(new(x, y, columns[column], rows[row]));
-        }
+        UiGridGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        Bounds = _state.Bounds;
+        Clip = _state.Clip;
 
         DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }
-    private void AutoSizes(GridLength[] defs, bool columns, ref float[] result)
-    {
-        if (defs.Length == 0)
-        {
-            return;
-        }
-
-        Ensure(ref result, defs.Length); Array.Clear(result, 0, defs.Length); for (var i = 0; i < defs.Length; i++)
-        {
-            if (defs[i].Type == GridUnitType.Pixel)
-            {
-                result[i] = defs[i].Value;
-            }
-            else if (defs[i].Type == GridUnitType.Auto)
-            {
-                for (var child = 0; child < Children.Count; child++)
-                {
-                    if ((columns ? child % defs.Length : child / defs.Length) == i)
-                    {
-                        result[i] = MathF.Max(result[i], columns ? Children[child].DesiredSize.Width : Children[child].DesiredSize.Height);
-                    }
-                }
-            }
-        }
-    }
-    private static float[] Resolve(GridLength[] defs, float available, float[] measured, ref float[] result)
-    {
-        if (defs.Length == 0) { Ensure(ref result, 1); result[0] = available; return result; }
-        Ensure(ref result, defs.Length); Array.Clear(result, 0, defs.Length); var rest = available; var stars = 0f; for (var i = 0; i < defs.Length; i++)
-        {
-            if (defs[i].Type == GridUnitType.Pixel)
-            {
-                result[i] = defs[i].Value;
-            }
-            else if (defs[i].Type == GridUnitType.Auto)
-            {
-                result[i] = measured.Length > i ? measured[i] : 0;
-            }
-            else
-            {
-                stars += defs[i].Value;
-            }
-            rest -= result[i];
-        }
-        if (stars > 0) { for (var i = 0; i < defs.Length; i++) { if (defs[i].Type == GridUnitType.Star) { result[i] = MathF.Max(0, rest) * defs[i].Value / stars; } } }
-        return result;
-    }
-    private static void Ensure(ref float[] values, int count)
-    {
-        if (values.Length < count)
-        {
-            Array.Resize(ref values, Math.Max(count, Math.Max(4, values.Length * 2)));
-        }
-    }
-    private static float Sum(float[] values, int count) { var total = 0f; for (var i = 0; i < count; i++) { total += values[i]; } return total; }
 }
 
 internal class ContentControl : UiElement

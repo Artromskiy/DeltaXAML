@@ -34,7 +34,7 @@ internal static class XamlLoader
     private static UiFrame? CreateThemedFrame(XamlLoadResult result) { var frame = result.CreateFrame(); if (frame is not null) { DeltaTheme.Default.Apply(frame.Root); } return frame; }
     private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
     {
-        var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => new Panel(), "StackPanel" => UiStackPanelGenerated.Create(), "ItemsControl" => new ItemsControl(), "Border" => UiBorderGenerated.Create(), "Grid" => new Grid(), "ContentControl" => UiContentControlGenerated.Create(), "Button" => new Button(), "ToggleButton" => new ToggleButton(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => new TextBox(), "NumericEditor" => new NumericEditor(), "ScrollViewer" => new ScrollViewer(), _ => null }; if (e is null && registry is not null)
+        var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => UiPanelGenerated.Create(), "StackPanel" => UiStackPanelGenerated.Create(), "ItemsControl" => new ItemsControl(), "Border" => UiBorderGenerated.Create(), "Grid" => UiGridGenerated.Create(), "ContentControl" => UiContentControlGenerated.Create(), "Button" => new Button(), "ToggleButton" => new ToggleButton(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => new TextBox(), "NumericEditor" => new NumericEditor(), "ScrollViewer" => new ScrollViewer(), _ => null }; if (e is null && registry is not null)
         {
             registry.TryCreate(r.LocalName, out e);
         }

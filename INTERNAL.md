@@ -273,6 +273,14 @@ padding and write the composite layout result. `ContentControl` uses the same
 single-child view and its migrated layout path is inherited by the legacy
 `Button` wrapper until button input/visual behavior is migrated.
 
+The panel/layout slice adds `PanelState` and `GridState` with the same typed
+dispatch. `Panel` keeps only its composite geometry in state while
+`PanelLayoutMixin` measures the largest child and arranges all children into
+the panel slot. `GridState` owns reusable definition and resolved-size arrays;
+`GridMeasureMixin` and `GridArrangeMixin` implement fixed/auto/star sizing
+without per-layout replacement arrays. `UiPanelGridDescriptors.cs` is the
+typed factory, layout and property-setter companion for these controls.
+
 A mixin owns one coherent capability. It must not discover other capabilities
 through service lookup. If two algorithms share data, that data belongs to an
 explicit state component or a typed stage context.
@@ -748,6 +756,10 @@ architecture pass.
 | `Internal/State/ContentControlState.cs` | migrated content state | Single-child geometry fields only; content remains the retained tree's first child. |
 | `Internal/Mixins/ContentLayoutMixin.cs` | migrated content capabilities | Stateless padding/content measure and arrange algorithms over the existing child view. |
 | `Internal/Descriptors/UiContentLayoutDescriptors.cs` | migrated content descriptors | Compact typed factories and layout dispatch for `Border` and `ContentControl`. |
+| `Internal/State/PanelState.cs` | migrated container state | Panel geometry only; the retained child relation remains on `UiElement`. |
+| `Internal/State/GridState.cs` | migrated grid state | Grid definitions and reusable measure/arrange buffers; no child ownership. |
+| `Internal/Mixins/PanelLayoutMixin.cs` | migrated container capabilities | Stateless panel and fixed/auto/star grid measure/arrange algorithms. |
+| `Internal/Descriptors/UiPanelGridDescriptors.cs` | migrated container descriptors | Compact typed factories, layout dispatch and grid definition setters. |
 | `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
 | `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
 

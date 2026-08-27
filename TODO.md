@@ -31,8 +31,8 @@ cross-project handoff order is in
   items/scrolling. Remove the old operation path after each group. Any old API,
   implementation, test or benchmark that must remain temporarily is marked
   `[Obsolete]` with its replacement and this removal milestone. The
-  `StackPanel` and `Border`/`ContentControl` layout slices are migrated; the
-  remaining control groups are still on the compatibility path.
+  `StackPanel`, `Border`/`ContentControl`, `Panel` and `Grid` layout slices are
+  migrated; the remaining control groups are still on the compatibility path.
 - [ ] `DXAML-MIXIN-5`: make the canonical typed property path write effective
   values directly into concrete composite state. Retain untyped access only for
   loader/editor cold paths; layout/input/visual extraction must not box.
