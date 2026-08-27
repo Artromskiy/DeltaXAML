@@ -287,7 +287,7 @@ public abstract class UiElement
         {
             Retained.NumericEditor numericEditor => new UiNumericEditor(numericEditor, cache),
             Retained.TextBox textBox => new UiTextBox(textBox, cache),
-            Retained.TextBlock textBlock => new UiTextBlock(textBlock, cache),
+            Retained.TextBlock textBlock => AdoptViewCache(new UiTextBlock(textBlock), cache),
             Retained.StackPanel stackPanel => new UiStackPanel(stackPanel, cache),
             Retained.ItemsControl itemsControl => new UiItemsControl(itemsControl, cache),
             Retained.Panel panel => new UiPanel(panel, cache),
@@ -303,6 +303,12 @@ public abstract class UiElement
     private sealed class RetainedElementView : UiElement
     {
         public RetainedElementView(RetainedElement element, Dictionary<RetainedElement, UiElement> views) : base(element, views) { }
+    }
+
+    private static UiElement AdoptViewCache(UiElement view, Dictionary<RetainedElement, UiElement> views)
+    {
+        view.AdoptViewCache(views);
+        return view;
     }
 
     private sealed class RetainedChildrenView : IReadOnlyList<UiElement>
@@ -371,7 +377,7 @@ public abstract class UiElement
         element.AdoptViewCache(_views);
     }
 
-    private void AdoptViewCache(Dictionary<RetainedElement, UiElement> views)
+    internal void AdoptViewCache(Dictionary<RetainedElement, UiElement> views)
     {
         if (ReferenceEquals(_views, views))
         {
@@ -549,32 +555,6 @@ public readonly record struct UiGridLength(float Value, UiGridUnitType Unit)
     public static UiGridLength Star(float weight = 1) => new(weight, UiGridUnitType.Star);
 }
 
-/// <summary>Convenience retained text element for code-authored composition.</summary>
-public class UiTextBlock : UiElement
-{
-    private Retained.TextBlock TextElement => (Retained.TextBlock)RetainedElement;
-
-    public UiTextBlock() : base(new Retained.TextBlock(), null) { }
-
-    internal UiTextBlock(Retained.TextBlock element, Dictionary<RetainedElement, UiElement>? views)
-        : base(element, views) { }
-
-    public string Text { get => TextElement.Text; set => TextElement.Text = value; }
-
-    public string FontKey { get => TextElement.FontKey; set => TextElement.FontKey = value; }
-
-    public float FontSize { get => TextElement.FontSize; set => TextElement.FontSize = value; }
-
-    public UiColor Foreground
-    {
-        get
-        {
-            var value = TextElement.Foreground;
-            return new UiColor(value.R, value.G, value.B, value.A);
-        }
-        set => TextElement.Foreground = new Retained.UiColor(value.R, value.G, value.B, value.A);
-    }
-}
 
 /// <summary>Convenience retained text editor for code-authored composition.</summary>
 public class UiTextBox : UiTextBlock
@@ -583,10 +563,16 @@ public class UiTextBox : UiTextBlock
     private IUiClipboard? _clipboard;
     private ClipboardBridge? _clipboardBridge;
 
-    public UiTextBox() : base(new Retained.TextBox(), null) { }
+    public UiTextBox() : base(new Retained.TextBox()) { }
 
     internal UiTextBox(Retained.TextBox element, Dictionary<RetainedElement, UiElement>? views)
-        : base(element, views) { }
+        : base(element)
+    {
+        if (views is not null)
+        {
+            AdoptViewCache(views);
+        }
+    }
 
     public void SetText(string text) => TextBoxElement.SetText(text);
 

@@ -33,7 +33,7 @@ internal static class XamlLoader
     public static XamlFrameLoadResult LoadFrame(string source, UiResourceStore resources) { ArgumentNullException.ThrowIfNull(resources); var result = Load(source, null, resources, null); var frame = result.CreateFrame(); if (frame is not null) { DeltaTheme.Default.Apply(frame.Root); } return new(frame, result.Diagnostics); }
     private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
     {
-        var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => new Panel(), "StackPanel" => new StackPanel(), "ItemsControl" => new ItemsControl(), "Border" => new Border(), "Grid" => new Grid(), "ContentControl" => new ContentControl(), "Button" => new Button(), "ToggleButton" => new ToggleButton(), "TextBlock" => new TextBlock(), "TextBox" => new TextBox(), "NumericEditor" => new NumericEditor(), "ScrollViewer" => new ScrollViewer(), _ => null }; if (e is null && registry is not null)
+        var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => new Panel(), "StackPanel" => new StackPanel(), "ItemsControl" => new ItemsControl(), "Border" => new Border(), "Grid" => new Grid(), "ContentControl" => new ContentControl(), "Button" => new Button(), "ToggleButton" => new ToggleButton(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => new TextBox(), "NumericEditor" => new NumericEditor(), "ScrollViewer" => new ScrollViewer(), _ => null }; if (e is null && registry is not null)
         {
             registry.TryCreate(r.LocalName, out e);
         }

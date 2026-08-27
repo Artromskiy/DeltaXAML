@@ -197,6 +197,8 @@ internal static class Program
 {
     public static void Main()
     {
+        ArchitectureGate.Run();
+        TextBlockArchitectureTests.Run();
         PropertyInvalidation();
         GridSizing();
         TextClipboardUndoAndValidation();
