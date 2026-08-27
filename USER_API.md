@@ -63,6 +63,141 @@ returns the borrowed `UiDisplayList` described by `PUBLIC_CONTRACT.md`.
 represented by the canonical display list; `BuildDisplayList` throws an
 `InvalidOperationException` carrying the same diagnostic code in that case.
 
+## Public type diagram
+
+The diagram shows the user-facing library surface and its two external
+boundaries. Retained storage, dirty state, frame-local clips and adapter
+classes are intentionally omitted.
+
+```mermaid
+classDiagram
+    direction LR
+
+    class UiElement {
+        +UiElement Parent
+        +IReadOnlyList~UiElement~ Children
+        +object BindingContext
+        +UiParticipation Participation
+        +UiPropertyHandle GetHandle(string)
+        +bool TrySet(UiPropertyHandle, object)
+        +void SetBinding(string, IUiBinding)
+    }
+    class UiPanel
+    class UiStackPanel
+    class UiItemsControl
+    class UiBorder
+    class UiContentControl
+    class UiButton
+    class UiGrid
+    class UiTextBlock
+    class UiTextBox
+    class UiNumericEditor
+    class UiScrollViewer
+
+    UiElement <|-- UiPanel
+    UiPanel <|-- UiStackPanel
+    UiPanel <|-- UiItemsControl
+    UiElement <|-- UiBorder
+    UiElement <|-- UiContentControl
+    UiContentControl <|-- UiButton
+    UiElement <|-- UiGrid
+    UiElement <|-- UiTextBlock
+    UiTextBlock <|-- UiTextBox
+    UiTextBox <|-- UiNumericEditor
+    UiContentControl <|-- UiScrollViewer
+    UiElement "1" o-- "0..*" UiElement : retained children
+
+    class IXamlLoader {
+        <<interface>>
+        +XamlLoadResult Load(string, XamlLoadContext)
+    }
+    class XamlLoader
+    class XamlLoadContext
+    class XamlLoadResult {
+        +UiElement Root
+        +ReadOnlyMemory~Diagnostic~ Diagnostics
+        +bool Success
+    }
+    class IXamlTypeResolver {
+        <<interface>>
+        +bool TryResolveName(XamlQualifiedName, UiTypeId)
+        +bool TryCreate(UiTypeId, UiElement)
+    }
+    class XamlTypeCatalog
+
+    IXamlLoader <|.. XamlLoader
+    XamlLoader --> XamlLoadContext
+    XamlLoader --> XamlLoadResult
+    XamlLoadContext --> IXamlTypeResolver
+    XamlTypeCatalog ..|> IXamlTypeResolver
+    XamlLoadResult --> UiElement : root
+
+    class IUiProperty {
+        <<interface>>
+    }
+    class IUiBinding {
+        <<interface>>
+    }
+    class IUiValueConverter {
+        <<interface>>
+    }
+    class IUiBindingResolver {
+        <<interface>>
+    }
+    class UiBindingExpression
+    class UiCompiledBinding
+    class UiBindingResolver
+    class UiBindingMode
+
+    UiElement --> IUiProperty : typed values
+    UiElement --> IUiBinding : attaches
+    UiBindingExpression --> UiBindingMode
+    UiCompiledBinding ..|> IUiBinding
+    UiBindingResolver ..|> IUiBindingResolver
+    IUiBindingResolver --> IUiValueConverter
+
+    class IUiResourceResolver {
+        <<interface>>
+    }
+    class UiResourceCatalog
+    class UiResourceReference
+    class UiStyle
+    class UiTheme
+    class UiTemplate
+
+    UiResourceCatalog ..|> IUiResourceResolver
+    UiStyle --> UiResourceReference
+    UiTheme o-- UiResourceCatalog
+    UiTheme o-- UiStyle
+    UiTheme o-- UiTemplate
+    UiStyle --> UiElement : applies to
+
+    class UiDocument {
+        +UiElement Root
+        +void Dispatch(UiInputEvent)
+        +void Layout(float2, float)
+        +UiDisplayList BuildDisplayList()
+    }
+    class IUiClipboard {
+        <<interface>>
+    }
+    class UiFontCatalog
+    class ITextService
+    class UiDisplayList
+    class UiInputEvent
+
+    UiDocument --> UiElement : owns root
+    UiDocument --> ITextService : external text service
+    UiDocument --> UiDisplayList : borrowed output
+    UiDocument --> UiInputEvent : consumes
+    UiTextBox --> IUiClipboard : optional host service
+    UiFontCatalog --> ITextService : font request boundary
+
+    note for ITextService "DeltaText.Contract; shaping remains external"
+    note for UiDisplayList "Delta.XAML.Contract; valid until next extraction"
+    note for UiInputEvent "Delta.XAML.Contract; platform-neutral input"
+```
+
 ## Current implementation status
 
 The repository's retained implementation names are internal implementation

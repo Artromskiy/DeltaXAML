@@ -1,0 +1,22 @@
+<EditorShell xmlns="urn:delta-editor-shell" Width="960" Height="540">
+  <Border Height="48" Background="#1F2933">
+    <TextBlock Text="Delta Editor" FontKey="default" FontSize="18" Foreground="#E6ECF4" />
+  </Border>
+  <Grid Fill="true" Columns="220,*,320" Rows="*">
+    <Border Background="#151B24">
+      <TextBlock Text="Hierarchy" FontKey="default" FontSize="14" Foreground="#9BA6B6" />
+    </Border>
+    <Border Background="#202A36">
+      <TextBlock Text="Viewport" FontKey="default" FontSize="14" Foreground="#E6ECF4" />
+    </Border>
+    <ScrollViewer Background="#18212B">
+      <StackPanel>
+        <TextBlock Text="Component Inspector" FontKey="default" FontSize="14" Foreground="#E6ECF4" />
+        <TextBlock Text="Ready" FontKey="default" FontSize="12" Foreground="#9BA6B6" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+  <Border Height="24" Background="#1F2933">
+    <TextBlock Text="Ready" FontKey="default" FontSize="12" Foreground="#9BA6B6" />
+  </Border>
+</EditorShell>

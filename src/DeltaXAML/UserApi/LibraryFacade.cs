@@ -28,7 +28,7 @@ public readonly struct UiPropertyHandle : IEquatable<UiPropertyHandle>
 
     internal UiPropertyHandle(Retained.UiPropertyHandle retained) => _retained = retained;
 
-    public string Name => _retained.Name;
+    public string Name => _retained.Name ?? string.Empty;
     public bool IsValid => _retained.Element.IsValid && _retained.Generation != 0 && !string.IsNullOrWhiteSpace(_retained.Name);
     internal Retained.UiPropertyHandle Retained => _retained;
     public bool Equals(UiPropertyHandle other) => _retained == other._retained;
@@ -107,16 +107,24 @@ public readonly record struct XamlLoadContext(
 public abstract class UiElement
 {
     private readonly RetainedElement _retained;
-    private readonly IReadOnlyDictionary<RetainedElement, UiElement>? _views;
-    private UiParticipation _participation = UiParticipation.All;
-
+    private Dictionary<RetainedElement, UiElement> _views;
+    private RetainedChildrenView _childrenView;
+    private RetainedChildrenEditor _childrenEditor;
     protected UiElement() : this(new RetainedElement(), null) { }
-    internal UiElement(RetainedElement retained, IReadOnlyDictionary<RetainedElement, UiElement>? views) { ArgumentNullException.ThrowIfNull(retained); _retained = retained; _views = views; }
+    internal UiElement(RetainedElement retained, Dictionary<RetainedElement, UiElement>? views)
+    {
+        ArgumentNullException.ThrowIfNull(retained);
+        _retained = retained;
+        _views = views ?? new Dictionary<RetainedElement, UiElement>();
+        _views[retained] = this;
+        _childrenView = new RetainedChildrenView(retained, _views);
+        _childrenEditor = new RetainedChildrenEditor(retained, _views);
+    }
     internal RetainedElement RetainedElement => _retained;
 
     public UiElement? Parent => _retained.Parent is RetainedElement parent ? Wrap(parent, _views) : null;
-    public IReadOnlyList<UiElement> Children => new RetainedChildrenView(_retained, _views);
-    protected IList<UiElement> MutableChildren => new RetainedChildrenEditor(_retained, _views);
+    public IReadOnlyList<UiElement> Children => _childrenView;
+    protected IList<UiElement> MutableChildren => _childrenEditor;
 
     /// <summary>Explicit binding source; descendants inherit it until they set their own context.</summary>
     public object? BindingContext
@@ -188,22 +196,28 @@ public abstract class UiElement
         }
         set => _retained.Padding = new Retained.UiThickness(value.Left, value.Top, value.Right, value.Bottom);
     }
+    /// <summary>Controls whether this element participates in layout, rendering and hit testing.</summary>
     public UiParticipation Participation
     {
-        get => _participation;
+        get => _retained.Participation;
         set
         {
-            if ((value & UiParticipation.Rendering) != 0 && (value & UiParticipation.Layout) == 0 ||
-                (value & UiParticipation.HitTesting) != 0 && (value & UiParticipation.Layout) == 0)
+            if ((value & ~UiParticipation.All) != 0 ||
+                ((value & UiParticipation.Rendering) != 0 && (value & UiParticipation.Layout) == 0) ||
+                ((value & UiParticipation.HitTesting) != 0 && (value & UiParticipation.Layout) == 0))
             {
-                throw new ArgumentException("Rendering and hit testing require layout participation.", nameof(value));
+                throw new ArgumentException("Participation contains unsupported flags or requires layout participation.", nameof(value));
             }
 
-            _participation = value;
+            _retained.SetParticipation(value);
         }
     }
 
-    public UiPropertyHandle GetHandle(string propertyName) => new(_retained.GetHandle(propertyName));
+    public UiPropertyHandle GetHandle(string propertyName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        return new(_retained.GetHandle(propertyName));
+    }
 
     public bool TrySet(UiPropertyHandle handle, object? value, [NotNullWhen(false)] out Diagnostic? diagnostic)
     {
@@ -260,41 +274,42 @@ public abstract class UiElement
         _retained.AttachBinding(new Retained.UiBindingRuntime(propertyName, expression));
     }
 
-    internal static UiElement Wrap(RetainedElement element, IReadOnlyDictionary<RetainedElement, UiElement>? views = null)
+    internal static UiElement Wrap(RetainedElement element, Dictionary<RetainedElement, UiElement>? views = null)
     {
         ArgumentNullException.ThrowIfNull(element);
-        if (views is not null && views.TryGetValue(element, out var view))
+        var cache = views ?? new Dictionary<RetainedElement, UiElement>();
+        if (cache.TryGetValue(element, out var view))
         {
             return view;
         }
 
         return element switch
         {
-            Retained.NumericEditor numericEditor => new UiNumericEditor(numericEditor, views),
-            Retained.TextBox textBox => new UiTextBox(textBox, views),
-            Retained.TextBlock textBlock => new UiTextBlock(textBlock, views),
-            Retained.StackPanel stackPanel => new UiStackPanel(stackPanel, views),
-            Retained.ItemsControl itemsControl => new UiItemsControl(itemsControl, views),
-            Retained.Panel panel => new UiPanel(panel, views),
-            Retained.Border border => new UiBorder(border, views),
-            Retained.Grid grid => new UiGrid(grid, views),
-            Retained.Button button => new UiButton(button, views),
-            Retained.ScrollViewer scrollViewer => new UiScrollViewer(scrollViewer, views),
-            Retained.ContentControl contentControl => new UiContentControl(contentControl, views),
-            _ => new RetainedElementView(element, views),
+            Retained.NumericEditor numericEditor => new UiNumericEditor(numericEditor, cache),
+            Retained.TextBox textBox => new UiTextBox(textBox, cache),
+            Retained.TextBlock textBlock => new UiTextBlock(textBlock, cache),
+            Retained.StackPanel stackPanel => new UiStackPanel(stackPanel, cache),
+            Retained.ItemsControl itemsControl => new UiItemsControl(itemsControl, cache),
+            Retained.Panel panel => new UiPanel(panel, cache),
+            Retained.Border border => new UiBorder(border, cache),
+            Retained.Grid grid => new UiGrid(grid, cache),
+            Retained.Button button => new UiButton(button, cache),
+            Retained.ScrollViewer scrollViewer => new UiScrollViewer(scrollViewer, cache),
+            Retained.ContentControl contentControl => new UiContentControl(contentControl, cache),
+            _ => new RetainedElementView(element, cache),
         };
     }
 
     private sealed class RetainedElementView : UiElement
     {
-        public RetainedElementView(RetainedElement element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+        public RetainedElementView(RetainedElement element, Dictionary<RetainedElement, UiElement> views) : base(element, views) { }
     }
 
     private sealed class RetainedChildrenView : IReadOnlyList<UiElement>
     {
         private readonly RetainedElement _owner;
-        private readonly IReadOnlyDictionary<RetainedElement, UiElement>? _views;
-        public RetainedChildrenView(RetainedElement owner, IReadOnlyDictionary<RetainedElement, UiElement>? views) { _owner = owner; _views = views; }
+        private readonly Dictionary<RetainedElement, UiElement> _views;
+        public RetainedChildrenView(RetainedElement owner, Dictionary<RetainedElement, UiElement> views) { _owner = owner; _views = views; }
         public int Count => _owner.Children.Count;
         public UiElement this[int index] => Wrap((RetainedElement)_owner.Children[index], _views);
         public IEnumerator<UiElement> GetEnumerator() { for (var i = 0; i < Count; i++) { yield return this[i]; } }
@@ -304,12 +319,17 @@ public abstract class UiElement
     private sealed class RetainedChildrenEditor : IList<UiElement>
     {
         private readonly RetainedElement _owner;
-        private readonly IReadOnlyDictionary<RetainedElement, UiElement>? _views;
-        public RetainedChildrenEditor(RetainedElement owner, IReadOnlyDictionary<RetainedElement, UiElement>? views) { _owner = owner; _views = views; }
-        public UiElement this[int index] { get => new RetainedChildrenView(_owner, _views)[index]; set => throw new NotSupportedException("Replace is not supported; remove and add the child."); }
+        private readonly Dictionary<RetainedElement, UiElement> _views;
+        public RetainedChildrenEditor(RetainedElement owner, Dictionary<RetainedElement, UiElement> views) { _owner = owner; _views = views; }
+        public UiElement this[int index] { get => Wrap((RetainedElement)_owner.Children[index], _views); set => throw new NotSupportedException("Replace is not supported; remove and add the child."); }
         public int Count => _owner.Children.Count;
         public bool IsReadOnly => false;
-        public void Add(UiElement item) { ArgumentNullException.ThrowIfNull(item); _owner.Add(item.RetainedElement); }
+        public void Add(UiElement item)
+        {
+            ArgumentNullException.ThrowIfNull(item);
+            _owner.Add(item.RetainedElement);
+            item.AdoptViewCache(_views);
+        }
         public void Clear() => _owner.ClearChildren();
         public bool Contains(UiElement item) => item is not null && _owner.Children.Contains(item.RetainedElement);
         public void CopyTo(UiElement[] array, int arrayIndex) { for (var i = 0; i < Count; i++) { array[arrayIndex + i] = this[i]; } }
@@ -345,6 +365,32 @@ public abstract class UiElement
         MutableChildren.Add(content);
     }
 
+    internal void RegisterView(UiElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        element.AdoptViewCache(_views);
+    }
+
+    private void AdoptViewCache(Dictionary<RetainedElement, UiElement> views)
+    {
+        if (ReferenceEquals(_views, views))
+        {
+            return;
+        }
+
+        _views = views;
+        _views[_retained] = this;
+        _childrenView = new RetainedChildrenView(_retained, _views);
+        _childrenEditor = new RetainedChildrenEditor(_retained, _views);
+        foreach (var child in _retained.Children)
+        {
+            if (child is RetainedElement retainedChild && _views.TryGetValue(retainedChild, out var childView))
+            {
+                childView.AdoptViewCache(views);
+            }
+        }
+    }
+
     private static object? ToRetainedValue(object? value) => value switch
     {
         UiColor color => new Retained.UiColor(color.R, color.G, color.B, color.A),
@@ -358,7 +404,7 @@ public abstract class UiElement
 public class UiPanel : UiElement
 {
     public UiPanel() : base(new Retained.Panel(), null) { }
-    internal UiPanel(RetainedElement element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiPanel(RetainedElement element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public void Add(UiElement child)
     {
@@ -379,7 +425,7 @@ public sealed class UiStackPanel : UiPanel
     private Retained.StackPanel StackElement => (Retained.StackPanel)RetainedElement;
 
     public UiStackPanel() : base(new Retained.StackPanel(), null) { }
-    internal UiStackPanel(Retained.StackPanel element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiStackPanel(Retained.StackPanel element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public UiOrientation Orientation
     {
@@ -394,7 +440,7 @@ public sealed class UiItemsControl : UiPanel
     private Retained.ItemsControl ItemsElement => (Retained.ItemsControl)RetainedElement;
 
     public UiItemsControl() : base(new Retained.ItemsControl(), null) { }
-    internal UiItemsControl(Retained.ItemsControl element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiItemsControl(Retained.ItemsControl element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public IReadOnlyList<object?> Items => ItemsElement.Items;
 
@@ -402,7 +448,12 @@ public sealed class UiItemsControl : UiPanel
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(factory);
-        ItemsElement.SetItems(items, item => CreateRetainedItem(factory(item)));
+        ItemsElement.SetItems(items, item =>
+        {
+            var created = factory(item);
+            RegisterView(created);
+            return CreateRetainedItem(created);
+        });
     }
 
     private static RetainedElement CreateRetainedItem(UiElement? item)
@@ -418,7 +469,7 @@ public sealed class UiBorder : UiElement
     private Retained.Border BorderElement => (Retained.Border)RetainedElement;
 
     public UiBorder() : base(new Retained.Border(), null) { }
-    internal UiBorder(Retained.Border element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiBorder(Retained.Border element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public UiElement? Child => Children.Count == 0 ? null : Children[0];
 
@@ -432,6 +483,7 @@ public sealed class UiBorder : UiElement
 
         BorderElement.ClearChildren();
         BorderElement.Add(child.RetainedElement);
+        RegisterView(child);
     }
 }
 
@@ -441,11 +493,19 @@ public class UiContentControl : UiElement
     private Retained.ContentControl ContentElement => (Retained.ContentControl)RetainedElement;
 
     public UiContentControl() : base(new Retained.ContentControl(), null) { }
-    internal UiContentControl(Retained.ContentControl element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiContentControl(Retained.ContentControl element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public UiElement? Content => Children.Count == 0 ? null : Children[0];
 
-    public void SetContent(UiElement? content) => ContentElement.Content = content?.RetainedElement;
+    public void SetContent(UiElement? content)
+    {
+        if (content is not null)
+        {
+            RegisterView(content);
+        }
+
+        ContentElement.Content = content?.RetainedElement;
+    }
 }
 
 /// <summary>Retained button control with a neutral click callback.</summary>
@@ -454,7 +514,7 @@ public class UiButton : UiContentControl
     private Retained.Button ButtonElement => (Retained.Button)RetainedElement;
 
     public UiButton() : base(new Retained.Button(), null) { }
-    internal UiButton(Retained.Button element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiButton(Retained.Button element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public event EventHandler? Click
     {
@@ -469,7 +529,7 @@ public sealed class UiGrid : UiElement
     private Retained.Grid GridElement => (Retained.Grid)RetainedElement;
 
     public UiGrid() : base(new Retained.Grid(), null) { }
-    internal UiGrid(Retained.Grid element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiGrid(Retained.Grid element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public void SetColumns(params UiGridLength[] columns) => GridElement.SetColumns(columns.Select(ToRetained).ToArray());
 
@@ -496,7 +556,7 @@ public class UiTextBlock : UiElement
 
     public UiTextBlock() : base(new Retained.TextBlock(), null) { }
 
-    internal UiTextBlock(Retained.TextBlock element, IReadOnlyDictionary<RetainedElement, UiElement>? views)
+    internal UiTextBlock(Retained.TextBlock element, Dictionary<RetainedElement, UiElement>? views)
         : base(element, views) { }
 
     public string Text { get => TextElement.Text; set => TextElement.Text = value; }
@@ -525,7 +585,7 @@ public class UiTextBox : UiTextBlock
 
     public UiTextBox() : base(new Retained.TextBox(), null) { }
 
-    internal UiTextBox(Retained.TextBox element, IReadOnlyDictionary<RetainedElement, UiElement>? views)
+    internal UiTextBox(Retained.TextBox element, Dictionary<RetainedElement, UiElement>? views)
         : base(element, views) { }
 
     public void SetText(string text) => TextBoxElement.SetText(text);
@@ -562,7 +622,7 @@ public sealed class UiNumericEditor : UiTextBox
     private Retained.NumericEditor NumericElement => (Retained.NumericEditor)RetainedElement;
 
     public UiNumericEditor() : base(new Retained.NumericEditor(), null) { }
-    internal UiNumericEditor(Retained.NumericEditor element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiNumericEditor(Retained.NumericEditor element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public double CurrentValue => NumericElement.Value;
     public double Minimum { get => NumericElement.Min; set => NumericElement.Min = value; }
@@ -584,7 +644,7 @@ public sealed class UiScrollViewer : UiContentControl
     private Retained.ScrollViewer ScrollElement => (Retained.ScrollViewer)RetainedElement;
 
     public UiScrollViewer() : base(new Retained.ScrollViewer(), null) { }
-    internal UiScrollViewer(Retained.ScrollViewer element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+    internal UiScrollViewer(Retained.ScrollViewer element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public float OffsetX => ScrollElement.Offset.X;
     public float OffsetY => ScrollElement.Offset.Y;
@@ -792,6 +852,7 @@ public sealed class UiDocument : IDisposable
     private readonly IUiFontResolver _fontResolver;
     private readonly Dictionary<string, FontInstanceId> _fontInstances = new(StringComparer.Ordinal);
     private readonly Dictionary<UiTextCacheKey, UiTextCacheEntry> _textCache = new();
+    private readonly FontInstanceId[] _singleFontFallback = new FontInstanceId[1];
     private UiVisualCommand[] _visuals = Array.Empty<UiVisualCommand>();
     private UiClip[] _clips = Array.Empty<UiClip>();
     private UiTextDraw[] _text = Array.Empty<UiTextDraw>();
@@ -970,20 +1031,19 @@ public sealed class UiDocument : IDisposable
 
         var cacheKey = new UiTextCacheKey(run.Owner, run.OwnerGeneration, run.GlyphRunKey);
         if (!_textCache.TryGetValue(cacheKey, out var cache) ||
-            cache.Version != run.Version ||
             cache.FontKey != run.FontKey ||
             !cache.Text.Equals(run.Text, StringComparison.Ordinal) ||
             !cache.FontSize.Equals(run.FontSize))
         {
             try
             {
-                var fallback = new[] { font };
+                _singleFontFallback[0] = font;
                 var shaped = _textService.Shape(new TextShapeRequest(
                     run.Text.AsMemory(),
                     run.FontSize,
-                    fallback,
+                    _singleFontFallback,
                     TextDirection.LeftToRight));
-                cache = new UiTextCacheEntry(run.Version, run.FontKey, run.Text, run.FontSize, shaped);
+                cache = new UiTextCacheEntry(run.FontKey, run.Text, run.FontSize, shaped);
                 _textCache[cacheKey] = cache;
             }
             catch (ArgumentException exception)
@@ -1041,7 +1101,7 @@ public sealed class UiDocument : IDisposable
 
     private readonly record struct UiTextCacheKey(RetainedContracts.UiElementId Owner, uint Generation, string GlyphRunKey);
 
-    private sealed record UiTextCacheEntry(uint Version, string FontKey, string Text, float FontSize, ShapedText Shaped);
+    private sealed record UiTextCacheEntry(string FontKey, string Text, float FontSize, ShapedText Shaped);
 
     private sealed class EmptyFontResolver : IUiFontResolver
     {

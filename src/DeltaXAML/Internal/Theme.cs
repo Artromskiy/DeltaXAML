@@ -3,12 +3,12 @@ using IUiResourceDictionary = DeltaXAML.Internal.IUiResourceStore;
 
 namespace DeltaXAML.Internal;
 
-public sealed class UiResourceChangedEventArgs(string key) : EventArgs
+internal sealed class UiResourceChangedEventArgs(string key) : EventArgs
 {
     public string Key { get; } = key;
 }
 
-public sealed class UiResourceStore : IUiResourceDictionary
+internal sealed class UiResourceStore : IUiResourceDictionary
 {
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
     public event EventHandler<UiResourceChangedEventArgs>? Changed;
@@ -23,19 +23,33 @@ public sealed class UiResourceStore : IUiResourceDictionary
     public bool TryResolve(string key, out object? value, [NotNullWhen(false)] out string? diagnostic)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        var current = key;
+        if (!_values.TryGetValue(key, out var candidate))
+        {
+            value = null;
+            diagnostic = $"Resource '{key}' was not found.";
+            return false;
+        }
+
+        if (candidate is not UiResourceReference firstReference)
+        {
+            value = candidate;
+            diagnostic = null;
+            return true;
+        }
+
+        var visited = new HashSet<string>(StringComparer.Ordinal) { key };
+        var current = firstReference.Key;
         while (true)
         {
             if (!visited.Add(current)) { value = null; diagnostic = $"Resource cycle detected at '{current}'."; return false; }
-            if (!_values.TryGetValue(current, out var candidate)) { value = null; diagnostic = $"Resource '{current}' was not found."; return false; }
-            if (candidate is not UiResourceReference reference) { value = candidate; diagnostic = null; return true; }
+            if (!_values.TryGetValue(current, out var nextValue)) { value = null; diagnostic = $"Resource '{current}' was not found."; return false; }
+            if (nextValue is not UiResourceReference reference) { value = nextValue; diagnostic = null; return true; }
             current = reference.Key;
         }
     }
 }
 
-public sealed class UiStyle : IUiStyle
+internal sealed class UiStyle : IUiStyle
 {
     private readonly Action<UiElement> _apply;
     public UiStyle(string key, string targetType, Action<UiElement> apply) { ArgumentException.ThrowIfNullOrWhiteSpace(key); ArgumentException.ThrowIfNullOrWhiteSpace(targetType); ArgumentNullException.ThrowIfNull(apply); Key = key; TargetType = targetType; _apply = apply; }
@@ -51,14 +65,14 @@ public sealed class UiStyle : IUiStyle
     }
 }
 
-public sealed class UiTemplate : IUiTemplate
+internal sealed class UiTemplate : IUiTemplate
 {
     private readonly Func<IUiElement, IUiElement> _build;
     public UiTemplate(Func<IUiElement, IUiElement> build) { ArgumentNullException.ThrowIfNull(build); _build = build; }
     public IUiElement Build(IUiElement owner) { ArgumentNullException.ThrowIfNull(owner); return _build(owner); }
 }
 
-public sealed class UiTheme : IUiTheme
+internal sealed class UiTheme : IUiTheme
 {
     private readonly Dictionary<string, IUiTemplate> _templates = new(StringComparer.Ordinal);
     public UiTheme(IUiResourceDictionary resources, IReadOnlyList<IUiStyle> styles) { ArgumentNullException.ThrowIfNull(resources); ArgumentNullException.ThrowIfNull(styles); Resources = resources; Styles = styles; }
@@ -97,7 +111,7 @@ public sealed class UiTheme : IUiTheme
     }
 }
 
-public static class DeltaTheme
+internal static class DeltaTheme
 {
     public static readonly UiTheme Default = CreateDefault();
     private static UiColor Color(UiResourceStore resources, string key, UiColor fallback) => resources.TryGet(key, out var value) && value is UiColor color ? color : fallback;

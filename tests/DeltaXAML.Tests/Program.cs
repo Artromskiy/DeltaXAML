@@ -103,6 +103,35 @@ sealed class CustomLibraryTypeResolver : Library.IXamlTypeResolver
     }
 }
 
+sealed class EditorShellTypeResolver : Library.IXamlTypeResolver
+{
+    private static readonly Library.UiTypeId EditorShellType = new(new Guid("A6D7C0B8-0A6A-46DC-9C72-726C1E6A2B4A"));
+
+    public bool TryResolveName(in Library.XamlQualifiedName name, out Library.UiTypeId type)
+    {
+        if (name.Namespace == "urn:delta-editor-shell" && name.LocalName == "EditorShell")
+        {
+            type = EditorShellType;
+            return true;
+        }
+
+        type = default;
+        return false;
+    }
+
+    public bool TryCreate(Library.UiTypeId type, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Library.UiElement? element)
+    {
+        if (type == EditorShellType)
+        {
+            element = new Library.UiPanel();
+            return true;
+        }
+
+        element = null;
+        return false;
+    }
+}
+
 sealed class BindingModel : INotifyPropertyChanged
 {
     private string _name = string.Empty;
@@ -176,6 +205,7 @@ internal static class Program
         TextRunStabilityAndDelta();
         TextDisplayListUsesDeltaText();
         BindingExpressionsAndContexts();
+        EditorShellLibrarySlice();
         DrawListProducerContract();
         StorageReuse();
         HandlesCompiledBindingsAndCustomTypes();
@@ -184,6 +214,7 @@ internal static class Program
         PublicResourcesStylesTemplatesAndTypes();
         LibraryFacadeSmoke();
         FrameContractAndBatchedMutations();
+        ParticipationBoundary();
     }
 
     private static void PropertyInvalidation()
@@ -192,6 +223,8 @@ internal static class Program
         Assert.True(typeof(IUiElement).GetProperty("Generation") is not null, "element generation remains in the base contract");
         Assert.True(typeof(IUiElement).GetProperty("DirtyFlags") is null, "dirty flags are not part of the external element contract");
         Assert.True(typeof(UiElement).GetProperty("DirtyFlags") is null, "dirty flags are internal to the retained implementation");
+        var defaultHandle = default(Library.UiPropertyHandle);
+        Assert.True(!defaultHandle.IsValid && defaultHandle.Name == string.Empty, "default public handle has a safe empty name");
         var element = new UiElement();
         element.Measure(new(100, 100));
         element.Arrange(new(0, 0, 100, 100));
@@ -645,6 +678,13 @@ internal static class Program
         compiledText.SetText("Mina");
         Assert.Equal("Mina", model.Name, "compiled two-way binding writes the source");
 
+        var lateContextRoot = new Library.UiPanel { BindingContext = model };
+        var lateContextText = new Library.UiTextBlock();
+        using var lateContextBinding = new Library.UiCompiledBinding<BindingModel, string>(model, source => source.Name);
+        lateContextText.SetBinding("Text", lateContextBinding);
+        lateContextRoot.Add(lateContextText);
+        Assert.Equal("Mina", lateContextText.Text, "children added after the parent inherit its binding context");
+
         var twoWay = loader.Load("<Panel><TextBox Text=\"{Binding Name, Mode=TwoWay}\" /></Panel>", in context);
         Assert.True(twoWay.Success && twoWay.Root is not null, "two-way binding expression loads");
         if (twoWay.Root is not { } twoWayRoot) { throw new InvalidOperationException("two-way root missing"); }
@@ -667,6 +707,56 @@ internal static class Program
         document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("Bob".AsMemory())));
         if (twoWayRoot.Children[0] is not Library.UiTextBox editText) { throw new InvalidOperationException("edit text missing"); }
         Assert.True(editText.Text == "Bob" && editModel.Name == "Bob", "two-way text edit writes the source");
+    }
+
+    private static void EditorShellLibrarySlice()
+    {
+        var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "EditorShell.xaml"));
+        var loader = new Library.XamlLoader();
+        var context = new Library.XamlLoadContext(new EditorShellTypeResolver(), new EmptyLibraryResourceResolver());
+        var loaded = loader.Load(source, in context);
+        Assert.True(loaded.Success && loaded.Root is Library.UiPanel, "EditorShell fixture loads through the concrete library API");
+        if (loaded.Root is not { } root)
+        {
+            throw new InvalidOperationException("EditorShell fixture root missing");
+        }
+
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
+        var fonts = new Library.UiFontCatalog();
+        fonts.Register("default", new TextContract.FontSourceId(new Guid("B1BD4F0D-4A43-4A15-B5DF-DBF9A5A1A8E3")), File.ReadAllBytes(fontPath));
+        using var textService = new HarfBuzzTextService();
+        using var document = new Library.UiDocument(root, textService, fonts);
+        document.Layout(new Delta.Maths.float2(960, 540), 1);
+        var first = document.BuildDisplayList();
+        Assert.True(first.Visuals.Length >= 4, "EditorShell emits colored visual rectangles");
+        Assert.True(first.Clips.Length >= first.Visuals.Length, "EditorShell emits clip hierarchy entries");
+        Assert.True(first.Text.Length >= 1 && first.Text[0].Text.Runs.Length > 0, "EditorShell emits renderer-neutral text through the library path");
+
+        var second = document.BuildDisplayList();
+        Assert.Equal(first.Visuals.Length, second.Visuals.Length, "unchanged EditorShell visual count is deterministic");
+        Assert.Equal(first.Clips.Length, second.Clips.Length, "unchanged EditorShell clip count is deterministic");
+        Assert.Equal(first.Text.Length, second.Text.Length, "unchanged EditorShell text count is deterministic");
+        for (var i = 0; i < first.Visuals.Length; i++)
+        {
+            Assert.Equal(first.Visuals[i], second.Visuals[i], "unchanged EditorShell visual is stable");
+        }
+
+        for (var i = 0; i < first.Clips.Length; i++)
+        {
+            Assert.Equal(first.Clips[i], second.Clips[i], "unchanged EditorShell clip is stable");
+        }
+
+        for (var i = 0; i < first.Text.Length; i++)
+        {
+            Assert.True(ReferenceEquals(first.Text[i].Text, second.Text[i].Text), "unchanged EditorShell text reuses shaped state");
+        }
+
+        var retainedFrame = new UiFrame(root.RetainedElement);
+        retainedFrame.Layout(new UiSize(960, 540), 1);
+        var neutral = retainedFrame.ExtractDrawList(new UiFrameContext(new UiSize(960, 540), 1, 1));
+        Assert.True(neutral.Commands.Length >= 4, "EditorShell retained producer emits rectangle commands");
+        Assert.True(neutral.TextRuns.Length >= 1, "EditorShell retained producer emits a neutral text request");
+        Assert.True(neutral.TextRuns.Span[0].Owner.IsValid && neutral.TextRuns.Span[0].OwnerGeneration != 0, "EditorShell text request preserves owner lifetime identity");
     }
 
     private static void PublicResourcesStylesTemplatesAndTypes()
@@ -763,9 +853,17 @@ internal static class Program
         var textHandle = hostWrite.GetHandle("Text");
         Assert.True(textHandle.IsValid && hostWrite.TrySet(textHandle, "after", out var handleDiagnostic) && handleDiagnostic is null && hostWrite.Text == "after", "public handle performs a generation-safe host write");
 
+        var composition = new Library.UiPanel();
+        var compositionText = new Library.UiTextBlock { Text = "stable" };
+        composition.Add(compositionText);
+        Assert.True(ReferenceEquals(composition.Children, composition.Children), "public children view is retained");
+        Assert.True(ReferenceEquals(compositionText, composition.Children[0]), "code-authored child wrapper is retained");
+        Assert.True(ReferenceEquals(composition, compositionText.Parent), "parent wrapper is retained");
+
         var numeric = new Library.UiNumericEditor();
         numeric.Initialize(2);
         Assert.True(!numeric.TryCommitText("not-a-number") && numeric.HasValidationError && numeric.CurrentValue == 2, "numeric editor preserves the committed value on validation failure");
+        Assert.True(!numeric.TryCommitText("NaN") && numeric.CurrentValue == 2, "numeric editor rejects non-finite values");
         Assert.True(numeric.TryCommitText("3") && numeric.CurrentValue == 3 && numeric.Increment(), "numeric editor commits and increments through the user API");
     }
 
@@ -825,5 +923,30 @@ internal static class Program
         Assert.Equal(text.Id, captured, "frame input captures pointer");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Up, new(10, 10), 1)));
         Assert.True(frame.Input.Captured is null, "frame input releases capture");
+    }
+
+    private static void ParticipationBoundary()
+    {
+        var root = new Library.UiPanel { Background = new Library.UiColor(10, 20, 30) };
+        root.Add(new Library.UiTextBlock { Text = "hidden" });
+        root.Participation = Library.UiParticipation.None;
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(root, textService);
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        Assert.True(document.TryBuildDisplayList(out var displayList, out var diagnostic) && diagnostic is null, "non-participating root still builds an empty display list");
+        Assert.Equal(0, displayList.Visuals.Length, "non-participating root has no visuals");
+        Assert.Equal(0, displayList.Clips.Length, "non-participating root has no clips");
+
+        var invalid = false;
+        try
+        {
+            root.Participation = Library.UiParticipation.Rendering;
+        }
+        catch (ArgumentException)
+        {
+            invalid = true;
+        }
+
+        Assert.True(invalid, "rendering requires layout participation");
     }
 }

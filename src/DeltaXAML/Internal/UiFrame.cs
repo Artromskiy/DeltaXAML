@@ -1,6 +1,6 @@
 namespace DeltaXAML.Internal;
 
-public sealed class UiFrame : IUiFrame
+internal sealed class UiFrame : IUiFrame
 {
     private readonly DrawList _drawList = new();
     private readonly UiInputRouter _input;
@@ -85,7 +85,7 @@ internal sealed class DrawList : IUiDrawList
     }
     private void Visit(IUiElement e, UiRect clip, UiClipId parent)
     {
-        if (e.Visibility != UiVisibility.Visible)
+        if (e.Visibility != UiVisibility.Visible || (e.Participation & Delta.XAML.UiParticipation.Layout) == 0)
         {
             return;
         }
@@ -94,13 +94,13 @@ internal sealed class DrawList : IUiDrawList
         var id = new UiClipId((uint)_clipCount + 1);
         EnsureClip();
         _clips[_clipCount++] = new(id, effective, parent);
-        if (e.Background.A > 0)
+        if ((e.Participation & Delta.XAML.UiParticipation.Rendering) != 0 && e.Background.A > 0)
         {
             EnsureCommand();
             _commands[_commandCount] = new(UiDrawKind.Rectangle, e.Bounds, effective, id, default, e.Background, null, 0, (uint)_commandCount, e.Id);
             _commandCount++;
         }
-        if (e is UiElement element && element.TryGetTextRun(out var run))
+        if ((e.Participation & Delta.XAML.UiParticipation.Rendering) != 0 && e is UiElement element && element.TryGetTextRun(out var run))
         {
             EnsureText();
             _textRuns[_textCount++] = run with { Bounds = e.Bounds, Clip = effective, Owner = e.Id, OwnerGeneration = e.Generation, ClipId = id };
@@ -182,7 +182,7 @@ internal sealed class DrawList : IUiDrawList
     }
 }
 
-public sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
+internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 {
     private readonly UiFrame _frame;
     private UiElement? _focused, _captured, _hovered;

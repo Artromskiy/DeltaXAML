@@ -4,10 +4,10 @@ using System.Xml;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 namespace DeltaXAML.Internal;
 
-public readonly record struct XamlDiagnostic(string Code, string Message, int Line, int Column);
-public sealed record XamlLoadResult(UiElement? Root, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Root is not null && Diagnostics.Count == 0; public UiFrame? CreateFrame() { if (!Success || Root is null) { return null; } return new UiFrame(Root); } }
-public sealed record XamlFrameLoadResult(UiFrame? Frame, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Frame is not null && Diagnostics.Count == 0; }
-public sealed class XamlTypeRegistry
+internal readonly record struct XamlDiagnostic(string Code, string Message, int Line, int Column);
+internal sealed record XamlLoadResult(UiElement? Root, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Root is not null && Diagnostics.Count == 0; public UiFrame? CreateFrame() { if (!Success || Root is null) { return null; } return new UiFrame(Root); } }
+internal sealed record XamlFrameLoadResult(UiFrame? Frame, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Frame is not null && Diagnostics.Count == 0; }
+internal sealed class XamlTypeRegistry
 {
     private readonly Dictionary<string, Func<UiElement>> _factories = new(StringComparer.Ordinal);
     public void Register(string name, Func<UiElement> factory)
@@ -22,7 +22,7 @@ public sealed class XamlTypeRegistry
         element = null; return false;
     }
 }
-public static class XamlLoader
+internal static class XamlLoader
 {
     public static XamlLoadResult Load(string source) => Load(source, null, null, null);
     public static XamlLoadResult Load(string source, XamlTypeRegistry? registry) => Load(source, registry, null, null);
