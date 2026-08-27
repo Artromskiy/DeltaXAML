@@ -20,10 +20,12 @@ cross-project handoff order is in
   control (`UiTextBlock`) to composite state plus stateless mixins without
   creating a second retained identity/property store. The TextBlock exemplar
   is complete; the remaining controls are covered by `DXAML-MIXIN-4`.
-- [ ] `DXAML-MIXIN-3`: add immutable `UiTypeDescriptor` operations and generated
+- [x] `DXAML-MIXIN-3`: add immutable `UiTypeDescriptor` operations and generated
   typed thunks. Resolve control/state/mixin/property mappings at compile time;
   do not use `Dictionary<string, Action<...>>`, `Type` lookup, reflection or
-  per-instance behavior delegates in frame stages.
+  per-instance behavior delegates in frame stages. The current TextBlock
+  descriptor is registered through a compact index and dispatches typed
+  state-by-ref operations; other controls remain in `DXAML-MIXIN-4`.
 - [ ] `DXAML-MIXIN-4`: migrate the remaining built-in controls in coherent
   groups: content/visual leaves, containers/layout, input/editing, then
   items/scrolling. Remove the old operation path after each group. Any old API,

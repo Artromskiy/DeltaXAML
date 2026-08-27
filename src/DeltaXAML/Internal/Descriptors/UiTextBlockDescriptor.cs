@@ -1,7 +1,10 @@
 namespace DeltaXAML.Internal;
 
 /// <summary>Compact generated type identity used by the retained descriptor path.</summary>
-internal readonly record struct UiRuntimeTypeIndex(ushort Value);
+internal readonly record struct UiRuntimeTypeIndex(ushort Value)
+{
+    internal bool IsValid => Value != 0;
+}
 
 [Flags]
 internal enum UiDescriptorCapabilities : byte
@@ -15,7 +18,38 @@ internal enum UiDescriptorCapabilities : byte
     PropertySetters = 1 << 5,
 }
 
-internal readonly record struct UiTypeDescriptor(UiRuntimeTypeIndex Index, UiDescriptorCapabilities Capabilities);
+internal readonly record struct UiTypeDescriptor(UiRuntimeTypeIndex Index, UiDescriptorCapabilities Capabilities)
+{
+    internal bool IsValid => Index.IsValid && Capabilities != UiDescriptorCapabilities.None;
+
+    internal bool Supports(UiDescriptorCapabilities capabilities) =>
+        (Capabilities & capabilities) == capabilities;
+}
+
+/// <summary>Compact generated descriptor catalog; entries are immutable metadata only.</summary>
+internal static class UiDescriptorCatalog
+{
+    private static readonly UiTypeDescriptor[] Entries = [UiTextBlockGenerated.Descriptor];
+
+    internal static bool TryResolve(UiRuntimeTypeIndex index, out UiTypeDescriptor descriptor)
+    {
+        if (!index.IsValid)
+        {
+            descriptor = default;
+            return false;
+        }
+
+        var position = index.Value - 1;
+        if ((uint)position >= (uint)Entries.Length)
+        {
+            descriptor = default;
+            return false;
+        }
+
+        descriptor = Entries[position];
+        return true;
+    }
+}
 
 /// <summary>Typed companion for <see cref="TextBlock"/>; the generated path owns no instance state.</summary>
 internal static class UiTextBlockGenerated

@@ -345,6 +345,12 @@ Descriptors use compact indices or generated function tables. They do not use
 string dictionaries in the frame path. Human-readable names and `Type` values
 are cold metadata for tooling and diagnostics only.
 
+The current exemplar registers its immutable metadata in a compact generated
+descriptor catalog indexed from one. Catalog lookup validates the index and
+returns only metadata; it does not create a second tree or retain per-instance
+delegates. The resolved `TextBlock` operations remain the companion's direct
+typed thunks and receive `ref TextBlockState`.
+
 ## Property system
 
 The public property system keeps typed and untyped views because the XAML
