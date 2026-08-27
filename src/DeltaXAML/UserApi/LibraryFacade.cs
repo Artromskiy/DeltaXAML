@@ -557,7 +557,7 @@ public class UiTextBox : UiTextBlock
     private Retained.TextBox TextBoxElement => (Retained.TextBox)RetainedElement;
     private ClipboardBridge? _clipboardBridge;
 
-    public UiTextBox() : base(new Retained.TextBox()) { }
+    public UiTextBox() : base(Retained.UiTextBoxGenerated.Create()) { }
 
     internal UiTextBox(Retained.TextBox element, Dictionary<RetainedElement, UiElement>? views)
         : base(element)
@@ -601,7 +601,7 @@ public sealed class UiNumericEditor : UiTextBox
 {
     private Retained.NumericEditor NumericElement => (Retained.NumericEditor)RetainedElement;
 
-    public UiNumericEditor() : base(new Retained.NumericEditor(), null) { }
+    public UiNumericEditor() : base(Retained.UiNumericEditorGenerated.Create(), null) { }
     internal UiNumericEditor(Retained.NumericEditor element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public double CurrentValue => NumericElement.Value;

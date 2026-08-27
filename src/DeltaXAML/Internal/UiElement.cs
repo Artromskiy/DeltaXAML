@@ -940,11 +940,15 @@ internal class TextBlock : UiElement
 
 internal class TextBox : TextBlock
 {
+    private TextBoxState _state;
     private readonly List<string> _undo = new();
     private readonly List<string> _redo = new();
-    public override string TypeName => "TextBox"; public int CaretIndex { get; private set; }
-    public int SelectionStart { get; private set; }
-    public int SelectionLength { get; private set; }
+    internal new ref TextBoxState State => ref _state;
+
+    public override string TypeName => "TextBox";
+    public int CaretIndex => _state.CaretIndex;
+    public int SelectionStart => _state.SelectionStart;
+    public int SelectionLength => _state.SelectionLength;
     public string? Diagnostic { get; protected set; }
     public IUiClipboard? Clipboard { get; set; }
     public event EventHandler<TextChangedEventArgs>? TextChanged;
@@ -964,8 +968,9 @@ internal class TextBox : TextBlock
         {
             Text = text;
         }
-        CaretIndex = Math.Min(CaretIndex, Text.Length);
-        SelectionLength = 0;
+        _state.CaretIndex = Math.Min(_state.CaretIndex, Text.Length);
+        _state.SelectionStart = _state.CaretIndex;
+        _state.SelectionLength = 0;
         Diagnostic = null;
         SetInvalid(false);
         Invalidate(UiDirtyFlags.Binding);
@@ -976,23 +981,32 @@ internal class TextBox : TextBlock
     public bool ApplyText(in UiTextInput input) { ReplaceSelection(input.Text); return true; }
     public virtual bool ApplyKey(in UiKeyEvent input)
     {
-        if (!input.IsDown)
+        return UiTextBoxGenerated.ProcessKey(ref _state, in input, Text.Length) switch
         {
-            return false;
-        }
+            UiTextEditAction.SelectAll => true,
+            UiTextEditAction.Copy => CopyAndConsume(),
+            UiTextEditAction.Cut => CutAndConsume(),
+            UiTextEditAction.Paste => Paste(),
+            UiTextEditAction.Undo => Undo(),
+            UiTextEditAction.Redo => Redo(),
+            UiTextEditAction.DeleteSelection => DeleteSelectionAndConsume(),
+            _ => false,
+        };
 
-        if (input.Control)
+        bool CopyAndConsume() { Copy(); return true; }
+        bool CutAndConsume() { Cut(); return true; }
+        bool DeleteSelectionAndConsume()
         {
-            return ApplyCommand(input.PhysicalKey);
-        }
+            if (!HasSelection())
+            {
+                return false;
+            }
 
-        if (input.PhysicalKey == 8 && CaretIndex > 0) { PushUndo(); DeleteRange(CaretIndex - 1, 1); return true; }
-        if (input.PhysicalKey == 46 && CaretIndex < Text.Length) { PushUndo(); DeleteRange(CaretIndex, 1); return true; }
-        if (input.PhysicalKey == 37 && CaretIndex > 0) { CaretIndex--; SelectionLength = 0; return true; }
-        if (input.PhysicalKey == 39 && CaretIndex < Text.Length) { CaretIndex++; SelectionLength = 0; return true; }
-        return false;
+            DeleteRange(_state.SelectionStart, _state.SelectionLength);
+            return true;
+        }
     }
-    public void SelectAll() { SelectionStart = 0; SelectionLength = Text.Length; CaretIndex = Text.Length; }
+    public void SelectAll() { _state.SelectionStart = 0; _state.SelectionLength = Text.Length; _state.CaretIndex = Text.Length; }
     public void Copy()
     {
         if (Clipboard is not null && HasSelection())
@@ -1000,87 +1014,115 @@ internal class TextBox : TextBlock
             Clipboard.SetText(GetSelection());
         }
     }
-    public void Cut() { if (!HasSelection()) { return; } PushUndo(); if (Clipboard is not null) { Clipboard.SetText(GetSelection()); } DeleteRange(SelectionStart, SelectionLength); }
+    public void Cut() { if (!HasSelection()) { return; } if (Clipboard is not null) { Clipboard.SetText(GetSelection()); } DeleteRange(_state.SelectionStart, _state.SelectionLength); }
     public bool Paste() { if (Clipboard?.ReadText() is not { Length: > 0 } text) { return false; } ReplaceSelection(text); return true; }
-    public bool Undo() { if (_undo.Count == 0) { return false; } _redo.Add(Text); Text = _undo[^1]; _undo.RemoveAt(_undo.Count - 1); CaretIndex = Text.Length; SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
-    public bool Redo() { if (_redo.Count == 0) { return false; } _undo.Add(Text); Text = _redo[^1]; _redo.RemoveAt(_redo.Count - 1); CaretIndex = Text.Length; SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
+    public bool Undo() { if (_undo.Count == 0) { return false; } _redo.Add(Text); Text = _undo[^1]; _undo.RemoveAt(_undo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
+    public bool Redo() { if (_redo.Count == 0) { return false; } _undo.Add(Text); Text = _redo[^1]; _redo.RemoveAt(_redo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
     protected void ReplaceSelection(string inserted)
     {
         ArgumentNullException.ThrowIfNull(inserted);
         PushUndo();
         if (HasSelection())
         {
-            DeleteRange(SelectionStart, SelectionLength, false);
+            DeleteRange(_state.SelectionStart, _state.SelectionLength, false);
         }
 
-        Text = Text.Insert(CaretIndex, inserted);
-        CaretIndex += inserted.Length;
-        SelectionStart = CaretIndex; SelectionLength = 0;
+        Text = Text.Insert(_state.CaretIndex, inserted);
+        _state.CaretIndex += inserted.Length;
+        _state.SelectionStart = _state.CaretIndex; _state.SelectionLength = 0;
         Diagnostic = null;
         SetInvalid(false);
         Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         NotifyBindingTargetChanged("Text", Text);
         TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
     }
-    private bool ApplyCommand(int physicalKey)
-    {
-        return physicalKey switch
-        {
-            65 => SelectAllCommand(),
-            67 => CopyCommand(),
-            88 => CutCommand(),
-            86 => PasteCommand(),
-            90 => UndoCommand(),
-            89 => RedoCommand(),
-            _ => false
-        };
-        bool SelectAllCommand() { SelectAll(); return true; }
-        bool CopyCommand() { Copy(); return true; }
-        bool CutCommand() { Cut(); return true; }
-        bool PasteCommand() { return Paste(); }
-        bool UndoCommand() { return Undo(); }
-        bool RedoCommand() { return Redo(); }
-    }
     private void PushUndo() { _undo.Add(Text); _redo.Clear(); }
-    private void DeleteRange(int start, int length, bool record = true) { if (record) { PushUndo(); } Text = Text.Remove(start, length); CaretIndex = start; SelectionStart = start; SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); }
-    private bool HasSelection() => SelectionLength > 0;
-    private string GetSelection() => Text.Substring(SelectionStart, SelectionLength);
+    private void DeleteRange(int start, int length, bool record = true) { if (record) { PushUndo(); } Text = Text.Remove(start, length); _state.CaretIndex = start; _state.SelectionStart = start; _state.SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); }
+    private bool HasSelection() => _state.SelectionLength > 0;
+    private string GetSelection() => Text.Substring(_state.SelectionStart, _state.SelectionLength);
     protected override string GetAutomationValueText() => Text;
     protected override string GetTextRunKey() => GlyphRunKey + ":" + Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
 internal sealed class NumericEditor : TextBox
 {
-    private string _committedText = "";
-    public override string TypeName => "NumericEditor"; public double Value { get; private set; }
-    public double Min { get; set; } = double.MinValue; public double Max { get; set; } = double.MaxValue; public bool HasValidationError => Diagnostic is not null; public bool IsDirty => Text != _committedText;
-    public void Initialize(double value) { Value = value; _committedText = Format(value); SetText(_committedText, false); }
+    private NumericEditorState _state = new() { Min = double.MinValue, Max = double.MaxValue, CommittedText = string.Empty };
+
+    internal new ref NumericEditorState State => ref _state;
+
+    public override string TypeName => "NumericEditor";
+    public double Value => _state.Value;
+    public double Min { get => _state.Min; set => _state.Min = value; }
+    public double Max { get => _state.Max; set => _state.Max = value; }
+    public bool HasValidationError => Diagnostic is not null;
+    public bool IsDirty => Text != _state.CommittedText;
+    public void Initialize(double value) { _state.Value = value; _state.CommittedText = Format(value); SetText(_state.CommittedText, false); }
     public bool TryCommit()
     {
-        if (!double.TryParse(Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) || !double.IsFinite(v) || v < Min || v > Max) { Diagnostic = $"Value must be between {Min.ToString(CultureInfo.InvariantCulture)} and {Max.ToString(CultureInfo.InvariantCulture)}."; return false; }
-        Value = v; _committedText = Format(v); SetText(_committedText, false); Diagnostic = null; return true;
+        if (!UiNumericEditorGenerated.TryParse(Text, Min, Max, out var value, out var diagnostic))
+        {
+            Diagnostic = diagnostic;
+            return false;
+        }
+
+        _state.Value = value;
+        _state.CommittedText = Format(value);
+        SetText(_state.CommittedText, false);
+        Diagnostic = null;
+        return true;
     }
-    public void CancelEdit() { SetText(_committedText, false); Diagnostic = null; }
+    public void CancelEdit() { SetText(_state.CommittedText ?? string.Empty, false); Diagnostic = null; }
     public bool TryCommitText(string text) { SetText(text); return TryCommit(); }
     public bool Increment(double step = 1) { return Adjust(step); }
     public bool Decrement(double step = 1) { return Adjust(-step); }
     public override bool ApplyKey(in UiKeyEvent input)
     {
-        if (!input.IsDown)
+        var action = UiNumericEditorGenerated.ProcessKey(ref _state, in input, Text.Length);
+        if (action == UiTextEditAction.Increment)
         {
-            return false;
+            return Increment();
         }
 
-        if (input.PhysicalKey == 38) { return Increment(); }
-        if (input.PhysicalKey == 40) { return Decrement(); }
+        if (action == UiTextEditAction.Decrement)
+        {
+            return Decrement();
+        }
+
         return base.ApplyKey(input);
     }
     public bool TryApplyValue(string text, out string? error)
     {
-        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && double.IsFinite(v) && v >= Min && v <= Max) { Value = v; _committedText = Format(v); SetText(_committedText, false); Diagnostic = null; SetInvalid(false); error = null; return true; }
-        Diagnostic = $"Value must be between {Min.ToString(CultureInfo.InvariantCulture)} and {Max.ToString(CultureInfo.InvariantCulture)}."; SetInvalid(true); error = Diagnostic; return false;
+        if (UiNumericEditorGenerated.TryParse(text, Min, Max, out var value, out var diagnostic))
+        {
+            _state.Value = value;
+            _state.CommittedText = Format(value);
+            SetText(_state.CommittedText, false);
+            Diagnostic = null;
+            SetInvalid(false);
+            error = null;
+            return true;
+        }
+
+        Diagnostic = diagnostic;
+        SetInvalid(true);
+        error = Diagnostic;
+        return false;
     }
-    private bool Adjust(double delta) { var next = Value + delta; if (next < Min || next > Max) { Diagnostic = $"Value must be between {Min.ToString(CultureInfo.InvariantCulture)} and {Max.ToString(CultureInfo.InvariantCulture)}."; SetInvalid(true); return false; } Value = next; _committedText = Format(next); SetText(_committedText, false); Diagnostic = null; SetInvalid(false); return true; }
+    private bool Adjust(double delta)
+    {
+        if (!UiNumericEditorGenerated.TryAdjust(ref _state, delta, out var diagnostic))
+        {
+            Diagnostic = diagnostic;
+            SetInvalid(true);
+            return false;
+        }
+
+        _state.CommittedText = Format(_state.Value);
+        SetText(_state.CommittedText, false);
+        Diagnostic = null;
+        SetInvalid(false);
+        return true;
+    }
     private static string Format(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
     protected override string GetAutomationValueText() => Value.ToString(CultureInfo.InvariantCulture);
     internal override Type BindingTargetType(string propertyName) => propertyName == "Value" ? typeof(double) : base.BindingTargetType(propertyName);

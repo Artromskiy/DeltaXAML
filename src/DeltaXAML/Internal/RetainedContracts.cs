@@ -21,6 +21,7 @@ internal readonly record struct UiElementId(uint Value) { public bool IsValid =>
 internal readonly record struct UiPropertyHandle(UiElementId Element, uint Generation, string Name);
 internal readonly record struct UiMutation(UiPropertyHandle Target, object? Value, UiDirtyFlags Invalidation);
 internal enum UiBindingMode { OneWay, TwoWay, OneTime }
+internal enum UiTextEditAction { None, SelectAll, Copy, Cut, Paste, Undo, Redo, DeleteSelection, Increment, Decrement }
 internal readonly record struct UiResourceHandle(ulong Value, uint Generation);
 internal readonly record struct UiResourceReference(string Key);
 internal enum UiAutomationRole { None, Unknown, Generic, Button, Window, Text, TextBox, NumericEditor }

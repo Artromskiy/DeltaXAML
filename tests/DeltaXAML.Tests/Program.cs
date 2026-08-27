@@ -203,6 +203,7 @@ internal static class Program
         ContentLayoutArchitectureTests.Run();
         PanelGridArchitectureTests.Run();
         ButtonArchitectureTests.Run();
+        EditingArchitectureTests.Run();
         PropertyInvalidation();
         GridSizing();
         TextClipboardUndoAndValidation();

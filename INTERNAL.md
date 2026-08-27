@@ -287,6 +287,13 @@ algorithms stateless; generated companions expose factory/input dispatch, and
 the retained button classes only synchronize state with the existing routed
 event and Click surfaces.
 
+The editing slice adds `TextBoxState` for caret/selection and
+`NumericEditorState` for value/range/commit state. `TextBoxEditingMixin` owns
+the physical-key-to-edit-action mapping, while `NumericValidationMixin` owns
+range parsing and step validation. Their generated companions keep clipboard,
+undo/redo, text events and diagnostics on the existing retained owner
+boundary; no OS or renderer service is introduced.
+
 A mixin owns one coherent capability. It must not discover other capabilities
 through service lookup. If two algorithms share data, that data belongs to an
 explicit state component or a typed stage context.
@@ -770,6 +777,10 @@ architecture pass.
 | `Internal/State/ToggleButtonState.cs` | migrated input state | Checked state only; it composes with the button state through the existing class hierarchy. |
 | `Internal/Mixins/ButtonInputMixin.cs` | migrated input capabilities | Stateless routed pointer transitions for Button and ToggleButton. |
 | `Internal/Descriptors/UiButtonDescriptors.cs` | migrated input descriptors | Compact typed factories and routed-input dispatch for Button and ToggleButton. |
+| `Internal/State/TextBoxState.cs` | migrated editing state | Caret and selection fields only; text storage remains the existing TextBlock state. |
+| `Internal/State/NumericEditorState.cs` | migrated numeric state | Numeric value, bounds and committed text; validation has no external service dependency. |
+| `Internal/Mixins/TextBoxEditingMixin.cs` | migrated editing capabilities | Stateless physical-key mapping, numeric parsing and numeric adjustment algorithms. |
+| `Internal/Descriptors/UiEditingDescriptors.cs` | migrated editing descriptors | Compact typed factories, editing input dispatch and numeric validation thunks. |
 | `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
 | `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
 
