@@ -193,7 +193,7 @@ sealed class EmptyTextService : TextContract.ITextService
     public void Dispose() { }
 }
 
-internal static class Program
+internal static partial class Program
 {
     public static void Main()
     {
@@ -205,6 +205,10 @@ internal static class Program
         ButtonArchitectureTests.Run();
         EditingArchitectureTests.Run();
         ItemsScrollArchitectureTests.Run();
+        TypedPropertyStateTests();
+        PropertyPrecedenceTests();
+        HiddenBindingTests();
+        AnimationSourceTests();
         PropertyInvalidation();
         GridSizing();
         TextClipboardUndoAndValidation();

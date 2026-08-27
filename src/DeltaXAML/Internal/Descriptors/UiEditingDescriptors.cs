@@ -37,4 +37,26 @@ internal static class UiNumericEditorGenerated
 
     internal static bool TryAdjust(ref NumericEditorState state, double delta, out string? diagnostic) =>
         NumericValidationMixin.TryAdjust(ref state, delta, out diagnostic);
+
+    internal static bool TrySetMinimum(ref NumericEditorState state, double value)
+    {
+        if (state.Min.Equals(value))
+        {
+            return false;
+        }
+
+        state.Min = value;
+        return true;
+    }
+
+    internal static bool TrySetMaximum(ref NumericEditorState state, double value)
+    {
+        if (state.Max.Equals(value))
+        {
+            return false;
+        }
+
+        state.Max = value;
+        return true;
+    }
 }

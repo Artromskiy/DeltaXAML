@@ -6,7 +6,53 @@ namespace DeltaXAML.Internal;
 [Flags] internal enum UiDirtyMask { None = 0, Tree = 1, Style = 2, Binding = 4, Measure = 8, Arrange = 16, Visual = 32, HitTest = 64, Resource = 128 }
 internal enum UiVisibility { Visible, Hidden, Collapsed }
 internal enum UiOrientation { Horizontal, Vertical }
-internal enum UiValueSource { Default, Local, Style, Binding, Handle }
+internal enum UiValueSource { Default, Local, Style, Binding, Handle, Animation }
+internal enum UiPropertyKey
+{
+    Unknown,
+    Width,
+    Height,
+    Background,
+    Padding,
+    Fill,
+    IsEnabled,
+    IsSelected,
+    Text,
+    FontKey,
+    FontSize,
+    Foreground,
+    Orientation,
+    Columns,
+    Rows,
+    Value,
+    Minimum,
+    Maximum,
+}
+
+internal static class UiPropertyKeys
+{
+    internal static UiPropertyKey Resolve(string name) => name switch
+    {
+        "Width" => UiPropertyKey.Width,
+        "Height" => UiPropertyKey.Height,
+        "Background" => UiPropertyKey.Background,
+        "Padding" => UiPropertyKey.Padding,
+        "Fill" => UiPropertyKey.Fill,
+        "IsEnabled" => UiPropertyKey.IsEnabled,
+        "IsSelected" => UiPropertyKey.IsSelected,
+        "Text" => UiPropertyKey.Text,
+        "FontKey" => UiPropertyKey.FontKey,
+        "FontSize" => UiPropertyKey.FontSize,
+        "Foreground" => UiPropertyKey.Foreground,
+        "Orientation" => UiPropertyKey.Orientation,
+        "Columns" => UiPropertyKey.Columns,
+        "Rows" => UiPropertyKey.Rows,
+        "Value" => UiPropertyKey.Value,
+        "Minimum" => UiPropertyKey.Minimum,
+        "Maximum" => UiPropertyKey.Maximum,
+        _ => UiPropertyKey.Unknown,
+    };
+}
 internal readonly record struct UiSize(float Width, float Height);
 internal readonly record struct UiPoint(float X, float Y);
 internal readonly record struct UiThickness(float Left, float Top, float Right, float Bottom) { public static UiThickness Zero => default; public float Horizontal => Left + Right; public float Vertical => Top + Bottom; }

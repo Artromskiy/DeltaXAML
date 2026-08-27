@@ -37,9 +37,12 @@ cross-project handoff order is in
   `ItemsControl`/`ScrollViewer` operation paths now dispatch through typed
   state/mixin descriptors. The single retained owner hierarchy remains as a
   compatibility shell until the later stage split.
-- [ ] `DXAML-MIXIN-5`: make the canonical typed property path write effective
-  values directly into concrete composite state. Retain untyped access only for
-  loader/editor cold paths; layout/input/visual extraction must not box.
+- [x] `DXAML-MIXIN-5`: make the canonical typed property path write effective
+  values directly into concrete composite state. `UiPropertyStore` now has one
+  explicit source-precedence table, no per-instance apply delegates, and routes
+  changed effective values through typed setters in `UiElementState` and the
+  control state descriptors. Untyped access remains limited to loader/editor
+  cold paths; layout/input/visual extraction continues to use typed state.
 
 ### P0 — compiled XAML artifacts
 

@@ -414,9 +414,12 @@ public interface IUiProperty<T> : IUiProperty
 }
 ```
 
-The generated path never calls an `object` getter or setter. It resolves the
-property once and emits the typed operation directly. The untyped path may box
-for editor inspection and runtime diagnostics because it is explicitly cold.
+The canonical migration path still has one retained `UiPropertyStore`, but its
+source slots are a cold mutation boundary. A source write resolves a compact
+`UiPropertyKey` once and invokes the owning element's generated typed setter;
+the setter writes directly into that element's composite state. The store does
+not retain per-property apply delegates. The untyped path may box for loader,
+editor inspection and runtime diagnostics because it is explicitly cold.
 
 Effective-value precedence remains:
 
@@ -424,11 +427,13 @@ Effective-value precedence remains:
 Default < Style/Trigger < Binding < Local < Handle < Animation
 ```
 
-Only non-default sources require retained override storage. Override storage is
-split into typed pools (`UiValuePool<float>`, `UiValuePool<float4>`, reference
-value pools and so on), indexed by compact property/node handles. Resolving an
+The explicit resolver table is the only precedence source of truth. It includes
+the internal animation layer above host handles, while public callers continue
+to use the documented local/style/binding/handle sources. Resolving an
 effective value writes the typed result into the concrete control state, so
-layout, input and visual mixins do not query the property engine.
+layout, input and visual mixins do not query the property engine. Equal typed
+values update source metadata without repeating invalidation or setter work;
+the source slot remains reversible for a later `Clear`.
 
 Property metadata declares exact invalidation:
 
@@ -759,10 +764,10 @@ is not an accepted architecture pass.
 
 | Path | Classification | Boundary rule |
 |---|---|---|
-| `Internal/UiElement.cs` | obsolete compatibility implementation | Existing retained controls, property store and virtual operations; no new behavior; remove during `DXAML-MIXIN-4/5`. |
+| `Internal/UiElement.cs` | migration compatibility implementation | Existing retained owner/traversal shell plus the single cold source resolver; typed effective values now enter composite state through `ApplyTypedProperty`; remove the virtual compatibility shell during the retained-stage split. |
 | `Internal/UiFrame.cs` | obsolete compatibility implementation | Existing recursive frame, input and draw traversal; keep only for current callers until descriptor stages replace it. |
 | `Internal/XamlLoader.cs` | obsolete compatibility implementation | Runtime XML inflation bridge; replace with the compiled artifact path during `DXAML-COMPILE-1/2`. |
-| `Internal/BindingRuntime.cs` and `Internal/Theme.cs` | obsolete compatibility implementation | Existing cold binding/resource/style bridge; replace with typed plans during `DXAML-COMPILE-3/4` and `DXAML-MIXIN-5`. |
+| `Internal/BindingRuntime.cs` and `Internal/Theme.cs` | obsolete compatibility implementation | Existing cold binding/resource/style bridge; replace with typed plans during `DXAML-COMPILE-3/4`. |
 | `Internal/RetainedContracts.cs` | obsolete compatibility contracts | Current internal adapter vocabulary; do not extend it; remove each operation with its migrated control group. |
 | `UserApi/LibraryFacade.cs` | active public compatibility facade | Existing public callers remain supported; new controls and generated descriptors must live in the designated locations, not in this file. |
 | `Internal/State/TextBlockState.cs` | migrated exemplar state | Composite text/layout state only; no algorithms, services or ownership. |
@@ -792,6 +797,8 @@ is not an accepted architecture pass.
 | `Internal/Mixins/ItemsControlMixin.cs` | migrated items capabilities | Stateless incremental row reuse algorithm over typed source/factory boundaries. |
 | `Internal/Mixins/ScrollViewerMixin.cs` | migrated scrolling capabilities | Stateless content measure and offset arrange algorithms. |
 | `Internal/Descriptors/UiItemsScrollDescriptors.cs` | migrated items/scroll descriptors | Compact typed factories, scroll layout/offset dispatch and items mutation dispatch. |
+| `Internal/State/UiElementState.cs` | migrated common property state | Common width, height, visual, enabled/selected and padding fields only; no behavior or ownership. |
+| `Internal/Descriptors/UiElementPropertyDescriptors.cs` | migrated common property descriptor | Stateless typed setters for common element state; source resolution remains outside the frame stages. |
 | `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
 | `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
 
@@ -837,8 +844,9 @@ particular:
   `UiTextDraw`;
 - compatibility type/resource factories do not yet map losslessly to stable
   GUID identities;
-- the public typed property API still delegates through parts of the old
-  retained store.
+- source slots and loader/editor discovery still use the retained compatibility
+  store, but effective values now reach composite state through typed property
+  descriptors; generated binding/resource plans remain future work.
 
 These are migration tasks, not alternate architectures.
 
