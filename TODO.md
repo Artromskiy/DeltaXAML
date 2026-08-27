@@ -26,15 +26,16 @@ cross-project handoff order is in
   per-instance behavior delegates in frame stages. The current TextBlock
   descriptor is registered through a compact index and dispatches typed
   state-by-ref operations; other controls remain in `DXAML-MIXIN-4`.
-- [ ] `DXAML-MIXIN-4`: migrate the remaining built-in controls in coherent
+- [x] `DXAML-MIXIN-4`: migrate the remaining built-in controls in coherent
   groups: content/visual leaves, containers/layout, input/editing, then
   items/scrolling. Remove the old operation path after each group. Any old API,
   implementation, test or benchmark that must remain temporarily is marked
   `[Obsolete]` with its replacement and this removal milestone. The
-  `StackPanel`, `Border`/`ContentControl`, `Panel` and `Grid` layout slices are
-  migrated. Button/ToggleButton input state and TextBox/NumericEditor editing
-  state are migrated; ItemsControl and ScrollViewer remain on the
-  compatibility path.
+  `TextBlock`, `StackPanel`, `Border`/`ContentControl`, `Panel`/`Grid`,
+  `Button`/`ToggleButton`, `TextBox`/`NumericEditor` and
+  `ItemsControl`/`ScrollViewer` operation paths now dispatch through typed
+  state/mixin descriptors. The single retained owner hierarchy remains as a
+  compatibility shell until the later stage split.
 - [ ] `DXAML-MIXIN-5`: make the canonical typed property path write effective
   values directly into concrete composite state. Retain untyped access only for
   loader/editor cold paths; layout/input/visual extraction must not box.

@@ -263,15 +263,16 @@ The first migrated container uses the same capability path in
 and layout results; the stateless mixins perform child measure/arrange through
 the one retained child list, and the generated companion supplies the typed
 dispatch. `StackPanel` no longer inherits the legacy `Panel` algorithm. The
-remaining controls still use the compatibility path until their own
-`DXAML-MIXIN-4` group is migrated.
+remaining built-in controls are migrated in the subsequent content, layout,
+input/editing and items/scroll slices below.
 
 The content/layout slice adds `BorderState` and `ContentControlState` with
 their stateless measure/arrange mixins and typed companions. `Border` owns no
 second child model: the mixins receive the existing retained child view, apply
 padding and write the composite layout result. `ContentControl` uses the same
-single-child view and its migrated layout path is inherited by the legacy
-`Button` wrapper until button input/visual behavior is migrated.
+single-child view and its migrated layout path is inherited by the button
+compatibility shell. Button input is dispatched through its generated
+companion while Click remains the existing event boundary.
 
 The panel/layout slice adds `PanelState` and `GridState` with the same typed
 dispatch. `Panel` keeps only its composite geometry in state while
@@ -282,17 +283,22 @@ without per-layout replacement arrays. `UiPanelGridDescriptors.cs` is the
 typed factory, layout and property-setter companion for these controls.
 
 The button/input slice adds `ButtonState` and `ToggleButtonState`. The
-`ButtonInputMixin` and `ToggleButtonInputMixin` keep pointer transition
-algorithms stateless; generated companions expose factory/input dispatch, and
-the retained button classes only synchronize state with the existing routed
-event and Click surfaces.
+`ButtonInputMixin` and `ToggleButtonInputMixin` keep pointer transitions
+stateless; generated companions expose factory/input dispatch, and the
+retained button classes only synchronize state with the existing routed-event
+and Click boundary.
 
 The editing slice adds `TextBoxState` for caret/selection and
 `NumericEditorState` for value/range/commit state. `TextBoxEditingMixin` owns
-the physical-key-to-edit-action mapping, while `NumericValidationMixin` owns
-range parsing and step validation. Their generated companions keep clipboard,
-undo/redo, text events and diagnostics on the existing retained owner
-boundary; no OS or renderer service is introduced.
+physical-key mapping, while `NumericValidationMixin` owns range parsing and
+step validation. Clipboard, undo/redo, text events and diagnostics remain on
+the existing retained owner boundary.
+
+The items/scroll slice adds `ItemsControlState` and `ScrollViewerState`.
+`ItemsControlMutationMixin` reuses unchanged realized rows through typed
+source/factory interfaces and a retained scratch list. `ScrollViewerMixin`
+owns content measure and offset arrange; scrolling is a state mutation that
+invalidates arrange/visual output only when the offset changes.
 
 A mixin owns one coherent capability. It must not discover other capabilities
 through service lookup. If two algorithms share data, that data belongs to an
@@ -761,7 +767,7 @@ architecture pass.
 | `UserApi/LibraryFacade.cs` | active public compatibility facade | Existing public callers remain supported; new controls and generated descriptors must live in the designated locations, not in this file. |
 | `Internal/State/TextBlockState.cs` | migrated exemplar state | Composite text/layout state only; no algorithms, services or ownership. |
 | `Internal/Mixins/TextBlockMixin.cs` | migrated exemplar capabilities | Static generic measure/arrange/input/visual capability shapes and stateless readonly algorithms. |
-| `Internal/Descriptors/UiTextBlockDescriptor.cs` | migrated exemplar descriptor | Compact type index plus typed factory/measure/arrange/input/visual thunks and property setters for `TextBlock`; descriptor tables for other controls remain future milestones. |
+| `Internal/Descriptors/UiTextBlockDescriptor.cs` | migrated exemplar descriptor | Compact type index plus typed factory/measure/arrange/input/visual thunks and property setters for `TextBlock`; the catalog now covers all built-in control groups. |
 | `Internal/State/StackPanelState.cs` | migrated layout state | Composite orientation/layout state only; child relations remain owned by the single retained element tree. |
 | `Internal/Mixins/StackPanelMixin.cs` | migrated layout capabilities | Stateless child measure/arrange algorithms using the generic capability interfaces and an explicit child view. |
 | `Internal/Descriptors/UiStackPanelDescriptor.cs` | migrated layout descriptor | Compact typed factory/measure/arrange/property dispatch for `StackPanel`; it does not create another tree or store. |
@@ -781,6 +787,11 @@ architecture pass.
 | `Internal/State/NumericEditorState.cs` | migrated numeric state | Numeric value, bounds and committed text; validation has no external service dependency. |
 | `Internal/Mixins/TextBoxEditingMixin.cs` | migrated editing capabilities | Stateless physical-key mapping, numeric parsing and numeric adjustment algorithms. |
 | `Internal/Descriptors/UiEditingDescriptors.cs` | migrated editing descriptors | Compact typed factories, editing input dispatch and numeric validation thunks. |
+| `Internal/State/ItemsControlState.cs` | migrated items state | Item count only; source and realized row collections remain on the retained owner. |
+| `Internal/State/ScrollViewerState.cs` | migrated scrolling state | Offset and viewport/content geometry only. |
+| `Internal/Mixins/ItemsControlMixin.cs` | migrated items capabilities | Stateless incremental row reuse algorithm over typed source/factory boundaries. |
+| `Internal/Mixins/ScrollViewerMixin.cs` | migrated scrolling capabilities | Stateless content measure and offset arrange algorithms. |
+| `Internal/Descriptors/UiItemsScrollDescriptors.cs` | migrated items/scroll descriptors | Compact typed factories, scroll layout/offset dispatch and items mutation dispatch. |
 | `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
 | `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
 

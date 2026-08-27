@@ -41,6 +41,8 @@ internal static class UiDescriptorCatalog
         UiToggleButtonGenerated.Descriptor,
         UiTextBoxGenerated.Descriptor,
         UiNumericEditorGenerated.Descriptor,
+        UiItemsControlGenerated.Descriptor,
+        UiScrollViewerGenerated.Descriptor,
     ];
 
     internal static bool TryResolve(UiRuntimeTypeIndex index, out UiTypeDescriptor descriptor)

@@ -605,8 +605,13 @@ internal sealed class StackPanel : UiElement, IUiPanel
 
 internal sealed class ItemsControl : Panel
 {
+    private ItemsControlState _state;
     private readonly List<object?> _items = new();
     private readonly List<UiElement> _realized = new();
+    private readonly List<UiElement> _nextRealized = new();
+
+    internal new ref ItemsControlState State => ref _state;
+
     public override string TypeName => "ItemsControl";
     public IReadOnlyList<object?> Items => _items;
     public IReadOnlyList<UiElement> RealizedItems => _realized;
@@ -615,27 +620,36 @@ internal sealed class ItemsControl : Panel
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(factory);
-        var next = new List<UiElement>(items.Count);
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (i < _items.Count && Equals(_items[i], items[i]))
-            {
-                next.Add(_realized[i]);
-            }
-            else
-            {
-                next.Add(factory(items[i]));
-            }
-        }
+
+        var source = new ItemSource(items);
+        var previous = new ItemSource(_items);
+        var adapter = new ItemFactoryAdapter(factory);
+        UiItemsControlGenerated.ApplyItems(ref _state, source, previous, adapter, _realized, _nextRealized);
 
         ClearChildren();
         _items.Clear();
         _items.AddRange(items);
         _realized.Clear();
-        _realized.AddRange(next);
+        _realized.AddRange(_nextRealized);
         foreach (var child in _realized)
         {
             Add(child);
+        }
+    }
+
+    private sealed class ItemSource(IReadOnlyList<object?> values) : IUiItemSource
+    {
+        public int Count => values.Count;
+        public object? GetValue(int index) => values[index];
+        public bool Matches(IUiItemSource previous, int index) => Equals(values[index], previous.GetValue(index));
+    }
+
+    private sealed class ItemFactoryAdapter(Func<object?, UiElement> factory) : IUiItemFactory
+    {
+        public UiElement Create(IUiItemSource source, int index)
+        {
+            var element = factory(source.GetValue(index));
+            return element ?? throw new InvalidOperationException("The item factory returned a null UI element.");
         }
     }
 }
@@ -1140,21 +1154,50 @@ internal sealed class NumericEditor : TextBox
 
 internal class ScrollViewer : ContentControl
 {
-    public override string TypeName => "ScrollViewer"; public UiPoint Offset { get; private set; }
-    public void ScrollBy(float x, float y) { Offset = new(MathF.Max(0, Offset.X + x), MathF.Max(0, Offset.Y + y)); Invalidate(UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    private ScrollViewerState _state;
+
+    internal new ref ScrollViewerState State => ref _state;
+
+    public override string TypeName => "ScrollViewer";
+    public UiPoint Offset => _state.Offset;
+    public void ScrollBy(float x, float y)
+    {
+        if (UiScrollViewerGenerated.TryScrollBy(ref _state, x, y))
+        {
+            Invalidate(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        }
+    }
+
+    public override void Measure(UiSize available)
+    {
+        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
+        {
+            DesiredSize = default;
+            _state.DesiredSize = default;
+            DirtyFlags &= ~UiDirtyFlags.Measure;
+            return;
+        }
+
+        UiScrollViewerGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        DesiredSize = RequestedSize(_state.DesiredSize);
+        DirtyFlags &= ~UiDirtyFlags.Measure;
+    }
+
     public override void Arrange(UiRect bounds)
     {
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             Bounds = default;
             Clip = default;
+            _state.Bounds = default;
+            _state.Clip = default;
             DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
             return;
         }
 
-        Bounds = bounds;
-        Clip = bounds;
-        Content?.Arrange(new(bounds.X - Offset.X, bounds.Y - Offset.Y, Content.DesiredSize.Width, Content.DesiredSize.Height));
+        UiScrollViewerGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        Bounds = _state.Bounds;
+        Clip = _state.Clip;
         DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }
 }

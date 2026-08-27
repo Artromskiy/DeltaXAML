@@ -447,7 +447,7 @@ public sealed class UiItemsControl : UiPanel
 {
     private Retained.ItemsControl ItemsElement => (Retained.ItemsControl)RetainedElement;
 
-    public UiItemsControl() : base(new Retained.ItemsControl(), null) { }
+    public UiItemsControl() : base(Retained.UiItemsControlGenerated.Create(), null) { }
     internal UiItemsControl(Retained.ItemsControl element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public IReadOnlyList<object?> Items => ItemsElement.Items;
@@ -623,7 +623,7 @@ public sealed class UiScrollViewer : UiContentControl
 {
     private Retained.ScrollViewer ScrollElement => (Retained.ScrollViewer)RetainedElement;
 
-    public UiScrollViewer() : base(new Retained.ScrollViewer(), null) { }
+    public UiScrollViewer() : base(Retained.UiScrollViewerGenerated.Create(), null) { }
     internal UiScrollViewer(Retained.ScrollViewer element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public float OffsetX => ScrollElement.Offset.X;
