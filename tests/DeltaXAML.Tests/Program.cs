@@ -226,7 +226,7 @@ internal static class Program
         Assert.True(typeof(IUiElement).GetProperty("DirtyFlags") is null, "dirty flags are not part of the external element contract");
         Assert.True(typeof(UiElement).GetProperty("DirtyFlags") is null, "dirty flags are internal to the retained implementation");
         var defaultHandle = default(Library.UiPropertyHandle);
-        Assert.True(!defaultHandle.IsValid && defaultHandle.Name == string.Empty, "default public handle has a safe empty name");
+        Assert.True(!defaultHandle.IsValid && defaultHandle.Name.Length == 0, "default public handle has a safe empty name");
         var element = new UiElement();
         element.Measure(new(100, 100));
         element.Arrange(new(0, 0, 100, 100));

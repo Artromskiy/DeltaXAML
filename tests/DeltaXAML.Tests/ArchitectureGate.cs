@@ -2,6 +2,8 @@ using System.Text;
 
 internal static class ArchitectureGate
 {
+    private const string PassMessage = "[architecture] PASS: all designated types and runtime-path rules comply.";
+
     public static void Run()
     {
         var root = FindRepositoryRoot();
@@ -22,7 +24,7 @@ internal static class ArchitectureGate
 
         if (violations.Count == 0 && pending.Count == 0)
         {
-            Console.WriteLine("[architecture] PASS: all designated types and runtime-path rules comply.");
+            Console.Out.WriteLine(PassMessage.AsSpan());
             return;
         }
 
