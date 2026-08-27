@@ -29,7 +29,11 @@ internal readonly record struct UiTypeDescriptor(UiRuntimeTypeIndex Index, UiDes
 /// <summary>Compact generated descriptor catalog; entries are immutable metadata only.</summary>
 internal static class UiDescriptorCatalog
 {
-    private static readonly UiTypeDescriptor[] Entries = [UiTextBlockGenerated.Descriptor];
+    private static readonly UiTypeDescriptor[] Entries =
+    [
+        UiTextBlockGenerated.Descriptor,
+        UiStackPanelGenerated.Descriptor,
+    ];
 
     internal static bool TryResolve(UiRuntimeTypeIndex index, out UiTypeDescriptor descriptor)
     {
@@ -65,10 +69,10 @@ internal static class UiTextBlockGenerated
 
     internal static TextBlock Create() => new();
 
-    internal static void Measure(ref TextBlockState state, in UiTextMeasureContext context) =>
+    internal static void Measure(ref TextBlockState state, in UiMeasureContext context) =>
         TextBlockMeasureMixin.Measure(ref state, in context);
 
-    internal static void Arrange(ref TextBlockState state, in UiTextArrangeContext context) =>
+    internal static void Arrange(ref TextBlockState state, in UiArrangeContext context) =>
         TextBlockArrangeMixin.Arrange(ref state, in context);
 
     internal static bool ProcessInput(ref TextBlockState state, in UiInputPacket input) =>

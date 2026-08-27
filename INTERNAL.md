@@ -207,7 +207,7 @@ internal interface IMeasureMixin<TState>
 {
     static abstract void Measure(
         ref TState state,
-        in UiTextMeasureContext context);
+        in UiMeasureContext context);
 }
 
 internal interface IArrangeMixin<TState>
@@ -215,7 +215,7 @@ internal interface IArrangeMixin<TState>
 {
     static abstract void Arrange(
         ref TState state,
-        in UiTextArrangeContext context);
+        in UiArrangeContext context);
 }
 
 internal interface IInputMixin<TState>
@@ -256,6 +256,15 @@ field. `TextBlockMixin.cs` supplies the measure, arrange, input and visual
 capabilities; `UiTextBlockDescriptor.cs` is the direct typed companion used by
 the retained `TextBlock` path. The input capability intentionally returns
 `false` because a text display leaf does not consume input.
+
+The first migrated container uses the same capability path in
+`Internal/State/StackPanelState.cs`, `Internal/Mixins/StackPanelMixin.cs` and
+`Internal/Descriptors/UiStackPanelDescriptor.cs`. Its state owns orientation
+and layout results; the stateless mixins perform child measure/arrange through
+the one retained child list, and the generated companion supplies the typed
+dispatch. `StackPanel` no longer inherits the legacy `Panel` algorithm. The
+remaining controls still use the compatibility path until their own
+`DXAML-MIXIN-4` group is migrated.
 
 A mixin owns one coherent capability. It must not discover other capabilities
 through service lookup. If two algorithms share data, that data belongs to an
@@ -725,6 +734,9 @@ architecture pass.
 | `Internal/State/TextBlockState.cs` | migrated exemplar state | Composite text/layout state only; no algorithms, services or ownership. |
 | `Internal/Mixins/TextBlockMixin.cs` | migrated exemplar capabilities | Static generic measure/arrange/input/visual capability shapes and stateless readonly algorithms. |
 | `Internal/Descriptors/UiTextBlockDescriptor.cs` | migrated exemplar descriptor | Compact type index plus typed factory/measure/arrange/input/visual thunks and property setters for `TextBlock`; descriptor tables for other controls remain future milestones. |
+| `Internal/State/StackPanelState.cs` | migrated layout state | Composite orientation/layout state only; child relations remain owned by the single retained element tree. |
+| `Internal/Mixins/StackPanelMixin.cs` | migrated layout capabilities | Stateless child measure/arrange algorithms using the generic capability interfaces and an explicit child view. |
+| `Internal/Descriptors/UiStackPanelDescriptor.cs` | migrated layout descriptor | Compact typed factory/measure/arrange/property dispatch for `StackPanel`; it does not create another tree or store. |
 | `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
 | `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
 

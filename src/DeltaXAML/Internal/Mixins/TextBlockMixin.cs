@@ -3,13 +3,13 @@ namespace DeltaXAML.Internal;
 internal interface IMeasureMixin<TState>
     where TState : struct
 {
-    static abstract void Measure(ref TState state, in UiTextMeasureContext context);
+    static abstract void Measure(ref TState state, in UiMeasureContext context);
 }
 
 internal interface IArrangeMixin<TState>
     where TState : struct
 {
-    static abstract void Arrange(ref TState state, in UiTextArrangeContext context);
+    static abstract void Arrange(ref TState state, in UiArrangeContext context);
 }
 
 internal interface IInputMixin<TState>
@@ -26,7 +26,7 @@ internal interface IVisualMixin<TState>
 
 internal readonly struct TextBlockMeasureMixin : IMeasureMixin<TextBlockState>
 {
-    public static void Measure(ref TextBlockState state, in UiTextMeasureContext context)
+    public static void Measure(ref TextBlockState state, in UiMeasureContext context)
     {
         var size = state.Visual.FontSize * context.DpiScale;
         state.Layout.DesiredSize = new(MathF.Min(context.Available.Width, state.Text.Length * size * 0.55f), size * 1.25f);
@@ -35,7 +35,7 @@ internal readonly struct TextBlockMeasureMixin : IMeasureMixin<TextBlockState>
 
 internal readonly struct TextBlockArrangeMixin : IArrangeMixin<TextBlockState>
 {
-    public static void Arrange(ref TextBlockState state, in UiTextArrangeContext context)
+    public static void Arrange(ref TextBlockState state, in UiArrangeContext context)
     {
         state.Layout.Bounds = context.Bounds;
         state.Layout.Clip = context.Clip;

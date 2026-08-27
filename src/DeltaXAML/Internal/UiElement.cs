@@ -554,36 +554,37 @@ internal class Panel : UiElement, IUiPanel
     }
 }
 
-internal sealed class StackPanel : Panel
+internal sealed class StackPanel : UiElement, IUiPanel
 {
-    public override string TypeName => "StackPanel"; public UiOrientation Orientation { get; set; } = UiOrientation.Vertical;
+    private StackPanelState _state = new() { Orientation = UiOrientation.Vertical };
+
+    internal ref StackPanelState State => ref _state;
+
+    public override string TypeName => "StackPanel";
+    public UiOrientation Orientation
+    {
+        get => _state.Orientation;
+        set
+        {
+            if (UiStackPanelGenerated.TrySetOrientation(ref _state, value))
+            {
+                Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
+            }
+        }
+    }
+
     public override void Measure(UiSize available)
     {
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
+            _state.DesiredSize = default;
             DirtyFlags &= ~UiDirtyFlags.Measure;
             return;
         }
 
-        var w = 0f;
-        var h = 0f;
-        foreach (var child in Children)
-        {
-            child.Measure(available);
-            if (Orientation == UiOrientation.Horizontal)
-            {
-                w += child.DesiredSize.Width;
-                h = MathF.Max(h, child.DesiredSize.Height);
-            }
-            else
-            {
-                w = MathF.Max(w, child.DesiredSize.Width);
-                h += child.DesiredSize.Height;
-            }
-        }
-
-        DesiredSize = RequestedSize(new(w, h));
+        UiStackPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        DesiredSize = RequestedSize(_state.DesiredSize);
         DirtyFlags &= ~UiDirtyFlags.Measure;
     }
     public override void Arrange(UiRect bounds)
@@ -592,40 +593,15 @@ internal sealed class StackPanel : Panel
         {
             Bounds = default;
             Clip = default;
+            _state.Bounds = default;
+            _state.Clip = default;
             DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
             return;
         }
 
-        Bounds = bounds;
-        Clip = bounds;
-        var cursor = Orientation == UiOrientation.Horizontal ? bounds.X : bounds.Y;
-        var fixedSize = 0f;
-        var fillCount = 0;
-        foreach (var child in Children)
-        {
-            if (child.Fill)
-            {
-                fillCount++;
-            }
-            else
-            {
-                fixedSize += Orientation == UiOrientation.Horizontal ? child.DesiredSize.Width : child.DesiredSize.Height;
-            }
-        }
-
-        var available = Orientation == UiOrientation.Horizontal ? bounds.Width : bounds.Height;
-        var remaining = MathF.Max(0, available - fixedSize);
-        foreach (var child in Children)
-        {
-            var desired = child.DesiredSize;
-            var main = child.Fill && fillCount > 0
-                ? remaining / fillCount
-                : Orientation == UiOrientation.Horizontal ? desired.Width : desired.Height;
-            child.Arrange(Orientation == UiOrientation.Horizontal
-                ? new UiRect(cursor, bounds.Y, main, bounds.Height)
-                : new UiRect(bounds.X, cursor, bounds.Width, main));
-            cursor += main;
-        }
+        UiStackPanelGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        Bounds = _state.Bounds;
+        Clip = _state.Clip;
 
         DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }

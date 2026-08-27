@@ -432,7 +432,7 @@ public sealed class UiStackPanel : UiPanel
 {
     private Retained.StackPanel StackElement => (Retained.StackPanel)RetainedElement;
 
-    public UiStackPanel() : base(new Retained.StackPanel(), null) { }
+    public UiStackPanel() : base(Retained.UiStackPanelGenerated.Create(), null) { }
     internal UiStackPanel(Retained.StackPanel element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public UiOrientation Orientation
