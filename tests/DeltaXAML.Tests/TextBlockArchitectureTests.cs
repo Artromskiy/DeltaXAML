@@ -24,5 +24,8 @@ internal static class TextBlockArchitectureTests
         Assert.Equal((uint)11, run.Version, "typed visual thunk preserves text version");
         Assert.Equal(state.Text, run.Text, "typed visual thunk emits state text");
         Assert.Equal((ushort)1, UiTextBlockGenerated.Descriptor.Index.Value, "TextBlock has a compact descriptor index");
+        Assert.True((UiTextBlockGenerated.Descriptor.Capabilities & UiDescriptorCapabilities.PropertySetters) != 0, "TextBlock descriptor exposes typed property setters");
+        Assert.True(UiTextBlockGenerated.TrySetText(ref state, "Updated"), "typed text setter changes state");
+        Assert.True(!UiTextBlockGenerated.TrySetText(ref state, "Updated"), "typed text setter skips unchanged state");
     }
 }

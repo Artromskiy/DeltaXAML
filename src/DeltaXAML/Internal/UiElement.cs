@@ -992,10 +992,10 @@ internal class TextBlock : UiElement
         }
     }
 
-    private void ApplyTextValue(object? value) { if (value is string text && _state.Text != text) { _state.Text = text; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
-    private void ApplyFontKeyValue(object? value) { if (value is string fontKey && _state.FontKey != fontKey) { _state.FontKey = fontKey; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
-    private void ApplyFontSizeValue(object? value) { if (value is float fontSize && !_state.FontSize.Equals(fontSize)) { _state.FontSize = fontSize; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
-    private void ApplyForegroundValue(object? value) { if (value is UiColor foreground && _state.Foreground != foreground) { _state.Foreground = foreground; Invalidate(UiDirtyFlags.Visual); } }
+    private void ApplyTextValue(object? value) { if (value is string text && UiTextBlockGenerated.TrySetText(ref _state, text)) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
+    private void ApplyFontKeyValue(object? value) { if (value is string fontKey && UiTextBlockGenerated.TrySetFontKey(ref _state, fontKey)) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
+    private void ApplyFontSizeValue(object? value) { if (value is float fontSize && UiTextBlockGenerated.TrySetFontSize(ref _state, fontSize)) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
+    private void ApplyForegroundValue(object? value) { if (value is UiColor foreground && UiTextBlockGenerated.TrySetForeground(ref _state, foreground)) { Invalidate(UiDirtyFlags.Visual); } }
 }
 
 internal class TextBox : TextBlock
