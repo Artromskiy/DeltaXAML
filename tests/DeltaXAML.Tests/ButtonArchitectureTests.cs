@@ -36,6 +36,7 @@ internal static class ButtonArchitectureTests
         retained.OnRoutedEvent(in down);
         Assert.True(retained.IsPressed, "retained Button forwards pressed state from generated input");
         retained.OnRoutedEvent(in up);
-        Assert.True(!retained.IsPressed && clicks == 1, "retained Button forwards the generated click");
+        Assert.True(!retained.IsPressed, "retained Button leaves pressed state after generated input");
+        Assert.Equal(1, clicks, "retained Button forwards the generated click");
     }
 }

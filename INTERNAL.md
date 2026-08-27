@@ -263,8 +263,8 @@ The first migrated container uses the same capability path in
 and layout results; the stateless mixins perform child measure/arrange through
 the one retained child list, and the generated companion supplies the typed
 dispatch. `StackPanel` no longer inherits the legacy `Panel` algorithm. The
-remaining built-in controls are migrated in the subsequent content, layout,
-input/editing and items/scroll slices below.
+remaining built-in controls use the same descriptor path in the subsequent
+content, layout, input/editing and items/scroll slices below.
 
 The content/layout slice adds `BorderState` and `ContentControlState` with
 their stateless measure/arrange mixins and typed companions. `Border` owns no
@@ -752,10 +752,10 @@ tracked explicitly and may not receive new behavior.
 
 ## Current migration classification
 
-The designated folders are populated by the first `UiTextBlock` exemplar. The
-executable gate still reports any missing or empty designated folder as
-`PENDING` and fails the headless command; an empty folder is not an accepted
-architecture pass.
+The designated folders are populated by the migrated state, mixin and
+descriptor types. The executable gate still reports any missing or empty
+designated folder as `PENDING` and fails the headless command; an empty folder
+is not an accepted architecture pass.
 
 | Path | Classification | Boundary rule |
 |---|---|---|
@@ -828,8 +828,9 @@ migration compiling until their removal milestone.
 The current retained implementation remains a migration surface. In
 particular:
 
-- compatibility retained control behavior has not yet moved fully into state
-  components and typed mixins;
+- the common `UiElement`/`UiFrame` owner and traversal shells remain as
+  compatibility implementation while the later stage split removes their
+  virtual operation surface;
 - runtime XAML loading still performs work that belongs in generated artifacts;
 - the legacy draw representation is not the canonical `UiDisplayList`;
 - retained text requests are not a substitute for canonical shaped

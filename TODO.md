@@ -25,7 +25,8 @@ cross-project handoff order is in
   do not use `Dictionary<string, Action<...>>`, `Type` lookup, reflection or
   per-instance behavior delegates in frame stages. The current TextBlock
   descriptor is registered through a compact index and dispatches typed
-  state-by-ref operations; other controls remain in `DXAML-MIXIN-4`.
+  state-by-ref operations; all built-in controls are now registered in the
+  compact descriptor catalog.
 - [x] `DXAML-MIXIN-4`: migrate the remaining built-in controls in coherent
   groups: content/visual leaves, containers/layout, input/editing, then
   items/scrolling. Remove the old operation path after each group. Any old API,
