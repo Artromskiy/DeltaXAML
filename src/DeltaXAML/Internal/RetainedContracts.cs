@@ -74,7 +74,8 @@ internal readonly record struct UiClipEntry(UiClipId Id, UiRect Bounds, UiClipId
 /// <remarks>DeltaXAML owns content, style, layout bounds, DPI-dependent text metrics and identity. Owner plus OwnerGeneration identify retained lifetime; Version identifies text/style/DPI dirtiness. Layout changes are represented by Bounds, Clip and draw-list deltas. Shaping and glyph pixels remain external.</remarks>
 internal readonly record struct UiTextRun(string FontKey, float FontSize, string Text, string GlyphRunKey, UiColor Color, UiRect Bounds, UiRect Clip, UiElementId Owner, uint OwnerGeneration, uint Version, UiClipId ClipId = default);
 internal readonly record struct UiTextMeasureContext(UiSize Available, float DpiScale);
-internal readonly record struct UiTextVisualContext(UiElementId Owner, uint OwnerGeneration, UiRect Bounds, UiRect Clip, float LayoutScale, string GlyphRunKey, uint Version);
+internal readonly record struct UiTextArrangeContext(UiRect Bounds, UiRect Clip);
+internal readonly record struct UiTextVisualContext(UiElementId Owner, uint OwnerGeneration, float LayoutScale, uint Version);
 internal readonly record struct UiBindingSpec(string Property, string Path, UiBindingMode Mode, string? ConverterKey, string? StringFormat);
 internal readonly record struct UiDrawRange(int Start, int Count);
 internal readonly record struct UiDrawDelta(UiDrawRange Commands, UiDrawRange TextRuns, uint BaseVersion, uint NextVersion)

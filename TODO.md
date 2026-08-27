@@ -8,15 +8,18 @@ cross-project handoff order is in
 
 ### P0 — typed descriptor runtime
 
-- [ ] `DXAML-MIXIN-1`: finish the executable architecture gate from
+- [x] `DXAML-MIXIN-1`: finish the executable architecture gate from
   [WORKFLOW.md](WORKFLOW.md). It must validate state-only structs, flat control
   classes, stateless readonly mixins, generated descriptor locations and the
   absence of object/type-keyed frame storage. Classify current retained files
-  as migrated, obsolete compatibility or forbidden new work.
-- [ ] `DXAML-MIXIN-2`: introduce the minimal static generic capability set for
+  as migrated, obsolete compatibility or forbidden new work. The gate is
+  active in the headless test entry point and reports designated-folder
+  violations with exact source locations.
+- [x] `DXAML-MIXIN-2`: introduce the minimal static generic capability set for
   measure, arrange, input and visual extraction. Move one representative leaf
   control (`UiTextBlock`) to composite state plus stateless mixins without
-  creating a second retained identity/property store.
+  creating a second retained identity/property store. The TextBlock exemplar
+  is complete; the remaining controls are covered by `DXAML-MIXIN-4`.
 - [ ] `DXAML-MIXIN-3`: add immutable `UiTypeDescriptor` operations and generated
   typed thunks. Resolve control/state/mixin/property mappings at compile time;
   do not use `Dictionary<string, Action<...>>`, `Type` lookup, reflection or

@@ -647,7 +647,7 @@ internal static class Program
         var text = new Library.UiTextBlock { Text = "A", Width = 240, Height = 40 };
         var root = new Library.UiPanel();
         root.Add(text);
-        using var textService = new HarfBuzzTextService();
+        using var textService = new SixLaborsTextService();
         using var document = new Library.UiDocument(root, textService, fonts);
         document.Layout(new Delta.Maths.float2(240, 40), 1);
         var first = document.BuildDisplayList();
@@ -735,7 +735,7 @@ internal static class Program
         var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
         var fonts = new Library.UiFontCatalog();
         fonts.Register("default", new TextContract.FontSourceId(new Guid("B1BD4F0D-4A43-4A15-B5DF-DBF9A5A1A8E3")), File.ReadAllBytes(fontPath));
-        using var textService = new HarfBuzzTextService();
+        using var textService = new SixLaborsTextService();
         using var document = new Library.UiDocument(root, textService, fonts);
         document.Layout(new Delta.Maths.float2(960, 540), 1);
         var first = document.BuildDisplayList();

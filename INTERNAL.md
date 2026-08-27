@@ -207,24 +207,31 @@ internal interface IMeasureMixin<TState>
 {
     static abstract void Measure(
         ref TState state,
-        ref UiMeasureContext context);
+        in UiTextMeasureContext context);
+}
+
+internal interface IArrangeMixin<TState>
+    where TState : struct
+{
+    static abstract void Arrange(
+        ref TState state,
+        in UiTextArrangeContext context);
 }
 
 internal interface IInputMixin<TState>
     where TState : struct
 {
-    static abstract void ProcessInput(
+    static abstract bool ProcessInput(
         ref TState state,
-        in UiInputEvent input,
-        ref UiInputContext context);
+        in UiInputPacket input);
 }
 
 internal interface IVisualMixin<TState>
     where TState : struct
 {
-    static abstract void EmitVisual(
+    static abstract UiTextRun EmitVisual(
         ref TState state,
-        ref UiVisualContext context);
+        in UiTextVisualContext context);
 }
 
 internal readonly struct ButtonMeasureMixin : IMeasureMixin<ButtonState>
@@ -241,6 +248,14 @@ internal readonly struct ButtonMeasureMixin : IMeasureMixin<ButtonState>
     }
 }
 ```
+
+The first migrated leaf uses the same shape in
+`Internal/State/TextBlockState.cs`: `TextBlockState` embeds
+`TextBlockLayoutState` and `TextBlockVisualState` and keeps text content as a
+field. `TextBlockMixin.cs` supplies the measure, arrange, input and visual
+capabilities; `UiTextBlockDescriptor.cs` is the direct typed companion used by
+the retained `TextBlock` path. The input capability intentionally returns
+`false` because a text display leaf does not consume input.
 
 A mixin owns one coherent capability. It must not discover other capabilities
 through service lookup. If two algorithms share data, that data belongs to an
@@ -702,8 +717,8 @@ architecture pass.
 | `Internal/RetainedContracts.cs` | obsolete compatibility contracts | Current internal adapter vocabulary; do not extend it; remove each operation with its migrated control group. |
 | `UserApi/LibraryFacade.cs` | active public compatibility facade | Existing public callers remain supported; new controls and generated descriptors must live in the designated locations, not in this file. |
 | `Internal/State/TextBlockState.cs` | migrated exemplar state | Composite text/layout state only; no algorithms, services or ownership. |
-| `Internal/Mixins/TextBlockMixin.cs` | migrated exemplar capabilities | Static generic measure/visual capability shapes and stateless readonly algorithms. |
-| `Internal/Descriptors/UiTextBlockDescriptor.cs` | migrated exemplar descriptor | Compact type index plus typed factory/measure/visual thunks for `TextBlock`; remaining operations are future descriptor milestones. |
+| `Internal/Mixins/TextBlockMixin.cs` | migrated exemplar capabilities | Static generic measure/arrange/input/visual capability shapes and stateless readonly algorithms. |
+| `Internal/Descriptors/UiTextBlockDescriptor.cs` | migrated exemplar descriptor | Compact type index plus typed factory/measure/arrange/input/visual thunks and property setters for `TextBlock`; descriptor tables for other controls remain future milestones. |
 | `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
 | `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
 

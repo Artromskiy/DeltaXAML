@@ -6,6 +6,18 @@ internal interface IMeasureMixin<TState>
     static abstract void Measure(ref TState state, in UiTextMeasureContext context);
 }
 
+internal interface IArrangeMixin<TState>
+    where TState : struct
+{
+    static abstract void Arrange(ref TState state, in UiTextArrangeContext context);
+}
+
+internal interface IInputMixin<TState>
+    where TState : struct
+{
+    static abstract bool ProcessInput(ref TState state, in UiInputPacket input);
+}
+
 internal interface IVisualMixin<TState>
     where TState : struct
 {
@@ -16,13 +28,27 @@ internal readonly struct TextBlockMeasureMixin : IMeasureMixin<TextBlockState>
 {
     public static void Measure(ref TextBlockState state, in UiTextMeasureContext context)
     {
-        var size = state.FontSize * context.DpiScale;
-        state.DesiredSize = new(MathF.Min(context.Available.Width, state.Text.Length * size * 0.55f), size * 1.25f);
+        var size = state.Visual.FontSize * context.DpiScale;
+        state.Layout.DesiredSize = new(MathF.Min(context.Available.Width, state.Text.Length * size * 0.55f), size * 1.25f);
     }
+}
+
+internal readonly struct TextBlockArrangeMixin : IArrangeMixin<TextBlockState>
+{
+    public static void Arrange(ref TextBlockState state, in UiTextArrangeContext context)
+    {
+        state.Layout.Bounds = context.Bounds;
+        state.Layout.Clip = context.Clip;
+    }
+}
+
+internal readonly struct TextBlockInputMixin : IInputMixin<TextBlockState>
+{
+    public static bool ProcessInput(ref TextBlockState state, in UiInputPacket input) => false;
 }
 
 internal readonly struct TextBlockVisualMixin : IVisualMixin<TextBlockState>
 {
     public static UiTextRun EmitVisual(ref TextBlockState state, in UiTextVisualContext context) =>
-        new(state.FontKey, state.FontSize * context.LayoutScale, state.Text, context.GlyphRunKey, state.Foreground, context.Bounds, context.Clip, context.Owner, context.OwnerGeneration, context.Version);
+        new(state.Visual.FontKey, state.Visual.FontSize * context.LayoutScale, state.Text, state.Visual.GlyphRunKey, state.Visual.Foreground, state.Layout.Bounds, state.Layout.Clip, context.Owner, context.OwnerGeneration, context.Version);
 }

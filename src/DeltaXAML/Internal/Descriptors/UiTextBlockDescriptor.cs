@@ -9,8 +9,10 @@ internal enum UiDescriptorCapabilities : byte
     None = 0,
     Factory = 1 << 0,
     Measure = 1 << 1,
-    Visual = 1 << 2,
-    PropertySetters = 1 << 3,
+    Arrange = 1 << 2,
+    Input = 1 << 3,
+    Visual = 1 << 4,
+    PropertySetters = 1 << 5,
 }
 
 internal readonly record struct UiTypeDescriptor(UiRuntimeTypeIndex Index, UiDescriptorCapabilities Capabilities);
@@ -22,6 +24,8 @@ internal static class UiTextBlockGenerated
         new(1),
         UiDescriptorCapabilities.Factory |
         UiDescriptorCapabilities.Measure |
+        UiDescriptorCapabilities.Arrange |
+        UiDescriptorCapabilities.Input |
         UiDescriptorCapabilities.Visual |
         UiDescriptorCapabilities.PropertySetters);
 
@@ -29,6 +33,12 @@ internal static class UiTextBlockGenerated
 
     internal static void Measure(ref TextBlockState state, in UiTextMeasureContext context) =>
         TextBlockMeasureMixin.Measure(ref state, in context);
+
+    internal static void Arrange(ref TextBlockState state, in UiTextArrangeContext context) =>
+        TextBlockArrangeMixin.Arrange(ref state, in context);
+
+    internal static bool ProcessInput(ref TextBlockState state, in UiInputPacket input) =>
+        TextBlockInputMixin.ProcessInput(ref state, in input);
 
     internal static UiTextRun EmitVisual(ref TextBlockState state, in UiTextVisualContext context) =>
         TextBlockVisualMixin.EmitVisual(ref state, in context);
@@ -48,34 +58,34 @@ internal static class UiTextBlockGenerated
     internal static bool TrySetFontKey(ref TextBlockState state, string value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (state.FontKey == value)
+        if (state.Visual.FontKey == value)
         {
             return false;
         }
 
-        state.FontKey = value;
+        state.Visual.FontKey = value;
         return true;
     }
 
     internal static bool TrySetFontSize(ref TextBlockState state, float value)
     {
-        if (state.FontSize.Equals(value))
+        if (state.Visual.FontSize.Equals(value))
         {
             return false;
         }
 
-        state.FontSize = value;
+        state.Visual.FontSize = value;
         return true;
     }
 
     internal static bool TrySetForeground(ref TextBlockState state, UiColor value)
     {
-        if (state.Foreground == value)
+        if (state.Visual.Foreground == value)
         {
             return false;
         }
 
-        state.Foreground = value;
+        state.Visual.Foreground = value;
         return true;
     }
 }

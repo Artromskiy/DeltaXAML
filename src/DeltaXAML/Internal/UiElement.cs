@@ -891,23 +891,23 @@ internal class TextBlock : UiElement
     public TextBlock()
     {
         _state.Text = string.Empty;
-        _state.FontKey = "default";
-        _state.GlyphRunKey = "default";
-        _state.FontSize = 14;
-        _state.Foreground = new(255, 255, 255);
+        _state.Visual.FontKey = "default";
+        _state.Visual.GlyphRunKey = "default";
+        _state.Visual.FontSize = 14;
+        _state.Visual.Foreground = new(255, 255, 255);
         SetDefaultProperty("Text", _state.Text, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyTextValue);
-        SetDefaultProperty("FontKey", _state.FontKey, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyFontKeyValue);
-        SetDefaultProperty("FontSize", _state.FontSize, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyFontSizeValue);
-        SetDefaultProperty("Foreground", _state.Foreground, UiDirtyFlags.Visual, ApplyForegroundValue);
+        SetDefaultProperty("FontKey", _state.Visual.FontKey, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyFontKeyValue);
+        SetDefaultProperty("FontSize", _state.Visual.FontSize, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyFontSizeValue);
+        SetDefaultProperty("Foreground", _state.Visual.Foreground, UiDirtyFlags.Visual, ApplyForegroundValue);
     }
 
     public override string TypeName => "TextBlock";
 
     public string Text { get => _state.Text; set { ArgumentNullException.ThrowIfNull(value); if (_state.Text != value) { SetLocalProperty("Text", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyTextValue); } } }
-    public string FontKey { get => _state.FontKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.FontKey != value) { SetLocalProperty("FontKey", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyFontKeyValue); } } }
-    public string GlyphRunKey { get => _state.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.GlyphRunKey == value) { return; } _state.GlyphRunKey = value; Invalidate(UiDirtyFlags.Visual); } }
-    public float FontSize { get => _state.FontSize; set { if (!_state.FontSize.Equals(value)) { SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyFontSizeValue); } } }
-    public UiColor Foreground { get => _state.Foreground; set { if (_state.Foreground != value) { SetLocalProperty("Foreground", value, UiDirtyFlags.Visual, ApplyForegroundValue); } } }
+    public string FontKey { get => _state.Visual.FontKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.FontKey != value) { SetLocalProperty("FontKey", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyFontKeyValue); } } }
+    public string GlyphRunKey { get => _state.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.GlyphRunKey == value) { return; } _state.Visual.GlyphRunKey = value; Invalidate(UiDirtyFlags.Visual); } }
+    public float FontSize { get => _state.Visual.FontSize; set { if (!_state.Visual.FontSize.Equals(value)) { SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual, ApplyFontSizeValue); } } }
+    public UiColor Foreground { get => _state.Visual.Foreground; set { if (_state.Visual.Foreground != value) { SetLocalProperty("Foreground", value, UiDirtyFlags.Visual, ApplyForegroundValue); } } }
 
     protected override void ApplyStyleValue(string name, object? value)
     {
@@ -930,18 +930,35 @@ internal class TextBlock : UiElement
         }
 
         UiTextBlockGenerated.Measure(ref _state, new(available, LayoutScale));
-        DesiredSize = RequestedSize(_state.DesiredSize);
+        DesiredSize = RequestedSize(_state.Layout.DesiredSize);
         DirtyFlags &= ~UiDirtyFlags.Measure;
+    }
+
+    public override void Arrange(UiRect bounds)
+    {
+        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
+        {
+            Bounds = default;
+            Clip = default;
+            UiTextBlockGenerated.Arrange(ref _state, new(default, default));
+            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            return;
+        }
+
+        Bounds = bounds;
+        Clip = bounds;
+        UiTextBlockGenerated.Arrange(ref _state, new(bounds, bounds));
+        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }
 
     internal override bool TryGetTextRun(out UiTextRun run)
     {
-        run = UiTextBlockGenerated.EmitVisual(ref _state, new(Id, Generation, Bounds, Clip, LayoutScale, GetTextRunKey(), TextRunVersion));
+        run = UiTextBlockGenerated.EmitVisual(ref _state, new(Id, Generation, LayoutScale, TextRunVersion));
         return true;
     }
 
     protected override string GetAutomationValueText() => _state.Text;
-    protected override string GetTextRunKey() => _state.GlyphRunKey;
+    protected override string GetTextRunKey() => _state.Visual.GlyphRunKey;
 
     internal override Type BindingTargetType(string propertyName) => propertyName switch
     {

@@ -390,6 +390,7 @@ public abstract class UiElement
         }
     }
 
+    [MemberNotNull(nameof(_views), nameof(_childrenView), nameof(_childrenEditor))]
     private void SetViewCache(Dictionary<RetainedElement, UiElement> views)
     {
         _views = views;
