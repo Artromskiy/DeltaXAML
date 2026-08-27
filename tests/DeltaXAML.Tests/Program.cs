@@ -209,6 +209,7 @@ internal static partial class Program
         PropertyPrecedenceTests();
         HiddenBindingTests();
         AnimationSourceTests();
+        RejectedTypedSourceTests();
         PropertyInvalidation();
         GridSizing();
         TextClipboardUndoAndValidation();

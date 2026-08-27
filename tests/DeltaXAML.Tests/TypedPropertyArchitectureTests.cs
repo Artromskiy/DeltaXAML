@@ -19,6 +19,14 @@ internal static partial class Program
 
         text.SetStyle("Width", 240f, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         Assert.Equal(240f, text.Width, "common typed property reaches element state");
+
+        var unchangedVersion = text.LayoutVersion;
+        text.SetLocal("Width", 240f, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        Assert.Equal(unchangedVersion, text.LayoutVersion, "equal typed value does not invalidate layout");
+        Assert.True(text.TryGet("Width", out var unchanged) && unchanged.Source == UiValueSource.Local, "equal typed value updates source metadata");
+        text.Clear("Width", UiValueSource.Local);
+        Assert.Equal(unchangedVersion, text.LayoutVersion, "clearing equal local value does not invalidate layout");
+        Assert.True(text.TryGet("Width", out unchanged) && unchanged.Source == UiValueSource.Style, "clearing equal local restores style metadata");
     }
 }
 
@@ -76,5 +84,24 @@ internal static partial class Program
         Assert.True(text.TryGet("Text", out var value) && value.Source == UiValueSource.Animation && Equals(value.UntypedValue, "animated"), "animation wins over handle");
         text.Clear("Text", UiValueSource.Animation);
         Assert.True(text.TryGet("Text", out value) && value.Source == UiValueSource.Handle, "clearing animation restores handle");
+    }
+}
+
+internal static partial class Program
+{
+    private static void RejectedTypedSourceTests()
+    {
+        var text = new TextBlock();
+        var before = text.LayoutVersion;
+        text.SetStyle("FontSize", "not-a-float", UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        Assert.Equal(14f, text.FontSize, "rejected typed style preserves text state");
+        Assert.Equal(before, text.LayoutVersion, "rejected typed style does not invalidate layout");
+        Assert.True(text.TryGet("FontSize", out var value) && value.Source == UiValueSource.Default, "rejected typed style is not published as effective");
+
+        var numeric = new NumericEditor();
+        numeric.Min = 0d;
+        numeric.SetStyle("Value", -1d, UiDirtyFlags.Binding | UiDirtyFlags.Visual);
+        Assert.Equal(0d, numeric.Value, "rejected numeric source preserves value state");
+        Assert.True(numeric.TryGet("Value", out value) && value.Source == UiValueSource.Default, "rejected numeric source is not published as effective");
     }
 }
