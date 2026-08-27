@@ -471,7 +471,7 @@ public sealed class UiBorder : UiElement
 {
     private Retained.Border BorderElement => (Retained.Border)RetainedElement;
 
-    public UiBorder() : base(new Retained.Border(), null) { }
+    public UiBorder() : base(Retained.UiBorderGenerated.Create(), null) { }
     internal UiBorder(Retained.Border element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public UiElement? Child => Children.Count == 0 ? null : Children[0];
@@ -494,7 +494,7 @@ public class UiContentControl : UiElement
 {
     private Retained.ContentControl ContentElement => (Retained.ContentControl)RetainedElement;
 
-    public UiContentControl() : base(new Retained.ContentControl(), null) { }
+    public UiContentControl() : base(Retained.UiContentControlGenerated.Create(), null) { }
     internal UiContentControl(Retained.ContentControl element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
     public UiElement? Content => Children.Count == 0 ? null : Children[0];

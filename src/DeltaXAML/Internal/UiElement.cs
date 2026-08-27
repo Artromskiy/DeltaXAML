@@ -646,7 +646,12 @@ internal sealed class ItemsControl : Panel
 
 internal class Border : UiElement, IUiPanel
 {
-    public override string TypeName => "Border"; public IUiElement? Child => Children.Count == 0 ? null : Children[0];
+    private BorderState _state;
+
+    internal ref BorderState State => ref _state;
+
+    public override string TypeName => "Border";
+    public IUiElement? Child => Children.Count == 0 ? null : Children[0];
     public override void Measure(UiSize available)
     {
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
@@ -656,15 +661,9 @@ internal class Border : UiElement, IUiPanel
             return;
         }
 
-        if (Child is not null)
-        {
-            Child.Measure(new(MathF.Max(0, available.Width - Padding.Horizontal), MathF.Max(0, available.Height - Padding.Vertical)));
-            DesiredSize = RequestedSize(new(Child.DesiredSize.Width + Padding.Horizontal, Child.DesiredSize.Height + Padding.Vertical));
-        }
-        else
-        {
-            DesiredSize = RequestedSize(new(Padding.Horizontal, Padding.Vertical));
-        }
+        _state.Padding = Padding;
+        UiBorderGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        DesiredSize = RequestedSize(_state.DesiredSize);
 
         DirtyFlags &= ~UiDirtyFlags.Measure;
     }
@@ -678,9 +677,10 @@ internal class Border : UiElement, IUiPanel
             return;
         }
 
-        Bounds = bounds;
-        Clip = bounds;
-        Child?.Arrange(new(bounds.X + Padding.Left, bounds.Y + Padding.Top, MathF.Max(0, bounds.Width - Padding.Horizontal), MathF.Max(0, bounds.Height - Padding.Vertical)));
+        _state.Padding = Padding;
+        UiBorderGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        Bounds = _state.Bounds;
+        Clip = _state.Clip;
         DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }
 }
@@ -807,6 +807,10 @@ internal sealed class Grid : UiElement, IUiPanel
 
 internal class ContentControl : UiElement
 {
+    private ContentControlState _state;
+
+    internal ref ContentControlState State => ref _state;
+
     public override string TypeName => "ContentControl"; public IUiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
     public override void Measure(UiSize available)
     {
@@ -817,8 +821,8 @@ internal class ContentControl : UiElement
             return;
         }
 
-        Content?.Measure(available);
-        DesiredSize = RequestedSize(Content?.DesiredSize ?? new());
+        UiContentControlGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        DesiredSize = RequestedSize(_state.DesiredSize);
         DirtyFlags &= ~UiDirtyFlags.Measure;
     }
     public override void Arrange(UiRect bounds)
@@ -831,9 +835,9 @@ internal class ContentControl : UiElement
             return;
         }
 
-        Bounds = bounds;
-        Clip = bounds;
-        Content?.Arrange(bounds);
+        UiContentControlGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        Bounds = _state.Bounds;
+        Clip = _state.Clip;
         DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }
 }

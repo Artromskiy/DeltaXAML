@@ -266,6 +266,13 @@ dispatch. `StackPanel` no longer inherits the legacy `Panel` algorithm. The
 remaining controls still use the compatibility path until their own
 `DXAML-MIXIN-4` group is migrated.
 
+The content/layout slice adds `BorderState` and `ContentControlState` with
+their stateless measure/arrange mixins and typed companions. `Border` owns no
+second child model: the mixins receive the existing retained child view, apply
+padding and write the composite layout result. `ContentControl` uses the same
+single-child view and its migrated layout path is inherited by the legacy
+`Button` wrapper until button input/visual behavior is migrated.
+
 A mixin owns one coherent capability. It must not discover other capabilities
 through service lookup. If two algorithms share data, that data belongs to an
 explicit state component or a typed stage context.
@@ -737,6 +744,10 @@ architecture pass.
 | `Internal/State/StackPanelState.cs` | migrated layout state | Composite orientation/layout state only; child relations remain owned by the single retained element tree. |
 | `Internal/Mixins/StackPanelMixin.cs` | migrated layout capabilities | Stateless child measure/arrange algorithms using the generic capability interfaces and an explicit child view. |
 | `Internal/Descriptors/UiStackPanelDescriptor.cs` | migrated layout descriptor | Compact typed factory/measure/arrange/property dispatch for `StackPanel`; it does not create another tree or store. |
+| `Internal/State/BorderState.cs` | migrated content state | Padding and geometry fields only; the retained child relation stays on `UiElement`. |
+| `Internal/State/ContentControlState.cs` | migrated content state | Single-child geometry fields only; content remains the retained tree's first child. |
+| `Internal/Mixins/ContentLayoutMixin.cs` | migrated content capabilities | Stateless padding/content measure and arrange algorithms over the existing child view. |
+| `Internal/Descriptors/UiContentLayoutDescriptors.cs` | migrated content descriptors | Compact typed factories and layout dispatch for `Border` and `ContentControl`. |
 | `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
 | `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
 
