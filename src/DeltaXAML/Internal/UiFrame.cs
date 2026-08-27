@@ -103,7 +103,7 @@ internal sealed class DrawList : IUiDrawList
         if (e is UiElement element && element.TryGetTextRun(out var run))
         {
             EnsureText();
-            _textRuns[_textCount++] = run with { Bounds = e.Bounds, Clip = effective, Owner = e.Id, OwnerGeneration = e.Generation };
+            _textRuns[_textCount++] = run with { Bounds = e.Bounds, Clip = effective, Owner = e.Id, OwnerGeneration = e.Generation, ClipId = id };
         }
         foreach (var child in e.Children)
         {

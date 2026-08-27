@@ -17,18 +17,38 @@ document.Layout(viewport, dpiScale);
 UiDisplayList display = document.BuildDisplayList();
 ```
 
-`UiElement` is the retained public node. `Parent`, `Children`,
-`UiParticipation`, typed/untyped property access and typed bindings are the
-consumer surface. Stable `UiPropertyId`, `UiTypeId` and `UiResourceId` values
-are GUID-backed semantic identities. The public surface does not expose dirty
-masks, retained arrays, frame-local clip indices, ECS storage or renderer
-objects.
+`UiElement` is the retained public node. `Parent`, `Children`, `BindingContext`,
+`UiParticipation`, typed/untyped property access and path or compiled bindings
+are the consumer surface. `UiPanel`, `UiStackPanel`, `UiBorder`, `UiGrid`,
+`UiContentControl`, `UiButton`, `UiTextBlock`, `UiTextBox`,
+`UiNumericEditor`, `UiScrollViewer` and `UiItemsControl` are thin facades over
+the same retained tree. The public surface does not expose dirty masks,
+retained arrays, frame-local clip indices, ECS storage or renderer objects.
 
 `IUiBinding` and `IUiBinding<T>` provide read and optional write operations;
-failures are returned as `Delta.Diagnostics.Diagnostic?`. Compiled binding
-delegates and validation remain implementation details of the library.
-`IXamlTypeResolver` is the explicit custom factory boundary. It does not
-perform reflection discovery or infer types from arbitrary assemblies.
+failures are returned as `Delta.Diagnostics.Diagnostic?`. `UiBindingExpression`
+handles compact `{Binding Path=..., Mode=..., Converter=..., StringFormat=...}`
+markup. `UiCompiledBinding<TSource,TValue>` is the no-reflection code path for
+typed source access and optional two-way writes; it observes
+`INotifyPropertyChanged` when available. `IUiValueConverter` and
+`IUiBindingResolver` are explicit converter boundaries.
+
+`UiResourceCatalog`, `UiStyle`, `UiTheme` and `UiTemplate` provide the small
+resource/style/template layer. `{DynamicResource Key}` and
+`{StaticResource Key}` are explicit loader forms; the current implementation
+uses the same live catalog subscription for both. Style values use the
+retained precedence `Default < Style < Binding < Local < Handle`; resource
+updates invalidate only consuming properties.
+
+`UiElement.GetHandle` returns an opaque generation-safe `UiPropertyHandle`;
+`UiElement.TrySet` is the direct host-write path. The handle does not expose
+retained storage or dirty flags and becomes invalid when its retained lifetime
+changes.
+
+`XamlTypeCatalog` is the explicit custom factory boundary. It does not perform
+reflection discovery or infer types from arbitrary assemblies. Built-in `Grid`
+attributes accept fixed pixels, `Auto` and star lengths (for example
+`Columns="160,*,Auto"`).
 
 `XamlLoader` passes unknown element names to `IXamlTypeResolver`. The current
 adapter supports GUID-valued `ForegroundResource` references through
@@ -50,10 +70,11 @@ details and must not be used for new cross-project integration. Cross-project
 integration uses `Delta.XAML.Contract`; the library-shaped API above is the
 consumer entry point.
 
-The current public library contract does not include a control-specific
-compatibility promise. Controls, templates, dirty propagation, focus,
-routing, concrete resource stores and caches remain internal implementation
-choices behind the facade.
+The public controls are intentionally compact and do not promise WPF,
+Avalonia or MAUI parity. Text shaping and glyph generation remain owned by
+DeltaText through `ITextService`; DeltaXAML only creates text requests and
+adapts shaped output to the canonical display list. Clipboard access is
+platform-neutral (`IUiClipboard`), while the host supplies any OS bridge.
 
 ## Boundary ownership
 
@@ -64,3 +85,7 @@ choices behind the facade.
 - DeltaRender owns atlas/GPU/pipeline work and consumes `UiDisplayList`.
 
 No Avalonia, SDL, Vulkan, DeltaEngine or ECS model is part of this library API.
+Binding markup currently supports dotted public property paths, the three
+binding modes, registered converters and string formatting; it does not yet
+implement compiled XAML code generation, triggers, validation rules or full
+markup-extension parity.

@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.ComponentModel;
+using Delta.Text;
 using DeltaXAML.Internal;
 using Library = Delta.XAML;
 using LibraryContract = Delta.XAML.Contract;
@@ -101,6 +103,57 @@ sealed class CustomLibraryTypeResolver : Library.IXamlTypeResolver
     }
 }
 
+sealed class BindingModel : INotifyPropertyChanged
+{
+    private string _name = string.Empty;
+
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (_name == value)
+            {
+                return;
+            }
+
+            _name = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
+sealed class UpperConverter : Library.IUiValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter) => value?.ToString()?.ToUpperInvariant();
+
+    public bool TryConvertBack(object? value, Type sourceType, object? parameter, out object? result, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out Delta.Diagnostics.Diagnostic? diagnostic)
+    {
+        result = value?.ToString();
+        diagnostic = null;
+        return true;
+    }
+}
+
+sealed class BindingResolver : Library.IUiBindingResolver
+{
+    private readonly UpperConverter _upper = new();
+
+    public bool TryResolveConverter(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Library.IUiValueConverter? converter)
+    {
+        if (key == "Upper")
+        {
+            converter = _upper;
+            return true;
+        }
+
+        converter = null;
+        return false;
+    }
+}
+
 sealed class EmptyTextService : TextContract.ITextService
 {
     public TextContract.FontInstanceId OpenFont(in TextContract.FontOpenRequest request) => throw new NotSupportedException();
@@ -121,11 +174,14 @@ internal static class Program
         PointerFocusAndDispatch();
         ScrollAndClips();
         TextRunStabilityAndDelta();
+        TextDisplayListUsesDeltaText();
+        BindingExpressionsAndContexts();
         DrawListProducerContract();
         StorageReuse();
         HandlesCompiledBindingsAndCustomTypes();
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
+        PublicResourcesStylesTemplatesAndTypes();
         LibraryFacadeSmoke();
         FrameContractAndBatchedMutations();
     }
@@ -506,7 +562,7 @@ internal static class Program
         Assert.True(loaded.Success && loaded.Root is not null, "library loader returns retained root");
         if (loaded.Root is not { } root) { throw new InvalidOperationException("library loader root missing"); }
         using var text = new EmptyTextService();
-        var document = new Library.UiDocument(root, text);
+        using var document = new Library.UiDocument(root, text);
         document.Layout(new Delta.Maths.float2(80, 20), 1);
         var display = document.BuildDisplayList();
         Assert.Equal(1, display.Visuals.Length, "library document builds canonical visual display list");
@@ -530,9 +586,187 @@ internal static class Program
         using var textDocument = new EmptyTextService();
         var textRoot = loader.Load("<TextBlock Text=\"Hello\" />", in context).Root;
         if (textRoot is null) { throw new InvalidOperationException("library text root missing"); }
-        var textDocumentOwner = new Library.UiDocument(textRoot, textDocument);
+        using var textDocumentOwner = new Library.UiDocument(textRoot, textDocument);
         textDocumentOwner.Layout(new Delta.Maths.float2(80, 20), 1);
-        Assert.True(!textDocumentOwner.TryBuildDisplayList(out _, out var textDiagnostic) && textDiagnostic is { } unsupported && unsupported.Code.Value == "XAML_DISPLAY_TEXT_UNSUPPORTED", "unsupported text returns a diagnostic");
+        Assert.True(!textDocumentOwner.TryBuildDisplayList(out _, out var textDiagnostic) && textDiagnostic is { } unsupported && unsupported.Code.Value == "XAML_TEXT_FONT_NOT_FOUND", "unregistered text font returns a diagnostic");
+    }
+
+    private static void TextDisplayListUsesDeltaText()
+    {
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
+        Assert.True(File.Exists(fontPath), "DeltaText fixture font is copied for the text adapter test");
+        var fonts = new Library.UiFontCatalog();
+        fonts.Register(
+            "default",
+            new TextContract.FontSourceId(new Guid("E7C9B4D5-FD99-4D2A-8A6C-4A2A5B8F2FCB")),
+            File.ReadAllBytes(fontPath));
+        var text = new Library.UiTextBlock { Text = "A", Width = 240, Height = 40 };
+        var root = new Library.UiPanel();
+        root.Add(text);
+        using var textService = new HarfBuzzTextService();
+        using var document = new Library.UiDocument(root, textService, fonts);
+        document.Layout(new Delta.Maths.float2(240, 40), 1);
+        var first = document.BuildDisplayList();
+        Assert.Equal(1, first.Text.Length, "facade emits one canonical text draw");
+        var firstShaped = first.Text[0].Text;
+        Assert.True(firstShaped.Runs.Length > 0, "DeltaText returns positioned shaped runs");
+        var second = document.BuildDisplayList();
+        Assert.True(ReferenceEquals(firstShaped, second.Text[0].Text), "unchanged text reuses shaped cache");
+        text.Text = "B";
+        var third = document.BuildDisplayList();
+        Assert.True(!ReferenceEquals(firstShaped, third.Text[0].Text), "text mutation reshapes only the changed text cache");
+        Assert.Equal(first.Text[0].Clip, third.Text[0].Clip, "text clip identity remains canonical");
+    }
+
+    private static void BindingExpressionsAndContexts()
+    {
+        var loader = new Library.XamlLoader();
+        var context = new Library.XamlLoadContext(
+            new EmptyLibraryTypeResolver(),
+            new EmptyLibraryResourceResolver(),
+            new BindingResolver());
+        var loaded = loader.Load("<Panel><TextBlock Text=\"{Binding Name, Converter=Upper}\" /></Panel>", in context);
+        Assert.True(loaded.Success && loaded.Root is not null, "binding expression loads");
+        if (loaded.Root is not { } loadedRoot) { throw new InvalidOperationException("binding root missing"); }
+        var model = new BindingModel { Name = "Ada" };
+        loadedRoot.BindingContext = model;
+        if (loadedRoot.Children[0] is not Library.UiTextBlock boundText) { throw new InvalidOperationException("bound text missing"); }
+        Assert.True(boundText.Text == "ADA", "binding context and converter update target");
+        model.Name = "Grace";
+        Assert.True(boundText.Text == "GRACE", "source notification updates target");
+        var parsed = Library.UiBindingExpression.Parse("{Binding Path=Name, Mode=TwoWay}");
+        Assert.Equal(Library.UiBindingMode.TwoWay, parsed.Mode, "binding parser preserves the declared mode");
+        var compiledText = new Library.UiTextBox();
+        using var compiled = new Library.UiCompiledBinding<BindingModel, string>(model, source => source.Name, (source, value) => source.Name = value, Library.UiBindingMode.TwoWay);
+        compiledText.SetBinding("Text", compiled);
+        Assert.Equal("Grace", compiledText.Text, "compiled binding initializes the target");
+        model.Name = "Lin";
+        Assert.Equal("Lin", compiledText.Text, "compiled binding observes source changes");
+        compiledText.SetText("Mina");
+        Assert.Equal("Mina", model.Name, "compiled two-way binding writes the source");
+
+        var twoWay = loader.Load("<Panel><TextBox Text=\"{Binding Name, Mode=TwoWay}\" /></Panel>", in context);
+        Assert.True(twoWay.Success && twoWay.Root is not null, "two-way binding expression loads");
+        if (twoWay.Root is not { } twoWayRoot) { throw new InvalidOperationException("two-way root missing"); }
+        var editModel = new BindingModel();
+        twoWayRoot.BindingContext = editModel;
+        using var emptyTextService = new EmptyTextService();
+        using var document = new Library.UiDocument(twoWayRoot, emptyTextService);
+        document.Layout(new Delta.Maths.float2(100, 30), 1);
+        document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(new LibraryContract.UiPointerEvent(
+            LibraryContract.UiPointerEventKind.ButtonDown,
+            LibraryContract.UiPointerDeviceKind.Mouse,
+            1,
+            new Delta.Maths.float2(1, 1),
+            default,
+            default,
+            LibraryContract.UiPointerButton.Primary,
+            new LibraryContract.UiPointerButtons(1),
+            0,
+            default)));
+        document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("Bob".AsMemory())));
+        if (twoWayRoot.Children[0] is not Library.UiTextBox editText) { throw new InvalidOperationException("edit text missing"); }
+        Assert.True(editText.Text == "Bob" && editModel.Name == "Bob", "two-way text edit writes the source");
+    }
+
+    private static void PublicResourcesStylesTemplatesAndTypes()
+    {
+        var resources = new Library.UiResourceCatalog();
+        var firstColor = new Library.UiColor(10, 20, 30);
+        var secondColor = new Library.UiColor(40, 50, 60);
+        resources.Set("TextColor", firstColor);
+        var style = new Library.UiStyle("Body", "TextBlock", resources);
+        style.SetResource("Foreground", "TextColor");
+        style.Set("FontSize", 18f);
+        var theme = new Library.UiTheme(resources);
+        theme.Add(style);
+
+        var text = new Library.UiTextBlock { StyleKey = "Body" };
+        var other = new Library.UiTextBlock();
+        theme.Apply(text);
+        Assert.Equal(firstColor, text.Foreground, "resource-backed style resolves through the user API");
+        Assert.Equal(18f, text.FontSize, "style value uses the retained style source");
+        resources.Set("TextColor", secondColor);
+        Assert.Equal(secondColor, text.Foreground, "resource change updates the dependent style value");
+        Assert.Equal(new Library.UiColor(255, 255, 255), other.Foreground, "unrelated element is not changed by a resource update");
+
+        var loader = new Library.XamlLoader();
+        var dynamicLoaded = loader.Load(
+            "<TextBlock Foreground=\"{DynamicResource TextColor}\" />",
+            new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), resources));
+        Assert.True(dynamicLoaded.Success && dynamicLoaded.Root is Library.UiTextBlock, "DynamicResource markup loads through the public facade");
+        if (dynamicLoaded.Root is not Library.UiTextBlock dynamicText) { throw new InvalidOperationException("dynamic resource text missing"); }
+        Assert.Equal(secondColor, dynamicText.Foreground, "DynamicResource uses the named resource catalog");
+        resources.Set("TextColor", firstColor);
+        Assert.Equal(firstColor, dynamicText.Foreground, "DynamicResource remains live after a catalog update");
+        resources.Set("Alias", new Library.UiResourceReference("TextColor"));
+        Assert.True(resources.TryResolve("Alias", out var aliasValue) && aliasValue is Library.UiColor, "resource aliases resolve through the public catalog");
+        resources.Set("CycleA", new Library.UiResourceReference("CycleB"));
+        resources.Set("CycleB", new Library.UiResourceReference("CycleA"));
+        var cycle = loader.Load(
+            "<TextBlock Foreground=\"{DynamicResource CycleA}\" />",
+            new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), resources));
+        Assert.True(!cycle.Success && cycle.Diagnostics.Length == 1 && cycle.Diagnostics.Span[0].Code.Value == "XAML006", "resource cycles are reported instead of producing a partial tree");
+
+        var types = new Library.XamlTypeCatalog();
+        types.Register(new Library.XamlQualifiedName("urn:sample", "Badge"), static () => new Library.UiBorder());
+        Assert.True(types.TryResolveName(new Library.XamlQualifiedName("urn:sample", "Badge"), out var badgeType) && types.TryCreate(badgeType, out _), "custom type catalog resolves and creates directly");
+        var custom = loader.Load(
+            "<Badge xmlns=\"urn:sample\" />",
+            new Library.XamlLoadContext(types, resources));
+        Assert.True(custom.Success && custom.Root is Library.UiBorder, "registered custom type is created without reflection discovery");
+
+        var grid = loader.Load(
+            "<Grid Columns=\"40,*,Auto\" Rows=\"Auto,*\"><TextBlock Text=\"Name\" /><NumericEditor Value=\"2\" Minimum=\"0\" Maximum=\"10\" /></Grid>",
+            new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), resources));
+        Assert.True(grid.Success && grid.Root is Library.UiGrid && grid.Root.Children.Count == 2, "XAML grid and numeric control attributes load together");
+        if (grid.Root is not Library.UiGrid loadedGrid) { throw new InvalidOperationException("grid root missing"); }
+        Assert.Equal(2, loadedGrid.Children.Count, "grid fixture retains both declared children");
+        Assert.True(loadedGrid.Children[1] is Library.UiNumericEditor numericFromXaml && numericFromXaml.CurrentValue == 2, "numeric XAML attributes initialize the editor");
+
+        var host = new Library.UiContentControl { TemplateKey = "Label" };
+        theme.RegisterTemplate("Label", new Library.UiTemplate(_ => new Library.UiTextBlock { Text = "templated" }));
+        theme.Apply(host);
+        Assert.True(host.Content is Library.UiTextBlock templated && templated.Text == "templated", "template creates one retained child");
+
+        var items = new Library.UiItemsControl();
+        var created = 0;
+        var values = new object?[] { "one", "two" };
+        items.SetItems(values, value =>
+        {
+            created++;
+            return new Library.UiTextBlock { Text = value?.ToString() ?? string.Empty };
+        });
+        items.SetItems(values, value =>
+        {
+            created++;
+            return new Library.UiTextBlock { Text = value?.ToString() ?? string.Empty };
+        });
+        Assert.Equal(2, created, "unchanged collection items reuse retained rows");
+        items.SetItems(new object?[] { "one", "three" }, value =>
+        {
+            created++;
+            return new Library.UiTextBlock { Text = value?.ToString() ?? string.Empty };
+        });
+        Assert.Equal(3, created, "only changed collection item creates a replacement row");
+
+        var clipboard = new Library.UiClipboard();
+        var editor = new Library.UiTextBox { Clipboard = clipboard };
+        editor.SetText("hello");
+        editor.SelectAll();
+        editor.Copy();
+        Assert.Equal("hello", clipboard.ReadText(), "public text editor uses the platform-neutral clipboard");
+        editor.SetText("changed");
+        Assert.True(editor.Undo() && editor.Text == "hello", "public text editor exposes retained undo");
+
+        var hostWrite = new Library.UiTextBlock { Text = "before" };
+        var textHandle = hostWrite.GetHandle("Text");
+        Assert.True(textHandle.IsValid && hostWrite.TrySet(textHandle, "after", out var handleDiagnostic) && handleDiagnostic is null && hostWrite.Text == "after", "public handle performs a generation-safe host write");
+
+        var numeric = new Library.UiNumericEditor();
+        numeric.Initialize(2);
+        Assert.True(!numeric.TryCommitText("not-a-number") && numeric.HasValidationError && numeric.CurrentValue == 2, "numeric editor preserves the committed value on validation failure");
+        Assert.True(numeric.TryCommitText("3") && numeric.CurrentValue == 3 && numeric.Increment(), "numeric editor commits and increments through the user API");
     }
 
     private static void FrameContractAndBatchedMutations()

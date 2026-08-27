@@ -23,6 +23,13 @@ cross-project handoff order is in
   change notification, one-way/two-way modes, and retained invalidation.
 - [x] Add a registered custom-type/factory catalog for XAML elements and
   diagnostics, without reflection-based discovery or MAUI coupling.
+- [x] Add the first user-facing text path: `TextBlock`/`TextBox`/
+  `NumericEditor` bindings and clipboard/edit commands through DeltaText and
+  the canonical display-list adapter.
+- [x] Add compact binding expressions, inherited `BindingContext`, explicit
+  converters, typed compiled bindings and two-way source updates.
+- [x] Add named resources, dynamic resource references, style precedence,
+  templates and collection-row reuse on the single retained tree.
 - [ ] Replace the current O(n) frame mutation lookup with a neutral retained
   index only after profiling shows that mutation volume justifies its upkeep.
 - [ ] Expand the dialect toward practical XAML capability coverage in staged
@@ -30,7 +37,7 @@ cross-project handoff order is in
   controls, input, and markup extensions. Track unsupported standard features
   explicitly; MAUI/WPF compatibility is not an acceptance criterion.
 
-- Connect real positioned DeltaText glyph runs to `TextBlock`, editors and
+- [x] Connect real positioned DeltaText glyph runs to `TextBlock`, editors and
   diagnostics without giving DeltaXAML font rasterization ownership.
 - Finish resize, focus, pointer/keyboard editing and scroll acceptance in the
   end-to-end editor shell.

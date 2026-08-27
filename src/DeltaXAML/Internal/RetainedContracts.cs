@@ -77,7 +77,8 @@ public readonly record struct UiClipId(uint Value);
 public readonly record struct UiClipEntry(UiClipId Id, UiRect Bounds, UiClipId Parent);
 /// <summary>Renderer-neutral text request; it is not shaped glyph data.</summary>
 /// <remarks>DeltaXAML owns content, style, layout bounds, DPI-dependent text metrics and identity. Owner plus OwnerGeneration identify retained lifetime; Version identifies text/style/DPI dirtiness. Layout changes are represented by Bounds, Clip and draw-list deltas. Shaping and glyph pixels remain external.</remarks>
-public readonly record struct UiTextRun(string FontKey, float FontSize, string Text, string GlyphRunKey, UiColor Color, UiRect Bounds, UiRect Clip, UiElementId Owner, uint OwnerGeneration, uint Version);
+public readonly record struct UiTextRun(string FontKey, float FontSize, string Text, string GlyphRunKey, UiColor Color, UiRect Bounds, UiRect Clip, UiElementId Owner, uint OwnerGeneration, uint Version, UiClipId ClipId = default);
+public readonly record struct UiBindingSpec(string Property, string Path, UiBindingMode Mode, string? ConverterKey, string? StringFormat);
 public readonly record struct UiDrawRange(int Start, int Count);
 public readonly record struct UiDrawDelta(UiDrawRange Commands, UiDrawRange TextRuns, uint BaseVersion, uint NextVersion)
 {

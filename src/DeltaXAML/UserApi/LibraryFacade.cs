@@ -15,6 +15,39 @@ namespace Delta.XAML;
 public readonly record struct UiPropertyId(Guid Value) { public bool IsValid => Value != Guid.Empty; }
 public readonly record struct UiTypeId(Guid Value) { public bool IsValid => Value != Guid.Empty; }
 public readonly record struct XamlQualifiedName(string Namespace, string LocalName);
+public readonly record struct UiColor(byte R, byte G, byte B, byte A = 255);
+public readonly record struct UiThickness(float Left, float Top, float Right, float Bottom)
+{
+    public static UiThickness Zero => default;
+}
+
+/// <summary>Opaque generation-safe property target for low-boilerplate host writes.</summary>
+public readonly struct UiPropertyHandle : IEquatable<UiPropertyHandle>
+{
+    private readonly Retained.UiPropertyHandle _retained;
+
+    internal UiPropertyHandle(Retained.UiPropertyHandle retained) => _retained = retained;
+
+    public string Name => _retained.Name;
+    public bool IsValid => _retained.Element.IsValid && _retained.Generation != 0 && !string.IsNullOrWhiteSpace(_retained.Name);
+    internal Retained.UiPropertyHandle Retained => _retained;
+    public bool Equals(UiPropertyHandle other) => _retained == other._retained;
+    public override bool Equals(object? obj) => obj is UiPropertyHandle other && Equals(other);
+    public override int GetHashCode() => _retained.GetHashCode();
+    public static bool operator ==(UiPropertyHandle left, UiPropertyHandle right) => left.Equals(right);
+    public static bool operator !=(UiPropertyHandle left, UiPropertyHandle right) => !left.Equals(right);
+}
+
+internal static class BindingModeMap
+{
+    internal static UiBindingMode ToPublic(Retained.UiBindingMode mode) => mode switch
+    {
+        Retained.UiBindingMode.OneTime => UiBindingMode.OneTime,
+        Retained.UiBindingMode.OneWay => UiBindingMode.OneWay,
+        Retained.UiBindingMode.TwoWay => UiBindingMode.TwoWay,
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unsupported binding mode."),
+    };
+}
 
 [Flags]
 public enum UiParticipation
@@ -66,7 +99,10 @@ public interface IXamlTypeResolver
     bool TryCreate(UiTypeId type, [NotNullWhen(true)] out UiElement? element);
 }
 
-public readonly record struct XamlLoadContext(IXamlTypeResolver Types, IUiResourceResolver Resources);
+public readonly record struct XamlLoadContext(
+    IXamlTypeResolver Types,
+    IUiResourceResolver Resources,
+    IUiBindingResolver? Bindings = null);
 
 public abstract class UiElement
 {
@@ -81,6 +117,77 @@ public abstract class UiElement
     public UiElement? Parent => _retained.Parent is RetainedElement parent ? Wrap(parent, _views) : null;
     public IReadOnlyList<UiElement> Children => new RetainedChildrenView(_retained, _views);
     protected IList<UiElement> MutableChildren => new RetainedChildrenEditor(_retained, _views);
+
+    /// <summary>Explicit binding source; descendants inherit it until they set their own context.</summary>
+    public object? BindingContext
+    {
+        get => _retained.BindingContext;
+        set => _retained.SetBindingContext(value, true);
+    }
+
+    public float Width
+    {
+        get => _retained.Width;
+        set => _retained.Width = value;
+    }
+
+    public float Height
+    {
+        get => _retained.Height;
+        set => _retained.Height = value;
+    }
+
+    public string TypeName => _retained.TypeName;
+
+    public string? StyleKey
+    {
+        get => _retained.StyleKey;
+        set => _retained.StyleKey = value;
+    }
+
+    public string? TemplateKey
+    {
+        get => _retained.TemplateKey;
+        set => _retained.TemplateKey = value;
+    }
+
+    public bool IsEnabled
+    {
+        get => _retained.IsEnabled;
+        set => _retained.IsEnabled = value;
+    }
+
+    public bool IsSelected
+    {
+        get => _retained.IsSelected;
+        set => _retained.IsSelected = value;
+    }
+
+    public bool Fill
+    {
+        get => _retained.Fill;
+        set => _retained.Fill = value;
+    }
+
+    public UiColor Background
+    {
+        get
+        {
+            var value = _retained.Background;
+            return new UiColor(value.R, value.G, value.B, value.A);
+        }
+        set => _retained.Background = new Retained.UiColor(value.R, value.G, value.B, value.A);
+    }
+
+    public UiThickness Padding
+    {
+        get
+        {
+            var value = _retained.Padding;
+            return new UiThickness(value.Left, value.Top, value.Right, value.Bottom);
+        }
+        set => _retained.Padding = new Retained.UiThickness(value.Left, value.Top, value.Right, value.Bottom);
+    }
     public UiParticipation Participation
     {
         get => _participation;
@@ -94,6 +201,20 @@ public abstract class UiElement
 
             _participation = value;
         }
+    }
+
+    public UiPropertyHandle GetHandle(string propertyName) => new(_retained.GetHandle(propertyName));
+
+    public bool TrySet(UiPropertyHandle handle, object? value, [NotNullWhen(false)] out Diagnostic? diagnostic)
+    {
+        if (!_retained.TrySet(handle.Retained, value, RetainedDirty.Binding | RetainedDirty.Visual, out var message))
+        {
+            diagnostic = new Diagnostic(new DiagnosticCode("XAML_PROPERTY"), DiagnosticSeverity.Error, message ?? "The property write was rejected.", null);
+            return false;
+        }
+
+        diagnostic = null;
+        return true;
     }
 
     public object? GetValue(IUiProperty property)
@@ -123,10 +244,45 @@ public abstract class UiElement
         _retained.SetLocal(property.Name, value, RetainedDirty.Binding | RetainedDirty.Visual);
     }
 
+    /// <summary>Attaches a programmatic binding without exposing retained invalidation flags.</summary>
+    public void SetBinding(string propertyName, IUiBinding binding)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(binding);
+        _retained.AttachExternalBinding(propertyName, binding);
+    }
+
+    /// <summary>Attaches a compact path binding to the element's inherited context.</summary>
+    public void SetBinding(string propertyName, UiBindingExpression expression)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(expression);
+        _retained.AttachBinding(new Retained.UiBindingRuntime(propertyName, expression));
+    }
+
     internal static UiElement Wrap(RetainedElement element, IReadOnlyDictionary<RetainedElement, UiElement>? views = null)
     {
         ArgumentNullException.ThrowIfNull(element);
-        return views is not null && views.TryGetValue(element, out var view) ? view : new RetainedElementView(element, views);
+        if (views is not null && views.TryGetValue(element, out var view))
+        {
+            return view;
+        }
+
+        return element switch
+        {
+            Retained.NumericEditor numericEditor => new UiNumericEditor(numericEditor, views),
+            Retained.TextBox textBox => new UiTextBox(textBox, views),
+            Retained.TextBlock textBlock => new UiTextBlock(textBlock, views),
+            Retained.StackPanel stackPanel => new UiStackPanel(stackPanel, views),
+            Retained.ItemsControl itemsControl => new UiItemsControl(itemsControl, views),
+            Retained.Panel panel => new UiPanel(panel, views),
+            Retained.Border border => new UiBorder(border, views),
+            Retained.Grid grid => new UiGrid(grid, views),
+            Retained.Button button => new UiButton(button, views),
+            Retained.ScrollViewer scrollViewer => new UiScrollViewer(scrollViewer, views),
+            Retained.ContentControl contentControl => new UiContentControl(contentControl, views),
+            _ => new RetainedElementView(element, views),
+        };
     }
 
     private sealed class RetainedElementView : UiElement
@@ -169,6 +325,270 @@ public abstract class UiElement
         public void RemoveAt(int index) => _owner.Remove(_owner.Children[index]);
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
+
+    internal void ApplyStyleValue(string propertyName, object? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        _retained.SetStyle(propertyName, ToRetainedValue(value), RetainedDirty.Measure | RetainedDirty.Visual);
+    }
+
+    internal void ApplyStyleResource(string propertyName, UiResourceCatalog resources, string resourceKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(resources);
+        _retained.SetStyleResource(propertyName, resources.Store, new(resourceKey), RetainedDirty.Measure | RetainedDirty.Visual);
+    }
+
+    internal void SetTemplateContent(UiElement content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        MutableChildren.Add(content);
+    }
+
+    private static object? ToRetainedValue(object? value) => value switch
+    {
+        UiColor color => new Retained.UiColor(color.R, color.G, color.B, color.A),
+        UiThickness thickness => new Retained.UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
+        UiResourceReference reference => new Retained.UiResourceReference(reference.Key),
+        _ => value,
+    };
+}
+
+/// <summary>Convenience retained panel for code-authored composition.</summary>
+public class UiPanel : UiElement
+{
+    public UiPanel() : base(new Retained.Panel(), null) { }
+    internal UiPanel(RetainedElement element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public void Add(UiElement child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        MutableChildren.Add(child);
+    }
+
+    public bool Remove(UiElement child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        return MutableChildren.Remove(child);
+    }
+}
+
+/// <summary>Vertical or horizontal retained stack panel.</summary>
+public sealed class UiStackPanel : UiPanel
+{
+    private Retained.StackPanel StackElement => (Retained.StackPanel)RetainedElement;
+
+    public UiStackPanel() : base(new Retained.StackPanel(), null) { }
+    internal UiStackPanel(Retained.StackPanel element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public UiOrientation Orientation
+    {
+        get => (UiOrientation)StackElement.Orientation;
+        set => StackElement.Orientation = (Retained.UiOrientation)value;
+    }
+}
+
+/// <summary>Retained collection host that reuses rows when item identity is unchanged.</summary>
+public sealed class UiItemsControl : UiPanel
+{
+    private Retained.ItemsControl ItemsElement => (Retained.ItemsControl)RetainedElement;
+
+    public UiItemsControl() : base(new Retained.ItemsControl(), null) { }
+    internal UiItemsControl(Retained.ItemsControl element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public IReadOnlyList<object?> Items => ItemsElement.Items;
+
+    public void SetItems(IReadOnlyList<object?> items, Func<object?, UiElement> factory)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(factory);
+        ItemsElement.SetItems(items, item => CreateRetainedItem(factory(item)));
+    }
+
+    private static RetainedElement CreateRetainedItem(UiElement? item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return item.RetainedElement;
+    }
+}
+
+/// <summary>Retained border with one optional child.</summary>
+public sealed class UiBorder : UiElement
+{
+    private Retained.Border BorderElement => (Retained.Border)RetainedElement;
+
+    public UiBorder() : base(new Retained.Border(), null) { }
+    internal UiBorder(Retained.Border element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public UiElement? Child => Children.Count == 0 ? null : Children[0];
+
+    public void SetChild(UiElement? child)
+    {
+        if (child is null)
+        {
+            BorderElement.ClearChildren();
+            return;
+        }
+
+        BorderElement.ClearChildren();
+        BorderElement.Add(child.RetainedElement);
+    }
+}
+
+/// <summary>Retained content host with one optional child.</summary>
+public class UiContentControl : UiElement
+{
+    private Retained.ContentControl ContentElement => (Retained.ContentControl)RetainedElement;
+
+    public UiContentControl() : base(new Retained.ContentControl(), null) { }
+    internal UiContentControl(Retained.ContentControl element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public UiElement? Content => Children.Count == 0 ? null : Children[0];
+
+    public void SetContent(UiElement? content) => ContentElement.Content = content?.RetainedElement;
+}
+
+/// <summary>Retained button control with a neutral click callback.</summary>
+public class UiButton : UiContentControl
+{
+    private Retained.Button ButtonElement => (Retained.Button)RetainedElement;
+
+    public UiButton() : base(new Retained.Button(), null) { }
+    internal UiButton(Retained.Button element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public event EventHandler? Click
+    {
+        add => ButtonElement.Click += value;
+        remove => ButtonElement.Click -= value;
+    }
+}
+
+/// <summary>Retained grid facade with fixed, auto and star definitions.</summary>
+public sealed class UiGrid : UiElement
+{
+    private Retained.Grid GridElement => (Retained.Grid)RetainedElement;
+
+    public UiGrid() : base(new Retained.Grid(), null) { }
+    internal UiGrid(Retained.Grid element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public void SetColumns(params UiGridLength[] columns) => GridElement.SetColumns(columns.Select(ToRetained).ToArray());
+
+    public void SetRows(params UiGridLength[] rows) => GridElement.SetRows(rows.Select(ToRetained).ToArray());
+
+    private static Retained.GridLength ToRetained(UiGridLength value) => new(value.Value, (Retained.GridUnitType)value.Unit);
+}
+
+public enum UiGridUnitType { Pixel, Auto, Star }
+
+public enum UiOrientation { Horizontal, Vertical }
+
+public readonly record struct UiGridLength(float Value, UiGridUnitType Unit)
+{
+    public static UiGridLength Pixel(float value) => new(value, UiGridUnitType.Pixel);
+    public static UiGridLength Auto => new(1, UiGridUnitType.Auto);
+    public static UiGridLength Star(float weight = 1) => new(weight, UiGridUnitType.Star);
+}
+
+/// <summary>Convenience retained text element for code-authored composition.</summary>
+public class UiTextBlock : UiElement
+{
+    private Retained.TextBlock TextElement => (Retained.TextBlock)RetainedElement;
+
+    public UiTextBlock() : base(new Retained.TextBlock(), null) { }
+
+    internal UiTextBlock(Retained.TextBlock element, IReadOnlyDictionary<RetainedElement, UiElement>? views)
+        : base(element, views) { }
+
+    public string Text { get => TextElement.Text; set => TextElement.Text = value; }
+
+    public string FontKey { get => TextElement.FontKey; set => TextElement.FontKey = value; }
+
+    public float FontSize { get => TextElement.FontSize; set => TextElement.FontSize = value; }
+
+    public UiColor Foreground
+    {
+        get
+        {
+            var value = TextElement.Foreground;
+            return new UiColor(value.R, value.G, value.B, value.A);
+        }
+        set => TextElement.Foreground = new Retained.UiColor(value.R, value.G, value.B, value.A);
+    }
+}
+
+/// <summary>Convenience retained text editor for code-authored composition.</summary>
+public class UiTextBox : UiTextBlock
+{
+    private Retained.TextBox TextBoxElement => (Retained.TextBox)RetainedElement;
+    private IUiClipboard? _clipboard;
+    private ClipboardBridge? _clipboardBridge;
+
+    public UiTextBox() : base(new Retained.TextBox(), null) { }
+
+    internal UiTextBox(Retained.TextBox element, IReadOnlyDictionary<RetainedElement, UiElement>? views)
+        : base(element, views) { }
+
+    public void SetText(string text) => TextBoxElement.SetText(text);
+
+    public IUiClipboard? Clipboard
+    {
+        get => _clipboard;
+        set
+        {
+            _clipboard = value;
+            _clipboardBridge = value is null ? null : new ClipboardBridge(value);
+            TextBoxElement.Clipboard = _clipboardBridge;
+        }
+    }
+
+    public void SelectAll() => TextBoxElement.SelectAll();
+    public void Copy() => TextBoxElement.Copy();
+    public void Cut() => TextBoxElement.Cut();
+    public bool Paste() => TextBoxElement.Paste();
+    public bool Undo() => TextBoxElement.Undo();
+    public bool Redo() => TextBoxElement.Redo();
+
+    private sealed class ClipboardBridge(IUiClipboard clipboard) : Retained.IUiClipboard
+    {
+        public string? ReadText() => clipboard.ReadText();
+        public void SetText(string? text) => clipboard.SetText(text);
+        public bool HasText => clipboard.HasText;
+    }
+}
+
+/// <summary>Numeric retained editor with explicit validation and commit state.</summary>
+public sealed class UiNumericEditor : UiTextBox
+{
+    private Retained.NumericEditor NumericElement => (Retained.NumericEditor)RetainedElement;
+
+    public UiNumericEditor() : base(new Retained.NumericEditor(), null) { }
+    internal UiNumericEditor(Retained.NumericEditor element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public double CurrentValue => NumericElement.Value;
+    public double Minimum { get => NumericElement.Min; set => NumericElement.Min = value; }
+    public double Maximum { get => NumericElement.Max; set => NumericElement.Max = value; }
+    public bool HasValidationError => NumericElement.HasValidationError;
+    public bool IsDirty => NumericElement.IsDirty;
+    public string? Diagnostic => NumericElement.Diagnostic;
+    public void Initialize(double value) => NumericElement.Initialize(value);
+    public bool TryCommit() => NumericElement.TryCommit();
+    public bool TryCommitText(string text) => NumericElement.TryCommitText(text);
+    public void CancelEdit() => NumericElement.CancelEdit();
+    public bool Increment(double step = 1) => NumericElement.Increment(step);
+    public bool Decrement(double step = 1) => NumericElement.Decrement(step);
+}
+
+/// <summary>Retained content viewport with platform-neutral scrolling.</summary>
+public sealed class UiScrollViewer : UiContentControl
+{
+    private Retained.ScrollViewer ScrollElement => (Retained.ScrollViewer)RetainedElement;
+
+    public UiScrollViewer() : base(new Retained.ScrollViewer(), null) { }
+    internal UiScrollViewer(Retained.ScrollViewer element, IReadOnlyDictionary<RetainedElement, UiElement>? views) : base(element, views) { }
+
+    public float OffsetX => ScrollElement.Offset.X;
+    public float OffsetY => ScrollElement.Offset.Y;
+    public void ScrollBy(float x, float y) => ScrollElement.ScrollBy(x, y);
 }
 
 public sealed class XamlLoadResult
@@ -196,7 +616,9 @@ public sealed class XamlLoader : IXamlLoader
         var resourceResolver = context.Resources;
         var views = new Dictionary<RetainedElement, UiElement>();
         var contextDiagnostics = new List<Diagnostic>();
-        var resources = ResolveResources(source, resourceResolver, contextDiagnostics);
+        var resources = resourceResolver is UiResourceCatalog catalog
+            ? catalog.Store
+            : ResolveResources(source, resourceResolver, resourceResolver as IUiNamedResourceResolver, contextDiagnostics);
         if (contextDiagnostics.Count != 0)
         {
             return new(null, contextDiagnostics.ToArray());
@@ -206,8 +628,41 @@ public sealed class XamlLoader : IXamlLoader
             source,
             (namespaceUri, localName) => CreateCustomElement(namespaceUri, localName, typeResolver, views),
             resources);
-        var diagnostics = ConvertDiagnostics(retained.Diagnostics);
-        return new(retained.Root is null ? null : UiElement.Wrap(retained.Root, views), diagnostics);
+        var diagnostics = new List<Diagnostic>(ConvertDiagnostics(retained.Diagnostics));
+        if (retained.Root is not null)
+        {
+            AttachBindingSpecs(retained.Root, context.Bindings, diagnostics);
+        }
+
+        return new(diagnostics.Count == 0 && retained.Root is not null ? UiElement.Wrap(retained.Root, views) : null, diagnostics.ToArray());
+    }
+
+    private static void AttachBindingSpecs(
+        RetainedElement element,
+        IUiBindingResolver? resolver,
+        List<Diagnostic> diagnostics)
+    {
+        foreach (var spec in element.BindingSpecs)
+        {
+            IUiValueConverter? converter = null;
+            if (spec.ConverterKey is not null && (resolver is null || !resolver.TryResolveConverter(spec.ConverterKey, out converter)))
+            {
+                diagnostics.Add(CreateDiagnostic("XAML009", $"Binding converter '{spec.ConverterKey}' was not registered."));
+                continue;
+            }
+
+            element.AttachBinding(new Retained.UiBindingRuntime(
+                spec.Property,
+                new UiBindingExpression(spec.Path, BindingModeMap.ToPublic(spec.Mode), converter, spec.StringFormat)));
+        }
+
+        foreach (var child in element.Children)
+        {
+            if (child is RetainedElement retainedChild)
+            {
+                AttachBindingSpecs(retainedChild, resolver, diagnostics);
+            }
+        }
     }
 
     private static RetainedElement? CreateCustomElement(string namespaceUri, string localName, IXamlTypeResolver resolver, Dictionary<RetainedElement, UiElement> views)
@@ -223,7 +678,7 @@ public sealed class XamlLoader : IXamlLoader
         return element.RetainedElement;
     }
 
-    private static Retained.UiResourceStore? ResolveResources(string source, IUiResourceResolver resolver, List<Diagnostic> diagnostics)
+    private static Retained.UiResourceStore? ResolveResources(string source, IUiResourceResolver resolver, IUiNamedResourceResolver? namedResolver, List<Diagnostic> diagnostics)
     {
         Retained.UiResourceStore? resources = null;
         try
@@ -238,25 +693,38 @@ public sealed class XamlLoader : IXamlLoader
 
                 while (reader.MoveToNextAttribute())
                 {
-                    if (!string.Equals(reader.LocalName, "ForegroundResource", StringComparison.Ordinal))
+                    if (string.Equals(reader.LocalName, "ForegroundResource", StringComparison.Ordinal))
+                    {
+                        if (!Guid.TryParse(reader.Value, out var resourceGuid))
+                        {
+                            diagnostics.Add(CreateDiagnostic("XAML005", $"Resource '{reader.Value}' is not a GUID identity."));
+                            continue;
+                        }
+
+                        if (!resolver.TryResolve(new UiResourceId(resourceGuid), out var value))
+                        {
+                            diagnostics.Add(CreateDiagnostic("XAML006", $"Resource '{resourceGuid}' was not resolved."));
+                            continue;
+                        }
+
+                        resources ??= new Retained.UiResourceStore();
+                        resources.Set(resourceGuid.ToString("D"), value);
+                        continue;
+                    }
+
+                    if (!TryParseResourceReference(reader.Value, out var resourceKey))
                     {
                         continue;
                     }
 
-                    if (!Guid.TryParse(reader.Value, out var resourceGuid))
+                    if (namedResolver is null || !namedResolver.TryResolve(resourceKey, out var namedValue))
                     {
-                        diagnostics.Add(CreateDiagnostic("XAML005", $"Resource '{reader.Value}' is not a GUID identity."));
-                        continue;
-                    }
-
-                    if (!resolver.TryResolve(new UiResourceId(resourceGuid), out var value))
-                    {
-                        diagnostics.Add(CreateDiagnostic("XAML006", $"Resource '{resourceGuid}' was not resolved."));
+                        diagnostics.Add(CreateDiagnostic("XAML006", $"Resource '{resourceKey}' was not resolved."));
                         continue;
                     }
 
                     resources ??= new Retained.UiResourceStore();
-                    resources.Set(reader.Value, value);
+                    resources.Set(resourceKey, namedValue);
                 }
 
                 reader.MoveToElement();
@@ -268,6 +736,25 @@ public sealed class XamlLoader : IXamlLoader
         }
 
         return resources;
+    }
+
+    private static bool TryParseResourceReference(string value, out string key)
+    {
+        key = string.Empty;
+        if ((!value.StartsWith("{DynamicResource ", StringComparison.Ordinal) && !value.StartsWith("{StaticResource ", StringComparison.Ordinal)) || !value.EndsWith('}'))
+        {
+            return false;
+        }
+
+        var body = value[1..^1].Trim();
+        var separator = body.IndexOf(' ', StringComparison.Ordinal);
+        if (separator < 0)
+        {
+            return false;
+        }
+
+        key = body[(separator + 1)..].Trim();
+        return key.Length != 0;
     }
 
     private static Diagnostic[] ConvertDiagnostics(IReadOnlyList<Retained.XamlDiagnostic> diagnostics)
@@ -298,10 +785,13 @@ public sealed class XamlLoader : IXamlLoader
     }
 }
 
-public sealed class UiDocument
+public sealed class UiDocument : IDisposable
 {
     private readonly Retained.UiFrame _retainedFrame;
     private readonly ITextService _textService;
+    private readonly IUiFontResolver _fontResolver;
+    private readonly Dictionary<string, FontInstanceId> _fontInstances = new(StringComparer.Ordinal);
+    private readonly Dictionary<UiTextCacheKey, UiTextCacheEntry> _textCache = new();
     private UiVisualCommand[] _visuals = Array.Empty<UiVisualCommand>();
     private UiClip[] _clips = Array.Empty<UiClip>();
     private UiTextDraw[] _text = Array.Empty<UiTextDraw>();
@@ -310,15 +800,37 @@ public sealed class UiDocument
     private int _textCount;
 
     public UiDocument(UiElement root, ITextService textService)
+        : this(root, textService, EmptyFontResolver.Instance)
+    {
+    }
+
+    public UiDocument(UiElement root, ITextService textService, IUiFontResolver? fontResolver)
     {
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(textService);
         Root = root;
         _textService = textService;
+        _fontResolver = fontResolver ?? EmptyFontResolver.Instance;
         _retainedFrame = new Retained.UiFrame(root.RetainedElement);
     }
 
     public UiElement Root { get; }
+
+    public void Dispose()
+    {
+        if (_fontInstances.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var font in _fontInstances.Values)
+        {
+            _textService.CloseFont(font);
+        }
+
+        _fontInstances.Clear();
+        _textCache.Clear();
+    }
 
     public void Dispatch(in UiInputEvent input)
     {
@@ -367,12 +879,6 @@ public sealed class UiDocument
     public bool TryBuildDisplayList(out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
         var retained = _retainedFrame.ExtractDrawList(new RetainedContracts.UiFrameContext(new(Root.RetainedElement.Bounds.Width, Root.RetainedElement.Bounds.Height), Root.RetainedElement.DpiScale, 0));
-        if (retained.TextRuns.Length != 0)
-        {
-            displayList = default;
-            diagnostic = new Diagnostic(new DiagnosticCode("XAML_DISPLAY_TEXT_UNSUPPORTED"), DiagnosticSeverity.Error, "The retained text run has no DeltaText font-instance mapping.", null);
-            return false;
-        }
 
         for (var i = 0; i < retained.Commands.Length; i++)
         {
@@ -401,10 +907,10 @@ public sealed class UiDocument
 
         _visualCount = retained.Commands.Length;
         _clipCount = retained.Clips.Length;
-        _textCount = 0;
+        _textCount = retained.TextRuns.Length;
         EnsureCapacity(ref _visuals, _visualCount);
         EnsureCapacity(ref _clips, _clipCount);
-        EnsureCapacity(ref _text, 0);
+        EnsureCapacity(ref _text, _textCount);
         for (var i = 0; i < _clipCount; i++)
         {
             var source = retained.Clips.Span[i];
@@ -419,9 +925,134 @@ public sealed class UiDocument
             _visuals[i] = new(UiVisualKind.SolidRectangle, default, ToFloat4(source.Bounds), ToColor(source.Color), clip, UiResourceId.Empty);
         }
 
+        for (var i = 0; i < _textCount; i++)
+        {
+            if (!TryBuildTextDraw(retained.TextRuns.Span[i], out _text[i], out diagnostic))
+            {
+                displayList = default;
+                return false;
+            }
+        }
+
         displayList = new(_visuals.AsSpan(0, _visualCount), _clips.AsSpan(0, _clipCount), _text.AsSpan(0, _textCount));
         diagnostic = null;
         return true;
+    }
+
+    private bool TryBuildTextDraw(RetainedContracts.UiTextRun run, out UiTextDraw draw, out Diagnostic? diagnostic)
+    {
+        draw = default;
+        if (!_fontResolver.TryResolve(run.FontKey, out var request))
+        {
+            diagnostic = TextDiagnostic("XAML_TEXT_FONT_NOT_FOUND", $"Font key '{run.FontKey}' was not registered.");
+            return false;
+        }
+
+        if (!_fontInstances.TryGetValue(run.FontKey, out var font))
+        {
+            try
+            {
+                font = _textService.OpenFont(request);
+            }
+            catch (ArgumentException exception)
+            {
+                diagnostic = TextDiagnostic("XAML_TEXT_FONT_OPEN_FAILED", exception.Message);
+                return false;
+            }
+            catch (InvalidOperationException exception)
+            {
+                diagnostic = TextDiagnostic("XAML_TEXT_FONT_OPEN_FAILED", exception.Message);
+                return false;
+            }
+
+            _fontInstances.Add(run.FontKey, font);
+        }
+
+        var cacheKey = new UiTextCacheKey(run.Owner, run.OwnerGeneration, run.GlyphRunKey);
+        if (!_textCache.TryGetValue(cacheKey, out var cache) ||
+            cache.Version != run.Version ||
+            cache.FontKey != run.FontKey ||
+            !cache.Text.Equals(run.Text, StringComparison.Ordinal) ||
+            !cache.FontSize.Equals(run.FontSize))
+        {
+            try
+            {
+                var fallback = new[] { font };
+                var shaped = _textService.Shape(new TextShapeRequest(
+                    run.Text.AsMemory(),
+                    run.FontSize,
+                    fallback,
+                    TextDirection.LeftToRight));
+                cache = new UiTextCacheEntry(run.Version, run.FontKey, run.Text, run.FontSize, shaped);
+                _textCache[cacheKey] = cache;
+            }
+            catch (ArgumentException exception)
+            {
+                diagnostic = TextDiagnostic("XAML_TEXT_SHAPE_FAILED", exception.Message);
+                return false;
+            }
+            catch (NotSupportedException exception)
+            {
+                diagnostic = TextDiagnostic("XAML_TEXT_SHAPING_UNSUPPORTED", exception.Message);
+                return false;
+            }
+            catch (InvalidOperationException exception)
+            {
+                diagnostic = TextDiagnostic("XAML_TEXT_SHAPE_FAILED", exception.Message);
+                return false;
+            }
+        }
+
+        var bounds = ShapedBounds(cache.Shaped);
+        var baseline = new float2(run.Bounds.X - bounds.Left, run.Bounds.Y - bounds.Top);
+        var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
+        draw = new UiTextDraw(cache.Shaped, baseline, ToColor(run.Color), clip);
+        diagnostic = null;
+        return true;
+    }
+
+    private static TextBounds ShapedBounds(ShapedText shaped)
+    {
+        var runs = shaped.Runs.Span;
+        if (runs.Length == 0)
+        {
+            return new TextBounds(0, 0, 0, 0);
+        }
+
+        var first = runs[0].Bounds;
+        var left = first.Left;
+        var top = first.Top;
+        var right = first.Right;
+        var bottom = first.Bottom;
+        for (var i = 1; i < runs.Length; i++)
+        {
+            var bounds = runs[i].Bounds;
+            left = MathF.Min(left, bounds.Left);
+            top = MathF.Min(top, bounds.Top);
+            right = MathF.Max(right, bounds.Right);
+            bottom = MathF.Max(bottom, bounds.Bottom);
+        }
+
+        return new TextBounds(left, top, right, bottom);
+    }
+
+    private static Diagnostic TextDiagnostic(string code, string message) =>
+        new(new DiagnosticCode(code), DiagnosticSeverity.Error, message, null);
+
+    private readonly record struct UiTextCacheKey(RetainedContracts.UiElementId Owner, uint Generation, string GlyphRunKey);
+
+    private sealed record UiTextCacheEntry(uint Version, string FontKey, string Text, float FontSize, ShapedText Shaped);
+
+    private sealed class EmptyFontResolver : IUiFontResolver
+    {
+        internal static EmptyFontResolver Instance { get; } = new();
+
+        public bool TryResolve(string fontKey, out FontOpenRequest request)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(fontKey);
+            request = default;
+            return false;
+        }
     }
 
     private static RetainedContracts.UiPointerEventKind ToRetainedPointerKind(UiPointerEventKind kind) => kind switch
@@ -431,6 +1062,7 @@ public sealed class UiDocument
         UiPointerEventKind.Wheel => RetainedContracts.UiPointerEventKind.Wheel,
         _ => RetainedContracts.UiPointerEventKind.Move,
     };
+
     private static float4 ToFloat4(RetainedContracts.UiRect value) => new(value.X, value.Y, value.Width, value.Height);
     private static float4 ToColor(RetainedContracts.UiColor value) => new(value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
     private static void EnsureCapacity<T>(ref T[] storage, int count) { if (storage.Length < count) { Array.Resize(ref storage, Math.Max(8, count)); } }

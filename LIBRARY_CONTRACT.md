@@ -206,9 +206,40 @@ Programmer contract violations use exceptions; expected absence uses `Try...`.
 `UiDocument` for text layout and is not a loader option. Clipboard access is a
 platform-host concern and is not part of this minimal library contract.
 
+## Additive user controls and composition
+
+The implementation also exposes a compact, library-owned convenience layer:
+`UiPanel`, `UiStackPanel`, `UiBorder`, `UiGrid`, `UiContentControl`,
+`UiButton`, `UiTextBlock`, `UiTextBox`, `UiNumericEditor`, `UiScrollViewer`
+and `UiItemsControl`. These facades preserve one retained tree and are not a
+WPF/Avalonia compatibility surface. `UiItemsControl.SetItems` reuses a row
+when the item at the same position is equal and creates a row only for a
+changed position.
+
+`UiBindingExpression` provides a compact path expression with `OneTime`,
+`OneWay` and `TwoWay` modes. `UiCompiledBinding<TSource,TValue>` is the typed
+code path and may observe `INotifyPropertyChanged`. `IUiValueConverter` and
+`IUiBindingResolver` are explicit converter registration boundaries.
+
+`UiResourceCatalog` is both a GUID resolver and an optional named resolver.
+`UiStyle`, `UiTheme` and `UiTemplate` apply resource-backed values and
+reusable retained subtrees. The effective source precedence is
+`Default < Style < Binding < Local < Handle`; `{DynamicResource Key}` and
+`{StaticResource Key}` are accepted by the loader. Resource changes are
+observed by dependent retained properties only.
+
+The loader accepts built-in `Grid` `Columns`/`Rows` definitions with pixel,
+`Auto` and star lengths, numeric editor `Value`/`Minimum`/`Maximum`, and an
+explicit `XamlTypeCatalog` for custom factories. Namespace declarations are
+ignored as XML metadata; arbitrary reflection discovery is not performed.
+
+For host-side direct writes, `UiElement.GetHandle` returns an opaque,
+generation-safe `UiPropertyHandle` and `UiElement.TrySet` reports a diagnostic
+instead of exposing retained identity fields or dirty masks.
+
 ## Excluded implementation surface
 
-Controls, styles, templates, dirty masks, layout nodes, routing, focus,
-clipboard adapters, concrete dictionaries, compiled-binding implementations
-and caches remain DeltaXAML implementation. The public contract does not expose
+Dirty masks, layout nodes, routing, focus, concrete dictionaries,
+compiled-binding caches and retained storage remain DeltaXAML implementation.
+The public contract does not expose
 renderer services, Vulkan objects, engine lifecycle, ECS storage or delta time.
