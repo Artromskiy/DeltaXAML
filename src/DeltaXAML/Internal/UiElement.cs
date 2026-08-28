@@ -257,6 +257,9 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private UiRect _arrangedBounds;
     private bool _hasMeasured;
     private bool _hasArranged;
+    private int _displayClipIndex = -1;
+    private int _displayVisualIndex = -1;
+    private int _displayTextIndex = -1;
     public UiElement()
     {
         Id = new(++_nextId);
@@ -468,6 +471,16 @@ internal class UiElement : IUiElement, IUiPropertyStore
     }
 
     internal void CompleteVisualExtraction() => DirtyFlags &= ~UiDirtyFlags.Visual;
+    internal int DisplayClipIndex => _displayClipIndex;
+    internal int DisplayVisualIndex => _displayVisualIndex;
+    internal int DisplayTextIndex => _displayTextIndex;
+    internal void SetDisplayRange(int clipIndex, int visualIndex, int textIndex)
+    {
+        _displayClipIndex = clipIndex;
+        _displayVisualIndex = visualIndex;
+        _displayTextIndex = textIndex;
+    }
+    internal void ClearDisplayRange() => SetDisplayRange(-1, -1, -1);
     protected UiSize RequestedSize(UiSize measured) => new(float.IsNaN(Width) ? measured.Width : Width, float.IsNaN(Height) ? measured.Height : Height);
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
     internal virtual bool TryApplyTypedProperty(UiPropertyKey key, object? value)

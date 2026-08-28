@@ -843,6 +843,7 @@ public sealed class UiDocument : IDisposable
     private int _clipCount;
     private int _textCount;
     private uint _displayListVersion;
+    private uint _displayListTreeVersion;
     private float2 _displayListViewport;
     private bool _hasDisplayList;
 
@@ -954,6 +955,7 @@ public sealed class UiDocument : IDisposable
 
     public bool TryBuildDisplayList(out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
+        diagnostic = null;
         var retainedRoot = Root.RetainedElement;
         var viewport = new float2(retainedRoot.Bounds.Width, retainedRoot.Bounds.Height);
         if (_hasDisplayList && _displayListVersion == retainedRoot.OutputVersion && _displayListViewport == viewport)
@@ -961,6 +963,23 @@ public sealed class UiDocument : IDisposable
             displayList = new(_visuals.AsSpan(0, _visualCount), _clips.AsSpan(0, _clipCount), _text.AsSpan(0, _textCount));
             diagnostic = null;
             return true;
+        }
+
+        if (_hasDisplayList &&
+            _displayListTreeVersion == retainedRoot.TreeVersion &&
+            TryUpdateVisuals(retainedRoot, new Retained.UiRect(0, 0, viewport.x, viewport.y), UiClipId.None, out var compatible, out diagnostic) &&
+            compatible)
+        {
+            _displayListVersion = retainedRoot.OutputVersion;
+            _displayListViewport = viewport;
+            displayList = new(_visuals.AsSpan(0, _visualCount), _clips.AsSpan(0, _clipCount), _text.AsSpan(0, _textCount));
+            return true;
+        }
+
+        if (diagnostic is not null)
+        {
+            displayList = default;
+            return false;
         }
 
         _visualCount = 0;
@@ -973,9 +992,126 @@ public sealed class UiDocument : IDisposable
         }
 
         _displayListVersion = retainedRoot.OutputVersion;
+        _displayListTreeVersion = retainedRoot.TreeVersion;
         _displayListViewport = viewport;
         _hasDisplayList = true;
         displayList = new(_visuals.AsSpan(0, _visualCount), _clips.AsSpan(0, _clipCount), _text.AsSpan(0, _textCount));
+        return true;
+    }
+
+    private bool TryUpdateVisuals(
+        RetainedElement element,
+        Retained.UiRect clip,
+        UiClipId parentClip,
+        out bool compatible,
+        out Diagnostic? diagnostic)
+    {
+        compatible = false;
+        diagnostic = null;
+        var clipCount = 0;
+        var visualCount = 0;
+        var textCount = 0;
+        _visualTraversal.Clear();
+        _visualTraversal.Add(new(element, clip, parentClip));
+        while (_visualTraversal.Count != 0)
+        {
+            var last = _visualTraversal.Count - 1;
+            var visit = _visualTraversal[last];
+            _visualTraversal.RemoveAt(last);
+            var current = visit.Element;
+            if (current.Visibility != Retained.UiVisibility.Visible ||
+                (current.Participation & UiParticipation.Layout) == 0)
+            {
+                if (current.DisplayClipIndex >= 0 || current.DisplayVisualIndex >= 0 || current.DisplayTextIndex >= 0)
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (current.DisplayClipIndex != clipCount)
+            {
+                return true;
+            }
+
+            var effective = Retained.UiRect.Intersect(visit.Clip, current.Bounds);
+            var expectedClip = new UiClip(ToFloat4(effective), new UiClipId(visit.ParentClip.Value));
+            if (!expectedClip.Equals(_clips[current.DisplayClipIndex]))
+            {
+                _clips[current.DisplayClipIndex] = expectedClip;
+            }
+
+            clipCount++;
+            var hasVisual = (current.Participation & UiParticipation.Rendering) != 0 && current.Background.A > 0;
+            if (hasVisual != (current.DisplayVisualIndex >= 0) ||
+                (hasVisual && current.DisplayVisualIndex != visualCount))
+            {
+                return true;
+            }
+
+            if (hasVisual)
+            {
+                var visual = new UiVisualCommand(
+                    UiVisualKind.SolidRectangle,
+                    default,
+                    ToFloat4(current.Bounds),
+                    ToColor(current.Background),
+                    new UiClipId(current.DisplayClipIndex),
+                    UiResourceId.Empty);
+                if (!visual.Equals(_visuals[current.DisplayVisualIndex]))
+                {
+                    _visuals[current.DisplayVisualIndex] = visual;
+                }
+
+                visualCount++;
+            }
+
+            Retained.UiTextRun run = default;
+            var hasText = (current.Participation & UiParticipation.Rendering) != 0 && current.TryGetTextRun(out run);
+            if (hasText != (current.DisplayTextIndex >= 0) ||
+                (hasText && current.DisplayTextIndex != textCount))
+            {
+                return true;
+            }
+
+            if (hasText)
+            {
+                run = run with
+                {
+                    Bounds = current.Bounds,
+                    Clip = effective,
+                    ClipId = new Retained.UiClipId((uint)current.DisplayClipIndex + 1),
+                };
+                if (!TryBuildTextDraw(run, out var draw, out diagnostic))
+                {
+                    return false;
+                }
+
+                if (!draw.Equals(_text[current.DisplayTextIndex]))
+                {
+                    _text[current.DisplayTextIndex] = draw;
+                }
+
+                textCount++;
+            }
+
+            current.CompleteVisualExtraction();
+            for (var i = current.Children.Count - 1; i >= 0; i--)
+            {
+                if (current.Children[i] is RetainedElement child)
+                {
+                    _visualTraversal.Add(new(child, effective, new UiClipId(current.DisplayClipIndex)));
+                }
+            }
+        }
+
+        if (clipCount != _clipCount || visualCount != _visualCount || textCount != _textCount)
+        {
+            return true;
+        }
+
+        compatible = true;
         return true;
     }
 
@@ -993,6 +1129,7 @@ public sealed class UiDocument : IDisposable
             if (current.Visibility != Retained.UiVisibility.Visible ||
                 (current.Participation & UiParticipation.Layout) == 0)
             {
+                current.ClearDisplayRange();
                 continue;
             }
 
@@ -1000,10 +1137,13 @@ public sealed class UiDocument : IDisposable
             EnsureCapacity(ref _clips, _clipCount + 1);
             var clipId = new UiClipId(_clipCount);
             _clips[_clipCount++] = new(ToFloat4(effective), visit.ParentClip);
+            var visualIndex = -1;
+            var textIndex = -1;
 
             if ((current.Participation & UiParticipation.Rendering) != 0 && current.Background.A > 0)
             {
                 EnsureCapacity(ref _visuals, _visualCount + 1);
+                visualIndex = _visualCount;
                 _visuals[_visualCount++] = new(
                     UiVisualKind.SolidRectangle,
                     default,
@@ -1016,6 +1156,7 @@ public sealed class UiDocument : IDisposable
             if ((current.Participation & UiParticipation.Rendering) != 0 && current.TryGetTextRun(out var run))
             {
                 EnsureCapacity(ref _text, _textCount + 1);
+                textIndex = _textCount;
                 run = run with { Bounds = current.Bounds, Clip = effective, ClipId = new Retained.UiClipId((uint)clipId.Value + 1) };
                 if (!TryBuildTextDraw(run, out _text[_textCount], out diagnostic))
                 {
@@ -1025,6 +1166,7 @@ public sealed class UiDocument : IDisposable
                 _textCount++;
             }
 
+            current.SetDisplayRange(clipId.Value, visualIndex, textIndex);
             current.CompleteVisualExtraction();
 
             for (var i = current.Children.Count - 1; i >= 0; i--)

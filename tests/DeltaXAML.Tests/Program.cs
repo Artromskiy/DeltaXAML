@@ -187,6 +187,25 @@ sealed class EmptyTextService : TextContract.ITextService
     public void Dispose() { }
 }
 
+sealed class CountingTextService : TextContract.ITextService
+{
+    private readonly SixLaborsTextService _inner = new();
+
+    public int ShapeCount { get; private set; }
+
+    public TextContract.FontInstanceId OpenFont(in TextContract.FontOpenRequest request) => _inner.OpenFont(in request);
+    public void CloseFont(TextContract.FontInstanceId font) => _inner.CloseFont(font);
+    public TextContract.FontMetrics GetFontMetrics(TextContract.FontInstanceId font, float pixelsPerEm) => _inner.GetFontMetrics(font, pixelsPerEm);
+    public TextContract.ShapedText Shape(in TextContract.TextShapeRequest request)
+    {
+        ShapeCount++;
+        return _inner.Shape(in request);
+    }
+
+    public TextContract.GlyphImage GenerateGlyphImage(in TextContract.GlyphImageRequest request) => _inner.GenerateGlyphImage(in request);
+    public void Dispose() => _inner.Dispose();
+}
+
 internal static partial class Program
 {
     public static void Main()
@@ -478,20 +497,26 @@ internal static partial class Program
             new TextContract.FontSourceId(new Guid("E7C9B4D5-FD99-4D2A-8A6C-4A2A5B8F2FCB")),
             File.ReadAllBytes(fontPath));
         var text = new Library.UiTextBlock { Text = "A", Width = 240, Height = 40 };
+        var unchangedText = new Library.UiTextBlock { Text = "unchanged", Width = 240, Height = 40 };
         var root = new Library.UiPanel();
         root.Add(text);
-        using var textService = new SixLaborsTextService();
+        root.Add(unchangedText);
+        using var textService = new CountingTextService();
         using var document = new Library.UiDocument(root, textService, fonts);
         document.Layout(new Delta.Maths.float2(240, 40), 1);
         var first = document.BuildDisplayList();
-        Assert.Equal(1, first.Text.Length, "facade emits one canonical text draw");
+        Assert.Equal(2, first.Text.Length, "facade emits canonical text draws");
+        Assert.Equal(2, textService.ShapeCount, "initial text output shapes each retained text node");
         var firstShaped = first.Text[0].Text;
         Assert.True(firstShaped.Runs.Length > 0, "DeltaText returns positioned shaped runs");
         var second = document.BuildDisplayList();
         Assert.True(ReferenceEquals(firstShaped, second.Text[0].Text), "unchanged text reuses shaped cache");
         text.Text = "B";
+        document.Layout(new Delta.Maths.float2(240, 40), 1);
         var third = document.BuildDisplayList();
         Assert.True(!ReferenceEquals(firstShaped, third.Text[0].Text), "text mutation reshapes only the changed text cache");
+        Assert.Equal(3, textService.ShapeCount, "value-only visual update does not reshape unchanged text");
+        Assert.True(ReferenceEquals(first.Text[1].Text, third.Text[1].Text), "value-only visual update preserves unchanged shaped text");
         Assert.Equal(first.Text[0].Clip, third.Text[0].Clip, "text clip identity remains canonical");
     }
 
