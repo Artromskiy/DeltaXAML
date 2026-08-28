@@ -386,7 +386,34 @@ public sealed class UiTheme
     public void Apply(UiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
-        ApplyRecursive(root);
+        _stateTraversal.Clear();
+        _stateTraversal.Add(root);
+        while (_stateTraversal.Count != 0)
+        {
+            var last = _stateTraversal.Count - 1;
+            var element = _stateTraversal[last];
+            _stateTraversal.RemoveAt(last);
+            if (element.StyleKey is { } styleKey)
+            {
+                for (var i = 0; i < _styles.Count; i++)
+                {
+                    if (string.Equals(_styles[i].Key, styleKey, StringComparison.Ordinal))
+                    {
+                        _styles[i].Apply(element);
+                    }
+                }
+            }
+
+            if (element.TemplateKey is { } templateKey && element.Children.Count == 0 && TryGetTemplate(templateKey, out var template))
+            {
+                element.SetTemplateContent(template.Build(element));
+            }
+
+            for (var i = element.Children.Count - 1; i >= 0; i--)
+            {
+                _stateTraversal.Add(element.Children[i]);
+            }
+        }
     }
 
     internal void RefreshStates(UiElement root)
@@ -414,31 +441,6 @@ public sealed class UiTheme
             {
                 _stateTraversal.Add(element.Children[i]);
             }
-        }
-    }
-
-
-    private void ApplyRecursive(UiElement element)
-    {
-        if (element.StyleKey is { } styleKey)
-        {
-            foreach (var style in _styles)
-            {
-                if (string.Equals(style.Key, styleKey, StringComparison.Ordinal))
-                {
-                    style.Apply(element);
-                }
-            }
-        }
-
-        if (element.TemplateKey is { } templateKey && element.Children.Count == 0 && TryGetTemplate(templateKey, out var template))
-        {
-            element.SetTemplateContent(template.Build(element));
-        }
-
-        for (var i = 0; i < element.Children.Count; i++)
-        {
-            ApplyRecursive(element.Children[i]);
         }
     }
 }

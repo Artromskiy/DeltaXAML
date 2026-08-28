@@ -700,6 +700,21 @@ internal static partial class Program
         var theme = new Library.UiTheme(resources);
         theme.Add(style);
 
+        var deepRoot = new Library.UiPanel();
+        var deep = deepRoot;
+        for (var i = 0; i < 2048; i++)
+        {
+            var child = new Library.UiPanel { StyleKey = "Node" };
+            deep.Add(child);
+            deep = child;
+        }
+
+        var deepStyle = new Library.UiStyle("Node", "Panel");
+        deepStyle.Set("Width", 17f);
+        theme.Add(deepStyle);
+        theme.Apply(deepRoot);
+        Assert.Equal(17f, deep.Width, "theme application traverses deep trees without recursive stack growth");
+
         var text = new Library.UiTextBlock { StyleKey = "Body" };
         var other = new Library.UiTextBlock();
         theme.Apply(text);
