@@ -91,8 +91,9 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
 - [ ] Complete the screen-space game HUD flow: host input -> `UiDocument` ->
   borrowed `UiDisplayList` -> DeltaRender graph target. Keep off-screen/world-
   space UI a consumer-side target choice, not a second DeltaXAML runtime.
-- [ ] Complete custom visual registration through stable `UiVisualTypeId` and
-  keep Vulkan resources, pipelines and shader artifacts outside DeltaXAML.
+- [x] Emit custom visuals through stable `UiVisualTypeId` and `UiResourceId`
+  in the canonical display list; renderer registration and Vulkan resources
+  remain outside DeltaXAML.
 
 - [x] Implement the additive facade selected in
   [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md): `IXamlLoader`, concrete

@@ -183,6 +183,26 @@ public abstract class UiElement
         set => _retained.Background = new Retained.UiColor(value.R, value.G, value.B, value.A);
     }
 
+    /// <summary>Stable semantic custom-visual identity consumed by a renderer adapter.</summary>
+    public UiVisualTypeId CustomVisualType => new(_retained.CustomVisualTypeId);
+
+    /// <summary>Stable resource identity carried by the custom-visual command.</summary>
+    public UiResourceId CustomVisualResource => new(_retained.CustomVisualResourceId);
+
+    /// <summary>Sets renderer-neutral custom visual data; shader and pipeline resolution stay external.</summary>
+    public void SetCustomVisual(UiVisualTypeId visualType, UiResourceId resource, UiColor color)
+    {
+        if (!visualType.IsValid)
+        {
+            throw new ArgumentException("A custom visual identity is required.", nameof(visualType));
+        }
+
+        _retained.SetCustomVisual(visualType.Value, resource.Value, new Retained.UiColor(color.R, color.G, color.B, color.A));
+    }
+
+    /// <summary>Removes the custom visual and restores the normal visual participation path.</summary>
+    public void ClearCustomVisual() => _retained.ClearCustomVisual();
+
     public UiThickness Padding
     {
         get
@@ -1043,7 +1063,7 @@ public sealed class UiDocument : IDisposable
             }
 
             clipCount++;
-            var hasVisual = (current.Participation & UiParticipation.Rendering) != 0 && current.Background.A > 0;
+            var hasVisual = TryGetVisualCommand(current, new UiClipId(current.DisplayClipIndex), out var visual);
             if (hasVisual != (current.DisplayVisualIndex >= 0) ||
                 (hasVisual && current.DisplayVisualIndex != visualCount))
             {
@@ -1052,13 +1072,6 @@ public sealed class UiDocument : IDisposable
 
             if (hasVisual)
             {
-                var visual = new UiVisualCommand(
-                    UiVisualKind.SolidRectangle,
-                    default,
-                    ToFloat4(current.Bounds),
-                    ToColor(current.Background),
-                    new UiClipId(current.DisplayClipIndex),
-                    UiResourceId.Empty);
                 if (!visual.Equals(_visuals[current.DisplayVisualIndex]))
                 {
                     _visuals[current.DisplayVisualIndex] = visual;
@@ -1140,17 +1153,11 @@ public sealed class UiDocument : IDisposable
             var visualIndex = -1;
             var textIndex = -1;
 
-            if ((current.Participation & UiParticipation.Rendering) != 0 && current.Background.A > 0)
+            if (TryGetVisualCommand(current, clipId, out var visual))
             {
                 EnsureCapacity(ref _visuals, _visualCount + 1);
                 visualIndex = _visualCount;
-                _visuals[_visualCount++] = new(
-                    UiVisualKind.SolidRectangle,
-                    default,
-                    ToFloat4(current.Bounds),
-                    ToColor(current.Background),
-                    clipId,
-                    UiResourceId.Empty);
+                _visuals[_visualCount++] = visual;
             }
 
             if ((current.Participation & UiParticipation.Rendering) != 0 && current.TryGetTextRun(out var run))
@@ -1178,6 +1185,42 @@ public sealed class UiDocument : IDisposable
             }
         }
 
+        return true;
+    }
+
+    private static bool TryGetVisualCommand(RetainedElement element, UiClipId clip, out UiVisualCommand visual)
+    {
+        if ((element.Participation & UiParticipation.Rendering) == 0)
+        {
+            visual = default;
+            return false;
+        }
+
+        if (element.HasCustomVisual)
+        {
+            visual = new(
+                UiVisualKind.Custom,
+                new UiVisualTypeId(element.CustomVisualTypeId),
+                ToFloat4(element.Bounds),
+                ToColor(element.CustomVisualColor),
+                clip,
+                new UiResourceId(element.CustomVisualResourceId));
+            return true;
+        }
+
+        if (element.Background.A <= 0)
+        {
+            visual = default;
+            return false;
+        }
+
+        visual = new(
+            UiVisualKind.SolidRectangle,
+            default,
+            ToFloat4(element.Bounds),
+            ToColor(element.Background),
+            clip,
+            UiResourceId.Empty);
         return true;
     }
 

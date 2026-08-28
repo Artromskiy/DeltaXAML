@@ -161,6 +161,13 @@ Resources do not carry Vulkan objects. Images, custom visuals and other GPU
 assets cross the display-list boundary through stable semantic IDs resolved by
 DeltaRender.
 
+Controls can set a renderer-neutral custom visual with
+`SetCustomVisual(UiVisualTypeId, UiResourceId, UiColor)` and remove it with
+`ClearCustomVisual()`. The next display list contains a `UiVisualKind.Custom`
+command carrying those identities and the element bounds. DeltaXAML does not
+register or resolve the renderer implementation; the consumer owns that
+mapping and the associated GPU resources.
+
 ## Input and commands
 
 `UiDocument.Dispatch` consumes neutral `UiInputEvent` packets. Pointer, key,

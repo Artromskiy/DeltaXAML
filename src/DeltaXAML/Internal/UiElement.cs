@@ -260,6 +260,9 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private int _displayClipIndex = -1;
     private int _displayVisualIndex = -1;
     private int _displayTextIndex = -1;
+    private Guid _customVisualType;
+    private Guid _customVisualResource;
+    private UiColor _customVisualColor;
     public UiElement()
     {
         Id = new(++_nextId);
@@ -288,6 +291,10 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public UiRect Clip { get; protected set; }
     public UiSize DesiredSize { get; protected set; }
     public UiColor Background { get => _state.Background; set => SetLocalProperty("Background", value, UiDirtyFlags.Visual); }
+    internal bool HasCustomVisual => _customVisualType != Guid.Empty;
+    internal Guid CustomVisualTypeId => _customVisualType;
+    internal Guid CustomVisualResourceId => _customVisualResource;
+    internal UiColor CustomVisualColor => _customVisualColor;
     public bool IsEnabled { get => _state.IsEnabled; set => SetLocalProperty("IsEnabled", value, UiDirtyFlags.Visual); }
     public bool IsHovered { get; private set; }
     public virtual bool IsPressed => false;
@@ -377,6 +384,36 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public virtual void SetPressed(bool value) { if (IsPressed != value) { Invalidate(UiDirtyFlags.Visual); } }
     public void SetFocused(bool value) { if (IsFocused != value) { IsFocused = value; Invalidate(UiDirtyFlags.Visual); } }
     public void SetInvalid(bool value) { if (IsInvalid != value) { IsInvalid = value; Invalidate(UiDirtyFlags.Visual); } }
+    internal void SetCustomVisual(Guid visualType, Guid resource, UiColor color)
+    {
+        if (visualType == Guid.Empty)
+        {
+            throw new ArgumentException("A custom visual identity is required.", nameof(visualType));
+        }
+
+        if (_customVisualType == visualType && _customVisualResource == resource && _customVisualColor == color)
+        {
+            return;
+        }
+
+        _customVisualType = visualType;
+        _customVisualResource = resource;
+        _customVisualColor = color;
+        Invalidate(UiDirtyFlags.Visual);
+    }
+
+    internal void ClearCustomVisual()
+    {
+        if (!HasCustomVisual)
+        {
+            return;
+        }
+
+        _customVisualType = Guid.Empty;
+        _customVisualResource = Guid.Empty;
+        _customVisualColor = default;
+        Invalidate(UiDirtyFlags.Visual);
+    }
     public void SetParticipation(Delta.XAML.UiParticipation value)
     {
         if (Participation == value)

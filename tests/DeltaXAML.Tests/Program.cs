@@ -231,6 +231,7 @@ internal static partial class Program
         PointerFocusAndDispatch();
         ScrollAndClips();
         TextDisplayListUsesDeltaText();
+        CustomVisualsRemainNeutral();
         PublicDisplayListWarmFrameHasNoAllocations();
         BindingExpressionsAndContexts();
         EditorShellLibrarySlice();
@@ -544,6 +545,25 @@ internal static partial class Program
 
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.Equal(0L, allocated, "unchanged public frame has no allocations");
+    }
+
+    private static void CustomVisualsRemainNeutral()
+    {
+        var element = new Library.UiBorder { Width = 20, Height = 10 };
+        var visualType = new LibraryContract.UiVisualTypeId(new Guid("0A6B9E9D-92F4-44A1-8E61-8B1B7CF4B8D6"));
+        var resource = new LibraryContract.UiResourceId(new Guid("9DD4E4FA-3B87-4FE3-A54B-9B1F5A2FCA52"));
+        element.SetCustomVisual(visualType, resource, new Library.UiColor(12, 34, 56));
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(element, textService);
+        document.Layout(new Delta.Maths.float2(20, 10), 1);
+        var display = document.BuildDisplayList();
+        Assert.Equal(1, display.Visuals.Length, "custom visual emits one neutral visual command");
+        Assert.Equal(LibraryContract.UiVisualKind.Custom, display.Visuals[0].Kind, "custom visual kind is preserved");
+        Assert.Equal(visualType, display.Visuals[0].VisualType, "custom visual identity is preserved");
+        Assert.Equal(resource, display.Visuals[0].Resource, "custom resource identity is preserved");
+        element.ClearCustomVisual();
+        var cleared = document.BuildDisplayList();
+        Assert.Equal(0, cleared.Visuals.Length, "clearing custom visual removes the neutral command");
     }
 
     private static void BindingExpressionsAndContexts()
