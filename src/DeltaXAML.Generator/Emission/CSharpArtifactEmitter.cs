@@ -448,9 +448,16 @@ internal static class CSharpArtifactEmitter
                 return false;
             }
 
-            if (member.Value.Binding.ConverterKey is not null || member.Value.Binding.StringFormat is not null)
+            if (member.Value.Binding.ConverterKey is { } converterKey &&
+                !string.Equals(binding.ConverterKey, converterKey, StringComparison.Ordinal))
             {
-                error = $"Binding '{member.Value.Binding.Path}' uses a converter or format; only direct typed accessors are available in this slice.";
+                error = $"Binding '{member.Value.Binding.Path}' requires registered typed converter '{converterKey}'.";
+                return false;
+            }
+
+            if (member.Value.Binding.StringFormat is not null)
+            {
+                error = $"Binding '{member.Value.Binding.Path}' uses StringFormat; only direct typed accessors are available in this slice.";
                 return false;
             }
 

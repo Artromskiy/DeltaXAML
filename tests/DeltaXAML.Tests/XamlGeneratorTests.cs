@@ -100,6 +100,22 @@ internal static partial class Program
         Assert.True(bindingSource.Contains("RefreshBindings", StringComparison.Ordinal), "binding artifact exposes one direct refresh batch");
         Assert.True(!bindingSource.Contains("GetProperty", StringComparison.Ordinal) && !bindingSource.Contains("Split", StringComparison.Ordinal), "typed binding artifact has no reflection or path traversal");
 
+        bindingRegistry.RegisterBinding(new(
+            "DisplayName",
+            "global::Sample.BindingModel",
+            "string",
+            "source.Name.ToUpperInvariant()",
+            "source.Name = value",
+            "Upper"));
+        var converterPlan = XamlCompiler.Compile(sourceId, "<TextBlock Text=\"{Binding DisplayName, Converter=Upper, Mode=TwoWay}\" />", bindingRegistry);
+        Assert.True(converterPlan.Success, "typed converter binding markup is a valid semantic plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(converterPlan, bindingRegistry, "Generated", "ConverterBindingArtifact", out var converterSource, out var converterDiagnostic), "registered typed converter binding emits");
+        Assert.True(converterDiagnostic is null && converterSource.Contains("static source => source.Name.ToUpperInvariant()", StringComparison.Ordinal), "converter binding emits its direct typed read expression");
+        Assert.True(converterSource.Contains("static (source, value) => source.Name = value", StringComparison.Ordinal), "converter binding preserves its direct typed write expression");
+        var unknownConverterPlan = XamlCompiler.Compile(sourceId, "<TextBlock Text=\"{Binding DisplayName, Converter=Missing}\" />", bindingRegistry);
+        Assert.True(!CSharpArtifactEmitter.TryEmit(unknownConverterPlan, bindingRegistry, "Generated", "UnknownConverterArtifact", out _, out var unknownConverterDiagnostic), "unregistered typed converter is rejected");
+        Assert.Equal("DXAMLGEN002", unknownConverterDiagnostic?.Code, "unregistered converter has a stable diagnostic");
+
         var oneTimeModel = new BindingModel { Name = "Initial" };
         using var oneTime = new UiCompiledBinding<BindingModel, string>(oneTimeModel, static model => model.Name, mode: UiBindingMode.OneTime);
         var oneTimeNotifications = 0;

@@ -135,7 +135,8 @@ internal sealed record XamlBindingDefinition(
     string SourceTypeName,
     string ValueTypeName,
     string ReadExpression,
-    string? WriteExpression);
+    string? WriteExpression,
+    string? ConverterKey = null);
 
 internal readonly record struct XamlValuePlan(
     XamlValueKind Kind,
@@ -284,6 +285,11 @@ internal sealed class XamlSemanticRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(definition.SourceTypeName);
         ArgumentException.ThrowIfNullOrWhiteSpace(definition.ValueTypeName);
         ArgumentException.ThrowIfNullOrWhiteSpace(definition.ReadExpression);
+        if (definition.ConverterKey is { } converterKey)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(converterKey);
+        }
+
         if (!_bindings.TryAdd(definition.Path, definition))
         {
             throw new ArgumentException($"The XAML binding path '{definition.Path}' is registered twice.", nameof(definition));
