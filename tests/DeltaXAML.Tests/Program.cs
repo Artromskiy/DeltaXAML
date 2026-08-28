@@ -252,6 +252,7 @@ internal static partial class Program
         RuntimeStagesAreOrdered();
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
+        ResourceDependencyInvalidation();
         PublicResourcesStylesTemplatesAndTypes();
         TypeCatalogUsesStableIds();
         LibraryFacadeSmoke();
@@ -541,6 +542,27 @@ internal static partial class Program
         }
 
         Assert.True(threw, "a stable type identity cannot be registered for two XAML names");
+    }
+
+    private static void ResourceDependencyInvalidation()
+    {
+        var resources = new UiResourceStore();
+        resources.Set("Base", new UiColor(10, 20, 30));
+        resources.Set("Alias", new UiResourceReference("Base"));
+        resources.Set("Other", new UiColor(40, 50, 60));
+        var element = new UiElement();
+        element.SetStyleResource("Value", resources, new("Alias"), UiDirtyFlags.Visual);
+        element.DirtyFlags = UiDirtyFlags.None;
+
+        resources.Set("Other", new UiColor(41, 51, 61));
+        Assert.Equal(UiDirtyFlags.None, element.DirtyFlags, "unrelated resource updates do not invalidate a dependent property");
+
+        resources.Set("Base", new UiColor(11, 21, 31));
+        Assert.True((element.DirtyFlags & UiDirtyFlags.Visual) != 0, "an alias target update invalidates its dependent property");
+        element.DirtyFlags = UiDirtyFlags.None;
+
+        resources.Set("Alias", new UiResourceReference("Other"));
+        Assert.True((element.DirtyFlags & UiDirtyFlags.Visual) != 0, "changing an alias target invalidates the dependent property");
     }
 
     private static void TextDisplayListUsesDeltaText()

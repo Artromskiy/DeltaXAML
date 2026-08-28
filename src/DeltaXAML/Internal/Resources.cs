@@ -32,6 +32,34 @@ internal sealed class UiResourceStore
         return _values.TryGetValue(key, out value);
     }
 
+    internal bool DependsOn(string referenceKey, string changedKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(referenceKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(changedKey);
+        if (string.Equals(referenceKey, changedKey, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var current = referenceKey;
+        while (_values.TryGetValue(current, out var value) && value is UiResourceReference reference)
+        {
+            if (!visited.Add(current))
+            {
+                return false;
+            }
+
+            current = reference.Key;
+            if (string.Equals(current, changedKey, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public bool TryResolve(string key, out object? value, [NotNullWhen(false)] out string? diagnostic)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);

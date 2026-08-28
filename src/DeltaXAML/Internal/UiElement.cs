@@ -66,8 +66,13 @@ internal sealed class UiPropertyStore : IUiPropertyStore
         RemoveResourceBinding(name);
         var binding = new ResourceBinding(resources, reference, invalidation);
         _resourceBindings[name] = binding;
-        binding.Handler = (_, _) =>
+        binding.Handler = (_, args) =>
         {
+            if (!resources.DependsOn(binding.Reference.Key, args.Key))
+            {
+                return;
+            }
+
             var slots = GetSlots(name);
             slots.StyleValue = new UiValue(ResolveResource(binding), UiValueSource.Style, invalidation);
             ApplyEffective(name, slots);
