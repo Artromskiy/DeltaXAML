@@ -1219,8 +1219,7 @@ lands; do not wrap it in a new facade:
 - `UserApi/StyleApi.cs`: delegate-based templates and string-key style
   application;
 - obsolete interfaces and packet types in `Internal/RetainedContracts.cs`;
-- retained-to-contract translation and legacy text requests in
-  `UserApi/LibraryFacade.cs`.
+- retained compatibility accessors that still live in `UserApi/LibraryFacade.cs`.
 
 Keep the public library contract while moving its implementation into focused
 files. If a compatibility symbol cannot be removed in the same slice, mark it

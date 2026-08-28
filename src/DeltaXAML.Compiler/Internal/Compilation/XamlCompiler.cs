@@ -30,6 +30,8 @@ internal static class XamlCompiler
         private readonly ImmutableArray<XamlTemplatePlan>.Builder _templates = ImmutableArray.CreateBuilder<XamlTemplatePlan>();
         private readonly List<XamlResourceSlotPlan> _resourceSlots = new();
         private readonly Dictionary<UiResourceId, int> _resourceSlotIndices = new();
+        private readonly HashSet<string> _styleKeys = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _templateKeys = new(StringComparer.Ordinal);
         private readonly HashSet<string> _names = new(StringComparer.Ordinal);
         private int _offset;
 
@@ -219,6 +221,7 @@ internal static class XamlCompiler
             Dictionary<string, string> namespaces)
         {
             string? key = null;
+            var keyRange = Range(elementStart, _offset);
             string? targetType = null;
             foreach (var attribute in attributes)
             {
@@ -230,6 +233,7 @@ internal static class XamlCompiler
                 if (attribute.IsKey)
                 {
                     key = attribute.Value;
+                    keyRange = attribute.Range;
                 }
                 else if (attribute.Prefix.Length == 0 && attribute.LocalName == "TargetType")
                 {
@@ -253,6 +257,7 @@ internal static class XamlCompiler
 
             var setters = ImmutableArray.CreateBuilder<XamlMemberPlan>();
             var visualStates = ImmutableArray.CreateBuilder<XamlVisualStatePlan>();
+            var stateNames = new HashSet<XamlVisualStateName>();
             var closed = selfClosing;
             if (!selfClosing)
             {
@@ -279,7 +284,7 @@ internal static class XamlCompiler
                         }
                         else if (_text.AsSpan(_offset).StartsWith("<VisualState", StringComparison.Ordinal))
                         {
-                            ParseVisualState(targetType, namespaces, visualStates);
+                            ParseVisualState(targetType, namespaces, visualStates, stateNames);
                         }
                         else
                         {
@@ -309,12 +314,19 @@ internal static class XamlCompiler
 
             if (key is not null && targetType is not null)
             {
-                _styles.Add(new(
-                    key,
-                    ToQualifiedName(targetType, namespaces),
-                    setters.ToImmutable(),
-                    visualStates.ToImmutable(),
-                    Range(elementStart, _offset)));
+                if (!_styleKeys.Add(key))
+                {
+                    Report("XAML031", $"Style key '{key}' is declared more than once.", keyRange);
+                }
+                else
+                {
+                    _styles.Add(new(
+                        key,
+                        ToQualifiedName(targetType, namespaces),
+                        setters.ToImmutable(),
+                        visualStates.ToImmutable(),
+                        Range(elementStart, _offset)));
+                }
             }
         }
 
@@ -387,7 +399,8 @@ internal static class XamlCompiler
         private void ParseVisualState(
             string? targetType,
             Dictionary<string, string> namespaces,
-            ImmutableArray<XamlVisualStatePlan>.Builder states)
+            ImmutableArray<XamlVisualStatePlan>.Builder states,
+            HashSet<XamlVisualStateName> stateNames)
         {
             var start = _offset;
             Consume('<');
@@ -481,7 +494,14 @@ internal static class XamlCompiler
 
             if (state is not (XamlVisualStateName.None or XamlVisualStateName.Unknown))
             {
-                states.Add(new(state, setters.ToImmutable(), Range(start, _offset)));
+                if (!stateNames.Add(state))
+                {
+                    Report("XAML032", $"VisualState '{state}' is declared more than once in the same Style.", stateRange);
+                }
+                else
+                {
+                    states.Add(new(state, setters.ToImmutable(), Range(start, _offset)));
+                }
             }
         }
 
@@ -508,6 +528,7 @@ internal static class XamlCompiler
             Dictionary<string, string> namespaces)
         {
             string? key = null;
+            var keyRange = Range(elementStart, _offset);
             foreach (var attribute in attributes)
             {
                 if (attribute.IsNamespace)
@@ -518,6 +539,7 @@ internal static class XamlCompiler
                 if (attribute.IsKey)
                 {
                     key = attribute.Value;
+                    keyRange = attribute.Range;
                 }
                 else
                 {
@@ -570,7 +592,14 @@ internal static class XamlCompiler
 
             if (key is not null && root is not null)
             {
-                _templates.Add(new(key, root, Range(elementStart, _offset)));
+                if (!_templateKeys.Add(key))
+                {
+                    Report("XAML033", $"Template key '{key}' is declared more than once.", keyRange);
+                }
+                else
+                {
+                    _templates.Add(new(key, root, Range(elementStart, _offset)));
+                }
             }
         }
 

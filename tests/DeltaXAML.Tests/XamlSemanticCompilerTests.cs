@@ -87,6 +87,15 @@ internal static partial class Program
         Assert.Equal(1, resourceDocument.ResourceSlots.Length, "one stable resource identity uses one local slot");
         Assert.True(resourceDocument.ResourceSlots[0].IsDynamic, "dynamic resource reference marks its dependency slot");
         Assert.Equal(0, resourceDocument.Root?.Children[0].Members[0].Value.Resource.Slot, "resource reference points at its compact local slot");
+
+        var duplicateDeclarations = XamlCompiler.Compile(
+            sourceId,
+            "<ResourceDictionary><Style x:Key=\"Title\" TargetType=\"TextBlock\"><VisualState Name=\"Hover\" /><VisualState Name=\"Hover\" /></Style><Style x:Key=\"Title\" TargetType=\"TextBlock\" /><Template x:Key=\"ButtonTemplate\"><Border /></Template><Template x:Key=\"ButtonTemplate\"><Border /></Template></ResourceDictionary>",
+            registry);
+        Assert.True(!duplicateDeclarations.Success, "duplicate compiled declarations are rejected");
+        Assert.True(HasCode(duplicateDeclarations.Diagnostics, "XAML031"), "duplicate style key has a source diagnostic");
+        Assert.True(HasCode(duplicateDeclarations.Diagnostics, "XAML032"), "duplicate visual state has a source diagnostic");
+        Assert.True(HasCode(duplicateDeclarations.Diagnostics, "XAML033"), "duplicate template key has a source diagnostic");
     }
 
     private static bool HasCode(IEnumerable<Diagnostic> diagnostics, string code)
