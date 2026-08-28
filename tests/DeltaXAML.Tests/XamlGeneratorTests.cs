@@ -43,11 +43,12 @@ internal static partial class Program
         var resourcePlan = XamlCompiler.Compile(sourceId, "<TextBlock Foreground=\"{StaticResource Accent}\" />", resourceRegistry);
         Assert.True(resourcePlan.Success, "resource markup remains a valid semantic plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(resourcePlan, resourceRegistry, "Generated", "ResourceArtifact", out var resourceSource, out var resourceDiagnostic), "resource markup emits through the compiled resource path");
-        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(\"Foreground\", Resources, \"Accent\")", StringComparison.Ordinal), "static resource values use the typed resource setter");
+        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(\"Foreground\", Resources, new global::Delta.XAML.Contract.UiResourceId(new global::System.Guid(\"a4b05d1a-0a47-4e8c-b1b8-5dda7ea1d403\")))", StringComparison.Ordinal), "static resource values use the stable resource identity");
+        Assert.True(!resourceSource.Contains("Resources, \"Accent\"", StringComparison.Ordinal), "generated resource values do not use name lookup");
         var resourceDocumentPlan = XamlCompiler.Compile(sourceId, "<Panel x:Key=\"Accent\" Background=\"#112233\" />", resourceRegistry);
         Assert.True(resourceDocumentPlan.Success && resourceDocumentPlan.Root?.Name.LocalName == "ResourceDictionary", "resource-only XAML gets a semantic resource root");
         Assert.True(CSharpArtifactEmitter.TryEmit(resourceDocumentPlan, resourceRegistry, "Generated", "ResourceDictionaryArtifact", out var resourceDocumentSource, out _), "resource-only XAML emits a catalog artifact");
-        Assert.True(resourceDocumentSource.Contains("Resources.Set(\"Accent\", resource0);", StringComparison.Ordinal), "resource-only artifact registers its generated value");
+        Assert.True(resourceDocumentSource.Contains("Resources.Set(new global::Delta.XAML.Contract.UiResourceId(new global::System.Guid(\"a4b05d1a-0a47-4e8c-b1b8-5dda7ea1d403\")), resource0);", StringComparison.Ordinal), "resource-only artifact registers its stable identity");
         Assert.True(!resourceDocumentSource.Contains("Document.Dispose();", StringComparison.Ordinal), "resource-only artifact does not dispose a missing document");
 
         var compositionRegistry = XamlSemanticRegistry.CreateBuiltIns();
@@ -64,14 +65,19 @@ internal static partial class Program
         Assert.True(compositionSource.Contains("Theme.RegisterTemplate(\"ButtonTemplate\"", StringComparison.Ordinal), "compiled template registration is direct");
         Assert.True(compositionSource.Contains("Theme.Apply(node0);", StringComparison.Ordinal), "compiled style/template state is applied after attachment");
 
-        var typedStyle = new Library.UiStyle("Typed", "TextBlock");
+        var typedResourceId = new UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D403"));
+        var typedResources = new Library.UiResourceCatalog();
+        typedResources.Set(typedResourceId, new Library.UiColor(12, 34, 56));
+        var typedStyle = new Library.UiStyle("Typed", "TextBlock", typedResources);
         typedStyle.Set(Library.UiTextBlockProperties.FontSize, 18f);
+        typedStyle.SetResource(Library.UiTextBlockProperties.Foreground, typedResourceId);
         typedStyle.SetState(Library.UiStyleState.Focused, Library.UiTextBlockProperties.FontSize, 20f);
         var styledText = new Library.UiTextBlock { StyleKey = "Typed" };
         var typedTheme = new Library.UiTheme();
         typedTheme.Add(typedStyle);
         typedTheme.Apply(styledText);
         Assert.Equal(18f, styledText.FontSize, "typed style descriptor applies its value");
+        Assert.Equal(new Library.UiColor(12, 34, 56), styledText.Foreground, "typed resource identity applies its value");
         styledText.RetainedElement.SetFocused(true);
         typedTheme.RefreshStates(styledText);
         Assert.Equal(20f, styledText.FontSize, "typed visual-state descriptor applies its value");

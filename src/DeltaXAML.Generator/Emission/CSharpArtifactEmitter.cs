@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Delta.Diagnostics;
 using Delta.XAML;
+using Delta.XAML.Contract;
 using DeltaXAML.Compiler;
 
 namespace DeltaXAML.Generator;
@@ -245,7 +246,7 @@ internal static class CSharpArtifactEmitter
                 return false;
             }
 
-            writer.Append("        Resources.Set(").Append(Quote(plan.Resources[resourceIndex].Key)).Append(", resource").Append(rootIndex).AppendLine(");");
+            writer.Append("        Resources.Set(").Append(ResourceIdExpression(plan.Resources[resourceIndex].Id)).Append(", resource").Append(rootIndex).AppendLine(");");
         }
 
         for (var i = 0; i < resourceNodes.Count; i++)
@@ -536,7 +537,7 @@ internal static class CSharpArtifactEmitter
         {
             writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append('.');
             writer.Append(member.Value.Resource.IsDynamic ? "SetDynamicResource" : "SetStaticResource");
-            writer.Append('(').Append(Quote(member.Name)).Append(", Resources, ").Append(Quote(member.Value.Resource.Key)).AppendLine(");");
+            writer.Append('(').Append(Quote(member.Name)).Append(", Resources, ").Append(ResourceIdExpression(member.Value.Resource.Id)).AppendLine(");");
             return;
         }
 
@@ -607,7 +608,7 @@ internal static class CSharpArtifactEmitter
 
                     writer.Append("        style").Append(styleIndex).Append('.')
                         .Append(setter.Value.Resource.IsDynamic ? "SetResource" : "SetStaticResource")
-                        .Append('(').Append(resourceProperty).Append(", ").Append(Quote(setter.Value.Resource.Key)).AppendLine(");");
+                        .Append('(').Append(resourceProperty).Append(", ").Append(ResourceIdExpression(setter.Value.Resource.Id)).AppendLine(");");
                     continue;
                 }
 
@@ -639,7 +640,7 @@ internal static class CSharpArtifactEmitter
 
                         writer.Append("        style").Append(styleIndex).Append(".SetState").Append(setter.Value.Resource.IsDynamic ? "Resource" : "StaticResource");
                         writer.Append("(global::Delta.XAML.UiStyleState.").Append(state.State).Append(", ")
-                            .Append(stateResourceProperty).Append(", ").Append(Quote(setter.Value.Resource.Key)).AppendLine(");");
+                            .Append(stateResourceProperty).Append(", ").Append(ResourceIdExpression(setter.Value.Resource.Id)).AppendLine(");");
                         continue;
                     }
 
@@ -820,6 +821,16 @@ internal static class CSharpArtifactEmitter
             _ => string.Empty,
         };
         return expression.Length != 0;
+    }
+
+    private static string ResourceIdExpression(UiResourceId resource)
+    {
+        if (!resource.IsValid)
+        {
+            throw new InvalidOperationException("A generated resource reference requires a stable identity.");
+        }
+
+        return "new global::Delta.XAML.Contract.UiResourceId(new global::System.Guid(" + Quote(resource.Value.ToString("D")) + "))";
     }
 
     private static bool TryColor(string value, out string expression, out string error)

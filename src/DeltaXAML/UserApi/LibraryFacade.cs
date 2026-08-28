@@ -389,10 +389,28 @@ public abstract class UiElement
         _retained.SetStyleResource(propertyName, resources.Store, new(resourceKey), PropertyInvalidation(propertyName));
     }
 
+    internal void ApplyStyleResource(string propertyName, UiResourceCatalog resources, UiResourceId resource)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(resources);
+        if (!resource.IsValid)
+        {
+            throw new ArgumentException("A resource identity is required.", nameof(resource));
+        }
+
+        _retained.SetStyleResource(propertyName, resources.Store, new(resource.Value.ToString("D")), PropertyInvalidation(propertyName));
+    }
+
     /// <summary>Assigns a resource-backed style value that follows later catalog changes.</summary>
     public void SetDynamicResource(string propertyName, UiResourceCatalog resources, string resourceKey)
     {
         ApplyStyleResource(propertyName, resources, resourceKey);
+    }
+
+    /// <summary>Assigns a dynamic resource by its stable compiled identity.</summary>
+    public void SetDynamicResource(string propertyName, UiResourceCatalog resources, UiResourceId resource)
+    {
+        ApplyStyleResource(propertyName, resources, resource);
     }
 
     /// <summary>Assigns the current resource value once without subscribing to later changes.</summary>
@@ -404,6 +422,24 @@ public abstract class UiElement
         if (!resources.TryResolve(resourceKey, out var value))
         {
             throw new KeyNotFoundException($"Resource '{resourceKey}' was not found.");
+        }
+
+        ApplyStyleValue(propertyName, value);
+    }
+
+    /// <summary>Assigns the current value of a stable compiled resource identity.</summary>
+    public void SetStaticResource(string propertyName, UiResourceCatalog resources, UiResourceId resource)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(resources);
+        if (!resource.IsValid)
+        {
+            throw new ArgumentException("A resource identity is required.", nameof(resource));
+        }
+
+        if (!resources.TryResolve(resource, out var value))
+        {
+            throw new KeyNotFoundException($"Resource '{resource.Value:D}' was not found.");
         }
 
         ApplyStyleValue(propertyName, value);

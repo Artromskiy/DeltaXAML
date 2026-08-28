@@ -77,7 +77,19 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
 /// <summary>Explicit resource reference used by styles and resource markup.</summary>
 public readonly record struct UiResourceReference(string Key)
 {
-    public bool IsValid => !string.IsNullOrWhiteSpace(Key);
+    public UiResourceReference(UiResourceId resource) : this(resource.Value.ToString("D"))
+    {
+        if (!resource.IsValid)
+        {
+            throw new ArgumentException("A resource identity is required.", nameof(resource));
+        }
+
+        Resource = resource;
+    }
+
+    public UiResourceId Resource { get; } = UiResourceId.Empty;
+
+    public bool IsValid => Resource.IsValid || !string.IsNullOrWhiteSpace(Key);
 }
 
 /// <summary>Closed visual-state vocabulary accepted by compiled styles.</summary>
@@ -156,6 +168,13 @@ public sealed class UiStyle
         SetValue(_values, property.Name, new UiResourceReference(resourceKey));
     }
 
+    /// <summary>Sets a dynamic resource through its stable resource identity.</summary>
+    public void SetResource<T>(UiProperty<T> property, UiResourceId resource)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        SetValue(_values, property.Name, new UiResourceReference(resource));
+    }
+
     public void SetStaticResource(string propertyName, string resourceKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
@@ -179,6 +198,13 @@ public sealed class UiStyle
         }
 
         SetValue(_values, property.Name, new StaticResourceReference(resourceKey));
+    }
+
+    /// <summary>Sets a static resource through its stable resource identity.</summary>
+    public void SetStaticResource<T>(UiProperty<T> property, UiResourceId resource)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        SetValue(_values, property.Name, new StaticResourceReference(resource));
     }
 
     public void SetState(UiStyleState state, string propertyName, object? value)
@@ -223,6 +249,14 @@ public sealed class UiStyle
         SetValue(GetStateValues(state), property.Name, new UiResourceReference(resourceKey));
     }
 
+    /// <summary>Sets a dynamic visual-state resource through its stable resource identity.</summary>
+    public void SetStateResource<T>(UiStyleState state, UiProperty<T> property, UiResourceId resource)
+    {
+        ValidateState(state);
+        ArgumentNullException.ThrowIfNull(property);
+        SetValue(GetStateValues(state), property.Name, new UiResourceReference(resource));
+    }
+
     public void SetStateStaticResource(UiStyleState state, string propertyName, string resourceKey)
     {
         ValidateState(state);
@@ -248,6 +282,14 @@ public sealed class UiStyle
         }
 
         SetValue(GetStateValues(state), property.Name, new StaticResourceReference(resourceKey));
+    }
+
+    /// <summary>Sets a static visual-state resource through its stable resource identity.</summary>
+    public void SetStateStaticResource<T>(UiStyleState state, UiProperty<T> property, UiResourceId resource)
+    {
+        ValidateState(state);
+        ArgumentNullException.ThrowIfNull(property);
+        SetValue(GetStateValues(state), property.Name, new StaticResourceReference(resource));
     }
 
     internal void Apply(UiElement element)
@@ -340,7 +382,14 @@ public sealed class UiStyle
         {
             if (_resources is not null && reference.IsValid)
             {
-                element.ApplyStyleResource(propertyName, _resources, reference.Key);
+                if (reference.Resource.IsValid)
+                {
+                    element.ApplyStyleResource(propertyName, _resources, reference.Resource);
+                }
+                else
+                {
+                    element.ApplyStyleResource(propertyName, _resources, reference.Key);
+                }
             }
         }
         else if (value is StaticResourceReference staticReference)
@@ -421,6 +470,17 @@ public sealed class UiStyle
 
     private readonly record struct StaticResourceReference(string Key)
     {
+        internal StaticResourceReference(UiResourceId resource) : this(resource.Value.ToString("D"))
+        {
+            if (!resource.IsValid)
+            {
+                throw new ArgumentException("A resource identity is required.", nameof(resource));
+            }
+
+            Resource = resource;
+        }
+
+        internal UiResourceId Resource { get; } = UiResourceId.Empty;
         internal bool IsValid => !string.IsNullOrWhiteSpace(Key);
     }
 }

@@ -160,7 +160,9 @@ over `Guid`. Human-readable XAML keys are source aliases, not runtime identity.
 Generated style artifacts use the typed overloads on `UiStyle` with the
 `UiElementProperties`, `UiTextBlockProperties`, `UiNumericEditorProperties`,
 `UiStackPanelProperties` and `UiGridProperties` descriptors. The existing
-string overloads remain a cold loader/tooling compatibility surface.
+string overloads remain a cold loader/tooling compatibility surface. Compiled
+resource setters use the registered `UiResourceId` directly; name-based
+resource keys remain available for cold markup loading.
 
 Resources do not carry Vulkan objects. Images, custom visuals and other GPU
 assets cross the display-list boundary through stable semantic IDs resolved by
