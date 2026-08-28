@@ -471,6 +471,11 @@ internal static partial class Program
         {
             Assert.True(list.Clips[command.Clip.Value].Bounds.z <= 100 && list.Clips[command.Clip.Value].Bounds.w <= 40, "scroll clips to viewport");
         }
+
+        scroll.ScrollBy(0, 200);
+        document.Layout(new(100, 40), 1);
+        Assert.Equal(80f, scroll.OffsetY, "scroll offset clamps to content extent");
+        Assert.Equal(new UiRect(0, -80, 100, 120), content.RetainedElement.Bounds, "clamped scroll positions content without changing its size");
     }
 
     private static void ResourceLookupDiagnostics()
