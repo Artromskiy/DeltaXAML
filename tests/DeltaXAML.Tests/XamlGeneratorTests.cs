@@ -38,6 +38,24 @@ internal static partial class Program
         Assert.True(!CSharpArtifactEmitter.TryEmit(customPlan, customRegistry, "Generated", "CustomArtifact", out _, out var customDiagnostic), "a custom type without a companion factory is rejected");
         Assert.Equal("DXAMLGEN001", customDiagnostic?.Code, "missing factory has a stable diagnostic");
 
+        var generatedCustomRegistry = XamlSemanticRegistry.CreateBuiltIns();
+        generatedCustomRegistry.RegisterType(new(
+            new UiTypeId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D404")),
+            new XamlQualifiedName("urn:custom", "Badge"),
+            XamlContentKind.None,
+            System.Collections.Immutable.ImmutableArray.Create(
+                new XamlPropertyDefinition(
+                    new UiPropertyId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D405")),
+                    "Label",
+                    XamlValueKind.String,
+                    "global::Sample.BadgeSetters.SetLabel")),
+            "new global::Sample.Badge()"));
+        var generatedCustomPlan = XamlCompiler.Compile(sourceId, "<Badge xmlns=\"urn:custom\" Label=\"hello\" />", generatedCustomRegistry);
+        Assert.True(generatedCustomPlan.Success, "custom properties with a declared setter remain valid plans");
+        Assert.True(CSharpArtifactEmitter.TryEmit(generatedCustomPlan, generatedCustomRegistry, "Generated", "GeneratedCustomArtifact", out var generatedCustomSource, out _), "custom property emits through its registered typed setter");
+        Assert.True(generatedCustomSource.Contains("global::Sample.BadgeSetters.SetLabel(node0, \"hello\")", StringComparison.Ordinal), "custom property uses a direct generated setter thunk");
+        Assert.True(!generatedCustomSource.Contains("Set(\"Label\"", StringComparison.Ordinal), "custom property does not use string runtime dispatch");
+
         var resourceRegistry = XamlSemanticRegistry.CreateBuiltIns();
         resourceRegistry.RegisterResource("Accent", new UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D403")));
         var resourcePlan = XamlCompiler.Compile(sourceId, "<TextBlock Foreground=\"{StaticResource Accent}\" />", resourceRegistry);

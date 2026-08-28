@@ -44,7 +44,8 @@ internal enum XamlVisualStateName
 internal readonly record struct XamlPropertyDefinition(
     UiPropertyId Id,
     string Name,
-    XamlValueKind ValueKind);
+    XamlValueKind ValueKind,
+    string? SetterExpression = null);
 
 internal sealed class XamlTypeDefinition
 {
@@ -90,6 +91,11 @@ internal sealed class XamlTypeDefinition
             {
                 throw new ArgumentException($"The XAML property '{property.Name}' is registered twice.", nameof(properties));
             }
+
+            if (property.SetterExpression is { } setter && !IsDirectSetterExpression(setter))
+            {
+                throw new ArgumentException($"The XAML property setter '{setter}' must be a qualified static method name.", nameof(properties));
+            }
         }
     }
 
@@ -106,6 +112,45 @@ internal sealed class XamlTypeDefinition
 
     internal bool TryGetProperty(string name, out XamlPropertyDefinition property) =>
         _properties.TryGetValue(name, out property);
+
+    private static bool IsDirectSetterExpression(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var start = value.StartsWith("global::", StringComparison.Ordinal) ? 8 : 0;
+        if (start == value.Length)
+        {
+            return false;
+        }
+
+        var segments = value[start..].Split('.');
+        if (segments.Length < 2)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var segment = segments[i];
+            if (segment.Length == 0 || (!char.IsLetter(segment[0]) && segment[0] != '_'))
+            {
+                return false;
+            }
+
+            for (var character = 1; character < segment.Length; character++)
+            {
+                if (!char.IsLetterOrDigit(segment[character]) && segment[character] != '_')
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
 }
 
 internal readonly record struct XamlLiteralValue(

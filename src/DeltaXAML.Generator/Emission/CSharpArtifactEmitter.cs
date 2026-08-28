@@ -77,7 +77,7 @@ internal static class CSharpArtifactEmitter
             for (var memberIndex = 0; memberIndex < validationNodes[i].Members.Length; memberIndex++)
             {
                 var member = validationNodes[i].Members[memberIndex];
-                if (!CanEmitMember(member, registry, out var memberError))
+                if (!CanEmitMember(member, registry, type, out var memberError))
                 {
                     diagnostic = new("DXAMLGEN002", memberError, member.Range);
                     return false;
@@ -124,7 +124,7 @@ internal static class CSharpArtifactEmitter
                     return false;
                 }
 
-                if (!CanEmitMember(setter, registry, out var setterError))
+                if (!CanEmitMember(setter, registry, null, out var setterError))
                 {
                     diagnostic = new("DXAMLGEN002", setterError, setter.Range);
                     return false;
@@ -143,7 +143,7 @@ internal static class CSharpArtifactEmitter
                         return false;
                     }
 
-                    if (!CanEmitMember(setter, registry, out var setterError))
+                    if (!CanEmitMember(setter, registry, null, out var setterError))
                     {
                         diagnostic = new("DXAMLGEN002", setterError, setter.Range);
                         return false;
@@ -188,7 +188,7 @@ internal static class CSharpArtifactEmitter
                         }
                     }
 
-                    if (!CanEmitMember(member, registry, out var memberError))
+                    if (!CanEmitMember(member, registry, templateType, out var memberError))
                     {
                         diagnostic = new("DXAMLGEN002", memberError, member.Range);
                         return false;
@@ -267,7 +267,7 @@ internal static class CSharpArtifactEmitter
             writer.Append("        var resource").Append(i).Append(" = ").Append(resourceType.FactoryExpression).AppendLine(";");
             for (var memberIndex = 0; memberIndex < resourceNodes[i].Members.Length; memberIndex++)
             {
-                EmitMember(writer, i, resourceNodes[i].Members[memberIndex], "resource", plan.ResourceSlots);
+                EmitMember(writer, i, resourceNodes[i].Members[memberIndex], resourceType, "resource", plan.ResourceSlots);
             }
         }
 
@@ -328,7 +328,7 @@ internal static class CSharpArtifactEmitter
 
             for (var memberIndex = 0; memberIndex < nodes[i].Members.Length; memberIndex++)
             {
-                EmitMember(writer, i, nodes[i].Members[memberIndex], "node", plan.ResourceSlots);
+                EmitMember(writer, i, nodes[i].Members[memberIndex], type, "node", plan.ResourceSlots);
             }
         }
 
@@ -529,7 +529,11 @@ internal static class CSharpArtifactEmitter
         return true;
     }
 
-    private static bool CanEmitMember(XamlMemberPlan member, XamlSemanticRegistry registry, out string error)
+    private static bool CanEmitMember(
+        XamlMemberPlan member,
+        XamlSemanticRegistry registry,
+        XamlTypeDefinition? type,
+        out string error)
     {
         error = string.Empty;
         if (member.Value.Kind == XamlValueKind.Binding)
@@ -573,9 +577,10 @@ internal static class CSharpArtifactEmitter
             }
         }
 
-        if (!IsSupportedProperty(member.Name))
+        if (!TryTypedPropertyExpression(member.Name, out _) &&
+            (type is null || !type.TryGetProperty(member.Name, out var customProperty) || customProperty.SetterExpression is null))
         {
-            error = $"Property '{member.Name}' has no typed library setter in the current compile slice.";
+            error = $"Property '{member.Name}' has no typed generated setter in the current compile slice.";
             return false;
         }
 
@@ -588,6 +593,13 @@ internal static class CSharpArtifactEmitter
         if (member.Value.Kind != XamlValueKind.Binding && member.Value.Kind != XamlValueKind.ResourceReference &&
             !TryLiteralExpression(member.Name, member.Value, out _, out error))
         {
+            return false;
+        }
+
+        if (member.Value.Kind is XamlValueKind.Binding or XamlValueKind.ResourceReference &&
+            !TryTypedPropertyExpression(member.Name, out _))
+        {
+            error = $"Property '{member.Name}' requires a generated typed library descriptor for bindings and resources.";
             return false;
         }
 
@@ -641,6 +653,7 @@ internal static class CSharpArtifactEmitter
         StringBuilder writer,
         int nodeIndex,
         XamlMemberPlan member,
+        XamlTypeDefinition type,
         string variablePrefix,
         IReadOnlyList<XamlResourceSlotPlan> resourceSlots)
     {
@@ -666,6 +679,18 @@ internal static class CSharpArtifactEmitter
         if (!TryLiteralExpression(member.Name, member.Value, out var expression, out var error))
         {
             throw new InvalidOperationException(error);
+        }
+
+        if (!TryTypedPropertyExpression(member.Name, out _))
+        {
+            if (!type.TryGetProperty(member.Name, out var customProperty) || customProperty.SetterExpression is null)
+            {
+                throw new InvalidOperationException($"Property '{member.Name}' has no typed generated setter.");
+            }
+
+            writer.Append("        ").Append(customProperty.SetterExpression).Append('(')
+                .Append(variablePrefix).Append(nodeIndex).Append(", ").Append(expression).AppendLine(");");
+            return;
         }
 
         writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append('.');
@@ -823,7 +848,7 @@ internal static class CSharpArtifactEmitter
                 writer.Append("            var template").Append(nodeIndex).Append(" = ").Append(type.FactoryExpression).AppendLine(";");
                 for (var memberIndex = 0; memberIndex < nodes[nodeIndex].Members.Length; memberIndex++)
                 {
-                    EmitMember(writer, nodeIndex, nodes[nodeIndex].Members[memberIndex], "template", resourceSlots);
+                    EmitMember(writer, nodeIndex, nodes[nodeIndex].Members[memberIndex], type, "template", resourceSlots);
                 }
             }
 
