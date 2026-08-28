@@ -632,7 +632,7 @@ internal class UiElement
         Participation = value;
         InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
     }
-    internal void ExecuteMeasure(UiSize available, UiNodeStore nodes, UiMeasureQueueBuffer requests)
+    internal void ExecuteMeasure(UiRuntimeTypeIndex runtimeType, UiSize available, UiNodeStore nodes, UiMeasureQueueBuffer requests)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(requests);
@@ -649,11 +649,11 @@ internal class UiElement
         }
 
         var children = nodes.GetLogicalChildren(new(Id.Value, Generation));
-        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(this, new(available, LayoutScale, children, true, requests, nodes)));
+        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(runtimeType, this, new(available, LayoutScale, children, true, requests, nodes)));
         CompleteMeasure(available);
     }
 
-    internal void ExecuteArrange(UiRect bounds, UiArrangeQueueBuffer requests, UiNodeStore nodes)
+    internal void ExecuteArrange(UiRuntimeTypeIndex runtimeType, UiRect bounds, UiArrangeQueueBuffer requests, UiNodeStore nodes)
     {
         ArgumentNullException.ThrowIfNull(requests);
         ArgumentNullException.ThrowIfNull(nodes);
@@ -673,7 +673,7 @@ internal class UiElement
         Bounds = bounds;
         Clip = bounds;
         var children = nodes.GetLogicalChildren(new(Id.Value, Generation));
-        UiDescriptorCatalog.Arrange(this, new(bounds, bounds, children, requests, nodes));
+        UiDescriptorCatalog.Arrange(runtimeType, this, new(bounds, bounds, children, requests, nodes));
         CompleteArrange(bounds);
     }
     protected bool CanSkipMeasure(UiSize available) =>

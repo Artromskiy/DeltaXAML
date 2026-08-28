@@ -114,42 +114,42 @@ internal static class UiDescriptorCatalog
         return (uint)position < (uint)TypeIdentities.Length && TypeIdentities[position] == expected;
     }
 
-    internal static UiSize Measure(UiElement element, in UiMeasureContext context)
+    internal static UiSize Measure(UiRuntimeTypeIndex type, UiElement element, in UiMeasureContext context)
     {
         ArgumentNullException.ThrowIfNull(element);
-        switch (element)
+        switch (type.Value)
         {
-            case TextBlock text:
+            case 1 when element is TextBlock text:
                 UiTextBlockGenerated.Measure(ref text.State, in context);
                 return text.State.Layout.DesiredSize;
-            case StackPanel stack:
+            case 2 when element is StackPanel stack:
                 UiStackPanelGenerated.Measure(ref stack.State, in context);
                 return stack.State.DesiredSize;
-            case Border border:
+            case 3 when element is Border border:
                 border.State.Padding = border.Padding;
                 UiBorderGenerated.Measure(ref border.State, in context);
                 return border.State.DesiredSize;
-            case Grid grid:
-                UiGridGenerated.Measure(ref grid.State, in context);
-                return grid.State.DesiredSize;
-            case ScrollViewer scroll:
-                UiScrollViewerGenerated.Measure(ref scroll.State, in context);
-                return scroll.State.DesiredSize;
-            case Panel panel:
-                UiPanelGenerated.Measure(ref panel.State, in context);
-                return panel.State.DesiredSize;
-            case ContentControl content:
+            case 4 when element is ContentControl content:
                 UiContentControlGenerated.Measure(ref content.State, in context);
                 return content.State.DesiredSize;
+            case 5 when element is Panel panel:
+                UiPanelGenerated.Measure(ref panel.State, in context);
+                return panel.State.DesiredSize;
+            case 6 when element is Grid grid:
+                UiGridGenerated.Measure(ref grid.State, in context);
+                return grid.State.DesiredSize;
+            case 12 when element is ScrollViewer scroll:
+                UiScrollViewerGenerated.Measure(ref scroll.State, in context);
+                return scroll.State.DesiredSize;
             default:
                 return default;
         }
     }
 
-    internal static UiSize ChildMeasureAvailable(UiElement element, UiSize available)
+    internal static UiSize ChildMeasureAvailable(UiRuntimeTypeIndex type, UiElement element, UiSize available)
     {
         ArgumentNullException.ThrowIfNull(element);
-        if (element is Border border)
+        if (type.Value == 3 && element is Border border)
         {
             border.State.Padding = border.Padding;
             return UiBorderGenerated.ChildMeasureAvailable(ref border.State, available);
@@ -214,35 +214,33 @@ internal static class UiDescriptorCatalog
         }
     }
 
-    internal static bool Arrange(UiElement element, in UiArrangeContext context)
+    internal static void Arrange(UiRuntimeTypeIndex type, UiElement element, in UiArrangeContext context)
     {
         ArgumentNullException.ThrowIfNull(element);
-        switch (element)
+        switch (type.Value)
         {
-            case TextBlock text:
+            case 1 when element is TextBlock text:
                 UiTextBlockGenerated.Arrange(ref text.State, in context);
-                return true;
-            case StackPanel stack:
+                return;
+            case 2 when element is StackPanel stack:
                 UiStackPanelGenerated.Arrange(ref stack.State, in context);
-                return true;
-            case Border border:
+                return;
+            case 3 when element is Border border:
                 border.State.Padding = border.Padding;
                 UiBorderGenerated.Arrange(ref border.State, in context);
-                return true;
-            case Grid grid:
-                UiGridGenerated.Arrange(ref grid.State, in context);
-                return true;
-            case ScrollViewer scroll:
-                UiScrollViewerGenerated.Arrange(ref scroll.State, in context);
-                return true;
-            case Panel panel:
-                UiPanelGenerated.Arrange(ref panel.State, in context);
-                return true;
-            case ContentControl content:
+                return;
+            case 4 when element is ContentControl content:
                 UiContentControlGenerated.Arrange(ref content.State, in context);
-                return true;
-            default:
-                return false;
+                return;
+            case 5 when element is Panel panel:
+                UiPanelGenerated.Arrange(ref panel.State, in context);
+                return;
+            case 6 when element is Grid grid:
+                UiGridGenerated.Arrange(ref grid.State, in context);
+                return;
+            case 12 when element is ScrollViewer scroll:
+                UiScrollViewerGenerated.Arrange(ref scroll.State, in context);
+                return;
         }
     }
 }

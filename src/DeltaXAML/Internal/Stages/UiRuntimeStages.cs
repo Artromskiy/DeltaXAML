@@ -207,7 +207,7 @@ internal static class UiMeasureStage
                 continue;
             }
 
-            var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(element, request.Available);
+            var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(node.RuntimeType, element, request.Available);
             if (!nodes.TryCopyLogicalChildren(request.Element, childOrder))
             {
                 continue;
@@ -228,7 +228,7 @@ internal static class UiMeasureStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.ExecuteMeasure(request.Available, nodes, queue);
+                element.ExecuteMeasure(node.RuntimeType, request.Available, nodes, queue);
             }
         }
     }
@@ -254,7 +254,7 @@ internal static class UiArrangeStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.ExecuteArrange(request.Bounds, queue, nodes);
+                element.ExecuteArrange(node.RuntimeType, request.Bounds, queue, nodes);
             }
         }
     }
