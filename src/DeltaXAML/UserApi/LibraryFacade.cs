@@ -828,7 +828,7 @@ public sealed class XamlLoader : IXamlLoader
 
 public sealed class UiDocument : IDisposable
 {
-    private readonly Retained.UiFrame _retainedFrame;
+    private readonly Retained.UiRuntime _runtime;
     private readonly ITextService _textService;
     private readonly IUiFontResolver _fontResolver;
     private readonly Dictionary<string, FontInstanceId> _fontInstances = new(StringComparer.Ordinal);
@@ -856,7 +856,7 @@ public sealed class UiDocument : IDisposable
         Root = root;
         _textService = textService;
         _fontResolver = fontResolver ?? EmptyFontResolver.Instance;
-        _retainedFrame = new Retained.UiFrame(root.RetainedElement);
+        _runtime = new Retained.UiRuntime(root.RetainedElement);
     }
 
     public UiElement Root { get; }
@@ -888,7 +888,7 @@ public sealed class UiDocument : IDisposable
                         new(input.PointingDevice.Position.x, input.PointingDevice.Position.y),
                         (int)input.PointingDevice.ChangedButton.Value,
                         input.PointingDevice.WheelDelta.y));
-                    _retainedFrame.EnqueueInput(in packet);
+                    _runtime.EnqueueInput(in packet);
                     break;
                 }
             case UiInputEventKind.Key:
@@ -897,13 +897,13 @@ public sealed class UiDocument : IDisposable
                         checked((int)input.Key.PhysicalKey.Value),
                         input.Key.Kind == UiKeyEventKind.Down,
                         input.Key.IsRepeat));
-                    _retainedFrame.EnqueueInput(in packet);
+                    _runtime.EnqueueInput(in packet);
                     break;
                 }
             case UiInputEventKind.Text:
                 {
                     var packet = Retained.UiInputPacket.From(new Retained.UiTextInput(input.Text.Text.ToString()));
-                    _retainedFrame.EnqueueInput(in packet);
+                    _runtime.EnqueueInput(in packet);
                     break;
                 }
             case UiInputEventKind.Composition:
@@ -914,7 +914,7 @@ public sealed class UiDocument : IDisposable
                         composition.Selection.StartUtf16,
                         composition.Selection.LengthUtf16,
                         composition.Stage == UiCompositionStage.Finished));
-                    _retainedFrame.EnqueueInput(in packet);
+                    _runtime.EnqueueInput(in packet);
                     break;
                 }
             default:
@@ -927,7 +927,7 @@ public sealed class UiDocument : IDisposable
         for (var i = 0; i < input.Length; i++) { Dispatch(input[i]); }
     }
 
-    public void Layout(float2 viewport, float dpiScale) => _retainedFrame.Layout(new(viewport.x, viewport.y), dpiScale);
+    public void Layout(float2 viewport, float dpiScale) => _runtime.Layout(new(viewport.x, viewport.y), dpiScale);
 
     public UiDisplayList BuildDisplayList()
     {

@@ -3,91 +3,27 @@ namespace DeltaXAML.Internal;
 internal sealed class UiFrame : IUiFrame
 {
     private readonly DrawList _drawList = new();
-    private readonly UiInputRouter _input;
-    private readonly List<UiMutation> _mutations = new();
-    private readonly List<UiInputPacket> _inputQueue = new();
-    private readonly UiElement _retainedRoot;
-    private readonly UiNodeStore _nodes;
+    private readonly UiRuntime _runtime;
+
     public UiFrame(IUiElement root)
     {
-        ArgumentNullException.ThrowIfNull(root);
-        _retainedRoot = root as UiElement ?? throw new ArgumentException("Root must be a DeltaXAML element.", nameof(root));
-        Root = _retainedRoot;
-        _nodes = new(_retainedRoot);
-        _input = new(this);
+        _runtime = new(root);
     }
-    public IUiElement Root { get; }
-    public IUiInputRouter Input => _input;
-    public int AppliedMutationCount { get; private set; }
-    public int RejectedMutationCount { get; private set; }
-    public int PendingMutationCount => _mutations.Count;
-    internal int PendingInputCount => _inputQueue.Count;
-    public void Enqueue(in UiMutation mutation) => _mutations.Add(mutation);
-    internal void EnqueueInput(in UiInputPacket packet) => _inputQueue.Add(packet);
-
-    private void ApplyInput()
-    {
-        for (var i = 0; i < _inputQueue.Count; i++)
-        {
-            _input.Dispatch(_inputQueue[i]);
-        }
-
-        _inputQueue.Clear();
-    }
-    public void ApplyMutations()
-    {
-        AppliedMutationCount = 0; RejectedMutationCount = 0;
-        for (var i = 0; i < _mutations.Count; i++)
-        {
-            var mutation = _mutations[i];
-            if (TryResolve(mutation.Target, out var element) && element.TrySet(mutation.Target, mutation.Value, mutation.Invalidation, out _))
-            {
-                AppliedMutationCount++;
-            }
-            else
-            {
-                RejectedMutationCount++;
-            }
-        }
-        _mutations.Clear();
-    }
-    public void Layout(UiSize viewport, float dpiScale)
-    {
-        ApplyInput();
-        ApplyMutations();
-        if (Root is UiElement element)
-        {
-            element.SetLayoutScale(dpiScale);
-        }
-
-        var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
-        Root.Measure(scaled);
-        Root.Arrange(new(0, 0, viewport.Width, viewport.Height));
-    }
+    public IUiElement Root => _runtime.Root;
+    public IUiInputRouter Input => _runtime.Input;
+    public int AppliedMutationCount => _runtime.AppliedMutationCount;
+    public int RejectedMutationCount => _runtime.RejectedMutationCount;
+    public int PendingMutationCount => _runtime.PendingMutationCount;
+    internal int PendingInputCount => _runtime.PendingInputCount;
+    public void Enqueue(in UiMutation mutation) => _runtime.Enqueue(in mutation);
+    internal void EnqueueInput(in UiInputPacket packet) => _runtime.EnqueueInput(in packet);
+    public void ApplyMutations() => _runtime.ApplyMutations();
+    public void Layout(UiSize viewport, float dpiScale) => _runtime.Layout(viewport, dpiScale);
     public IUiDrawList ExtractDrawList(in UiFrameContext context) { _drawList.Build(Root, new(0, 0, context.Viewport.Width, context.Viewport.Height)); return _drawList; }
-    internal bool TryResolve(UiPropertyHandle handle, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element)
-    {
-        _nodes.EnsureCurrent(_retainedRoot);
-        return _nodes.TryResolve(handle, out element);
-    }
-
-    internal bool TryResolve(UiElementId id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element)
-    {
-        _nodes.EnsureCurrent(_retainedRoot);
-        return _nodes.TryResolve(id, out element);
-    }
-
-    internal bool TryGetNode(UiNodeId id, out UiNodeRecord record)
-    {
-        _nodes.EnsureCurrent(_retainedRoot);
-        return _nodes.TryGetNode(id, out record);
-    }
-
-    internal bool Contains(UiElement element)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        return TryResolve(element.Id, out var current) && current.Generation == element.Generation;
-    }
+    internal bool TryResolve(UiPropertyHandle handle, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element) => _runtime.TryResolve(handle, out element);
+    internal bool TryResolve(UiElementId id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element) => _runtime.TryResolve(id, out element);
+    internal bool TryGetNode(UiNodeId id, out UiNodeRecord record) => _runtime.TryGetNode(id, out record);
+    internal bool Contains(UiElement element) => _runtime.Contains(element);
 }
 
 internal sealed class DrawList : IUiDrawList
@@ -238,11 +174,11 @@ internal sealed class DrawList : IUiDrawList
 
 internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 {
-    private readonly UiFrame _frame;
+    private readonly UiRuntime _runtime;
     private readonly List<UiElement> _focusable = new();
     private readonly List<UiElement> _routePath = new();
     private UiElement? _focused, _captured, _hovered;
-    public UiInputRouter(UiFrame frame) { ArgumentNullException.ThrowIfNull(frame); _frame = frame; }
+    public UiInputRouter(UiRuntime runtime) { ArgumentNullException.ThrowIfNull(runtime); _runtime = runtime; }
     public UiElementId? Focused => _focused?.Id;
     public UiElementId? Captured => _captured?.Id;
     public void Dispatch(in UiInputPacket packet)
@@ -255,11 +191,11 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
             case UiInputPacketKind.Ime: { var ime = packet.Ime; RouteIme(in ime); break; }
         }
     }
-    public void Focus(UiElementId? element) => _focused = element is { } id && _frame.TryResolve(id, out var resolved) ? resolved : null;
+    public void Focus(UiElementId? element) => _focused = element is { } id && _runtime.TryResolve(id, out var resolved) ? resolved : null;
     public void RoutePointer(in UiPointerEvent input)
     {
         PruneDetachedState();
-        var target = _captured ?? FindHit(_frame.Root, input.Position);
+        var target = _captured ?? FindHit(_runtime.Root, input.Position);
         if (input.Kind == UiPointerEventKind.Move)
         {
             _hovered = target;
@@ -306,17 +242,17 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     }
     private void PruneDetachedState()
     {
-        if (_focused is not null && !_frame.Contains(_focused))
+        if (_focused is not null && !_runtime.Contains(_focused))
         {
             _focused = null;
         }
 
-        if (_captured is not null && !_frame.Contains(_captured))
+        if (_captured is not null && !_runtime.Contains(_captured))
         {
             _captured = null;
         }
 
-        if (_hovered is not null && !_frame.Contains(_hovered))
+        if (_hovered is not null && !_runtime.Contains(_hovered))
         {
             _hovered = null;
         }
@@ -324,7 +260,7 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     private void FocusNext()
     {
         _focusable.Clear();
-        CollectFocusable(_frame.Root, _focusable);
+        CollectFocusable(_runtime.Root, _focusable);
         var index = _focused is null ? -1 : _focusable.IndexOf(_focused);
         _focused = _focusable.Count == 0 ? null : _focusable[(index + 1) % _focusable.Count];
     }
