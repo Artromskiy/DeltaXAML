@@ -252,6 +252,7 @@ internal static class XamlCompiler
             }
 
             var setters = ImmutableArray.CreateBuilder<XamlMemberPlan>();
+            var visualStates = ImmutableArray.CreateBuilder<XamlVisualStatePlan>();
             var closed = selfClosing;
             if (!selfClosing)
             {
@@ -275,6 +276,10 @@ internal static class XamlCompiler
                         if (_text.AsSpan(_offset).StartsWith("<Setter", StringComparison.Ordinal))
                         {
                             ParseSetter(targetType, namespaces, setters);
+                        }
+                        else if (_text.AsSpan(_offset).StartsWith("<VisualState", StringComparison.Ordinal))
+                        {
+                            ParseVisualState(targetType, namespaces, visualStates);
                         }
                         else
                         {
@@ -308,6 +313,7 @@ internal static class XamlCompiler
                     key,
                     ToQualifiedName(targetType, namespaces),
                     setters.ToImmutable(),
+                    visualStates.ToImmutable(),
                     Range(elementStart, _offset)));
             }
         }
@@ -376,6 +382,123 @@ internal static class XamlCompiler
             {
                 setters.Add(new(property.Id, property.Name, value, valueRange));
             }
+        }
+
+        private void ParseVisualState(
+            string? targetType,
+            Dictionary<string, string> namespaces,
+            ImmutableArray<XamlVisualStatePlan>.Builder states)
+        {
+            var start = _offset;
+            Consume('<');
+            var lexicalName = ReadName();
+            var attributes = new List<AttributeSyntax>();
+            var selfClosing = ParseStartTag(attributes, start);
+            if (!string.Equals(lexicalName, "VisualState", StringComparison.Ordinal))
+            {
+                Report("XAML028", "Only VisualState elements are supported in a Style.", start, _offset);
+                return;
+            }
+
+            XamlVisualStateName state = XamlVisualStateName.None;
+            SourceRange stateRange = Range(start, _offset);
+            foreach (var attribute in attributes)
+            {
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                if (attribute.Prefix.Length == 0 && attribute.LocalName == "Name")
+                {
+                    stateRange = attribute.Range;
+                    if (!TryParseVisualStateName(attribute.Value, out state))
+                    {
+                        Report("XAML029", $"VisualState '{attribute.Value}' is not a supported state name.", attribute.Range);
+                    }
+
+                    continue;
+                }
+
+                Report("XAML028", $"Unsupported VisualState attribute '{attribute.LocalName}'.", attribute.Range);
+            }
+
+            if (state == XamlVisualStateName.None)
+            {
+                Report("XAML030", "A VisualState requires a supported Name.", stateRange);
+            }
+
+            var setters = ImmutableArray.CreateBuilder<XamlMemberPlan>();
+            var closed = selfClosing;
+            if (!selfClosing)
+            {
+                while (_offset < _text.Length)
+                {
+                    if (StartsWith("</"))
+                    {
+                        var closeStart = _offset;
+                        var closeName = ParseEndElement();
+                        if (!string.Equals(closeName, "VisualState", StringComparison.Ordinal))
+                        {
+                            Report("XAML013", $"Closing element '{closeName}' does not match 'VisualState'.", closeStart, _offset);
+                        }
+
+                        closed = true;
+                        break;
+                    }
+
+                    if (Current == '<')
+                    {
+                        if (_text.AsSpan(_offset).StartsWith("<Setter", StringComparison.Ordinal))
+                        {
+                            ParseSetter(targetType, namespaces, setters);
+                        }
+                        else
+                        {
+                            var unexpected = ParseElement(namespaces);
+                            if (unexpected is not null)
+                            {
+                                Report("XAML028", "Only Setter children are supported in a VisualState.", unexpected.Range);
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    var textStart = _offset;
+                    ReadText();
+                    if (!string.IsNullOrWhiteSpace(_text[textStart.._offset]))
+                    {
+                        Report("XAML004", "Text content is not supported in a VisualState.", textStart, _offset);
+                    }
+                }
+            }
+
+            if (!closed)
+            {
+                Report("XAML012", "Element 'VisualState' is not closed.", _offset, _offset);
+            }
+
+            if (state is not (XamlVisualStateName.None or XamlVisualStateName.Unknown))
+            {
+                states.Add(new(state, setters.ToImmutable(), Range(start, _offset)));
+            }
+        }
+
+        private static bool TryParseVisualStateName(string value, out XamlVisualStateName state)
+        {
+            state = value switch
+            {
+                "Normal" => XamlVisualStateName.Normal,
+                "Hover" => XamlVisualStateName.Hover,
+                "Pressed" => XamlVisualStateName.Pressed,
+                "Focused" => XamlVisualStateName.Focused,
+                "Disabled" => XamlVisualStateName.Disabled,
+                "Invalid" => XamlVisualStateName.Invalid,
+                "Selected" => XamlVisualStateName.Selected,
+                _ => XamlVisualStateName.Unknown,
+            };
+            return state is not (XamlVisualStateName.None or XamlVisualStateName.Unknown);
         }
 
         private void ParseTemplate(

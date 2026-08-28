@@ -632,6 +632,8 @@ internal static partial class Program
         var style = new Library.UiStyle("Body", "TextBlock", resources);
         style.SetResource("Foreground", "TextColor");
         style.Set("FontSize", 18f);
+        var hoverColor = new Library.UiColor(70, 80, 90);
+        style.SetState(Library.UiStyleState.Hover, "Foreground", hoverColor);
         var theme = new Library.UiTheme(resources);
         theme.Add(style);
 
@@ -643,6 +645,15 @@ internal static partial class Program
         resources.Set("TextColor", secondColor);
         Assert.Equal(secondColor, text.Foreground, "resource change updates the dependent style value");
         Assert.Equal(new Library.UiColor(255, 255, 255), other.Foreground, "unrelated element is not changed by a resource update");
+
+        using var stateTextService = new EmptyTextService();
+        using var stateDocument = new Library.UiDocument(text, stateTextService, null, theme);
+        text.RetainedElement.SetHovered(true);
+        stateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(hoverColor, text.Foreground, "visual state overrides the base style after input state changes");
+        text.RetainedElement.SetHovered(false);
+        stateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(secondColor, text.Foreground, "leaving a visual state restores the base resource style");
 
         var loader = new Library.XamlLoader();
         var dynamicLoaded = loader.Load(

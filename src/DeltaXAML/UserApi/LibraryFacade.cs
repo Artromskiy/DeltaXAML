@@ -831,6 +831,7 @@ public sealed class UiDocument : IDisposable
     private readonly Retained.UiRuntime _runtime;
     private readonly ITextService _textService;
     private readonly IUiFontResolver _fontResolver;
+    private readonly UiTheme? _theme;
     private readonly Dictionary<string, FontInstanceId> _fontInstances = new(StringComparer.Ordinal);
     private readonly Dictionary<UiTextCacheKey, UiTextCacheEntry> _textCache = new();
     private readonly FontInstanceId[] _singleFontFallback = new FontInstanceId[1];
@@ -851,12 +852,18 @@ public sealed class UiDocument : IDisposable
     }
 
     public UiDocument(UiElement root, ITextService textService, IUiFontResolver? fontResolver)
+        : this(root, textService, fontResolver, null)
+    {
+    }
+
+    public UiDocument(UiElement root, ITextService textService, IUiFontResolver? fontResolver, UiTheme? theme)
     {
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(textService);
         Root = root;
         _textService = textService;
         _fontResolver = fontResolver ?? EmptyFontResolver.Instance;
+        _theme = theme;
         _runtime = new Retained.UiRuntime(root.RetainedElement);
     }
 
@@ -928,7 +935,7 @@ public sealed class UiDocument : IDisposable
         for (var i = 0; i < input.Length; i++) { Dispatch(input[i]); }
     }
 
-    public void Layout(float2 viewport, float dpiScale) => _runtime.Layout(new(viewport.x, viewport.y), dpiScale);
+    public void Layout(float2 viewport, float dpiScale) => _runtime.Layout(new(viewport.x, viewport.y), dpiScale, _theme, Root);
 
     public UiDisplayList BuildDisplayList()
     {

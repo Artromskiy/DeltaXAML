@@ -57,8 +57,22 @@ internal sealed class UiRuntime
 
     public void Layout(UiSize viewport, float dpiScale)
     {
+        Layout(viewport, dpiScale, null, null);
+    }
+
+    internal void Layout(
+        UiSize viewport,
+        float dpiScale,
+        Delta.XAML.UiTheme? theme,
+        Delta.XAML.UiElement? publicRoot)
+    {
         ApplyInput();
         ApplyMutations();
+        if (theme is not null && publicRoot is not null)
+        {
+            theme.RefreshStates(publicRoot);
+        }
+
         _retainedRoot.SetLayoutScale(dpiScale);
         var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
         Root.Measure(scaled);

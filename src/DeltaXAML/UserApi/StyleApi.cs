@@ -80,10 +80,25 @@ public readonly record struct UiResourceReference(string Key)
     public bool IsValid => !string.IsNullOrWhiteSpace(Key);
 }
 
+/// <summary>Closed visual-state vocabulary accepted by compiled styles.</summary>
+public enum UiStyleState
+{
+    None,
+    Unknown,
+    Normal,
+    Hover,
+    Pressed,
+    Focused,
+    Disabled,
+    Invalid,
+    Selected,
+}
+
 /// <summary>Small deterministic style value set; application uses the retained style source slot.</summary>
 public sealed class UiStyle
 {
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
+    private readonly Dictionary<UiStyleState, Dictionary<string, object?>> _stateValues = new();
     private readonly UiResourceCatalog? _resources;
 
     public UiStyle(string key, string targetType, UiResourceCatalog? resources = null)
@@ -129,6 +144,39 @@ public sealed class UiStyle
         _values[propertyName] = new StaticResourceReference(resourceKey);
     }
 
+    public void SetState(UiStyleState state, string propertyName, object? value)
+    {
+        ValidateState(state);
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        GetStateValues(state)[propertyName] = value;
+    }
+
+    public void SetStateResource(UiStyleState state, string propertyName, string resourceKey)
+    {
+        ValidateState(state);
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+        if (_resources is null)
+        {
+            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
+        }
+
+        GetStateValues(state)[propertyName] = new UiResourceReference(resourceKey);
+    }
+
+    public void SetStateStaticResource(UiStyleState state, string propertyName, string resourceKey)
+    {
+        ValidateState(state);
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+        if (_resources is null)
+        {
+            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
+        }
+
+        GetStateValues(state)[propertyName] = new StaticResourceReference(resourceKey);
+    }
+
     internal void Apply(UiElement element)
     {
         ArgumentNullException.ThrowIfNull(element);
@@ -137,35 +185,150 @@ public sealed class UiStyle
             return;
         }
 
-        foreach (var pair in _values)
+        var state = CurrentState(element);
+        if (ReferenceEquals(element.RetainedElement.AppliedStyle, this))
         {
-            if (pair.Value is UiResourceReference reference)
+            ApplyState(element, state);
+            return;
+        }
+
+        if (element.RetainedElement.AppliedStyle is { } previous)
+        {
+            previous.ClearApplied(element);
+        }
+
+        ApplyValues(element, _values);
+        ApplyStateValues(element, state);
+        element.RetainedElement.SetAppliedStyle(this, state);
+    }
+
+    internal void ApplyState(UiElement element, UiStyleState state)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        ValidateState(state);
+        if (!ReferenceEquals(element.RetainedElement.AppliedStyle, this))
+        {
+            Apply(element);
+            return;
+        }
+
+        var previousState = element.RetainedElement.AppliedStyleState;
+        if (previousState == state)
+        {
+            return;
+        }
+
+        _stateValues.TryGetValue(state, out var nextValues);
+        if (_stateValues.TryGetValue(previousState, out var previousValues))
+        {
+            foreach (var pair in previousValues)
             {
-                if (_resources is null || !reference.IsValid)
+                if (nextValues is not null && nextValues.ContainsKey(pair.Key))
                 {
                     continue;
                 }
 
-                element.ApplyStyleResource(pair.Key, _resources, reference.Key);
-            }
-            else if (pair.Value is StaticResourceReference staticReference)
-            {
-                if (_resources is null || !staticReference.IsValid)
+                if (_values.TryGetValue(pair.Key, out var baseValue))
                 {
-                    continue;
+                    ApplyValue(element, pair.Key, baseValue);
                 }
+                else
+                {
+                    element.RetainedElement.ClearStyleValue(pair.Key);
+                }
+            }
+        }
 
-                if (_resources.TryResolve(staticReference.Key, out var value))
-                {
-                    element.ApplyStyleValue(pair.Key, value);
-                }
-            }
-            else
+        ApplyStateValues(element, state);
+        element.RetainedElement.SetAppliedStyle(this, state);
+    }
+
+    private void ApplyStateValues(UiElement element, UiStyleState state)
+    {
+        if (_stateValues.TryGetValue(state, out var values))
+        {
+            ApplyValues(element, values);
+        }
+    }
+
+    private void ApplyValues(UiElement element, Dictionary<string, object?> values)
+    {
+        foreach (var pair in values)
+        {
+            ApplyValue(element, pair.Key, pair.Value);
+        }
+    }
+
+    private void ApplyValue(UiElement element, string propertyName, object? value)
+    {
+        if (value is UiResourceReference reference)
+        {
+            if (_resources is not null && reference.IsValid)
             {
-                element.ApplyStyleValue(pair.Key, pair.Value);
+                element.ApplyStyleResource(propertyName, _resources, reference.Key);
+            }
+        }
+        else if (value is StaticResourceReference staticReference)
+        {
+            if (_resources is not null && staticReference.IsValid && _resources.TryResolve(staticReference.Key, out var resolved))
+            {
+                element.ApplyStyleValue(propertyName, resolved);
+            }
+        }
+        else
+        {
+            element.ApplyStyleValue(propertyName, value);
+        }
+    }
+
+    private void ClearApplied(UiElement element)
+    {
+        foreach (var property in _values.Keys)
+        {
+            element.RetainedElement.ClearStyleValue(property);
+        }
+
+        foreach (var values in _stateValues.Values)
+        {
+            foreach (var property in values.Keys)
+            {
+                if (!_values.ContainsKey(property))
+                {
+                    element.RetainedElement.ClearStyleValue(property);
+                }
             }
         }
     }
+
+    private Dictionary<string, object?> GetStateValues(UiStyleState state) =>
+        _stateValues.TryGetValue(state, out var values) ? values : AddStateValues(state);
+
+    private Dictionary<string, object?> AddStateValues(UiStyleState state)
+    {
+        var values = new Dictionary<string, object?>(StringComparer.Ordinal);
+        _stateValues.Add(state, values);
+        return values;
+    }
+
+    private static void ValidateState(UiStyleState state)
+    {
+        if (state is UiStyleState.None or UiStyleState.Unknown)
+        {
+            throw new ArgumentOutOfRangeException(nameof(state), state, "A concrete visual state is required.");
+        }
+    }
+
+    internal static UiStyleState CurrentState(UiElement element) => element.RetainedElement.VisualState.State switch
+    {
+        Retained.UiVisualState.Normal => UiStyleState.Normal,
+        Retained.UiVisualState.Hover => UiStyleState.Hover,
+        Retained.UiVisualState.Pressed => UiStyleState.Pressed,
+        Retained.UiVisualState.Focused => UiStyleState.Focused,
+        Retained.UiVisualState.Disabled => UiStyleState.Disabled,
+        Retained.UiVisualState.Invalid => UiStyleState.Invalid,
+        Retained.UiVisualState.Selected => UiStyleState.Selected,
+        _ => UiStyleState.Unknown,
+    };
 
     private readonly record struct StaticResourceReference(string Key)
     {
@@ -192,6 +355,7 @@ public sealed class UiTheme
 {
     private readonly List<UiStyle> _styles = new();
     private readonly Dictionary<string, UiTemplate> _templates = new(StringComparer.Ordinal);
+    private readonly List<UiElement> _stateTraversal = new();
 
     public UiTheme(UiResourceCatalog? resources = null)
     {
@@ -224,6 +388,35 @@ public sealed class UiTheme
         ArgumentNullException.ThrowIfNull(root);
         ApplyRecursive(root);
     }
+
+    internal void RefreshStates(UiElement root)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        _stateTraversal.Clear();
+        _stateTraversal.Add(root);
+        while (_stateTraversal.Count != 0)
+        {
+            var last = _stateTraversal.Count - 1;
+            var element = _stateTraversal[last];
+            _stateTraversal.RemoveAt(last);
+            if (element.StyleKey is { } styleKey)
+            {
+                for (var i = 0; i < _styles.Count; i++)
+                {
+                    if (string.Equals(_styles[i].Key, styleKey, StringComparison.Ordinal))
+                    {
+                        _styles[i].ApplyState(element, UiStyle.CurrentState(element));
+                    }
+                }
+            }
+
+            for (var i = element.Children.Count - 1; i >= 0; i--)
+            {
+                _stateTraversal.Add(element.Children[i]);
+            }
+        }
+    }
+
 
     private void ApplyRecursive(UiElement element)
     {

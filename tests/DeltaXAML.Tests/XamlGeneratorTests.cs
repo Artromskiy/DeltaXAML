@@ -51,11 +51,12 @@ internal static partial class Program
         var compositionRegistry = XamlSemanticRegistry.CreateBuiltIns();
         var compositionPlan = XamlCompiler.Compile(
             sourceId,
-            "<Panel><TextBlock StyleKey=\"Title\" /><Style x:Key=\"Title\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></Panel>",
+            "<Panel><TextBlock StyleKey=\"Title\" /><Style x:Key=\"Title\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><VisualState Name=\"Pressed\"><Setter Property=\"FontSize\" Value=\"18\" /></VisualState></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></Panel>",
             compositionRegistry);
         Assert.True(compositionPlan.Success, "styles and templates remain in the compiled semantic plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(compositionPlan, compositionRegistry, "Generated", "CompositionArtifact", out var compositionSource, out var compositionDiagnostic), "styles and templates emit through the companion path");
         Assert.True(compositionDiagnostic is null && compositionSource.Contains("new global::Delta.XAML.UiStyle(\"Title\"", StringComparison.Ordinal), "compiled style initialization is direct");
+        Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, \"FontSize\", 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
         Assert.True(compositionSource.Contains("Theme.RegisterTemplate(\"ButtonTemplate\"", StringComparison.Ordinal), "compiled template registration is direct");
         Assert.True(compositionSource.Contains("Theme.Apply(node0);", StringComparison.Ordinal), "compiled style/template state is applied after attachment");
 

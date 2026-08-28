@@ -28,6 +28,19 @@ internal enum XamlContentKind
     SingleContent,
 }
 
+internal enum XamlVisualStateName
+{
+    None,
+    Unknown,
+    Normal,
+    Hover,
+    Pressed,
+    Focused,
+    Disabled,
+    Invalid,
+    Selected,
+}
+
 internal readonly record struct XamlPropertyDefinition(
     UiPropertyId Id,
     string Name,
@@ -163,6 +176,12 @@ internal sealed record XamlResourcePlan(
 internal sealed record XamlStylePlan(
     string Key,
     XamlQualifiedName TargetType,
+    ImmutableArray<XamlMemberPlan> Setters,
+    ImmutableArray<XamlVisualStatePlan> VisualStates,
+    SourceRange Range);
+
+internal sealed record XamlVisualStatePlan(
+    XamlVisualStateName State,
     ImmutableArray<XamlMemberPlan> Setters,
     SourceRange Range);
 

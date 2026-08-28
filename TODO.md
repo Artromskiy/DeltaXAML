@@ -69,9 +69,11 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   explicit refresh/dispose batch on the companion. `OneTime` does not subscribe
   to source notifications. An undeclared XAML binding is a build diagnostic,
   never a string-path or reflection fallback.
-- [ ] `DXAML-COMPILE-4`: compile resources, styles, selectors, visual states and
-  templates into cached plans. Runtime fallback is tooling-only and must never
-  be selected silently in a shipping build.
+- [x] `DXAML-COMPILE-4`: compile resource identities/slots, target-type style
+  selectors, visual-state setters and template trees into deterministic plans.
+  The companion emits direct resource/style/state/template registration; runtime
+  state refresh uses the existing retained property store. Unsupported markup
+  remains a diagnostic and never selects a reflection fallback.
 
 ### P1 — retained stages and game use
 

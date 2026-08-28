@@ -128,6 +128,26 @@ internal static class CSharpArtifactEmitter
                     return false;
                 }
             }
+
+            for (var stateIndex = 0; stateIndex < style.VisualStates.Length; stateIndex++)
+            {
+                var state = style.VisualStates[stateIndex];
+                for (var setterIndex = 0; setterIndex < state.Setters.Length; setterIndex++)
+                {
+                    var setter = state.Setters[setterIndex];
+                    if (setter.Value.Kind == XamlValueKind.Binding)
+                    {
+                        diagnostic = new("DXAMLGEN002", "Compiled visual-state setters cannot contain bindings.", setter.Range);
+                        return false;
+                    }
+
+                    if (!CanEmitMember(setter, registry, out var setterError))
+                    {
+                        diagnostic = new("DXAMLGEN002", setterError, setter.Range);
+                        return false;
+                    }
+                }
+            }
         }
 
         for (var templateIndex = 0; templateIndex < plan.Templates.Length; templateIndex++)
@@ -311,7 +331,7 @@ internal static class CSharpArtifactEmitter
         if (hasVisualRoot)
         {
             writer.AppendLine("        Theme.Apply(node0);");
-            writer.Append("        Document = new global::Delta.XAML.UiDocument(node0, textService);").AppendLine();
+            writer.Append("        Document = new global::Delta.XAML.UiDocument(node0, textService, null, Theme);").AppendLine();
         }
         var namedNodes = nodes.Where(static node => node.ScopeName is not null).ToList();
         writer.Append("        _scopeElements = new global::Delta.XAML.UiElement[]").AppendLine();
@@ -589,6 +609,30 @@ internal static class CSharpArtifactEmitter
                 }
 
                 writer.Append("        style").Append(styleIndex).Append(".Set(").Append(Quote(setter.Name)).Append(", ").Append(expression).AppendLine(");");
+            }
+
+            for (var stateIndex = 0; stateIndex < style.VisualStates.Length; stateIndex++)
+            {
+                var state = style.VisualStates[stateIndex];
+                for (var setterIndex = 0; setterIndex < state.Setters.Length; setterIndex++)
+                {
+                    var setter = state.Setters[setterIndex];
+                    if (setter.Value.Kind == XamlValueKind.ResourceReference)
+                    {
+                        writer.Append("        style").Append(styleIndex).Append(".SetState").Append(setter.Value.Resource.IsDynamic ? "Resource" : "StaticResource");
+                        writer.Append("(global::Delta.XAML.UiStyleState.").Append(state.State).Append(", ")
+                            .Append(Quote(setter.Name)).Append(", ").Append(Quote(setter.Value.Resource.Key)).AppendLine(");");
+                        continue;
+                    }
+
+                    if (!TryLiteralExpression(setter.Name, setter.Value, out var expression, out var error))
+                    {
+                        throw new InvalidOperationException(error);
+                    }
+
+                    writer.Append("        style").Append(styleIndex).Append(".SetState(global::Delta.XAML.UiStyleState.")
+                        .Append(state.State).Append(", ").Append(Quote(setter.Name)).Append(", ").Append(expression).AppendLine(");");
+                }
             }
 
             writer.Append("        Theme.Add(style").Append(styleIndex).AppendLine(");");

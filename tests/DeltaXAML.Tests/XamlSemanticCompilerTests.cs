@@ -73,13 +73,15 @@ internal static partial class Program
 
         var resourceDocument = XamlCompiler.Compile(
             sourceId,
-            "<ResourceDictionary><TextBlock x:Key=\"AccentValue\" Foreground=\"#112233\" /><TextBlock Foreground=\"{DynamicResource AccentValue}\" /><Style x:Key=\"TitleStyle\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><Setter Property=\"Foreground\" Value=\"#AABBCC\" /></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></ResourceDictionary>",
+            "<ResourceDictionary><TextBlock x:Key=\"AccentValue\" Foreground=\"#112233\" /><TextBlock Foreground=\"{DynamicResource AccentValue}\" /><Style x:Key=\"TitleStyle\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><Setter Property=\"Foreground\" Value=\"#AABBCC\" /><VisualState Name=\"Hover\"><Setter Property=\"Foreground\" Value=\"#DDEEFF\" /></VisualState></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></ResourceDictionary>",
             registry);
         Assert.True(resourceDocument.Success, "resource, style and template declarations recover into one document plan");
         Assert.Equal(1, resourceDocument.Resources.Length, "x:Key resource declaration is retained");
         Assert.Equal(1, resourceDocument.Styles.Length, "Style declaration is retained");
         Assert.Equal(2, resourceDocument.Styles[0].Setters.Length, "Style setters are typed and ordered");
         Assert.Equal("FontSize", resourceDocument.Styles[0].Setters[0].Name, "style setter preserves property identity");
+        Assert.Equal(1, resourceDocument.Styles[0].VisualStates.Length, "VisualState declaration is retained");
+        Assert.Equal(XamlVisualStateName.Hover, resourceDocument.Styles[0].VisualStates[0].State, "VisualState uses the closed state vocabulary");
         Assert.Equal(1, resourceDocument.Templates.Length, "Template declaration is retained");
         Assert.Equal("Border", resourceDocument.Templates[0].Root.Name.LocalName, "template keeps its semantic visual root");
         Assert.Equal(1, resourceDocument.ResourceSlots.Length, "one stable resource identity uses one local slot");
