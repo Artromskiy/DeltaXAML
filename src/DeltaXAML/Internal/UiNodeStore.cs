@@ -83,9 +83,11 @@ internal sealed class UiNodeStore
             }
 
             var parentId = visit.Parent is null ? default : ToNodeId(visit.Parent);
+            UiDescriptorCatalog.TryResolve(element, out var runtimeType);
             var record = new UiNodeRecord(
                 element,
                 ToNodeId(element),
+                runtimeType,
                 parentId,
                 parentId,
                 default,
@@ -158,6 +160,7 @@ internal struct UiNodeRecord
     internal UiNodeRecord(
         UiElement element,
         UiNodeId id,
+        UiRuntimeTypeIndex runtimeType,
         UiNodeId logicalParent,
         UiNodeId visualParent,
         UiNodeId firstLogicalChild,
@@ -168,6 +171,7 @@ internal struct UiNodeRecord
     {
         Element = element;
         Id = id;
+        RuntimeType = runtimeType;
         LogicalParent = logicalParent;
         VisualParent = visualParent;
         FirstLogicalChild = firstLogicalChild;
@@ -179,6 +183,7 @@ internal struct UiNodeRecord
 
     internal UiElement? Element;
     internal UiNodeId Id;
+    internal UiRuntimeTypeIndex RuntimeType;
     internal UiNodeId LogicalParent;
     internal UiNodeId VisualParent;
     internal UiNodeId FirstLogicalChild;

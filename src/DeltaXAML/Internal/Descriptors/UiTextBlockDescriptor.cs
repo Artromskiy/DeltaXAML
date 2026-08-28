@@ -63,6 +63,28 @@ internal static class UiDescriptorCatalog
         descriptor = Entries[position];
         return true;
     }
+
+    internal static bool TryResolve(UiElement element, out UiRuntimeTypeIndex index)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        index = element switch
+        {
+            NumericEditor => new UiRuntimeTypeIndex(10),
+            TextBox => new UiRuntimeTypeIndex(9),
+            TextBlock => new UiRuntimeTypeIndex(1),
+            StackPanel => new UiRuntimeTypeIndex(2),
+            Border => new UiRuntimeTypeIndex(3),
+            Grid => new UiRuntimeTypeIndex(6),
+            ToggleButton => new UiRuntimeTypeIndex(8),
+            Button => new UiRuntimeTypeIndex(7),
+            ScrollViewer => new UiRuntimeTypeIndex(12),
+            ContentControl => new UiRuntimeTypeIndex(4),
+            ItemsControl => new UiRuntimeTypeIndex(11),
+            Panel => new UiRuntimeTypeIndex(5),
+            _ => default,
+        };
+        return index.IsValid;
+    }
 }
 
 /// <summary>Typed companion for <see cref="TextBlock"/>; the generated path owns no instance state.</summary>

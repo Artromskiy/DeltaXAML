@@ -34,7 +34,7 @@ internal static class TextBlockArchitectureTests
         Assert.True(UiTextBlockGenerated.Descriptor.Supports(UiDescriptorCapabilities.Measure | UiDescriptorCapabilities.Arrange | UiDescriptorCapabilities.Input | UiDescriptorCapabilities.Visual), "TextBlock descriptor advertises all leaf capabilities");
         Assert.True(UiDescriptorCatalog.TryResolve(UiTextBlockGenerated.Descriptor.Index, out var resolved), "generated descriptor resolves through the compact catalog");
         Assert.Equal(UiTextBlockGenerated.Descriptor, resolved, "descriptor catalog preserves generated metadata");
-        Assert.True(!UiDescriptorCatalog.TryResolve(default, out _), "descriptor catalog rejects an invalid index");
+        Assert.True(!UiDescriptorCatalog.TryResolve(new UiRuntimeTypeIndex(0), out _), "descriptor catalog rejects an invalid index");
         Assert.Equal((ushort)1, UiTextBlockGenerated.Descriptor.Index.Value, "TextBlock has a compact descriptor index");
         Assert.True((UiTextBlockGenerated.Descriptor.Capabilities & UiDescriptorCapabilities.PropertySetters) != 0, "TextBlock descriptor exposes typed property setters");
         Assert.True((UiTextBlockGenerated.Descriptor.Capabilities & UiDescriptorCapabilities.Arrange) != 0, "TextBlock descriptor exposes typed arrange capability");
