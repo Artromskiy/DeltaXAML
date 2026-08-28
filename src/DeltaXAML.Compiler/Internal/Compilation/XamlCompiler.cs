@@ -121,6 +121,7 @@ internal static class XamlCompiler
 
             var members = ImmutableArray.CreateBuilder<XamlMemberPlan>();
             string? resourceKey = null;
+            string? scopeName = null;
             var resourceRange = Range(elementStart, _offset);
             foreach (var attribute in attributes)
             {
@@ -132,6 +133,7 @@ internal static class XamlCompiler
                 if (attribute.IsName)
                 {
                     RegisterName(attribute.Value, attribute.Range);
+                    scopeName = attribute.Value;
                     continue;
                 }
 
@@ -164,6 +166,7 @@ internal static class XamlCompiler
             var plan = new XamlObjectPlan(
                 type?.Id ?? default,
                 name,
+                scopeName,
                 elementRange,
                 members.ToImmutable(),
                 children.ToImmutable());

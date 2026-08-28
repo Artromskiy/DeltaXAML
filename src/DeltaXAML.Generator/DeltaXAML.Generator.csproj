@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DeltaXAML.Generator</RootNamespace>
+    <AssemblyName>DeltaXAML.Generator</AssemblyName>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <!-- This build-time component consumes the net8 semantic compiler; it is not shipped as a netstandard analyzer. -->
+    <NoWarn>$(NoWarn);RS1041;RS1036;RS2008</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

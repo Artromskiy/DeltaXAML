@@ -199,6 +199,7 @@ internal static partial class Program
     {
         ArchitectureGate.Run();
         XamlSemanticCompilerTests();
+        XamlGeneratorTests();
         TextBlockArchitectureTests.Run();
         StackPanelArchitectureTests.Run();
         ContentLayoutArchitectureTests.Run();

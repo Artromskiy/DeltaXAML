@@ -56,9 +56,14 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   preserves exact UTF-16 `SourceRange` offsets, resolves explicit stable GUID
   type/property/resource identities and recovers after local errors. Generation
   and designer integration remain in `DXAML-COMPILE-2`.
-- [ ] `DXAML-COMPILE-2`: generate direct factories, typed setters, content/child
-  attachment, name scopes and descriptor registration without requiring user
-  controls to be `partial`.
+- [x] `DXAML-COMPILE-2`: `DeltaXAML.Generator` now supplies an incremental
+  XAML input and deterministic companion emitter. Built-in plans generate
+  direct `Ui*` construction, typed literal setters, child/content attachment
+  and one compact generated namescope table; registered stable type/property
+  identities are resolved by the compiler registry and missing factory
+  metadata is a build diagnostic. No user control becomes `partial` and no
+  reflection fallback is emitted. Binding/resource emission remains in the
+  dedicated later slices.
 - [ ] `DXAML-COMPILE-3`: generate typed binding read/write plans for `OneTime`,
   `OneWay` and `TwoWay`. Production bindings must not walk string paths or
   allocate closures; `OneTime` must register no notification.

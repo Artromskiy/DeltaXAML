@@ -41,7 +41,8 @@ internal sealed class XamlTypeDefinition
         UiTypeId id,
         XamlQualifiedName name,
         XamlContentKind contentKind,
-        ImmutableArray<XamlPropertyDefinition> properties)
+        ImmutableArray<XamlPropertyDefinition> properties,
+        string? factoryExpression = null)
     {
         if (!id.IsValid)
         {
@@ -57,6 +58,7 @@ internal sealed class XamlTypeDefinition
         Name = name;
         ContentKind = contentKind;
         Properties = properties;
+        FactoryExpression = factoryExpression;
         _properties = new(StringComparer.Ordinal);
         var propertyIds = new HashSet<UiPropertyId>();
         foreach (var property in properties)
@@ -85,6 +87,9 @@ internal sealed class XamlTypeDefinition
     internal XamlContentKind ContentKind { get; }
 
     internal ImmutableArray<XamlPropertyDefinition> Properties { get; }
+
+    /// <summary>Trusted generated construction expression; null means no compiled factory is registered.</summary>
+    internal string? FactoryExpression { get; }
 
     internal bool TryGetProperty(string name, out XamlPropertyDefinition property) =>
         _properties.TryGetValue(name, out property);
@@ -130,6 +135,7 @@ internal readonly record struct XamlMemberPlan(
 internal sealed record XamlObjectPlan(
     UiTypeId Type,
     XamlQualifiedName Name,
+    string? ScopeName,
     SourceRange Range,
     ImmutableArray<XamlMemberPlan> Members,
     ImmutableArray<XamlObjectPlan> Children);
@@ -166,6 +172,7 @@ internal sealed class XamlSemanticRegistry
 {
     private readonly Dictionary<XamlQualifiedName, XamlTypeDefinition> _types = new();
     private readonly Dictionary<UiTypeId, XamlQualifiedName> _typeIds = new();
+    private readonly Dictionary<UiTypeId, XamlTypeDefinition> _definitions = new();
     private readonly Dictionary<string, UiResourceId> _resources = new(StringComparer.Ordinal);
     private readonly Dictionary<UiResourceId, string> _resourceIds = new();
 
@@ -184,6 +191,7 @@ internal sealed class XamlSemanticRegistry
 
         _types.Add(definition.Name, definition);
         _typeIds.Add(definition.Id, definition.Name);
+        _definitions.Add(definition.Id, definition);
     }
 
     internal void RegisterResource(string key, UiResourceId id)
@@ -224,6 +232,11 @@ internal sealed class XamlSemanticRegistry
         return false;
     }
 
+    internal bool TryResolveType(
+        UiTypeId id,
+        [NotNullWhen(true)] out XamlTypeDefinition? definition) =>
+        _definitions.TryGetValue(id, out definition);
+
     internal bool TryResolveResource(string key, out UiResourceId id) =>
         _resources.TryGetValue(key, out id);
 
@@ -254,8 +267,8 @@ internal sealed class XamlSemanticRegistry
                 Property("Columns", "11111111-1111-1111-1111-11111111110D", XamlValueKind.GridLengthList),
                 Property("Rows", "11111111-1111-1111-1111-11111111110E", XamlValueKind.GridLengthList))));
         Register(registry, "ItemsControl", "22222222-2222-2222-2222-222222222207", XamlContentKind.Children, common);
-        Register(registry, "Button", "22222222-2222-2222-2222-222222222208", XamlContentKind.None, common);
-        Register(registry, "ToggleButton", "22222222-2222-2222-2222-222222222209", XamlContentKind.None, common);
+        Register(registry, "Button", "22222222-2222-2222-2222-222222222208", XamlContentKind.SingleContent, common);
+        Register(registry, "ToggleButton", "22222222-2222-2222-2222-222222222209", XamlContentKind.SingleContent, common);
 
         var text = common.AddRange(ImmutableArray.Create(
             Property("Text", "11111111-1111-1111-1111-11111111110F", XamlValueKind.String),
@@ -282,5 +295,10 @@ internal sealed class XamlSemanticRegistry
         string id,
         XamlContentKind contentKind,
         ImmutableArray<XamlPropertyDefinition> properties) =>
-        registry.RegisterType(new(new UiTypeId(Guid.Parse(id)), new XamlQualifiedName(string.Empty, name), contentKind, properties));
+        registry.RegisterType(new(
+            new UiTypeId(Guid.Parse(id)),
+            new XamlQualifiedName(string.Empty, name),
+            contentKind,
+            properties,
+            $"new global::Delta.XAML.Ui{name}()"));
 }

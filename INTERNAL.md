@@ -939,13 +939,18 @@ element so one compile can report multiple local errors. The compiler project
 does not participate in runtime layout, input or visual extraction, and the
 runtime `DeltaXAML` project does not reference it.
 
+`XamlObjectPlan.ScopeName` carries an `x:Name` declaration for the generated
+namescope. Built-in `XamlTypeDefinition` entries also carry explicit direct
+factory expressions. The compiler indexes those definitions by stable
+`UiTypeId`, so generation does not need to rediscover a CLR type.
+
 Use one representation with these responsibilities (names may change only if
 the responsibility remains one-to-one):
 
 ```csharp
 internal sealed record XamlDocumentPlan(
     SourceId Source,
-    XamlObjectPlan Root,
+    XamlObjectPlan? Root,
     ImmutableArray<XamlResourcePlan> Resources,
     ImmutableArray<XamlStylePlan> Styles,
     ImmutableArray<XamlTemplatePlan> Templates,
@@ -953,6 +958,8 @@ internal sealed record XamlDocumentPlan(
 
 internal sealed record XamlObjectPlan(
     UiTypeId Type,
+    XamlQualifiedName Name,
+    string? ScopeName,
     SourceRange Range,
     ImmutableArray<XamlMemberPlan> Members,
     ImmutableArray<XamlObjectPlan> Children);
@@ -989,20 +996,40 @@ create typed element
   -> return UiDocument
 ```
 
-Generated code calls generated descriptor thunks. It must not call
+`DeltaXAML.Generator` is the build-time companion. Its Roslyn incremental
+entry point reads `.xaml` additional texts, invokes the one compiler plan, and
+adds a deterministic `Xaml_<file>_<stable-hash>` artifact. The artifact owns
+one final `UiDocument`, invokes direct public typed setters, and emits one
+compact `_scopeElements` table plus a generated `TryFindName` switch. A
+literal-only built-in document is therefore constructed without an XML reader
+or runtime factory lookup. Custom registry entries must provide an explicit
+factory expression; otherwise generation reports `DXAMLGEN001`.
+
+The compiler registry validates and indexes the immutable descriptor metadata
+once per compilation. Existing built-in runtime descriptor companions remain
+the only runtime operation catalog; this slice does not invent a second
+descriptor/property store. Generated code calls direct typed companion
+operations and must not call
 `Activator.CreateInstance`, set properties by name, use `dynamic`, enumerate
 assemblies or create a dictionary per element. A namescope uses one generated
 compact table per scope; source names are retained only because name lookup is
 a user feature, not as runtime identities.
 
-Descriptor registration happens once per assembly or artifact. Registration
-validates duplicate `UiTypeId` and `UiPropertyId` values before a document is
-created. The artifact refers to the compact runtime index after registration.
+For this slice, descriptor registration is the compiler-side
+`XamlSemanticRegistry` validation and stable-ID index. Built-in runtime
+operation descriptors remain registered by the existing static catalog; a
+generated custom runtime descriptor table is not emitted until the later
+runtime descriptor slice.
 
 `IXamlLoader.Load(string, ...)` remains an explicit cold/tooling path. Shipping
 generated construction never silently calls it. If the build cannot generate
 an artifact, it reports a build diagnostic instead of producing reflection
 fallback code.
+
+The current generator intentionally accepts literal values and the existing
+typed child/content operations only. Resource references and binding plans are
+preserved by `XamlCompiler` but produce `DXAMLGEN002` until their compiled
+resource and binding slices are implemented.
 
 ### `DXAML-COMPILE-3`: compiled binding batches
 
