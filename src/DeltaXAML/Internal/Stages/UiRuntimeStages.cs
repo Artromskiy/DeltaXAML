@@ -116,6 +116,11 @@ internal static class UiMeasureStage
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(queue);
         queue.Clear();
+        if ((root.DirtyFlags & UiDirtyMask.Measure) == 0)
+        {
+            return;
+        }
+
         queue.Add(new(root, available));
         for (var i = 0; i < queue.Count; i++)
         {
@@ -150,6 +155,11 @@ internal static class UiArrangeStage
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(queue);
         queue.Clear();
+        if ((root.DirtyFlags & UiDirtyMask.Arrange) == 0)
+        {
+            return;
+        }
+
         queue.Add(new(root, bounds));
         for (var i = 0; i < queue.Count; i++)
         {

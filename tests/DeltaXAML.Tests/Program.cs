@@ -1044,5 +1044,10 @@ internal static partial class Program
         var arrangeQueue = new List<UiArrangeRequest>();
         UiArrangeStage.Run(root, new(0, 0, 100, 100), arrangeQueue);
         Assert.Equal(depth + 1, arrangeQueue.Count, "arrange stage visits the deep tree without recursive calls");
+
+        UiMeasureStage.Run(root, new(100, 100), measureQueue);
+        UiArrangeStage.Run(root, new(0, 0, 100, 100), arrangeQueue);
+        Assert.Equal(0, measureQueue.Count, "clean measure stage does not rescan the retained tree");
+        Assert.Equal(0, arrangeQueue.Count, "clean arrange stage does not rescan the retained tree");
     }
 }
