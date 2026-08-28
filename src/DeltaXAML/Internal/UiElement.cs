@@ -838,7 +838,8 @@ internal class UiElement
         string propertyName,
         UiPropertyKey property,
         UiDirtyFlags invalidation,
-        Delta.XAML.UiCompiledBinding<TSource, TValue> binding)
+        Delta.XAML.UiCompiledBinding<TSource, TValue> binding,
+        bool sourceNotificationsManaged)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentNullException.ThrowIfNull(binding);
@@ -853,7 +854,13 @@ internal class UiElement
             previous.Dispose();
         }
 
-        var runtime = new UiCompiledBindingRuntime<TSource, TValue>(this, propertyName, property, invalidation, binding);
+        var runtime = new UiCompiledBindingRuntime<TSource, TValue>(
+            this,
+            propertyName,
+            property,
+            invalidation,
+            binding,
+            sourceNotificationsManaged);
         if (binding.Mode == Delta.XAML.UiBindingMode.OneTime)
         {
             runtime.Attach();

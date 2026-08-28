@@ -301,7 +301,8 @@ public abstract class UiElement
     /// <summary>Attaches a generated typed binding without the reflection-based compatibility bridge.</summary>
     public void SetCompiledBinding<TSource, TValue>(
         UiProperty<TValue> property,
-        UiCompiledBinding<TSource, TValue> binding)
+        UiCompiledBinding<TSource, TValue> binding,
+        bool sourceNotificationsManaged = false)
     {
         ArgumentNullException.ThrowIfNull(property);
         ArgumentNullException.ThrowIfNull(binding);
@@ -309,7 +310,23 @@ public abstract class UiElement
             property.Name,
             Retained.UiPropertyKeys.Resolve(property.Name),
             PropertyInvalidation(property.Name),
-            binding);
+            binding,
+            sourceNotificationsManaged);
+    }
+
+    /// <summary>Refreshes one generated binding target with its current typed source value.</summary>
+    /// <remarks>Generated companions call this from their single source-notification batch.</remarks>
+    public void RefreshCompiledBinding<TSource, TValue>(
+        UiProperty<TValue> property,
+        UiCompiledBinding<TSource, TValue> binding)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        ArgumentNullException.ThrowIfNull(binding);
+        _retained.ApplyCompiledBinding(
+            property.Name,
+            Retained.UiPropertyKeys.Resolve(property.Name),
+            ToRetainedValue(binding.ReadValue()),
+            PropertyInvalidation(property.Name));
     }
 
     internal static UiElement Wrap(RetainedElement element, Dictionary<RetainedElement, UiElement>? views = null)

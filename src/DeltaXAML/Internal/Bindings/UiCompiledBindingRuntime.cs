@@ -25,7 +25,8 @@ internal sealed class UiCompiledBindingRuntime<TSource, TValue> : IUiCompiledBin
         string propertyName,
         UiPropertyKey property,
         UiDirtyMask invalidation,
-        UiCompiledBinding<TSource, TValue> binding)
+        UiCompiledBinding<TSource, TValue> binding,
+        bool sourceNotificationsManaged)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
@@ -35,12 +36,15 @@ internal sealed class UiCompiledBindingRuntime<TSource, TValue> : IUiCompiledBin
         _property = property;
         _invalidation = invalidation;
         _binding = binding;
+        _sourceNotificationsManaged = sourceNotificationsManaged;
     }
+
+    private readonly bool _sourceNotificationsManaged;
 
     public void Attach()
     {
         ApplyValue();
-        if (_binding.Mode != Delta.XAML.UiBindingMode.OneTime)
+        if (!_sourceNotificationsManaged && _binding.Mode != Delta.XAML.UiBindingMode.OneTime)
         {
             _binding.Changed += OnBindingChanged;
             _subscribed = true;

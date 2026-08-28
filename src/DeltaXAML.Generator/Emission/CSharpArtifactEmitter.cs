@@ -204,6 +204,7 @@ internal static class CSharpArtifactEmitter
         for (var i = 0; i < bindingSites.Count; i++)
         {
             var binding = bindingSites[i];
+            writer.AppendLine("    private readonly global::Delta.XAML.UiElement _bindingTarget" + i + ";");
             writer.Append("    private readonly global::Delta.XAML.UiCompiledBinding<")
                 .Append(binding.Definition.SourceTypeName)
                 .Append(", ")
@@ -345,6 +346,11 @@ internal static class CSharpArtifactEmitter
 
         for (var i = 0; i < bindingSites.Count; i++)
         {
+            writer.Append("        _bindingTarget").Append(i).Append(" = node").Append(bindingSites[i].NodeIndex).AppendLine(";");
+        }
+
+        for (var i = 0; i < bindingSites.Count; i++)
+        {
             EmitBinding(writer, i, bindingSites[i]);
         }
 
@@ -393,7 +399,14 @@ internal static class CSharpArtifactEmitter
         writer.AppendLine("    {");
         for (var i = 0; i < bindingSites.Count; i++)
         {
-            writer.Append("        _binding").Append(i).AppendLine(".NotifyChanged();");
+            var site = bindingSites[i];
+            if (!TryTypedPropertyExpression(site.Member.Name, out var property))
+            {
+                throw new InvalidOperationException($"Property '{site.Member.Name}' has no typed binding target.");
+            }
+
+            writer.Append("        _bindingTarget").Append(i).Append(".RefreshCompiledBinding(")
+                .Append(property).Append(", _binding").Append(i).AppendLine(");");
         }
 
         writer.AppendLine("    }");
@@ -646,7 +659,7 @@ internal static class CSharpArtifactEmitter
 
         writer.Append(", global::Delta.XAML.UiBindingMode.").Append(binding.Mode).AppendLine(", false);");
         writer.Append("        node").Append(site.NodeIndex).Append(".SetCompiledBinding(")
-            .Append(property).Append(", _binding").Append(bindingIndex).AppendLine(");");
+            .Append(property).Append(", _binding").Append(bindingIndex).AppendLine(", true);");
     }
 
     private static void EmitStyles(
