@@ -315,6 +315,7 @@ internal static partial class Program
         NodeStoreRejectsCrossDocumentReparenting();
         DisplayExtractionFollowsNodeLinksAfterTreeMutation();
         DescriptorLayoutDispatch();
+        DescriptorPropertyDispatchIsNonVirtual();
         LegacyLayoutEntryPointsAreGone();
     }
 
@@ -1842,5 +1843,21 @@ internal static partial class Program
             System.Reflection.BindingFlags.NonPublic;
         Assert.True(typeof(UiElement).GetMethod("ExecuteMeasure", flags) is null, "layout enters through the stateless measure stage");
         Assert.True(typeof(UiElement).GetMethod("ExecuteArrange", flags) is null, "arrange enters through the stateless arrange stage");
+    }
+
+    private static void DescriptorPropertyDispatchIsNonVirtual()
+    {
+        var flags = System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.Public |
+            System.Reflection.BindingFlags.NonPublic;
+        Assert.True(typeof(UiElement).GetMethod("TryApplyTypedProperty", flags) is null, "typed property writes enter through the descriptor catalog");
+
+        var stack = new StackPanel();
+        stack.SetLocal("Orientation", UiOrientation.Horizontal, UiDirtyFlags.Measure);
+        Assert.Equal(UiOrientation.Horizontal, stack.Orientation, "descriptor applies stack property");
+
+        var numeric = new NumericEditor();
+        numeric.SetLocal("Value", 3d, UiDirtyFlags.Visual);
+        Assert.Equal(3d, numeric.Value, "descriptor applies numeric property");
     }
 }

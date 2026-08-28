@@ -263,7 +263,7 @@ internal sealed class UiPropertyStore
 
             return;
         }
-        while (effective is not null && !_owner.TryApplyTypedProperty(property, effective.UntypedValue))
+        while (effective is not null && !UiDescriptorCatalog.TrySetProperty(_owner, property, effective))
         {
             SetValue(slots, effective.Source, null);
             effective = Resolve(slots);
@@ -370,6 +370,7 @@ internal class UiElement
     private int _displayClipCount;
     private int _displayVisualCount;
     private int _displayTextCount;
+    internal ref UiElementState CommonState => ref _state;
     public UiElement()
     {
         Id = new(++_nextId);
@@ -714,23 +715,6 @@ internal class UiElement
         SetDisplaySubtreeCounts(0, 0, 0);
     }
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) => _properties.TryGet(name, out value);
-    internal virtual bool TryApplyTypedProperty(UiPropertyKey key, object? value)
-    {
-        switch (key)
-        {
-            case UiPropertyKey.Width when value is float width: UiElementPropertiesGenerated.TrySetWidth(ref _state, width); return true;
-            case UiPropertyKey.Height when value is float height: UiElementPropertiesGenerated.TrySetHeight(ref _state, height); return true;
-            case UiPropertyKey.Background when value is UiColor background: UiElementPropertiesGenerated.TrySetBackground(ref _state, background); return true;
-            case UiPropertyKey.Padding when value is UiThickness padding: UiElementPropertiesGenerated.TrySetPadding(ref _state, padding); return true;
-            case UiPropertyKey.Fill when value is bool fill: UiElementPropertiesGenerated.TrySetFill(ref _state, fill); return true;
-            case UiPropertyKey.IsEnabled when value is bool enabled: UiElementPropertiesGenerated.TrySetEnabled(ref _state, enabled); return true;
-            case UiPropertyKey.IsSelected when value is bool selected: UiElementPropertiesGenerated.TrySetSelected(ref _state, selected); return true;
-            case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Background or UiPropertyKey.Padding or UiPropertyKey.Fill or UiPropertyKey.IsEnabled or UiPropertyKey.IsSelected:
-                return false;
-        }
-
-        return true;
-    }
     public UiPropertyHandle GetHandle(string name) => _properties.GetHandle(name);
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic) => _properties.TrySet(handle, value, invalidation, out diagnostic);
     protected virtual string GetAutomationValueText() => string.Empty;
@@ -1159,17 +1143,6 @@ internal sealed class StackPanel : UiElement
         set => SetLocalProperty("Orientation", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
     }
 
-    internal override bool TryApplyTypedProperty(UiPropertyKey key, object? value)
-    {
-        if (key == UiPropertyKey.Orientation && value is UiOrientation orientation)
-        {
-            UiStackPanelGenerated.TrySetOrientation(ref _state, orientation);
-            return true;
-        }
-
-        return key == UiPropertyKey.Orientation ? false : base.TryApplyTypedProperty(key, value);
-    }
-
 }
 
 internal sealed class ItemsControl : Panel
@@ -1263,23 +1236,6 @@ internal sealed class Grid : UiElement
     public void SetRows(params GridLength[] rows)
         => SetLocalProperty("Rows", rows, UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
 
-    internal override bool TryApplyTypedProperty(UiPropertyKey key, object? value)
-    {
-        if (key == UiPropertyKey.Columns && value is GridLength[] columns)
-        {
-            UiGridGenerated.TrySetColumns(ref _state, columns);
-            return true;
-        }
-
-        if (key == UiPropertyKey.Rows && value is GridLength[] rows)
-        {
-            UiGridGenerated.TrySetRows(ref _state, rows);
-            return true;
-        }
-
-        return key is UiPropertyKey.Columns or UiPropertyKey.Rows ? false : base.TryApplyTypedProperty(key, value);
-    }
-
 }
 
 internal class ContentControl : UiElement
@@ -1351,21 +1307,6 @@ internal class TextBlock : UiElement
     public string GlyphRunKey { get => _state.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.GlyphRunKey == value) { return; } _state.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _state.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _state.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
-
-    internal override bool TryApplyTypedProperty(UiPropertyKey key, object? value)
-    {
-        switch (key)
-        {
-            case UiPropertyKey.Text when value is string text: UiTextBlockGenerated.TrySetText(ref _state, text); return true;
-            case UiPropertyKey.FontKey when value is string fontKey: UiTextBlockGenerated.TrySetFontKey(ref _state, fontKey); return true;
-            case UiPropertyKey.FontSize when value is float fontSize: UiTextBlockGenerated.TrySetFontSize(ref _state, fontSize); return true;
-            case UiPropertyKey.Foreground when value is UiColor foreground: UiTextBlockGenerated.TrySetForeground(ref _state, foreground); return true;
-            case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground:
-                return false;
-        }
-
-        return base.TryApplyTypedProperty(key, value);
-    }
 
     protected override string GetAutomationValueText() => _state.Text;
 
@@ -1610,24 +1551,6 @@ internal sealed class NumericEditor : TextBox
         return false;
     }
 
-    internal override bool TryApplyTypedProperty(UiPropertyKey key, object? value)
-    {
-        switch (key)
-        {
-            case UiPropertyKey.Value when value is double numeric:
-                return TryApplyValue(UiNumericEditorGenerated.Format(numeric), out _);
-            case UiPropertyKey.Minimum when value is double minimum:
-                UiNumericEditorGenerated.TrySetMinimum(ref _state, minimum);
-                return true;
-            case UiPropertyKey.Maximum when value is double maximum:
-                UiNumericEditorGenerated.TrySetMaximum(ref _state, maximum);
-                return true;
-            case UiPropertyKey.Value or UiPropertyKey.Minimum or UiPropertyKey.Maximum:
-                return false;
-        }
-
-        return base.TryApplyTypedProperty(key, value);
-    }
     private bool Adjust(double delta)
     {
         if (!UiNumericEditorGenerated.TryAdjust(ref _state, delta, out var diagnostic))

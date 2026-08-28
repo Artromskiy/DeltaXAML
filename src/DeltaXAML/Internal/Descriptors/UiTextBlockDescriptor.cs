@@ -114,6 +114,118 @@ internal static class UiDescriptorCatalog
         return (uint)position < (uint)TypeIdentities.Length && TypeIdentities[position] == expected;
     }
 
+    internal static bool TrySetProperty(UiElement element, UiPropertyKey key, UiValue value)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        ArgumentNullException.ThrowIfNull(value);
+        switch (key)
+        {
+            case UiPropertyKey.Width when value.UntypedValue is float width:
+                UiElementPropertiesGenerated.TrySetWidth(ref element.CommonState, width);
+                return true;
+            case UiPropertyKey.Height when value.UntypedValue is float height:
+                UiElementPropertiesGenerated.TrySetHeight(ref element.CommonState, height);
+                return true;
+            case UiPropertyKey.Background when value.UntypedValue is UiColor background:
+                UiElementPropertiesGenerated.TrySetBackground(ref element.CommonState, background);
+                return true;
+            case UiPropertyKey.Padding when value.UntypedValue is UiThickness padding:
+                UiElementPropertiesGenerated.TrySetPadding(ref element.CommonState, padding);
+                return true;
+            case UiPropertyKey.Fill when value.UntypedValue is bool fill:
+                UiElementPropertiesGenerated.TrySetFill(ref element.CommonState, fill);
+                return true;
+            case UiPropertyKey.IsEnabled when value.UntypedValue is bool enabled:
+                UiElementPropertiesGenerated.TrySetEnabled(ref element.CommonState, enabled);
+                return true;
+            case UiPropertyKey.IsSelected when value.UntypedValue is bool selected:
+                UiElementPropertiesGenerated.TrySetSelected(ref element.CommonState, selected);
+                return true;
+            case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Background or UiPropertyKey.Padding or
+                UiPropertyKey.Fill or UiPropertyKey.IsEnabled or UiPropertyKey.IsSelected:
+                return false;
+        }
+
+        if (!TryResolve(element, out var type))
+        {
+            return true;
+        }
+
+        switch (type.Value)
+        {
+            case 2 when element is StackPanel stack:
+                if (key == UiPropertyKey.Orientation && value.UntypedValue is UiOrientation orientation)
+                {
+                    UiStackPanelGenerated.TrySetOrientation(ref stack.State, orientation);
+                    return true;
+                }
+
+                return key == UiPropertyKey.Orientation ? false : true;
+            case 6 when element is Grid grid:
+                if (key == UiPropertyKey.Columns && value.UntypedValue is GridLength[] columns)
+                {
+                    UiGridGenerated.TrySetColumns(ref grid.State, columns);
+                    return true;
+                }
+
+                if (key == UiPropertyKey.Rows && value.UntypedValue is GridLength[] rows)
+                {
+                    UiGridGenerated.TrySetRows(ref grid.State, rows);
+                    return true;
+                }
+
+                return key is UiPropertyKey.Columns or UiPropertyKey.Rows ? false : true;
+            case 10 when element is NumericEditor numeric:
+                return TrySetNumericProperty(numeric, key, value);
+            case 1 or 9 when element is TextBlock text:
+                return TrySetTextProperty(text, key, value);
+            default:
+                return true;
+        }
+    }
+
+    private static bool TrySetTextProperty(TextBlock text, UiPropertyKey key, UiValue value)
+    {
+        switch (key)
+        {
+            case UiPropertyKey.Text when value.UntypedValue is string textValue:
+                UiTextBlockGenerated.TrySetText(ref text.State, textValue);
+                return true;
+            case UiPropertyKey.FontKey when value.UntypedValue is string fontKey:
+                UiTextBlockGenerated.TrySetFontKey(ref text.State, fontKey);
+                return true;
+            case UiPropertyKey.FontSize when value.UntypedValue is float fontSize:
+                UiTextBlockGenerated.TrySetFontSize(ref text.State, fontSize);
+                return true;
+            case UiPropertyKey.Foreground when value.UntypedValue is UiColor foreground:
+                UiTextBlockGenerated.TrySetForeground(ref text.State, foreground);
+                return true;
+            case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    private static bool TrySetNumericProperty(NumericEditor numeric, UiPropertyKey key, UiValue value)
+    {
+        switch (key)
+        {
+            case UiPropertyKey.Value when value.UntypedValue is double number:
+                return UiNumericEditorGenerated.TrySetValue(numeric, number);
+            case UiPropertyKey.Minimum when value.UntypedValue is double minimum:
+                UiNumericEditorGenerated.TrySetMinimum(ref numeric.State, minimum);
+                return true;
+            case UiPropertyKey.Maximum when value.UntypedValue is double maximum:
+                UiNumericEditorGenerated.TrySetMaximum(ref numeric.State, maximum);
+                return true;
+            case UiPropertyKey.Value or UiPropertyKey.Minimum or UiPropertyKey.Maximum:
+                return false;
+            default:
+                return TrySetTextProperty(numeric, key, value);
+        }
+    }
+
     internal static UiSize Measure(UiRuntimeTypeIndex type, UiElement element, in UiMeasureContext context)
     {
         ArgumentNullException.ThrowIfNull(element);

@@ -70,4 +70,18 @@ internal static class UiNumericEditorGenerated
         state.Max = value;
         return true;
     }
+
+    internal static bool TrySetValue(NumericEditor element, double value)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        ref NumericEditorState state = ref element.State;
+        var text = Format(value);
+        if (!NumericValidationMixin.TryCommit(ref state, text, state.Min, state.Max, out var formatted, out _))
+        {
+            return false;
+        }
+
+        UiTextBlockGenerated.TrySetText(ref ((TextBlock)element).State, formatted);
+        return true;
+    }
 }
