@@ -115,7 +115,7 @@ internal static class XamlDialectParser
             case "Maximum" when e is NumericEditor numeric && TryFloat(value, out var maximum): numeric.Max = maximum; break;
             case "Value" when e is NumericEditor numeric && TryFloat(value, out var numericValue): numeric.Initialize(numericValue); break;
             case "Foreground" when e is TextBlock text && TryColor(value, out var fg): text.Foreground = fg; break;
-            case "ForegroundResource" when e is TextBlock text && resources is not null: text.SetStyleResource("Foreground", resources, new(NormalizeResourceKey(value)), UiDirtyFlags.Visual); break;
+            case "ForegroundResource" when e is TextBlock text && resources is not null: text.SetStyleResource("Foreground", resources, new(NormalizeResourceKey(value)), InvalidationFor("Foreground")); break;
             case "ForegroundResource": d.Add(new("XAML004", "ForegroundResource requires a resource store.", line, 1)); break;
             case "Padding" when TryThickness(value, out var padding): e.Padding = padding; break;
             case "StyleKey": e.StyleKey = value; break;
@@ -153,7 +153,9 @@ internal static class XamlDialectParser
     }
     private static UiDirtyFlags InvalidationFor(string name) => name switch
     {
-        "Text" or "FontKey" or "FontSize" or "Width" or "Height" or "Padding" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
+        "Text" or "FontKey" or "FontSize" => UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "Foreground" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "Width" or "Height" or "Padding" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
         _ => UiDirtyFlags.Visual,
     };
     private static string NormalizeResourceKey(string value) => Guid.TryParse(value, out var resourceId) ? resourceId.ToString("D") : value;

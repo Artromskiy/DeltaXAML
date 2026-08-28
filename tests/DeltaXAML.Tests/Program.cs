@@ -1255,8 +1255,10 @@ internal static partial class Program
         Assert.True(dynamicLoaded.Success && dynamicLoaded.Root is Library.UiTextBlock, "DynamicResource markup loads through the public facade");
         if (dynamicLoaded.Root is not Library.UiTextBlock dynamicText) { throw new InvalidOperationException("dynamic resource text missing"); }
         Assert.Equal(secondColor, dynamicText.Foreground, "DynamicResource uses the named resource catalog");
+        var dynamicTextVersion = dynamicText.RetainedElement.TextVersion;
         resources.Set("TextColor", firstColor);
         Assert.Equal(firstColor, dynamicText.Foreground, "DynamicResource remains live after a catalog update");
+        Assert.True(dynamicText.RetainedElement.TextVersion > dynamicTextVersion, "DynamicResource foreground changes invalidate text style identity");
         resources.Set("Alias", new Library.UiResourceReference("TextColor"));
         Assert.True(resources.TryResolve("Alias", out var aliasValue) && aliasValue is Library.UiColor, "resource aliases resolve through the public catalog");
         resources.Set("CycleA", new Library.UiResourceReference("CycleB"));
