@@ -109,6 +109,8 @@ public abstract class UiElement
     private Dictionary<RetainedElement, UiElement> _views;
     private RetainedChildrenView _childrenView;
     private RetainedChildrenEditor _childrenEditor;
+    private UiElement? _templateContent;
+    private UiTemplate? _appliedTemplate;
     protected UiElement() : this(new RetainedElement(), null) { }
     internal UiElement(RetainedElement retained, Dictionary<RetainedElement, UiElement>? views)
     {
@@ -401,10 +403,48 @@ public abstract class UiElement
         ApplyStyleValue(propertyName, value);
     }
 
-    internal void SetTemplateContent(UiElement content)
+    internal bool HasTemplateContent
+    {
+        get
+        {
+            if (_templateContent is not { } content)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < _retained.Children.Count; i++)
+            {
+                if (ReferenceEquals(_retained.Children[i], content.RetainedElement))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+    internal UiTemplate? AppliedTemplate => _appliedTemplate;
+
+    internal void SetTemplateContent(UiElement content, UiTemplate template)
     {
         ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(template);
         MutableChildren.Add(content);
+        _templateContent = content;
+        _appliedTemplate = template;
+    }
+
+    internal void ClearTemplateContent()
+    {
+        if (_templateContent is not { } content)
+        {
+            _appliedTemplate = null;
+            return;
+        }
+
+        _templateContent = null;
+        _appliedTemplate = null;
+        MutableChildren.Remove(content);
     }
 
     internal void RegisterView(UiElement element)

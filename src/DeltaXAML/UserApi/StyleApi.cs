@@ -401,6 +401,7 @@ public sealed class UiTheme
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(template);
         _templates[key] = template;
+        _styleGeneration++;
     }
 
     public bool TryGetTemplate(string key, [NotNullWhen(true)] out UiTemplate? template)
@@ -430,10 +431,7 @@ public sealed class UiTheme
                 }
             }
 
-            if (element.TemplateKey is { } templateKey && element.Children.Count == 0 && TryGetTemplate(templateKey, out var template))
-            {
-                element.SetTemplateContent(template.Build(element));
-            }
+            ApplyTemplate(element);
 
             for (var i = element.Children.Count - 1; i >= 0; i--)
             {
@@ -483,6 +481,8 @@ public sealed class UiTheme
                 previous.ClearApplied(element);
             }
 
+            ApplyTemplate(element);
+
             element.RetainedElement.CompleteStyleStage();
             for (var i = element.Children.Count - 1; i >= 0; i--)
             {
@@ -498,4 +498,27 @@ public sealed class UiTheme
     }
 
     private void OnStyleChanged(object? sender, EventArgs args) => _styleGeneration++;
+
+    private void ApplyTemplate(UiElement element)
+    {
+        if (element.TemplateKey is not { } templateKey || !TryGetTemplate(templateKey, out var template))
+        {
+            if (element.HasTemplateContent)
+            {
+                element.ClearTemplateContent();
+            }
+
+            return;
+        }
+
+        if (element.HasTemplateContent && !ReferenceEquals(element.AppliedTemplate, template))
+        {
+            element.ClearTemplateContent();
+        }
+
+        if (!element.HasTemplateContent && element.Children.Count == 0)
+        {
+            element.SetTemplateContent(template.Build(element), template);
+        }
+    }
 }

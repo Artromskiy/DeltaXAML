@@ -870,6 +870,15 @@ internal static partial class Program
         theme.RegisterTemplate("Label", new Library.UiTemplate(_ => new Library.UiTextBlock { Text = "templated" }));
         theme.Apply(host);
         Assert.True(host.Content is Library.UiTextBlock templated && templated.Text == "templated", "template creates one retained child");
+        theme.RegisterTemplate("OtherLabel", new Library.UiTemplate(_ => new Library.UiTextBlock { Text = "replacement" }));
+        using var templateTextService = new EmptyTextService();
+        using var templateDocument = new Library.UiDocument(host, templateTextService, null, theme);
+        host.TemplateKey = "OtherLabel";
+        templateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.True(host.Content is Library.UiTextBlock replacement && replacement.Text == "replacement", "template key change replaces only the retained template child");
+        host.TemplateKey = null;
+        templateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.True(host.Content is null, "clearing template key removes the retained template child");
 
         var items = new Library.UiItemsControl();
         var created = 0;
