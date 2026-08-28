@@ -254,6 +254,8 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private Delta.XAML.UiStyle? _appliedStyle;
     private Delta.XAML.UiStyleState _appliedStyleState;
     private int _appliedStyleVersion = -1;
+    private string? _styleKey;
+    private string? _templateKey;
     private UiSize _measuredAvailable;
     private UiRect _arrangedBounds;
     private bool _hasMeasured;
@@ -301,8 +303,34 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public virtual bool IsPressed => false;
     public bool IsSelected { get => _state.IsSelected; set => SetLocalProperty("IsSelected", value, UiDirtyFlags.Visual); }
     public bool IsInvalid { get; protected set; }
-    public string? StyleKey { get; set; }
-    public string? TemplateKey { get; set; }
+    public string? StyleKey
+    {
+        get => _styleKey;
+        set
+        {
+            if (string.Equals(_styleKey, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _styleKey = value;
+            InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        }
+    }
+    public string? TemplateKey
+    {
+        get => _templateKey;
+        set
+        {
+            if (string.Equals(_templateKey, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _templateKey = value;
+            InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        }
+    }
     public string? AutomationName { get; set; }
     public UiAutomationRole AutomationRole { get; set; } = UiAutomationRole.Generic;
     public UiThickness Margin { get; set; }
@@ -706,6 +734,13 @@ internal class UiElement : IUiElement, IUiPropertyStore
         _appliedStyle = style;
         _appliedStyleState = state;
         _appliedStyleVersion = version;
+    }
+
+    internal void ClearAppliedStyle()
+    {
+        _appliedStyle = null;
+        _appliedStyleState = default;
+        _appliedStyleVersion = -1;
     }
 
     internal void ClearStyleValue(string name) => _properties.Clear(name, UiValueSource.Style);

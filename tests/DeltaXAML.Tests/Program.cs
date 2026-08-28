@@ -770,8 +770,11 @@ internal static partial class Program
         style.Set("FontSize", 18f);
         var hoverColor = new Library.UiColor(70, 80, 90);
         style.SetState(Library.UiStyleState.Hover, "Foreground", hoverColor);
+        var alternateStyle = new Library.UiStyle("Alternate", "TextBlock");
+        alternateStyle.Set("FontSize", 22f);
         var theme = new Library.UiTheme(resources);
         theme.Add(style);
+        theme.Add(alternateStyle);
 
         var deepRoot = new Library.UiPanel();
         var deep = deepRoot;
@@ -806,6 +809,14 @@ internal static partial class Program
         style.Set("FontSize", 20f);
         styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         Assert.Equal(changedStyleVersion, text.RetainedElement.OutputVersion, "equal style assignment does not add invalidation");
+        text.StyleKey = "Alternate";
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(22f, text.FontSize, "changing StyleKey applies the replacement style");
+        text.StyleKey = "Missing";
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(14f, text.FontSize, "missing StyleKey clears the previous style source");
+        text.StyleKey = "Body";
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         resources.Set("TextColor", secondColor);
         Assert.Equal(secondColor, text.Foreground, "resource change updates the dependent style value");
         Assert.Equal(new Library.UiColor(255, 255, 255), other.Foreground, "unrelated element is not changed by a resource update");

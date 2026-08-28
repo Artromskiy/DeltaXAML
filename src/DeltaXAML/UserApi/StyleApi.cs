@@ -287,7 +287,7 @@ public sealed class UiStyle
         }
     }
 
-    private void ClearApplied(UiElement element)
+    internal void ClearApplied(UiElement element)
     {
         foreach (var property in _values.Keys)
         {
@@ -304,6 +304,8 @@ public sealed class UiStyle
                 }
             }
         }
+
+        element.RetainedElement.ClearAppliedStyle();
     }
 
     private void SetValue(Dictionary<string, object?> values, string propertyName, object? value)
@@ -463,6 +465,7 @@ public sealed class UiTheme
             }
 
             LastRefreshCount++;
+            var applied = false;
             if (element.StyleKey is { } styleKey)
             {
                 for (var i = 0; i < _styles.Count; i++)
@@ -470,8 +473,14 @@ public sealed class UiTheme
                     if (string.Equals(_styles[i].Key, styleKey, StringComparison.Ordinal))
                     {
                         _styles[i].ApplyState(element, UiStyle.CurrentState(element));
+                        applied = true;
                     }
                 }
+            }
+
+            if (!applied && element.RetainedElement.AppliedStyle is { } previous)
+            {
+                previous.ClearApplied(element);
             }
 
             element.RetainedElement.CompleteStyleStage();
