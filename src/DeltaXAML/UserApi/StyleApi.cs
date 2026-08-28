@@ -513,10 +513,6 @@ public sealed class UiTemplate
         _factory = factory;
     }
 
-    [Obsolete("Use IUiTemplateFactory; remove delegate templates during DXAML-RUNTIME-4.", error: true)]
-    public UiTemplate(Func<UiElement, UiElement> build) => throw new NotSupportedException(
-        "Delegate templates are obsolete; provide an IUiTemplateFactory implementation.");
-
     internal UiElement Build(UiElement owner, UiResourceCatalog resources)
     {
         ArgumentNullException.ThrowIfNull(owner);

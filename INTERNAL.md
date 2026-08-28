@@ -846,8 +846,6 @@ particular:
   the compiler plan has stable resource slots, but generated typed style plans
   are not yet the sole runtime path;
 - generated templates now use the stateless `IUiTemplateFactory` boundary;
-  the delegate constructor remains compile-error obsolete until runtime-4
-  removes the remaining compatibility surface;
 - source slots and loader/editor discovery still use the retained compatibility
   store, while effective values reach composite state through typed property
   descriptors.
