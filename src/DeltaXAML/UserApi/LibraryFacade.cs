@@ -333,7 +333,7 @@ public abstract class UiElement
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentNullException.ThrowIfNull(expression);
-        _retained.AttachBinding(new Retained.UiBindingRuntime(propertyName, expression));
+        _retained.AttachBinding(new Retained.UiInterpretedBinding(propertyName, expression));
     }
 
     /// <summary>Attaches a generated typed binding without the reflection-based compatibility bridge.</summary>

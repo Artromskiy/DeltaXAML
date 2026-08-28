@@ -74,7 +74,7 @@ public sealed class XamlLoader : IXamlLoader
                 continue;
             }
 
-            element.AttachBinding(new Retained.UiBindingRuntime(
+            element.AttachBinding(new Retained.UiInterpretedBinding(
                 spec.Property,
                 new UiBindingExpression(spec.Path, BindingModeMap.ToPublic(spec.Mode), converter, spec.StringFormat)));
         }

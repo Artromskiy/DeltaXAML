@@ -1,5 +1,5 @@
-using System.ComponentModel;
 using Delta.Text;
+using DeltaXaml.Tests;
 using DeltaXAML.Internal;
 using Library = Delta.XAML;
 using LibraryContract = Delta.XAML.Contract;
@@ -94,7 +94,12 @@ sealed class FixedLibraryResourceResolver(LibraryContract.UiResourceId resource,
     }
 }
 
-sealed class LibraryCustomBadge : Library.UiElement { }
+[Library.UiXamlType("urn:custom", "CustomBadge", "5B35E6E5-9B17-4F77-9BD4-63F25B89F7B5")]
+sealed class LibraryCustomBadge : Library.UiElement
+{
+    [Library.UiXamlProperty("C851D40C-14E4-4B86-99B2-401A972342A9", Library.UiXamlValueKind.Text)]
+    public string Label { get; set; } = string.Empty;
+}
 
 sealed class CustomLibraryTypeResolver : Library.IXamlTypeResolver
 {
@@ -135,28 +140,6 @@ sealed class ReplacementTemplateFactory : Library.IUiTemplateFactory
 {
     public Library.UiElement Create(Library.UiElement owner, Library.UiResourceCatalog resources) =>
         new Library.UiTextBlock { Text = "replacement" };
-}
-
-sealed class BindingModel : INotifyPropertyChanged
-{
-    private string _name = string.Empty;
-
-    public string Name
-    {
-        get => _name;
-        set
-        {
-            if (_name == value)
-            {
-                return;
-            }
-
-            _name = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name)));
-        }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
 }
 
 sealed class UpperConverter : Library.IUiValueConverter
@@ -1338,6 +1321,25 @@ internal static partial class Program
         game.Document.Dispatch(in up);
         game.Document.Layout(new(480, 270), 1);
         Assert.Equal(1, clicks, "generated game HUD uses canonical input dispatch");
+
+        using var customText = new EmptyTextService();
+        using var custom = new DeltaXaml.Generated.CustomBadgeArtifact(customText);
+        Assert.True(custom.Document.Root is LibraryCustomBadge { Label: "generated" }, "attributed custom type and property use direct generated construction");
+
+        var model = new BindingModel { Name = "generated binding" };
+        using var bindingText = new CountingTextService();
+        using var bound = new DeltaXaml.Generated.BoundTextArtifact(model, bindingText, fonts);
+        Assert.True(bound.Document.Root is Library.UiTextBlock { Text: "generated binding" }, "x:DataType binding applies through the generated typed accessor");
+        model.Name = "updated binding";
+        bound.Document.Layout(new(320, 80), 1);
+        Assert.True(bound.Document.Root is Library.UiTextBlock { Text: "updated binding" }, "generated source notification refreshes through the binding stage");
+
+        using var compositionText = new CountingTextService();
+        using var composition = new DeltaXaml.Generated.CompositionArtifact(compositionText, fonts);
+        composition.Document.Layout(new(320, 120), 1);
+        var compositionDisplay = composition.Document.BuildDisplayList();
+        Assert.True(compositionDisplay.Visuals.Length >= 2, "generated style contributes retained visual output");
+        Assert.True(compositionDisplay.Text.Length == 1, "generated template contributes one retained text leaf");
     }
 
     private static void ExerciseGeneratedDocument(

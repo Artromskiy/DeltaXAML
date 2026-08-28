@@ -337,7 +337,7 @@ internal class UiElement
     private readonly List<UiElement> _detachedChildren = new();
     private readonly UiElementChildrenView _children;
     private readonly List<UiBindingSpec> _bindingSpecs = new();
-    private readonly Dictionary<string, UiBindingRuntime> _bindingRuntimes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UiInterpretedBinding> _bindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiExternalBindingRuntime> _externalBindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IUiCompiledBindingRuntime> _compiledBindingRuntimes = new(StringComparer.Ordinal);
     private readonly UiPropertyStore _properties;
@@ -776,7 +776,7 @@ internal class UiElement
 
     internal void AddBindingSpec(in UiBindingSpec spec) => _bindingSpecs.Add(spec);
 
-    internal void AttachBinding(UiBindingRuntime binding)
+    internal void AttachBinding(UiInterpretedBinding binding)
     {
         if (_externalBindingRuntimes.Remove(binding.PropertyName, out var externalPrevious))
         {

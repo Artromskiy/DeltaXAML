@@ -10,14 +10,14 @@ using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 namespace DeltaXAML.Internal;
 
 /// <summary>
-/// Cold compatibility bridge for the public string-path binding expression.
+/// Explicit cold interpreter for the public string-path binding expression.
 /// </summary>
 /// <remarks>
-/// Generated typed binding artifacts do not use this type. It remains only for
-/// the explicit tooling/compatibility loader path until the generated binding
-/// path replaces that loader mode.
+/// Generated typed binding artifacts do not use this type. Only callers that
+/// explicitly select the source loader or string-expression API enter this
+/// cold path; it writes into the canonical retained property store and stages.
 /// </remarks>
-internal sealed class UiBindingRuntime : IDisposable
+internal sealed class UiInterpretedBinding : IDisposable
 {
     private readonly string[] _segments;
     private readonly PublicBindingExpression _expression;
@@ -29,7 +29,7 @@ internal sealed class UiBindingRuntime : IDisposable
     private int _pendingRefresh;
     private bool _stageManaged;
 
-    internal UiBindingRuntime(string propertyName, PublicBindingExpression expression)
+    internal UiInterpretedBinding(string propertyName, PublicBindingExpression expression)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentNullException.ThrowIfNull(expression);

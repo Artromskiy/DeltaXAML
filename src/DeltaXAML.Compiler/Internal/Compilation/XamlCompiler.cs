@@ -35,6 +35,7 @@ internal static class XamlCompiler
         private readonly HashSet<string> _styleKeys = new(StringComparer.Ordinal);
         private readonly HashSet<string> _templateKeys = new(StringComparer.Ordinal);
         private readonly HashSet<string> _names = new(StringComparer.Ordinal);
+        private string? _bindingSourceTypeName;
         private int _offset;
 
         internal Parser(SourceId source, string text, XamlSemanticRegistry registry)
@@ -81,6 +82,7 @@ internal static class XamlCompiler
 
             return new(
                 _source,
+                _bindingSourceTypeName,
                 root,
                 _resources.ToImmutable(),
                 _styles.ToImmutable(),
@@ -172,6 +174,25 @@ internal static class XamlCompiler
                     continue;
                 }
 
+                if (attribute.IsDataType)
+                {
+                    if (string.IsNullOrWhiteSpace(attribute.Value))
+                    {
+                        Report("XAML034", "x:DataType requires a source type name.", attribute.Range);
+                    }
+                    else if (_bindingSourceTypeName is not null &&
+                             !string.Equals(_bindingSourceTypeName, attribute.Value, StringComparison.Ordinal))
+                    {
+                        Report("XAML034", "One generated artifact cannot declare multiple binding source types.", attribute.Range);
+                    }
+                    else
+                    {
+                        _bindingSourceTypeName = attribute.Value;
+                    }
+
+                    continue;
+                }
+
                 if (type is null || !type.TryGetProperty(attribute.LocalName, out var property))
                 {
                     Report("XAML003", $"Unsupported property '{attribute.LocalName}' on '{lexicalName}'.", attribute.Range);
@@ -200,15 +221,14 @@ internal static class XamlCompiler
                 children.ToImmutable());
             if (resourceKey is not null)
             {
-                if (_registry.TryResolveResource(resourceKey, out var resourceId))
+                if (!_registry.TryResolveResource(resourceKey, out var resourceId))
                 {
-                    RegisterResourceSlot(resourceId, resourceKey, false);
-                    _resources.Add(new(resourceId, resourceKey, plan, resourceRange));
+                    resourceId = CreateResourceId(resourceKey);
+                    _registry.RegisterResource(resourceKey, resourceId);
                 }
-                else
-                {
-                    Report("XAML006", $"Resource '{resourceKey}' has no registered stable identity.", resourceRange);
-                }
+
+                RegisterResourceSlot(resourceId, resourceKey, false);
+                _resources.Add(new(resourceId, resourceKey, plan, resourceRange));
 
                 return null;
             }
@@ -617,6 +637,12 @@ internal static class XamlCompiler
             return new UiTemplateId(new Guid(bytes.AsSpan(0, 16)));
         }
 
+        private UiResourceId CreateResourceId(string key)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"DeltaXAML.Resource/{_source.Value:D}/{key}"));
+            return new UiResourceId(new Guid(bytes.AsSpan(0, 16)));
+        }
+
         private static UiStyleId CreateStyleId(string key)
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("DeltaXAML.Style/" + key));
@@ -1008,6 +1034,7 @@ internal static class XamlCompiler
                 prefix == "xmlns" || lexicalName == "xmlns",
                 prefix == "x" && localName == "Name",
                 prefix == "x" && localName == "Key",
+                prefix == "x" && localName == "DataType",
                 Range(start, end));
         }
 
@@ -1270,6 +1297,7 @@ internal static class XamlCompiler
             bool IsNamespace,
             bool IsName,
             bool IsKey,
+            bool IsDataType,
             SourceRange Range)
         {
             internal bool IsDefaultNamespace => Prefix.Length == 0 && LocalName == "xmlns";

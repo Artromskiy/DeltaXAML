@@ -572,7 +572,8 @@ internal static class CSharpArtifactEmitter
         }
 
         if (!TryTypedPropertyExpression(member.Name, out _) &&
-            (type is null || !type.TryGetProperty(member.Name, out var customProperty) || customProperty.SetterExpression is null))
+            (type is null || !type.TryGetProperty(member.Name, out var customProperty) ||
+             (customProperty.SetterExpression is null && customProperty.MemberName is null)))
         {
             error = $"Property '{member.Name}' has no typed generated setter in the current compile slice.";
             return false;
@@ -677,13 +678,26 @@ internal static class CSharpArtifactEmitter
 
         if (!TryTypedPropertyExpression(member.Name, out _))
         {
-            if (!type.TryGetProperty(member.Name, out var customProperty) || customProperty.SetterExpression is null)
+            if (!type.TryGetProperty(member.Name, out var customProperty))
             {
                 throw new InvalidOperationException($"Property '{member.Name}' has no typed generated setter.");
             }
 
-            writer.Append("        ").Append(customProperty.SetterExpression).Append('(')
-                .Append(variablePrefix).Append(nodeIndex).Append(", ").Append(expression).AppendLine(");");
+            if (customProperty.SetterExpression is { } setter)
+            {
+                writer.Append("        ").Append(setter).Append('(')
+                    .Append(variablePrefix).Append(nodeIndex).Append(", ").Append(expression).AppendLine(");");
+            }
+            else if (customProperty.MemberName is { } memberName)
+            {
+                writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append('.')
+                    .Append(memberName).Append(" = ").Append(expression).AppendLine(";");
+            }
+            else
+            {
+                throw new InvalidOperationException($"Property '{member.Name}' has no typed generated setter.");
+            }
+
             return;
         }
 
@@ -1040,6 +1054,11 @@ internal static class CSharpArtifactEmitter
         ArgumentException.ThrowIfNullOrWhiteSpace(variablePrefix);
         switch (parentType.ContentKind)
         {
+            case XamlContentKind.Children when parentType.ChildAttachmentMember is { } childMember:
+                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append('.')
+                    .Append(childMember).Append('(').Append(variablePrefix).Append(childIndex).AppendLine(");");
+                error = string.Empty;
+                return true;
             case XamlContentKind.Children when parentType.ChildAttachmentExpression is { } childAttachment:
                 writer.Append("        ").Append(childAttachment).Append('(')
                     .Append(variablePrefix).Append(parentIndex).Append(", ").Append(variablePrefix).Append(childIndex).AppendLine(");");
@@ -1052,6 +1071,11 @@ internal static class CSharpArtifactEmitter
             case XamlContentKind.Children:
                 error = $"Type '{parentType.Name.LocalName}' declares children content but has no generated child attachment thunk.";
                 return false;
+            case XamlContentKind.SingleContent when parentType.ContentAttachmentMember is { } contentMember:
+                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append('.')
+                    .Append(contentMember).Append('(').Append(variablePrefix).Append(childIndex).AppendLine(");");
+                error = string.Empty;
+                return true;
             case XamlContentKind.SingleContent when parentType.ContentAttachmentExpression is { } contentAttachment:
                 writer.Append("        ").Append(contentAttachment).Append('(')
                     .Append(variablePrefix).Append(parentIndex).Append(", ").Append(variablePrefix).Append(childIndex).AppendLine(");");

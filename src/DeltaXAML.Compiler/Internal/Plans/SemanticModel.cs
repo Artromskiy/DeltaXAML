@@ -45,7 +45,8 @@ internal readonly record struct XamlPropertyDefinition(
     UiPropertyId Id,
     string Name,
     XamlValueKind ValueKind,
-    string? SetterExpression = null);
+    string? SetterExpression = null,
+    string? MemberName = null);
 
 internal sealed class XamlTypeDefinition
 {
@@ -58,7 +59,9 @@ internal sealed class XamlTypeDefinition
         ImmutableArray<XamlPropertyDefinition> properties,
         string? factoryExpression = null,
         string? childAttachmentExpression = null,
-        string? contentAttachmentExpression = null)
+        string? contentAttachmentExpression = null,
+        string? childAttachmentMember = null,
+        string? contentAttachmentMember = null)
     {
         if (!id.IsValid)
         {
@@ -77,6 +80,8 @@ internal sealed class XamlTypeDefinition
         FactoryExpression = factoryExpression;
         ChildAttachmentExpression = childAttachmentExpression;
         ContentAttachmentExpression = contentAttachmentExpression;
+        ChildAttachmentMember = childAttachmentMember;
+        ContentAttachmentMember = contentAttachmentMember;
         _properties = new(StringComparer.Ordinal);
         var propertyIds = new HashSet<UiPropertyId>();
         foreach (var property in properties)
@@ -100,6 +105,16 @@ internal sealed class XamlTypeDefinition
             {
                 throw new ArgumentException($"The XAML property setter '{setter}' must be a qualified static method name.", nameof(properties));
             }
+
+            if (property.MemberName is { } member && !IsIdentifier(member))
+            {
+                throw new ArgumentException($"The XAML property member '{member}' must be a C# identifier.", nameof(properties));
+            }
+
+            if (property.SetterExpression is not null && property.MemberName is not null)
+            {
+                throw new ArgumentException($"The XAML property '{property.Name}' cannot use both a static setter and a direct member.", nameof(properties));
+            }
         }
 
         if (childAttachmentExpression is { } childAttachment && !IsDirectSetterExpression(childAttachment))
@@ -112,6 +127,26 @@ internal sealed class XamlTypeDefinition
             throw new ArgumentException($"The XAML content attachment '{contentAttachment}' must be a qualified static method name.", nameof(contentAttachmentExpression));
         }
 
+        if (childAttachmentMember is { } childMember && !IsIdentifier(childMember))
+        {
+            throw new ArgumentException($"The XAML child attachment member '{childMember}' must be a C# identifier.", nameof(childAttachmentMember));
+        }
+
+        if (contentAttachmentMember is { } contentMember && !IsIdentifier(contentMember))
+        {
+            throw new ArgumentException($"The XAML content attachment member '{contentMember}' must be a C# identifier.", nameof(contentAttachmentMember));
+        }
+
+        if (childAttachmentExpression is not null && childAttachmentMember is not null)
+        {
+            throw new ArgumentException("A child owner cannot use both static and instance attachment members.", nameof(childAttachmentMember));
+        }
+
+        if (contentAttachmentExpression is not null && contentAttachmentMember is not null)
+        {
+            throw new ArgumentException("A content owner cannot use both static and instance attachment members.", nameof(contentAttachmentMember));
+        }
+
         if (childAttachmentExpression is not null && contentKind != XamlContentKind.Children)
         {
             throw new ArgumentException("A child attachment thunk requires Children content.", nameof(childAttachmentExpression));
@@ -120,6 +155,16 @@ internal sealed class XamlTypeDefinition
         if (contentAttachmentExpression is not null && contentKind != XamlContentKind.SingleContent)
         {
             throw new ArgumentException("A content attachment thunk requires SingleContent content.", nameof(contentAttachmentExpression));
+        }
+
+        if (childAttachmentMember is not null && contentKind != XamlContentKind.Children)
+        {
+            throw new ArgumentException("A child attachment member requires Children content.", nameof(childAttachmentMember));
+        }
+
+        if (contentAttachmentMember is not null && contentKind != XamlContentKind.SingleContent)
+        {
+            throw new ArgumentException("A content attachment member requires SingleContent content.", nameof(contentAttachmentMember));
         }
     }
 
@@ -139,6 +184,12 @@ internal sealed class XamlTypeDefinition
 
     /// <summary>Trusted generated content attachment thunk for custom single-content owners.</summary>
     internal string? ContentAttachmentExpression { get; }
+
+    /// <summary>Direct instance method used by an attributed custom children owner.</summary>
+    internal string? ChildAttachmentMember { get; }
+
+    /// <summary>Direct instance method used by an attributed custom content owner.</summary>
+    internal string? ContentAttachmentMember { get; }
 
     internal bool TryGetProperty(string name, out XamlPropertyDefinition property) =>
         _properties.TryGetValue(name, out property);
@@ -176,6 +227,24 @@ internal sealed class XamlTypeDefinition
                 {
                     return false;
                 }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsIdentifier(string value)
+    {
+        if (value.Length == 0 || (!char.IsLetter(value[0]) && value[0] != '_'))
+        {
+            return false;
+        }
+
+        for (var i = 1; i < value.Length; i++)
+        {
+            if (!char.IsLetterOrDigit(value[i]) && value[i] != '_')
+            {
+                return false;
             }
         }
 
@@ -271,6 +340,7 @@ internal sealed record XamlTemplatePlan(
 
 internal sealed record XamlDocumentPlan(
     SourceId Source,
+    string? BindingSourceTypeName,
     XamlObjectPlan? Root,
     ImmutableArray<XamlResourcePlan> Resources,
     ImmutableArray<XamlStylePlan> Styles,

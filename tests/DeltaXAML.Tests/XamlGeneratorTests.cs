@@ -3,6 +3,7 @@ using Delta.XAML;
 using Delta.XAML.Contract;
 using DeltaXAML.Compiler;
 using DeltaXAML.Generator;
+using DeltaXaml.Tests;
 using Library = Delta.XAML;
 
 internal static partial class Program
