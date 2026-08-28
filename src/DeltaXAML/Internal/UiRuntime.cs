@@ -14,6 +14,7 @@ internal sealed class UiRuntime
     private readonly UiNodeStore _nodes;
     private readonly UiInputRouter _input;
     private readonly List<UiTraversalEntry> _traversal = new();
+    private readonly List<UiNodeId> _childOrder = new();
     private readonly List<UiElement> _stageTraversal = new();
     private readonly List<UiMeasureRequest> _measureQueue = new();
     private readonly List<UiArrangeRequest> _arrangeQueue = new();
@@ -101,14 +102,20 @@ internal sealed class UiRuntime
 
     internal UiElement? FindHit(UiPoint point)
     {
+        _nodes.EnsureCurrent(_retainedRoot);
         _traversal.Clear();
-        _traversal.Add(new(_retainedRoot, false));
+        var rootId = new UiNodeId(_retainedRoot.Id.Value, _retainedRoot.Generation);
+        _traversal.Add(new(rootId, false));
         while (_traversal.Count != 0)
         {
             var last = _traversal.Count - 1;
             var entry = _traversal[last];
             _traversal.RemoveAt(last);
-            var element = entry.Element;
+            if (!_nodes.TryGetNode(entry.Id, out var node) || node.Element is not { } element)
+            {
+                continue;
+            }
+
             if (entry.Exit)
             {
                 if ((element.Participation & Delta.XAML.UiParticipation.HitTesting) != 0)
@@ -126,12 +133,18 @@ internal sealed class UiRuntime
                 continue;
             }
 
-            _traversal.Add(new(element, true));
-            for (var i = 0; i < element.Children.Count; i++)
+            _traversal.Add(new(node.Id, true));
+            if (_nodes.TryGetFirstVisualChild(node.Id, out var child))
             {
-                if (element.Children[i] is UiElement child)
+                while (true)
                 {
-                    _traversal.Add(new(child, false));
+                    _traversal.Add(new(child.Id, false));
+                    if (!_nodes.TryGetNextVisualSibling(child, out var next))
+                    {
+                        break;
+                    }
+
+                    child = next;
                 }
             }
         }
@@ -142,27 +155,45 @@ internal sealed class UiRuntime
     internal void CollectFocusable(List<UiElement> result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        _nodes.EnsureCurrent(_retainedRoot);
         _traversal.Clear();
-        _traversal.Add(new(_retainedRoot, false));
+        _traversal.Add(new(new UiNodeId(_retainedRoot.Id.Value, _retainedRoot.Generation), false));
         while (_traversal.Count != 0)
         {
             var last = _traversal.Count - 1;
-            var element = _traversal[last].Element;
+            var entry = _traversal[last];
             _traversal.RemoveAt(last);
+            if (!_nodes.TryGetNode(entry.Id, out var node) || node.Element is not { } element)
+            {
+                continue;
+            }
+
             if (element.Focusable)
             {
                 result.Add(element);
             }
 
-            for (var i = element.Children.Count - 1; i >= 0; i--)
+            _childOrder.Clear();
+            if (_nodes.TryGetFirstLogicalChild(node.Id, out var child))
             {
-                if (element.Children[i] is UiElement child)
+                while (true)
                 {
-                    _traversal.Add(new(child, false));
+                    _childOrder.Add(child.Id);
+                    if (!_nodes.TryGetNextLogicalSibling(child, out var next))
+                    {
+                        break;
+                    }
+
+                    child = next;
                 }
+            }
+
+            for (var i = _childOrder.Count - 1; i >= 0; i--)
+            {
+                _traversal.Add(new(_childOrder[i], false));
             }
         }
     }
 
-    private readonly record struct UiTraversalEntry(UiElement Element, bool Exit);
+    private readonly record struct UiTraversalEntry(UiNodeId Id, bool Exit);
 }

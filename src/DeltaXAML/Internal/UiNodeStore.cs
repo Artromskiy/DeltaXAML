@@ -70,6 +70,43 @@ internal sealed class UiNodeStore
 
     internal int Count => _activeIndices.Count;
 
+    internal bool TryGetFirstLogicalChild(UiNodeId parent, out UiNodeRecord child) =>
+        TryGetFirstChild(parent, visual: false, out child);
+
+    internal bool TryGetFirstVisualChild(UiNodeId parent, out UiNodeRecord child) =>
+        TryGetFirstChild(parent, visual: true, out child);
+
+    internal bool TryGetNextLogicalSibling(UiNodeRecord current, out UiNodeRecord sibling) =>
+        TryGetNextSibling(current, visual: false, out sibling);
+
+    internal bool TryGetNextVisualSibling(UiNodeRecord current, out UiNodeRecord sibling) =>
+        TryGetNextSibling(current, visual: true, out sibling);
+
+    private bool TryGetFirstChild(UiNodeId parent, bool visual, out UiNodeRecord child)
+    {
+        if (!TryGetRecord(parent, out var record))
+        {
+            child = default;
+            return false;
+        }
+
+        var firstChild = visual ? record.FirstVisualChild : record.FirstLogicalChild;
+        child = default;
+        return firstChild.IsValid && TryGetRecord(firstChild, out child);
+    }
+
+    private bool TryGetNextSibling(UiNodeRecord current, bool visual, out UiNodeRecord sibling)
+    {
+        var nextSibling = visual ? current.NextVisualSibling : current.NextLogicalSibling;
+        if (!nextSibling.IsValid)
+        {
+            sibling = default;
+            return false;
+        }
+
+        return TryGetRecord(nextSibling, out sibling);
+    }
+
     private void Refresh(UiElement root)
     {
         for (var i = 0; i < _activeIndices.Count; i++)
