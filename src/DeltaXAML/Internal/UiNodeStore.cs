@@ -11,6 +11,7 @@ namespace DeltaXAML.Internal;
 internal sealed class UiNodeStore
 {
     private UiNodeRecord[] _records = Array.Empty<UiNodeRecord>();
+    private readonly List<RegistrationVisit> _registrationQueue = new();
     private uint _treeVersion;
 
     internal UiNodeStore(UiElement root)
@@ -69,52 +70,58 @@ internal sealed class UiNodeStore
     private void Refresh(UiElement root)
     {
         Array.Clear(_records);
-        Register(root);
-        _treeVersion = root.TreeVersion;
-    }
-
-    private void Register(UiElement element, UiElement? parent = null, UiElement? previousSibling = null)
-    {
-        var index = checked((int)element.Id.Value);
-        if (index >= _records.Length)
+        _registrationQueue.Clear();
+        _registrationQueue.Add(new(root, null, null));
+        for (var visitIndex = 0; visitIndex < _registrationQueue.Count; visitIndex++)
         {
-            Array.Resize(ref _records, Math.Max(index + 1, Math.Max(8, _records.Length * 2)));
-        }
-
-        var parentId = parent is null ? default : ToNodeId(parent);
-        var record = new UiNodeRecord(
-            element,
-            ToNodeId(element),
-            parentId,
-            parentId,
-            default,
-            default,
-            default,
-            default,
-            element.DirtyFlags);
-        _records[index] = record;
-        if (previousSibling is not null)
-        {
-            var previousIndex = checked((int)previousSibling.Id.Value);
-            _records[previousIndex].NextLogicalSibling = record.Id;
-            _records[previousIndex].NextVisualSibling = record.Id;
-        }
-
-        UiNodeId firstChild = default;
-        UiElement? previousChild = null;
-        foreach (var child in element.Children)
-        {
-            if (child is UiElement childElement)
+            var visit = _registrationQueue[visitIndex];
+            var element = visit.Element;
+            var index = checked((int)element.Id.Value);
+            if (index >= _records.Length)
             {
-                Register(childElement, element, previousChild);
-                firstChild = firstChild.IsValid ? firstChild : ToNodeId(childElement);
-                previousChild = childElement;
+                Array.Resize(ref _records, Math.Max(index + 1, Math.Max(8, _records.Length * 2)));
             }
+
+            var parentId = visit.Parent is null ? default : ToNodeId(visit.Parent);
+            var record = new UiNodeRecord(
+                element,
+                ToNodeId(element),
+                parentId,
+                parentId,
+                default,
+                default,
+                default,
+                default,
+                element.DirtyFlags);
+            _records[index] = record;
+            if (visit.PreviousSibling is not null)
+            {
+                var previousIndex = checked((int)visit.PreviousSibling.Id.Value);
+                var previous = _records[previousIndex];
+                previous.NextLogicalSibling = record.Id;
+                previous.NextVisualSibling = record.Id;
+                _records[previousIndex] = previous;
+            }
+
+            UiNodeId firstChild = default;
+            UiElement? previousChild = null;
+            foreach (var child in element.Children)
+            {
+                if (child is UiElement childElement)
+                {
+                    var childId = ToNodeId(childElement);
+                    firstChild = firstChild.IsValid ? firstChild : childId;
+                    _registrationQueue.Add(new(childElement, element, previousChild));
+                    previousChild = childElement;
+                }
+            }
+
+            record.FirstLogicalChild = firstChild;
+            record.FirstVisualChild = firstChild;
+            _records[index] = record;
         }
 
-        record.FirstLogicalChild = firstChild;
-        record.FirstVisualChild = firstChild;
-        _records[index] = record;
+        _treeVersion = root.TreeVersion;
     }
 
     private bool TryGetRecord(UiNodeId id, out UiNodeRecord record, bool validateGeneration = true)
@@ -137,6 +144,8 @@ internal sealed class UiNodeStore
     }
 
     private static UiNodeId ToNodeId(UiElement element) => new(element.Id.Value, element.Generation);
+
+    private readonly record struct RegistrationVisit(UiElement Element, UiElement? Parent, UiElement? PreviousSibling);
 }
 
 internal readonly record struct UiNodeId(uint Index, uint Generation)
