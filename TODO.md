@@ -50,9 +50,12 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
 
 ### P0 — compiled XAML artifacts
 
-- [ ] `DXAML-COMPILE-1`: define one typed semantic model shared by production
-  source generation and optional designer/hot-reload inflation. Preserve exact
-  `Delta.Diagnostics` source ranges and stable GUID type/property/resource IDs.
+- [x] `DXAML-COMPILE-1`: define one typed semantic model shared by production
+  source generation and optional designer/hot-reload inflation. `DeltaXAML.Compiler`
+  now parses a deterministic XML/XAML subset into typed object/member/value plans,
+  preserves exact UTF-16 `SourceRange` offsets, resolves explicit stable GUID
+  type/property/resource identities and recovers after local errors. Generation
+  and designer integration remain in `DXAML-COMPILE-2`.
 - [ ] `DXAML-COMPILE-2`: generate direct factories, typed setters, content/child
   attachment, name scopes and descriptor registration without requiring user
   controls to be `partial`.

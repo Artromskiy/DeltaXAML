@@ -928,6 +928,17 @@ XML token + source range
   -> immutable XamlDocumentPlan
 ```
 
+The first implementation lives in the cold-only `DeltaXAML.Compiler` project.
+`XamlSemanticRegistry` accepts stable, caller-assigned `UiTypeId`,
+`UiPropertyId` and `UiResourceId` values; it never creates durable identities
+from process-random values. `XamlCompiler` emits one immutable plan model with
+typed literal/resource/binding values, exact UTF-16 `SourceRange` offsets and
+diagnostics for unknown names, invalid values, duplicate names and unsupported
+content. Its hand-written XML reader recovers at the next attribute or sibling
+element so one compile can report multiple local errors. The compiler project
+does not participate in runtime layout, input or visual extraction, and the
+runtime `DeltaXAML` project does not reference it.
+
 Use one representation with these responsibilities (names may change only if
 the responsibility remains one-to-one):
 
