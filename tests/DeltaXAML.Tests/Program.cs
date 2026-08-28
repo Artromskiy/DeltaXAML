@@ -1146,6 +1146,7 @@ internal static partial class Program
         var childOrder = new List<UiNodeId>();
         UiMeasureStage.Run(nodes, root, new(100, 100), measureQueue, childOrder);
         Assert.Equal(depth + 1, measureQueue.Count, "measure stage visits the deep tree without recursive calls");
+        Assert.Equal(new UiNodeId(root.Id.Value, root.Generation), measureQueue[0].Element, "measure queue is keyed by the root node identity");
 
         var arrangeQueue = new List<UiArrangeRequest>();
         UiArrangeStage.Run(nodes, root, new(0, 0, 100, 100), arrangeQueue);

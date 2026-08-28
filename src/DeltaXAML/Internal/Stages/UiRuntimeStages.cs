@@ -150,29 +150,34 @@ internal static class UiMeasureStage
             return;
         }
 
-        queue.Add(new(root, available));
+        queue.Add(new(new(root.Id.Value, root.Generation), available));
         for (var i = 0; i < queue.Count; i++)
         {
             var request = queue[i];
-            if (!request.Element.NeedsMeasure(request.Available))
+            if (!nodes.TryGetNode(request.Element, out var node) || node.Element is not { } element)
             {
                 continue;
             }
 
-            if (!request.Element.ParticipatesIn(Delta.XAML.UiParticipation.Layout))
+            if (!element.NeedsMeasure(request.Available))
             {
                 continue;
             }
 
-            var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(request.Element, request.Available);
-            nodes.CopyLogicalChildren(new(request.Element.Id.Value, request.Element.Generation), childOrder);
+            if (!element.ParticipatesIn(Delta.XAML.UiParticipation.Layout))
+            {
+                continue;
+            }
+
+            var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(element, request.Available);
+            nodes.CopyLogicalChildren(request.Element, childOrder);
             for (var childIndex = 0; childIndex < childOrder.Count; childIndex++)
             {
                 if (nodes.TryGetNode(childOrder[childIndex], out var childNode) &&
                     childNode.Element is { } child &&
                     child.NeedsMeasure(childAvailable))
                 {
-                    queue.Add(new(child, childAvailable));
+                    queue.Add(new(childNode.Id, childAvailable));
                 }
             }
         }
@@ -180,7 +185,10 @@ internal static class UiMeasureStage
         for (var i = queue.Count - 1; i >= 0; i--)
         {
             var request = queue[i];
-            request.Element.MeasureStage(request.Available);
+            if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
+            {
+                element.MeasureStage(request.Available);
+            }
         }
     }
 }
