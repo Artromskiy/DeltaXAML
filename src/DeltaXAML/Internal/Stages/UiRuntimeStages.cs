@@ -50,26 +50,36 @@ internal static class UiMutationStage
 
 internal static class UiBindingStage
 {
-    internal static void Run(UiElement root, List<UiElement> traversal)
+    internal static void Run(
+        UiNodeStore nodes,
+        UiElement root,
+        List<UiNodeId> traversal,
+        List<UiNodeId> childOrder)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(traversal);
+        ArgumentNullException.ThrowIfNull(childOrder);
+        nodes.EnsureCurrent(root);
         traversal.Clear();
-        traversal.Add(root);
+        traversal.Add(new(root.Id.Value, root.Generation));
         while (traversal.Count != 0)
         {
             var last = traversal.Count - 1;
-            var element = traversal[last];
+            var id = traversal[last];
             traversal.RemoveAt(last);
+            if (!nodes.TryGetNode(id, out var record) || record.Element is not { } element)
+            {
+                continue;
+            }
+
             element.EnableBindingStage();
             element.ApplyBindingStage();
             element.CompleteBindingStage();
-            for (var i = element.Children.Count - 1; i >= 0; i--)
+            nodes.CopyLogicalChildren(record.Id, childOrder);
+            for (var i = childOrder.Count - 1; i >= 0; i--)
             {
-                if (element.Children[i] is UiElement child)
-                {
-                    traversal.Add(child);
-                }
+                traversal.Add(childOrder[i]);
             }
         }
     }
@@ -77,24 +87,35 @@ internal static class UiBindingStage
 
 internal static class UiScaleStage
 {
-    internal static void Run(UiElement root, float scale, List<UiElement> traversal)
+    internal static void Run(
+        UiNodeStore nodes,
+        UiElement root,
+        float scale,
+        List<UiNodeId> traversal,
+        List<UiNodeId> childOrder)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(traversal);
+        ArgumentNullException.ThrowIfNull(childOrder);
+        nodes.EnsureCurrent(root);
         traversal.Clear();
-        traversal.Add(root);
+        traversal.Add(new(root.Id.Value, root.Generation));
         while (traversal.Count != 0)
         {
             var last = traversal.Count - 1;
-            var element = traversal[last];
+            var id = traversal[last];
             traversal.RemoveAt(last);
-            element.ApplyLayoutScale(scale);
-            for (var i = element.Children.Count - 1; i >= 0; i--)
+            if (!nodes.TryGetNode(id, out var record) || record.Element is not { } element)
             {
-                if (element.Children[i] is UiElement child)
-                {
-                    traversal.Add(child);
-                }
+                continue;
+            }
+
+            element.ApplyLayoutScale(scale);
+            nodes.CopyLogicalChildren(record.Id, childOrder);
+            for (var i = childOrder.Count - 1; i >= 0; i--)
+            {
+                traversal.Add(childOrder[i]);
             }
         }
     }

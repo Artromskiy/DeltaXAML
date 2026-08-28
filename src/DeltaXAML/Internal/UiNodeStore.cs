@@ -82,6 +82,27 @@ internal sealed class UiNodeStore
     internal bool TryGetNextVisualSibling(UiNodeRecord current, out UiNodeRecord sibling) =>
         TryGetNextSibling(current, visual: true, out sibling);
 
+    internal void CopyLogicalChildren(UiNodeId parent, List<UiNodeId> destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        destination.Clear();
+        if (!TryGetFirstLogicalChild(parent, out var child))
+        {
+            return;
+        }
+
+        while (true)
+        {
+            destination.Add(child.Id);
+            if (!TryGetNextLogicalSibling(child, out var next))
+            {
+                return;
+            }
+
+            child = next;
+        }
+    }
+
     private bool TryGetFirstChild(UiNodeId parent, bool visual, out UiNodeRecord child)
     {
         if (!TryGetRecord(parent, out var record))

@@ -15,7 +15,7 @@ internal sealed class UiRuntime
     private readonly UiInputRouter _input;
     private readonly List<UiTraversalEntry> _traversal = new();
     private readonly List<UiNodeId> _childOrder = new();
-    private readonly List<UiElement> _stageTraversal = new();
+    private readonly List<UiNodeId> _stageTraversal = new();
     private readonly List<UiMeasureRequest> _measureQueue = new();
     private readonly List<UiArrangeRequest> _arrangeQueue = new();
 
@@ -26,7 +26,7 @@ internal sealed class UiRuntime
         Root = _retainedRoot;
         _nodes = new(_retainedRoot);
         _input = new(this);
-        UiBindingStage.Run(_retainedRoot, _stageTraversal);
+        UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder);
     }
 
     public IUiElement Root { get; }
@@ -63,13 +63,13 @@ internal sealed class UiRuntime
         UiMutationStage.Run(_nodes, _retainedRoot, _mutations, out var applied, out var rejected);
         AppliedMutationCount = applied;
         RejectedMutationCount = rejected;
-        UiBindingStage.Run(_retainedRoot, _stageTraversal);
+        UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder);
         if (theme is not null && publicRoot is not null)
         {
             UiStyleStage.Run(theme, publicRoot);
         }
 
-        UiScaleStage.Run(_retainedRoot, dpiScale, _stageTraversal);
+        UiScaleStage.Run(_nodes, _retainedRoot, dpiScale, _stageTraversal, _childOrder);
         var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
         UiMeasureStage.Run(_retainedRoot, scaled, _measureQueue);
         UiArrangeStage.Run(_retainedRoot, new(0, 0, viewport.Width, viewport.Height), _arrangeQueue);
