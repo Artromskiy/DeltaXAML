@@ -136,20 +136,7 @@ internal readonly record struct UiDrawDelta(UiDrawRange Commands, UiDrawRange Te
     public UiDrawRange Clips { get; init; }
 }
 internal readonly record struct UiDrawCommand(UiDrawKind Kind, UiRect Bounds, UiRect Clip, UiClipId ClipId, UiResourceHandle Resource, UiColor Color, string? Text, int ZIndex, uint Order, UiElementId Owner);
-/// <summary>Canonical renderer-neutral producer for one retained UI frame.</summary>
-/// <remarks>Memory views borrow the producing frame storage until its next extraction; copy them to retain data beyond that boundary.</remarks>
-internal interface IUiDrawList
-{
-    ReadOnlyMemory<UiDrawCommand> Commands { get; }
-    ReadOnlyMemory<UiClipEntry> Clips { get; }
-    ReadOnlyMemory<UiTextRun> TextRuns { get; }
-    /// <summary>Changes only when commands, clips or text requests change.</summary>
-    uint Version { get; }
-    UiDrawDelta GetDeltaSince(uint version);
-}
 internal readonly record struct UiFrameContext(UiSize Viewport, float DpiScale, uint FrameNumber);
-internal interface IUiMutationSink { void Enqueue(in UiMutation mutation); }
-internal interface IUiFrame : IUiMutationSink { IUiElement Root { get; } void ApplyMutations(); void Layout(UiSize viewport, float dpiScale); IUiDrawList ExtractDrawList(in UiFrameContext context); }
 
 internal enum UiPointerEventKind { Move, Down, Up, Wheel }
 internal readonly record struct UiPointerEvent(UiPointerEventKind Kind, UiPoint Position, int Button = 0, float WheelDelta = 0);
