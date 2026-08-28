@@ -336,6 +336,7 @@ internal class UiElement
     private readonly List<UiElement> _children = new();
     private readonly List<UiBindingSpec> _bindingSpecs = new();
     private readonly Dictionary<string, UiBindingRuntime> _bindingRuntimes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UiExternalBindingRuntime> _externalBindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IUiCompiledBindingRuntime> _compiledBindingRuntimes = new(StringComparer.Ordinal);
     private readonly UiPropertyStore _properties;
     private UiNodeStore? _nodeStore;
@@ -800,6 +801,12 @@ internal class UiElement
 
     internal void AttachBinding(UiBindingRuntime binding)
     {
+        if (_externalBindingRuntimes.Remove(binding.PropertyName, out var externalPrevious))
+        {
+            externalPrevious.Dispose();
+            _properties.Clear(binding.PropertyName, UiValueSource.Binding);
+        }
+
         if (_compiledBindingRuntimes.Remove(binding.PropertyName, out var compiledPrevious))
         {
             compiledPrevious.Dispose();
@@ -821,8 +828,42 @@ internal class UiElement
         binding.SetContext(_bindingContext);
     }
 
-    internal void AttachExternalBinding(string propertyName, Delta.XAML.IUiBinding binding) =>
-        AttachBinding(new UiBindingRuntime(propertyName, binding));
+    internal void AttachExternalBinding(string propertyName, Delta.XAML.IUiBinding binding)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(binding);
+        if (_bindingRuntimes.Remove(propertyName, out var compatibilityPrevious))
+        {
+            compatibilityPrevious.Dispose();
+            _properties.Clear(propertyName, UiValueSource.Binding);
+        }
+
+        if (_externalBindingRuntimes.Remove(propertyName, out var externalPrevious))
+        {
+            externalPrevious.Dispose();
+            _properties.Clear(propertyName, UiValueSource.Binding);
+        }
+
+        if (_compiledBindingRuntimes.Remove(propertyName, out var compiledPrevious))
+        {
+            compiledPrevious.Dispose();
+            _properties.Clear(propertyName, UiValueSource.Binding);
+        }
+
+        var runtime = new UiExternalBindingRuntime(
+            this,
+            propertyName,
+            UiPropertyKeys.Resolve(propertyName),
+            BindingInvalidation(propertyName),
+            binding);
+        _externalBindingRuntimes.Add(propertyName, runtime);
+        if (_bindingStageManaged)
+        {
+            runtime.EnableStageManagement();
+        }
+
+        runtime.Attach();
+    }
 
     internal void AttachCompiledBinding<TSource, TValue>(
         string propertyName,
@@ -833,6 +874,12 @@ internal class UiElement
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentNullException.ThrowIfNull(binding);
+        if (_externalBindingRuntimes.Remove(propertyName, out var externalPrevious))
+        {
+            externalPrevious.Dispose();
+            _properties.Clear(propertyName, UiValueSource.Binding);
+        }
+
         if (_bindingRuntimes.Remove(propertyName, out var compatibilityPrevious))
         {
             compatibilityPrevious.Dispose();
@@ -869,6 +916,13 @@ internal class UiElement
         UiDirtyFlags invalidation) =>
         _properties.SetBindingValue(propertyName, property, value, invalidation);
 
+    internal void ApplyExternalBinding(
+        string propertyName,
+        UiPropertyKey property,
+        object? value,
+        UiDirtyFlags invalidation) =>
+        _properties.SetBindingValue(propertyName, property, value, invalidation);
+
     internal void QueueCompiledBindingRefresh(string propertyName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
@@ -879,7 +933,9 @@ internal class UiElement
     }
 
     internal bool HasBinding(string propertyName) =>
-        _bindingRuntimes.ContainsKey(propertyName) || _compiledBindingRuntimes.ContainsKey(propertyName);
+        _bindingRuntimes.ContainsKey(propertyName) ||
+        _externalBindingRuntimes.ContainsKey(propertyName) ||
+        _compiledBindingRuntimes.ContainsKey(propertyName);
 
     internal UiElement RootElement
     {
@@ -941,6 +997,11 @@ internal class UiElement
             binding.ApplyPending();
         }
 
+        foreach (var binding in _externalBindingRuntimes.Values)
+        {
+            binding.ApplyPending();
+        }
+
         foreach (var binding in _compiledBindingRuntimes.Values)
         {
             binding.ApplyPending();
@@ -957,6 +1018,11 @@ internal class UiElement
         {
             binding.EnableStageManagement();
         }
+
+        foreach (var binding in _externalBindingRuntimes.Values)
+        {
+            binding.EnableStageManagement();
+        }
     }
 
     internal void NotifyBindingTargetChanged(string propertyName, object? value)
@@ -964,6 +1030,11 @@ internal class UiElement
         if (_bindingRuntimes.TryGetValue(propertyName, out var binding))
         {
             binding.WriteTarget(value);
+        }
+
+        if (_externalBindingRuntimes.TryGetValue(propertyName, out var externalBinding))
+        {
+            externalBinding.WriteTarget(value);
         }
 
         if (_compiledBindingRuntimes.TryGetValue(propertyName, out var compiledBinding))
@@ -1042,12 +1113,18 @@ internal class UiElement
                 binding.Dispose();
             }
 
+            foreach (var binding in element._externalBindingRuntimes.Values)
+            {
+                binding.Dispose();
+            }
+
             foreach (var binding in element._compiledBindingRuntimes.Values)
             {
                 binding.Dispose();
             }
 
             element._bindingRuntimes.Clear();
+            element._externalBindingRuntimes.Clear();
             element._compiledBindingRuntimes.Clear();
             for (var childIndex = 0; childIndex < element._children.Count; childIndex++)
             {

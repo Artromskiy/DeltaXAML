@@ -1186,6 +1186,17 @@ internal static partial class Program
 
     private static void BindingStageSkipsCleanSubtrees()
     {
+        var oneTimeModel = new BindingModel { Name = "one-time" };
+        var oneTimeText = new Library.UiTextBlock();
+        using var oneTimeBinding = new Library.UiCompiledBinding<BindingModel, string>(
+            oneTimeModel,
+            static model => model.Name,
+            mode: Library.UiBindingMode.OneTime);
+        oneTimeText.SetBinding("Text", oneTimeBinding);
+        oneTimeModel.Name = "changed";
+        oneTimeBinding.NotifyChanged();
+        Assert.Equal("one-time", oneTimeText.Text, "external one-time binding does not subscribe through the compatibility runtime");
+
         var firstModel = new BindingModel { Name = "first" };
         var secondModel = new BindingModel { Name = "second" };
         var firstReads = 0;

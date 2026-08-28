@@ -3,8 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using Delta.Diagnostics;
-using PublicBinding = Delta.XAML.IUiBinding;
-using PublicBindingChanged = Delta.XAML.IUiBindingChanged;
 using PublicBindingExpression = Delta.XAML.UiBindingExpression;
 using PublicBindingMode = Delta.XAML.UiBindingMode;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
@@ -22,8 +20,7 @@ namespace DeltaXAML.Internal;
 internal sealed class UiBindingRuntime : IDisposable
 {
     private readonly string[] _segments;
-    private readonly PublicBindingExpression? _expression;
-    private readonly PublicBinding? _external;
+    private readonly PublicBindingExpression _expression;
     private UiElement? _owner;
     private UiBindingValue? _binding;
     private object? _context;
@@ -45,29 +42,14 @@ internal sealed class UiBindingRuntime : IDisposable
         }
     }
 
-    internal UiBindingRuntime(string propertyName, PublicBinding external)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
-        ArgumentNullException.ThrowIfNull(external);
-        PropertyName = propertyName;
-        _external = external;
-        _segments = Array.Empty<string>();
-    }
-
     internal string PropertyName { get; }
 
     internal void Attach(UiElement owner, UiDirtyFlags invalidation)
     {
         ArgumentNullException.ThrowIfNull(owner);
         _owner = owner;
-        _binding = _external is { } external
-            ? new UiBindingValue(external)
-            : new UiBindingValue(Read, Write);
+        _binding = new UiBindingValue(Read, Write);
         owner.SetBinding(PropertyName, _binding, invalidation);
-        if (_external is PublicBindingChanged changed && _external.Mode != PublicBindingMode.OneTime)
-        {
-            changed.Changed += OnExternalChanged;
-        }
 
         Refresh();
     }
@@ -134,7 +116,7 @@ internal sealed class UiBindingRuntime : IDisposable
 
     internal void WriteTarget(object? value)
     {
-        if (_binding is null || (_expression is not null && _expression.Mode != PublicBindingMode.TwoWay))
+        if (_binding is null || _expression.Mode != PublicBindingMode.TwoWay)
         {
             return;
         }
@@ -155,19 +137,10 @@ internal sealed class UiBindingRuntime : IDisposable
             _observable.PropertyChanged -= OnPropertyChanged;
         }
 
-        if (_external is PublicBindingChanged changed && _external.Mode != PublicBindingMode.OneTime)
-        {
-            changed.Changed -= OnExternalChanged;
-        }
     }
 
     private object? Read()
     {
-        if (_external is not null)
-        {
-            return _external.Read();
-        }
-
         if (!TryReadPath(_context, out var value))
         {
             return _expression?.FallbackValue;
@@ -194,13 +167,7 @@ internal sealed class UiBindingRuntime : IDisposable
 
     private (bool Success, string? Error) Write(object? value)
     {
-        if (_external is not null)
-        {
-            var success = _external.TryWrite(value, out var diagnostic);
-            return (success, diagnostic?.Message);
-        }
-
-        if (_expression?.Mode != PublicBindingMode.TwoWay)
+        if (_expression.Mode != PublicBindingMode.TwoWay)
         {
             return (false, "Binding is not two-way.");
         }
@@ -317,8 +284,6 @@ internal sealed class UiBindingRuntime : IDisposable
             return false;
         }
     }
-
-    private void OnExternalChanged(object? sender, EventArgs args) => QueueRefresh();
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
