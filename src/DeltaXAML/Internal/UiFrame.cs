@@ -1,6 +1,6 @@
 namespace DeltaXAML.Internal;
 
-internal sealed class UiFrame : IUiFrame
+internal sealed class UiFrame
 {
     private readonly DrawList _drawList = new();
     private readonly UiRuntime _runtime;
@@ -19,14 +19,14 @@ internal sealed class UiFrame : IUiFrame
     internal void EnqueueInput(in UiInputPacket packet) => _runtime.EnqueueInput(in packet);
     public void ApplyMutations() => _runtime.ApplyMutations();
     public void Layout(UiSize viewport, float dpiScale) => _runtime.Layout(viewport, dpiScale);
-    public IUiDrawList ExtractDrawList(in UiFrameContext context) { _drawList.Build(Root, new(0, 0, context.Viewport.Width, context.Viewport.Height)); return _drawList; }
+    public DrawList ExtractDrawList(in UiFrameContext context) { _drawList.Build(Root, new(0, 0, context.Viewport.Width, context.Viewport.Height)); return _drawList; }
     internal bool TryResolve(UiPropertyHandle handle, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element) => _runtime.TryResolve(handle, out element);
     internal bool TryResolve(UiElementId id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element) => _runtime.TryResolve(id, out element);
     internal bool TryGetNode(UiNodeId id, out UiNodeRecord record) => _runtime.TryGetNode(id, out record);
     internal bool Contains(UiElement element) => _runtime.Contains(element);
 }
 
-internal sealed class DrawList : IUiDrawList
+internal sealed class DrawList
 {
     private UiDrawCommand[] _commands = Array.Empty<UiDrawCommand>();
     private UiClipEntry[] _clips = Array.Empty<UiClipEntry>();
@@ -195,7 +195,7 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     public void RoutePointer(in UiPointerEvent input)
     {
         PruneDetachedState();
-        var target = _captured ?? FindHit(_runtime.Root, input.Position);
+        var target = _captured ?? _runtime.FindHit(input.Position);
         if (input.Kind == UiPointerEventKind.Move)
         {
             _hovered = target;
@@ -260,21 +260,9 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     private void FocusNext()
     {
         _focusable.Clear();
-        CollectFocusable(_runtime.Root, _focusable);
+        _runtime.CollectFocusable(_focusable);
         var index = _focused is null ? -1 : _focusable.IndexOf(_focused);
         _focused = _focusable.Count == 0 ? null : _focusable[(index + 1) % _focusable.Count];
-    }
-    private static void CollectFocusable(IUiElement element, List<UiElement> result)
-    {
-        if (element is UiElement e && e.Focusable)
-        {
-            result.Add(e);
-        }
-
-        foreach (var child in element.Children)
-        {
-            CollectFocusable(child, result);
-        }
     }
     private void Raise(UiElement target, in UiRoutedEvent e)
     {
@@ -306,5 +294,4 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
             }
         }
     }
-    private static UiElement? FindHit(IUiElement root, UiPoint p) => root is UiElement e ? e.HitTest(p) as UiElement : null;
 }

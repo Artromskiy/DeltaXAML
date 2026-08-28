@@ -13,6 +13,7 @@ internal sealed class UiRuntime
     private readonly UiElement _retainedRoot;
     private readonly UiNodeStore _nodes;
     private readonly UiInputRouter _input;
+    private readonly List<UiTraversalEntry> _traversal = new();
 
     public UiRuntime(IUiElement root)
     {
@@ -88,6 +89,71 @@ internal sealed class UiRuntime
         return TryResolve(element.Id, out var current) && current.Generation == element.Generation;
     }
 
+    internal UiElement? FindHit(UiPoint point)
+    {
+        _traversal.Clear();
+        _traversal.Add(new(_retainedRoot, false));
+        while (_traversal.Count != 0)
+        {
+            var last = _traversal.Count - 1;
+            var entry = _traversal[last];
+            _traversal.RemoveAt(last);
+            var element = entry.Element;
+            if (entry.Exit)
+            {
+                if ((element.Participation & Delta.XAML.UiParticipation.HitTesting) != 0)
+                {
+                    return element;
+                }
+
+                continue;
+            }
+
+            if (element.Visibility != UiVisibility.Visible ||
+                (element.Participation & Delta.XAML.UiParticipation.Layout) == 0 ||
+                !element.Clip.Contains(point))
+            {
+                continue;
+            }
+
+            _traversal.Add(new(element, true));
+            for (var i = 0; i < element.Children.Count; i++)
+            {
+                if (element.Children[i] is UiElement child)
+                {
+                    _traversal.Add(new(child, false));
+                }
+            }
+        }
+
+        return null;
+    }
+
+    internal void CollectFocusable(List<UiElement> result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        _traversal.Clear();
+        _traversal.Add(new(_retainedRoot, false));
+        while (_traversal.Count != 0)
+        {
+            var last = _traversal.Count - 1;
+            var element = _traversal[last].Element;
+            _traversal.RemoveAt(last);
+            if (element.Focusable)
+            {
+                result.Add(element);
+            }
+
+            for (var i = element.Children.Count - 1; i >= 0; i--)
+            {
+                if (element.Children[i] is UiElement child)
+                {
+                    _traversal.Add(new(child, false));
+                }
+            }
+        }
+    }
+
     private void ApplyInput()
     {
         for (var i = 0; i < _inputQueue.Count; i++)
@@ -97,4 +163,6 @@ internal sealed class UiRuntime
 
         _inputQueue.Clear();
     }
+
+    private readonly record struct UiTraversalEntry(UiElement Element, bool Exit);
 }
