@@ -112,7 +112,8 @@ public sealed class UiCompiledBinding<TSource, TValue> : IUiBinding<TValue>, IUi
         TSource source,
         Func<TSource, TValue> read,
         Action<TSource, TValue>? write = null,
-        UiBindingMode mode = UiBindingMode.OneWay)
+        UiBindingMode mode = UiBindingMode.OneWay,
+        bool subscribeToSource = true)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(read);
@@ -125,7 +126,7 @@ public sealed class UiCompiledBinding<TSource, TValue> : IUiBinding<TValue>, IUi
         _read = read;
         _write = write;
         Mode = mode;
-        if (mode != UiBindingMode.OneTime && source is INotifyPropertyChanged observable)
+        if (subscribeToSource && mode != UiBindingMode.OneTime && source is INotifyPropertyChanged observable)
         {
             _observable = observable;
             _observable.PropertyChanged += OnPropertyChanged;

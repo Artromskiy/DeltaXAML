@@ -213,6 +213,11 @@ internal static class CSharpArtifactEmitter
                 .AppendLine(";");
         }
 
+        if (bindingSites.Count != 0)
+        {
+            writer.AppendLine("    private readonly global::System.ComponentModel.INotifyPropertyChanged? _bindingSource;");
+        }
+
         EmitTemplateFactories(writer, plan.Templates, registry, plan.ResourceSlots);
 
         writer.AppendLine("    public global::Delta.XAML.UiResourceCatalog Resources { get; }");
@@ -343,6 +348,15 @@ internal static class CSharpArtifactEmitter
             EmitBinding(writer, i, bindingSites[i]);
         }
 
+        if (bindingSites.Count != 0)
+        {
+            writer.AppendLine("        if (context is global::System.ComponentModel.INotifyPropertyChanged observable)");
+            writer.AppendLine("        {");
+            writer.AppendLine("            _bindingSource = observable;");
+            writer.AppendLine("            _bindingSource.PropertyChanged += OnContextPropertyChanged;");
+            writer.AppendLine("        }");
+        }
+
         if (hasVisualRoot)
         {
             writer.AppendLine("        Theme.Apply(node0);");
@@ -384,8 +398,22 @@ internal static class CSharpArtifactEmitter
 
         writer.AppendLine("    }");
         writer.AppendLine();
+        if (bindingSites.Count != 0)
+        {
+            writer.AppendLine("    private void OnContextPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs args) => RefreshBindings();");
+            writer.AppendLine();
+        }
+
         writer.AppendLine("    public void Dispose()");
         writer.AppendLine("    {");
+        if (bindingSites.Count != 0)
+        {
+            writer.AppendLine("        if (_bindingSource is not null)");
+            writer.AppendLine("        {");
+            writer.AppendLine("            _bindingSource.PropertyChanged -= OnContextPropertyChanged;");
+            writer.AppendLine("        }");
+        }
+
         for (var i = 0; i < bindingSites.Count; i++)
         {
             writer.Append("        _binding").Append(i).AppendLine(".Dispose();");
@@ -611,7 +639,7 @@ internal static class CSharpArtifactEmitter
             writer.Append("null");
         }
 
-        writer.Append(", global::Delta.XAML.UiBindingMode.").Append(binding.Mode).AppendLine(");");
+        writer.Append(", global::Delta.XAML.UiBindingMode.").Append(binding.Mode).AppendLine(", false);");
         writer.Append("        node").Append(site.NodeIndex).Append(".SetBinding(")
             .Append(Quote(site.Member.Name)).Append(", _binding").Append(bindingIndex).AppendLine(");");
     }

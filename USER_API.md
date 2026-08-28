@@ -140,6 +140,9 @@ time.
 - `OneWay` updates the target when the source changes;
 - `TwoWay` additionally writes validated target changes back to the source.
 
+Generated artifacts use one source notification boundary for all compiled
+bindings and expose `RefreshBindings()` for sources without notifications.
+
 `INotifyPropertyChanged` is supported for ordinary view models. High-frequency
 engine state should use typed property handles or an explicit adapter instead
 of producing one managed event per value update.

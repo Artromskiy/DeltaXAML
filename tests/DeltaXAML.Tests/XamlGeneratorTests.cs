@@ -100,6 +100,8 @@ internal static partial class Program
         Assert.True(bindingSource.Contains("static source => source.Name", StringComparison.Ordinal), "binding read accessor is direct and static");
         Assert.True(bindingSource.Contains("static (source, value) => source.Name = value", StringComparison.Ordinal), "two-way binding write accessor is direct and static");
         Assert.True(bindingSource.Contains("RefreshBindings", StringComparison.Ordinal), "binding artifact exposes one direct refresh batch");
+        Assert.True(bindingSource.Contains("_bindingSource.PropertyChanged += OnContextPropertyChanged", StringComparison.Ordinal), "binding artifact uses one source notification boundary");
+        Assert.True(bindingSource.Contains("UiBindingMode.TwoWay, false", StringComparison.Ordinal), "generated bindings disable per-binding source subscriptions");
         Assert.True(!bindingSource.Contains("GetProperty", StringComparison.Ordinal) && !bindingSource.Contains("Split", StringComparison.Ordinal), "typed binding artifact has no reflection or path traversal");
 
         bindingRegistry.RegisterBinding(new(
@@ -124,5 +126,18 @@ internal static partial class Program
         oneTime.Changed += (_, _) => oneTimeNotifications++;
         oneTimeModel.Name = "Updated";
         Assert.Equal(0, oneTimeNotifications, "one-time binding does not subscribe to source notifications");
+
+        var batchedModel = new BindingModel { Name = "Batched" };
+        using var batched = new UiCompiledBinding<BindingModel, string>(
+            batchedModel,
+            static model => model.Name,
+            mode: UiBindingMode.OneWay,
+            subscribeToSource: false);
+        var batchedNotifications = 0;
+        batched.Changed += (_, _) => batchedNotifications++;
+        batchedModel.Name = "Changed";
+        Assert.Equal(0, batchedNotifications, "batched binding does not subscribe per binding");
+        batched.NotifyChanged();
+        Assert.Equal(1, batchedNotifications, "batched binding refreshes through the explicit batch boundary");
     }
 }
