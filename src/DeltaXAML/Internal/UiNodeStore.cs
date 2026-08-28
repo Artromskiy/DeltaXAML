@@ -145,13 +145,15 @@ internal sealed class UiNodeStore
         }
 
         var candidate = _records[(int)id.Index];
-        if (candidate.Element is null || (validateGeneration && candidate.Id.Generation != id.Generation))
+        if (candidate.Element is not { } element ||
+            (validateGeneration && candidate.Id.Generation != id.Generation))
         {
             record = default;
             return false;
         }
 
         record = candidate;
+        record.Dirty = element.DirtyFlags;
         return true;
     }
 

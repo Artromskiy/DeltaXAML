@@ -1026,6 +1026,9 @@ internal static partial class Program
         Assert.True(frame.TryGetNode(textNodeId, out var textNode) && textNode.LogicalParent == rootNodeId && textNode.NextLogicalSibling == otherNodeId, "node store records logical parent and sibling links");
         Assert.True(textNode.VisualParent == rootNodeId && rootNode.FirstVisualChild == textNodeId, "node store records the visual relation in the same node record");
         Assert.Equal(new UiRuntimeTypeIndex(1), textNode.RuntimeType, "node record retains the compact text descriptor index");
+        text.DirtyFlags = UiDirtyFlags.None;
+        text.Invalidate(UiDirtyFlags.Visual);
+        Assert.True(frame.TryGetNode(textNodeId, out var dirtyTextNode) && (dirtyTextNode.Dirty & UiDirtyFlags.Visual) != 0, "node lookup reports current element dirty state without rebuilding the index");
         Assert.True(UiDescriptorCatalog.TryResolve(textNode.RuntimeType, out var textDescriptor) && textDescriptor.Supports(UiDescriptorCapabilities.Measure | UiDescriptorCapabilities.Arrange | UiDescriptorCapabilities.Visual), "node descriptor resolves typed text operations");
         Assert.Equal(new UiRuntimeTypeIndex(5), rootNode.RuntimeType, "node record retains the compact panel descriptor index");
         Assert.True(text.TryGet("Text", out var value) && Equals(value.UntypedValue, "value") && value.Source == UiValueSource.Handle, "handle source retained");
