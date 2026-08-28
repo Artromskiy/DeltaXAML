@@ -132,10 +132,18 @@ internal static class UiStyleStage
 
 internal static class UiMeasureStage
 {
-    internal static void Run(UiElement root, UiSize available, List<UiMeasureRequest> queue)
+    internal static void Run(
+        UiNodeStore nodes,
+        UiElement root,
+        UiSize available,
+        List<UiMeasureRequest> queue,
+        List<UiNodeId> childOrder)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(queue);
+        ArgumentNullException.ThrowIfNull(childOrder);
+        nodes.EnsureCurrent(root);
         queue.Clear();
         if (!root.NeedsMeasure(available))
         {
@@ -157,9 +165,12 @@ internal static class UiMeasureStage
             }
 
             var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(request.Element, request.Available);
-            for (var childIndex = 0; childIndex < request.Element.Children.Count; childIndex++)
+            nodes.CopyLogicalChildren(new(request.Element.Id.Value, request.Element.Generation), childOrder);
+            for (var childIndex = 0; childIndex < childOrder.Count; childIndex++)
             {
-                if (request.Element.Children[childIndex] is UiElement child && child.NeedsMeasure(childAvailable))
+                if (nodes.TryGetNode(childOrder[childIndex], out var childNode) &&
+                    childNode.Element is { } child &&
+                    child.NeedsMeasure(childAvailable))
                 {
                     queue.Add(new(child, childAvailable));
                 }

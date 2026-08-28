@@ -71,7 +71,7 @@ internal sealed class UiRuntime
 
         UiScaleStage.Run(_nodes, _retainedRoot, dpiScale, _stageTraversal, _childOrder);
         var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
-        UiMeasureStage.Run(_retainedRoot, scaled, _measureQueue);
+        UiMeasureStage.Run(_nodes, _retainedRoot, scaled, _measureQueue, _childOrder);
         UiArrangeStage.Run(_retainedRoot, new(0, 0, viewport.Width, viewport.Height), _arrangeQueue);
         UiFocusStage.Run(_input);
     }
