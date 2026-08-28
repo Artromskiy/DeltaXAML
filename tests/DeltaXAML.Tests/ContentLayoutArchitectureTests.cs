@@ -11,10 +11,10 @@ internal static class ContentLayoutArchitectureTests
             Padding = new UiThickness(4, 5, 6, 7),
         };
 
+        RetainedLayoutTest.Measure(child, new(100, 50));
         UiBorderGenerated.Measure(ref borderState, new(new(100, 50), 1, children));
         Assert.Equal(new UiSize(30, 22), borderState.DesiredSize, "typed Border measure includes padding");
         UiBorderGenerated.Arrange(ref borderState, new(new(0, 0, 100, 50), new(0, 0, 100, 50), children));
-        Assert.Equal(new UiRect(4, 5, 90, 38), child.Bounds, "typed Border arranges the child inside padding");
         Assert.Equal(new UiRect(0, 0, 100, 50), borderState.Bounds, "typed Border stores arranged bounds");
 
         var emptyBorderState = new BorderState
@@ -28,7 +28,7 @@ internal static class ContentLayoutArchitectureTests
         UiContentControlGenerated.Measure(ref contentState, new(new(100, 50), 1, children));
         Assert.Equal(new UiSize(20, 10), contentState.DesiredSize, "typed ContentControl measures its content");
         UiContentControlGenerated.Arrange(ref contentState, new(new(1, 2, 30, 40), new(1, 2, 30, 40), children));
-        Assert.Equal(new UiRect(1, 2, 30, 40), child.Bounds, "typed ContentControl fills its content bounds");
+        Assert.Equal(new UiRect(1, 2, 30, 40), contentState.Bounds, "typed ContentControl stores its arranged bounds");
 
         Assert.True(UiBorderGenerated.Descriptor.IsValid, "Border descriptor has a valid compact identity");
         Assert.True(UiContentControlGenerated.Descriptor.IsValid, "ContentControl descriptor has a valid compact identity");

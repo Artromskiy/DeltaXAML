@@ -632,8 +632,10 @@ internal class UiElement
         Participation = value;
         InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
     }
-    internal void MeasureStage(UiSize available, UiNodeStore? nodes = null, UiMeasureQueueBuffer? requests = null)
+    internal void ExecuteMeasure(UiSize available, UiNodeStore nodes, UiMeasureQueueBuffer requests)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
+        ArgumentNullException.ThrowIfNull(requests);
         if (CanSkipMeasure(available))
         {
             return;
@@ -646,15 +648,15 @@ internal class UiElement
             return;
         }
 
-        var children = nodes is null
-            ? Children
-            : nodes.GetLogicalChildren(new(Id.Value, Generation));
-        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(this, new(available, LayoutScale, children, requests is null, requests, nodes)));
+        var children = nodes.GetLogicalChildren(new(Id.Value, Generation));
+        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(this, new(available, LayoutScale, children, true, requests, nodes)));
         CompleteMeasure(available);
     }
 
-    internal void ArrangeStage(UiRect bounds, UiArrangeQueueBuffer? requests, UiNodeStore? nodes)
+    internal void ExecuteArrange(UiRect bounds, UiArrangeQueueBuffer requests, UiNodeStore nodes)
     {
+        ArgumentNullException.ThrowIfNull(requests);
+        ArgumentNullException.ThrowIfNull(nodes);
         if (CanSkipArrange(bounds))
         {
             return;
@@ -670,39 +672,8 @@ internal class UiElement
 
         Bounds = bounds;
         Clip = bounds;
-        var children = nodes is null
-            ? Children
-            : nodes.GetLogicalChildren(new(Id.Value, Generation));
-        if (UiDescriptorCatalog.Arrange(this, new(bounds, bounds, children, requests, nodes)))
-        {
-            CompleteArrange(bounds);
-            return;
-        }
-
-        for (var i = 0; i < children.Count; i++)
-        {
-            var child = children[i];
-            if (requests is not null && child is UiElement element)
-            {
-                if (nodes is null)
-                {
-                    if (element.NeedsArrange(bounds))
-                    {
-                        requests.Add(new(new(element.Id.Value, element.Generation), bounds));
-                    }
-                }
-                else if (nodes.TryGetNode(new(element.Id.Value, element.Generation), out var node) &&
-                         element.NeedsArrange(bounds))
-                {
-                    requests.Add(new(node.Id, bounds));
-                }
-            }
-            else
-            {
-                child.ArrangeStage(bounds, null, null);
-            }
-        }
-
+        var children = nodes.GetLogicalChildren(new(Id.Value, Generation));
+        UiDescriptorCatalog.Arrange(this, new(bounds, bounds, children, requests, nodes));
         CompleteArrange(bounds);
     }
     protected bool CanSkipMeasure(UiSize available) =>

@@ -53,9 +53,8 @@ internal static class UiMeasureQueue
     internal static void Add(in UiMeasureContext context, UiElement child, UiSize available)
     {
         ArgumentNullException.ThrowIfNull(child);
-        if (context.Requests is null)
+        if (context.Requests is not { } requests || context.Nodes is not { } nodes)
         {
-            child.MeasureStage(available, context.Nodes);
             return;
         }
 
@@ -65,9 +64,9 @@ internal static class UiMeasureQueue
         }
 
         var id = new UiNodeId(child.Id.Value, child.Generation);
-        if (context.Nodes is null || context.Nodes.TryGetNode(id, out _))
+        if (nodes.TryGetNode(id, out _))
         {
-            context.Requests.Add(new(id, available));
+            requests.Add(new(id, available));
         }
     }
 }
@@ -229,7 +228,7 @@ internal static class UiMeasureStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.MeasureStage(request.Available, nodes, queue);
+                element.ExecuteMeasure(request.Available, nodes, queue);
             }
         }
     }
@@ -255,7 +254,7 @@ internal static class UiArrangeStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.ArrangeStage(request.Bounds, queue, nodes);
+                element.ExecuteArrange(request.Bounds, queue, nodes);
             }
         }
     }
@@ -266,24 +265,15 @@ internal static class UiArrangeQueue
     internal static void Add(in UiArrangeContext context, UiElement child, UiRect bounds)
     {
         ArgumentNullException.ThrowIfNull(child);
-        if (context.Requests is not null)
+        if (context.Requests is not { } requests || context.Nodes is not { } nodes)
         {
-            if (context.Nodes is null)
-            {
-                if (child.NeedsArrange(bounds))
-                {
-                    context.Requests.Add(new(new(child.Id.Value, child.Generation), bounds));
-                }
-            }
-            else if (context.Nodes.TryGetNode(new(child.Id.Value, child.Generation), out var node) &&
-                     child.NeedsArrange(bounds))
-            {
-                context.Requests.Add(new(node.Id, bounds));
-            }
-
             return;
         }
-        child.ArrangeStage(bounds, null, null);
+
+        if (nodes.TryGetNode(new(child.Id.Value, child.Generation), out var node) && child.NeedsArrange(bounds))
+        {
+            requests.Add(new(node.Id, bounds));
+        }
     }
 }
 

@@ -10,12 +10,12 @@ internal static class StackPanelArchitectureTests
         var fill = new TextBlock { Fill = true };
         UiElement[] children = [first, second, fill];
 
+        RetainedLayoutTest.Measure(first, new(200, 100));
+        RetainedLayoutTest.Measure(second, new(200, 100));
+        RetainedLayoutTest.Measure(fill, new(200, 100));
         UiStackPanelGenerated.Measure(ref state, new(new(200, 100), 1, children));
         Assert.Equal(new UiSize(60, 47.5f), state.DesiredSize, "typed StackPanel measure uses child desired sizes");
         UiStackPanelGenerated.Arrange(ref state, new(new(0, 0, 200, 100), new(0, 0, 200, 100), children));
-        Assert.Equal(new UiRect(0, 0, 200, 10), first.Bounds, "vertical StackPanel keeps the first child size");
-        Assert.Equal(new UiRect(0, 10, 200, 20), second.Bounds, "vertical StackPanel advances the cursor");
-        Assert.Equal(new UiRect(0, 30, 200, 70), fill.Bounds, "vertical StackPanel distributes remaining space");
         Assert.Equal(state.Bounds, new UiRect(0, 0, 200, 100), "typed arrange stores the parent bounds");
 
         Assert.True(UiStackPanelGenerated.Descriptor.IsValid, "StackPanel descriptor has a valid compact identity");

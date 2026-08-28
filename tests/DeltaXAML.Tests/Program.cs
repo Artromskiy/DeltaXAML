@@ -31,19 +31,30 @@ internal static class RetainedLayoutTest
     internal static void Layout(UiElement root, UiSize available, UiRect bounds)
     {
         ArgumentNullException.ThrowIfNull(root);
-        Measure(root, available);
-        root.ArrangeStage(bounds, null, null);
+        var nodes = new UiNodeStore(root);
+        try
+        {
+            UiMeasureStage.Run(nodes, root, available, new UiMeasureQueueBuffer(), new List<UiNodeId>());
+            UiArrangeStage.Run(nodes, root, bounds, new UiArrangeQueueBuffer());
+        }
+        finally
+        {
+            nodes.Detach();
+        }
     }
 
-    private static void Measure(UiElement element, UiSize available)
+    internal static void Measure(UiElement root, UiSize available)
     {
-        var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(element, available);
-        for (var i = 0; i < element.Children.Count; i++)
+        ArgumentNullException.ThrowIfNull(root);
+        var nodes = new UiNodeStore(root);
+        try
         {
-            Measure(element.Children[i], childAvailable);
+            UiMeasureStage.Run(nodes, root, available, new UiMeasureQueueBuffer(), new List<UiNodeId>());
         }
-
-        element.MeasureStage(available);
+        finally
+        {
+            nodes.Detach();
+        }
     }
 }
 

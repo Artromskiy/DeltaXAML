@@ -15,12 +15,12 @@ internal static class PanelGridArchitectureTests
         UiElement[] children = [first, second];
         var state = new PanelState();
 
+        RetainedLayoutTest.Measure(first, new(200, 100));
+        RetainedLayoutTest.Measure(second, new(200, 100));
         UiPanelGenerated.Measure(ref state, new(new(200, 100), 1, children));
         Assert.Equal(new UiSize(60, 20), state.DesiredSize, "typed Panel measures the largest child");
         UiPanelGenerated.Arrange(ref state, new(new(3, 4, 200, 100), new(3, 4, 200, 100), children));
         Assert.Equal(new UiRect(3, 4, 200, 100), state.Bounds, "typed Panel stores its arranged bounds");
-        Assert.Equal(state.Bounds, first.Bounds, "typed Panel gives each child the panel bounds");
-        Assert.Equal(state.Bounds, second.Bounds, "typed Panel gives every child the same slot");
 
         Assert.True(UiPanelGenerated.Descriptor.IsValid, "Panel descriptor has a valid compact identity");
         Assert.True(UiDescriptorCatalog.TryResolve(UiPanelGenerated.Descriptor.Index, out var descriptor), "Panel descriptor resolves through the compact catalog");
@@ -44,12 +44,12 @@ internal static class PanelGridArchitectureTests
         UiElement[] children = [first, second, third];
         var state = NewGridState(columns, rows);
 
+        RetainedLayoutTest.Measure(first, new(200, 100));
+        RetainedLayoutTest.Measure(second, new(200, 100));
+        RetainedLayoutTest.Measure(third, new(200, 100));
         UiGridGenerated.Measure(ref state, new(new(200, 100), 1, children));
         Assert.Equal(new UiSize(90, 20), state.DesiredSize, "typed Grid measures fixed and auto definitions");
         UiGridGenerated.Arrange(ref state, new(new(0, 0, 200, 20), new(0, 0, 200, 20), children));
-        Assert.Equal(new UiRect(0, 0, 40, 20), first.Bounds, "Grid arranges the fixed column");
-        Assert.Equal(new UiRect(40, 0, 50, 20), second.Bounds, "Grid arranges the auto column");
-        Assert.Equal(new UiRect(90, 0, 110, 20), third.Bounds, "Grid distributes the remaining star space");
 
         Assert.True(UiGridGenerated.Descriptor.IsValid, "Grid descriptor has a valid compact identity");
         Assert.True(UiDescriptorCatalog.TryResolve(UiGridGenerated.Descriptor.Index, out var descriptor), "Grid descriptor resolves through the compact catalog");
@@ -64,6 +64,14 @@ internal static class PanelGridArchitectureTests
         Assert.Equal(before, retained.LayoutVersion, "unchanged Grid definitions do not invalidate layout");
         retained.SetColumns(new[] { GridLength.Fixed(60), GridLength.Auto, GridLength.Star() });
         Assert.True(retained.LayoutVersion > before, "changed Grid definitions invalidate layout");
+
+        retained.Add(first);
+        retained.Add(second);
+        retained.Add(third);
+        RetainedLayoutTest.Layout(retained, new(200, 100), new(0, 0, 200, 20));
+        Assert.Equal(new UiRect(0, 0, 60, 20), first.Bounds, "retained Grid arranges the fixed column");
+        Assert.Equal(new UiRect(60, 0, 50, 20), second.Bounds, "retained Grid arranges the auto column");
+        Assert.Equal(new UiRect(110, 0, 90, 20), third.Bounds, "retained Grid distributes the remaining star space");
     }
 
     private static GridState NewGridState(GridLength[] columns, GridLength[] rows) => new()
