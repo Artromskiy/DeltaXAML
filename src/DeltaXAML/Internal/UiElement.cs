@@ -253,6 +253,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private uint _outputVersion;
     private Delta.XAML.UiStyle? _appliedStyle;
     private Delta.XAML.UiStyleState _appliedStyleState;
+    private int _appliedStyleVersion = -1;
     private UiSize _measuredAvailable;
     private UiRect _arrangedBounds;
     private bool _hasMeasured;
@@ -548,6 +549,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     internal uint OutputVersion => _outputVersion;
     internal Delta.XAML.UiStyle? AppliedStyle => _appliedStyle;
     internal Delta.XAML.UiStyleState AppliedStyleState => _appliedStyleState;
+    internal int AppliedStyleVersion => _appliedStyleVersion;
     public float LayoutScale => _layoutScale;
     public float DpiScale => _dpiScale;
     public void SetLayoutScale(float scale)
@@ -644,11 +646,12 @@ internal class UiElement : IUiElement, IUiPropertyStore
     protected void SetLocalProperty(string name, object? value, UiDirtyFlags invalidation) =>
         _properties.SetLocal(name, value, invalidation);
 
-    internal void SetAppliedStyle(Delta.XAML.UiStyle style, Delta.XAML.UiStyleState state)
+    internal void SetAppliedStyle(Delta.XAML.UiStyle style, Delta.XAML.UiStyleState state, int version)
     {
         ArgumentNullException.ThrowIfNull(style);
         _appliedStyle = style;
         _appliedStyleState = state;
+        _appliedStyleVersion = version;
     }
 
     internal void ClearStyleValue(string name) => _properties.Clear(name, UiValueSource.Style);

@@ -722,6 +722,17 @@ internal static partial class Program
         theme.Apply(text);
         Assert.Equal(firstColor, text.Foreground, "resource-backed style resolves through the user API");
         Assert.Equal(18f, text.FontSize, "style value uses the retained style source");
+        var unchangedStyleVersion = text.RetainedElement.OutputVersion;
+        style.Set("FontSize", 20f);
+        using var styleTextService = new EmptyTextService();
+        using var styleDocument = new Library.UiDocument(text, styleTextService, null, theme);
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(20f, text.FontSize, "changing an applied style refreshes its retained value");
+        Assert.True(text.RetainedElement.OutputVersion > unchangedStyleVersion, "changed style invalidates the dependent retained element");
+        var changedStyleVersion = text.RetainedElement.OutputVersion;
+        style.Set("FontSize", 20f);
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(changedStyleVersion, text.RetainedElement.OutputVersion, "equal style assignment does not add invalidation");
         resources.Set("TextColor", secondColor);
         Assert.Equal(secondColor, text.Foreground, "resource change updates the dependent style value");
         Assert.Equal(new Library.UiColor(255, 255, 255), other.Foreground, "unrelated element is not changed by a resource update");

@@ -100,6 +100,7 @@ public sealed class UiStyle
     private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
     private readonly Dictionary<UiStyleState, Dictionary<string, object?>> _stateValues = new();
     private readonly UiResourceCatalog? _resources;
+    private int _version;
 
     public UiStyle(string key, string targetType, UiResourceCatalog? resources = null)
     {
@@ -114,10 +115,12 @@ public sealed class UiStyle
 
     public string TargetType { get; }
 
+    internal int Version => _version;
+
     public void Set(string propertyName, object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
-        _values[propertyName] = value;
+        SetValue(_values, propertyName, value);
     }
 
     public void SetResource(string propertyName, string resourceKey)
@@ -129,7 +132,7 @@ public sealed class UiStyle
             throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
         }
 
-        _values[propertyName] = new UiResourceReference(resourceKey);
+        SetValue(_values, propertyName, new UiResourceReference(resourceKey));
     }
 
     public void SetStaticResource(string propertyName, string resourceKey)
@@ -141,14 +144,14 @@ public sealed class UiStyle
             throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
         }
 
-        _values[propertyName] = new StaticResourceReference(resourceKey);
+        SetValue(_values, propertyName, new StaticResourceReference(resourceKey));
     }
 
     public void SetState(UiStyleState state, string propertyName, object? value)
     {
         ValidateState(state);
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
-        GetStateValues(state)[propertyName] = value;
+        SetValue(GetStateValues(state), propertyName, value);
     }
 
     public void SetStateResource(UiStyleState state, string propertyName, string resourceKey)
@@ -161,7 +164,7 @@ public sealed class UiStyle
             throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
         }
 
-        GetStateValues(state)[propertyName] = new UiResourceReference(resourceKey);
+        SetValue(GetStateValues(state), propertyName, new UiResourceReference(resourceKey));
     }
 
     public void SetStateStaticResource(UiStyleState state, string propertyName, string resourceKey)
@@ -174,7 +177,7 @@ public sealed class UiStyle
             throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
         }
 
-        GetStateValues(state)[propertyName] = new StaticResourceReference(resourceKey);
+        SetValue(GetStateValues(state), propertyName, new StaticResourceReference(resourceKey));
     }
 
     internal void Apply(UiElement element)
@@ -186,7 +189,8 @@ public sealed class UiStyle
         }
 
         var state = CurrentState(element);
-        if (ReferenceEquals(element.RetainedElement.AppliedStyle, this))
+        if (ReferenceEquals(element.RetainedElement.AppliedStyle, this) &&
+            element.RetainedElement.AppliedStyleVersion == Version)
         {
             ApplyState(element, state);
             return;
@@ -199,14 +203,15 @@ public sealed class UiStyle
 
         ApplyValues(element, _values);
         ApplyStateValues(element, state);
-        element.RetainedElement.SetAppliedStyle(this, state);
+        element.RetainedElement.SetAppliedStyle(this, state, Version);
     }
 
     internal void ApplyState(UiElement element, UiStyleState state)
     {
         ArgumentNullException.ThrowIfNull(element);
         ValidateState(state);
-        if (!ReferenceEquals(element.RetainedElement.AppliedStyle, this))
+        if (!ReferenceEquals(element.RetainedElement.AppliedStyle, this) ||
+            element.RetainedElement.AppliedStyleVersion != Version)
         {
             Apply(element);
             return;
@@ -240,7 +245,7 @@ public sealed class UiStyle
         }
 
         ApplyStateValues(element, state);
-        element.RetainedElement.SetAppliedStyle(this, state);
+        element.RetainedElement.SetAppliedStyle(this, state, Version);
     }
 
     private void ApplyStateValues(UiElement element, UiStyleState state)
@@ -298,6 +303,17 @@ public sealed class UiStyle
                 }
             }
         }
+    }
+
+    private void SetValue(Dictionary<string, object?> values, string propertyName, object? value)
+    {
+        if (values.TryGetValue(propertyName, out var current) && Equals(current, value))
+        {
+            return;
+        }
+
+        values[propertyName] = value;
+        _version++;
     }
 
     private Dictionary<string, object?> GetStateValues(UiStyleState state) =>
