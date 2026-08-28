@@ -19,6 +19,12 @@ public readonly record struct UiTemplateId(Guid Value)
 
     public bool IsValid => Value != Guid.Empty;
 }
+public readonly record struct UiStyleId(Guid Value)
+{
+    public static UiStyleId Empty => default;
+
+    public bool IsValid => Value != Guid.Empty;
+}
 public readonly record struct XamlQualifiedName(string Namespace, string LocalName);
 public readonly record struct UiColor(byte R, byte G, byte B, byte A = 255);
 public readonly record struct UiThickness(float Left, float Top, float Right, float Bottom)
@@ -172,6 +178,17 @@ public abstract class UiElement
         }
 
         _retained.SetCompiledTemplate(template);
+    }
+
+    /// <summary>Attaches a generated style by its stable compiled identity.</summary>
+    public void SetCompiledStyle(UiStyleId style)
+    {
+        if (!style.IsValid)
+        {
+            throw new ArgumentException("A stable style identity is required.", nameof(style));
+        }
+
+        _retained.SetCompiledStyle(style.Value);
     }
 
     public bool IsEnabled

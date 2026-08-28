@@ -353,6 +353,7 @@ internal class UiElement
     private Delta.XAML.UiStyle? _appliedStyle;
     private Delta.XAML.UiStyleState _appliedStyleState;
     private int _appliedStyleVersion = -1;
+    private Guid _compiledStyleId;
     private Delta.XAML.UiTemplateId _compiledTemplateId;
     private string? _styleKey;
     private string? _templateKey;
@@ -756,6 +757,7 @@ internal class UiElement
     internal Delta.XAML.UiStyle? AppliedStyle => _appliedStyle;
     internal Delta.XAML.UiStyleState AppliedStyleState => _appliedStyleState;
     internal int AppliedStyleVersion => _appliedStyleVersion;
+    internal Guid CompiledStyleId => _compiledStyleId;
     internal Delta.XAML.UiTemplateId CompiledTemplateId => _compiledTemplateId;
     public float LayoutScale => _layoutScale;
     public float DpiScale => _dpiScale;
@@ -999,6 +1001,17 @@ internal class UiElement
         }
 
         _compiledTemplateId = template;
+        InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+    }
+
+    internal void SetCompiledStyle(Guid style)
+    {
+        if (style == Guid.Empty || _compiledStyleId == style)
+        {
+            return;
+        }
+
+        _compiledStyleId = style;
         InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
     }
 

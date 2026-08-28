@@ -176,6 +176,7 @@ internal sealed record XamlResourcePlan(
 
 internal sealed record XamlStylePlan(
     string Key,
+    UiStyleId Id,
     XamlQualifiedName TargetType,
     UiTypeId TargetTypeId,
     ImmutableArray<XamlMemberPlan> Setters,

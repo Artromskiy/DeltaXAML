@@ -335,6 +335,23 @@ internal static class CSharpArtifactEmitter
             }
         }
 
+        for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
+        {
+            var members = nodes[nodeIndex].Members;
+            for (var memberIndex = 0; memberIndex < members.Length; memberIndex++)
+            {
+                var member = members[memberIndex];
+                if (member.Name != "StyleKey" || member.Value.Kind != XamlValueKind.String ||
+                    !TryFindStyle(plan.Styles, member.Value.Literal.CanonicalText, out var style))
+                {
+                    continue;
+                }
+
+                writer.Append("        node").Append(nodeIndex).Append(".SetCompiledStyle(")
+                    .Append(StyleIdExpression(style.Id)).AppendLine(");");
+            }
+        }
+
         for (var i = 0; i < nodes.Count; i++)
         {
             var childCount = nodes[i].Children.Length;
@@ -755,7 +772,9 @@ internal static class CSharpArtifactEmitter
                 }
             }
 
-            writer.Append("        Theme.Add(style").Append(styleIndex).AppendLine(");");
+            writer.Append("        Theme.RegisterStyle(")
+                .Append(StyleIdExpression(style.Id)).Append(", style")
+                .Append(styleIndex).AppendLine(");");
         }
     }
 
@@ -973,6 +992,34 @@ internal static class CSharpArtifactEmitter
         }
 
         return "new global::Delta.XAML.UiTemplateId(new global::System.Guid(" + Quote(template.Value.ToString("D")) + "))";
+    }
+
+    private static string StyleIdExpression(UiStyleId style)
+    {
+        if (!style.IsValid)
+        {
+            throw new InvalidOperationException("A generated style identity is required.");
+        }
+
+        return "new global::Delta.XAML.UiStyleId(new global::System.Guid(" + Quote(style.Value.ToString("D")) + "))";
+    }
+
+    private static bool TryFindStyle(
+        IReadOnlyList<XamlStylePlan> styles,
+        string key,
+        [NotNullWhen(true)] out XamlStylePlan? style)
+    {
+        for (var i = 0; i < styles.Count; i++)
+        {
+            if (string.Equals(styles[i].Key, key, StringComparison.Ordinal))
+            {
+                style = styles[i];
+                return true;
+            }
+        }
+
+        style = null;
+        return false;
     }
 
     private static string TypeIdExpression(UiTypeId type)

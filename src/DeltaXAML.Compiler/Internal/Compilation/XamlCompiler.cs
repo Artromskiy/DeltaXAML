@@ -328,6 +328,7 @@ internal static class XamlCompiler
                         : default;
                     _styles.Add(new(
                         key,
+                        CreateStyleId(key),
                         qualifiedTargetType,
                         targetTypeId,
                         setters.ToImmutable(),
@@ -614,6 +615,12 @@ internal static class XamlCompiler
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("DeltaXAML.Template/" + key));
             return new UiTemplateId(new Guid(bytes.AsSpan(0, 16)));
+        }
+
+        private static UiStyleId CreateStyleId(string key)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("DeltaXAML.Style/" + key));
+            return new UiStyleId(new Guid(bytes.AsSpan(0, 16)));
         }
 
         private int RegisterResourceSlot(UiResourceId id, string key, bool isDynamic)

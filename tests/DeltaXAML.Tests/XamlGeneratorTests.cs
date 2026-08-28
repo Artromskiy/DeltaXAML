@@ -58,8 +58,11 @@ internal static partial class Program
             "<Panel><TextBlock StyleKey=\"Title\" TemplateKey=\"ButtonTemplate\" /><Style x:Key=\"Title\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><VisualState Name=\"Pressed\"><Setter Property=\"FontSize\" Value=\"18\" /></VisualState></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></Panel>",
             compositionRegistry);
         Assert.True(compositionPlan.Success, "styles and templates remain in the compiled semantic plan");
+        Assert.True(compositionPlan.Styles.Length == 1 && compositionPlan.Styles[0].Id.IsValid, "compiled style has a stable identity");
         Assert.True(CSharpArtifactEmitter.TryEmit(compositionPlan, compositionRegistry, "Generated", "CompositionArtifact", out var compositionSource, out var compositionDiagnostic), "styles and templates emit through the companion path");
         Assert.True(compositionDiagnostic is null && compositionSource.Contains("new global::Delta.XAML.UiStyle(\"Title\", new global::Delta.XAML.UiTypeId", StringComparison.Ordinal), "compiled style initialization is direct and type-identity based");
+        Assert.True(compositionSource.Contains("Theme.RegisterStyle(new global::Delta.XAML.UiStyleId", StringComparison.Ordinal), "compiled style registration uses its stable identity");
+        Assert.True(compositionSource.Contains("node1.SetCompiledStyle(new global::Delta.XAML.UiStyleId", StringComparison.Ordinal), "compiled style selection uses its stable identity");
         Assert.True(compositionSource.Contains("Set(global::Delta.XAML.UiTextBlockProperties.FontSize, 16f)", StringComparison.Ordinal), "compiled style uses a typed property descriptor");
         Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, global::Delta.XAML.UiTextBlockProperties.FontSize, 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
         Assert.True(!compositionSource.Contains("Set(\"FontSize\"", StringComparison.Ordinal), "compiled style does not use string property dispatch");
@@ -85,6 +88,16 @@ internal static partial class Program
         styledText.RetainedElement.SetFocused(true);
         typedTheme.RefreshStates(styledText);
         Assert.Equal(20f, styledText.FontSize, "typed visual-state descriptor applies its value");
+
+        var compiledStyleId = new Library.UiStyleId(new Guid("E2D9B7AB-6F54-4FE4-8A3F-5F2F1F5E4701"));
+        var compiledStyle = new Library.UiStyle("Compiled", new Library.UiTypeId(new Guid("22222222-2222-2222-2222-22222222220A")));
+        compiledStyle.Set(Library.UiTextBlockProperties.FontSize, 21f);
+        var compiledTheme = new Library.UiTheme();
+        compiledTheme.RegisterStyle(compiledStyleId, compiledStyle);
+        var compiledText = new Library.UiTextBlock();
+        compiledText.SetCompiledStyle(compiledStyleId);
+        compiledTheme.Apply(compiledText);
+        Assert.Equal(21f, compiledText.FontSize, "compiled style identity applies without a name lookup");
 
         var typedTemplateId = new Library.UiTemplateId(new Guid("D5A5E3D7-0B26-4A5A-A9D7-1E8F768A7E02"));
         typedTheme.RegisterTemplate(typedTemplateId, new Library.UiTemplate(new LabelTemplateFactory()));

@@ -552,10 +552,12 @@ public sealed class UiTemplate
 public sealed class UiTheme
 {
     private readonly List<UiStyle> _styles = new();
+    private readonly Dictionary<UiStyleId, UiStyle> _compiledStyles = new();
     private readonly Dictionary<string, UiTemplate> _templates = new(StringComparer.Ordinal);
     private readonly Dictionary<UiTemplateId, UiTemplate> _compiledTemplates = new();
     private readonly List<UiElement> _stateTraversal = new();
     private readonly Dictionary<string, List<UiElement>> _styleDependents = new(StringComparer.Ordinal);
+    private readonly Dictionary<UiStyle, List<UiElement>> _compiledStyleDependents = new();
     private readonly List<UiStyle> _changedStyles = new();
     private uint _templateGeneration;
     private uint _appliedTemplateGeneration;
@@ -572,6 +574,25 @@ public sealed class UiTheme
     public void Add(UiStyle style)
     {
         ArgumentNullException.ThrowIfNull(style);
+        _styles.Add(style);
+        style.Changed += OnStyleChanged;
+        QueueStyleRefresh(style);
+    }
+
+    /// <summary>Registers a generated style under its stable compiled identity.</summary>
+    public void RegisterStyle(UiStyleId id, UiStyle style)
+    {
+        if (!id.IsValid)
+        {
+            throw new ArgumentException("A stable style identity is required.", nameof(id));
+        }
+
+        ArgumentNullException.ThrowIfNull(style);
+        if (!_compiledStyles.TryAdd(id, style))
+        {
+            throw new ArgumentException($"The compiled style identity '{id.Value}' is registered twice.", nameof(id));
+        }
+
         _styles.Add(style);
         style.Changed += OnStyleChanged;
         QueueStyleRefresh(style);
@@ -626,16 +647,7 @@ public sealed class UiTheme
             var element = _stateTraversal[last];
             _stateTraversal.RemoveAt(last);
             TrackStyleDependency(element);
-            if (element.StyleKey is { } styleKey)
-            {
-                for (var i = 0; i < _styles.Count; i++)
-                {
-                    if (string.Equals(_styles[i].Key, styleKey, StringComparison.Ordinal))
-                    {
-                        _styles[i].Apply(element);
-                    }
-                }
-            }
+            FindStyle(element)?.Apply(element);
 
             ApplyTemplate(element);
 
@@ -654,17 +666,20 @@ public sealed class UiTheme
         for (var styleIndex = 0; styleIndex < _changedStyles.Count; styleIndex++)
         {
             var style = _changedStyles[styleIndex];
-            if (!_styleDependents.TryGetValue(style.Key, out var dependents))
+            if (_compiledStyleDependents.TryGetValue(style, out var compiledDependents))
             {
-                continue;
+                InvalidateDependents(compiledDependents);
             }
 
-            for (var dependentIndex = 0; dependentIndex < dependents.Count; dependentIndex++)
+            if (_styleDependents.TryGetValue(style.Key, out var dependents))
             {
-                var dependent = dependents[dependentIndex];
-                if (string.Equals(dependent.StyleKey, style.Key, StringComparison.Ordinal))
+                for (var dependentIndex = 0; dependentIndex < dependents.Count; dependentIndex++)
                 {
-                    dependent.RetainedElement.InvalidateChanged(Retained.UiDirtyMask.Style);
+                    var dependent = dependents[dependentIndex];
+                    if (string.Equals(dependent.StyleKey, style.Key, StringComparison.Ordinal))
+                    {
+                        dependent.RetainedElement.InvalidateChanged(Retained.UiDirtyMask.Style);
+                    }
                 }
             }
         }
@@ -689,16 +704,10 @@ public sealed class UiTheme
 
             LastRefreshCount++;
             var applied = false;
-            if (element.StyleKey is { } styleKey)
+            if (FindStyle(element) is { } style)
             {
-                for (var i = 0; i < _styles.Count; i++)
-                {
-                    if (string.Equals(_styles[i].Key, styleKey, StringComparison.Ordinal))
-                    {
-                        _styles[i].ApplyState(element, UiStyle.CurrentState(element));
-                        applied = true;
-                    }
-                }
+                style.ApplyState(element, UiStyle.CurrentState(element));
+                applied = true;
             }
 
             if (!applied && element.RetainedElement.AppliedStyle is { } previous)
@@ -746,6 +755,18 @@ public sealed class UiTheme
 
     private void TrackStyleDependency(UiElement element)
     {
+        if (element.RetainedElement.CompiledStyleId != Guid.Empty && FindStyle(element) is { } compiledStyle)
+        {
+            if (!_compiledStyleDependents.TryGetValue(compiledStyle, out var compiledDependents))
+            {
+                compiledDependents = new List<UiElement>();
+                _compiledStyleDependents.Add(compiledStyle, compiledDependents);
+            }
+
+            AddDependent(compiledDependents, element);
+            return;
+        }
+
         if (element.StyleKey is not { } key)
         {
             return;
@@ -757,6 +778,35 @@ public sealed class UiTheme
             _styleDependents.Add(key, dependents);
         }
 
+        AddDependent(dependents, element);
+    }
+
+    private UiStyle? FindStyle(UiElement element)
+    {
+        var compiledStyleId = element.RetainedElement.CompiledStyleId;
+        if (compiledStyleId != Guid.Empty && _compiledStyles.TryGetValue(new(compiledStyleId), out var compiledStyle))
+        {
+            return compiledStyle;
+        }
+
+        if (element.StyleKey is not { } key)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < _styles.Count; i++)
+        {
+            if (string.Equals(_styles[i].Key, key, StringComparison.Ordinal))
+            {
+                return _styles[i];
+            }
+        }
+
+        return null;
+    }
+
+    private static void AddDependent(List<UiElement> dependents, UiElement element)
+    {
         for (var i = 0; i < dependents.Count; i++)
         {
             if (ReferenceEquals(dependents[i], element))
@@ -766,6 +816,14 @@ public sealed class UiTheme
         }
 
         dependents.Add(element);
+    }
+
+    private static void InvalidateDependents(List<UiElement> dependents)
+    {
+        for (var i = 0; i < dependents.Count; i++)
+        {
+            dependents[i].RetainedElement.InvalidateChanged(Retained.UiDirtyMask.Style);
+        }
     }
 
     private void ApplyTemplate(UiElement element)
