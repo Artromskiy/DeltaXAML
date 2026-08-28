@@ -527,6 +527,18 @@ internal static partial class Program
         frame.Input.RouteKey(new UiKeyEvent(9, true));
         Assert.True(frame.Input.Focused == probe.Id || frame.Input.Focused == box.Id, "tab focus traversal");
         Assert.True(!button.IsFocused, "tab focus clears the previous focused visual state");
+
+        var traversalRoot = new Panel();
+        var disabled = new Button { IsEnabled = false };
+        var hidden = new Button { Visibility = UiVisibility.Collapsed };
+        var eligible = new TextBox { Width = 100, Height = 30 };
+        traversalRoot.Add(disabled);
+        traversalRoot.Add(hidden);
+        traversalRoot.Add(eligible);
+        var traversalRuntime = new UiRuntime(traversalRoot);
+        traversalRuntime.Layout(new(100, 90), 1);
+        traversalRuntime.Input.RouteKey(new UiKeyEvent(9, true));
+        Assert.Equal(eligible.Id, traversalRuntime.Input.Focused, "tab traversal skips disabled and hidden controls");
     }
 
     private static void PublicInputPreservesKeyModifiers()

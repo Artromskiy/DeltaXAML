@@ -242,7 +242,10 @@ internal sealed class UiRuntime
                 continue;
             }
 
-            if (element.Focusable)
+            if (element.Focusable &&
+                element.IsEnabled &&
+                element.Visibility == UiVisibility.Visible &&
+                (element.Participation & Delta.XAML.UiParticipation.Layout) != 0)
             {
                 result.Add(element);
             }
