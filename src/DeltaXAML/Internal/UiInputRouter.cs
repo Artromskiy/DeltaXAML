@@ -43,7 +43,11 @@ internal sealed class UiInputRouter
 
     public void Focus(UiElementId? element)
     {
-        var next = element is { } id && _runtime.TryResolve(id, out var resolved) ? resolved : null;
+        var next = element is { } id &&
+                   _runtime.TryResolve(id, out var resolved) &&
+                   CanReceiveFocus(resolved)
+            ? resolved
+            : null;
         SetFocused(next);
     }
 
@@ -66,7 +70,7 @@ internal sealed class UiInputRouter
                 break;
             case UiPointerEventKind.Down:
                 _captured = target;
-                SetFocused(target);
+                SetFocused(target is not null && CanReceiveFocus(target) ? target : null);
                 break;
             case UiPointerEventKind.Cancel:
             case UiPointerEventKind.CaptureLost:
@@ -176,6 +180,12 @@ internal sealed class UiInputRouter
         _hovered = next;
         _hovered?.SetHovered(true);
     }
+
+    private static bool CanReceiveFocus(UiElement element) =>
+        element.Focusable &&
+        element.IsEnabled &&
+        element.Visibility == UiVisibility.Visible &&
+        (element.Participation & Delta.XAML.UiParticipation.Layout) != 0;
 
     private void Raise(UiElement target, in UiRoutedEvent routedEvent)
     {

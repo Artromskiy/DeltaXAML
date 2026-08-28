@@ -485,6 +485,14 @@ internal static partial class Program
 
     private static void PointerFocusAndDispatch()
     {
+        var nonFocusableRoot = new Panel { Width = 40, Height = 20 };
+        var nonFocusableRuntime = new UiRuntime(nonFocusableRoot);
+        nonFocusableRuntime.Layout(new(40, 20), 1);
+        nonFocusableRuntime.Input.Focus(nonFocusableRoot.Id);
+        Assert.True(nonFocusableRuntime.Input.Focused is null, "explicit focus ignores non-focusable elements");
+        nonFocusableRuntime.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Down, new(5, 5), 1));
+        Assert.True(nonFocusableRuntime.Input.Focused is null, "pointer focus ignores non-focusable elements");
+
         var root = new Panel();
         var probe = new EventProbe { Focusable = true, Width = 100, Height = 30 };
         var box = new TextBox { Width = 100, Height = 30, Focusable = true };
