@@ -1602,11 +1602,4 @@ internal class ScrollViewer : ContentControl
         }
     }
 
-    internal void ApplyWheelInput(float delta)
-    {
-        if (UiScrollViewerGenerated.TryScrollBy(ref _state, 0, delta))
-        {
-            InvalidateChanged(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
-        }
-    }
 }

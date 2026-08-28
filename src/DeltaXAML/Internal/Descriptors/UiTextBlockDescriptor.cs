@@ -195,7 +195,11 @@ internal static class UiDescriptorCatalog
                 button.ApplyInputResult(buttonWasPressed, buttonClicked, false);
                 break;
             case ScrollViewer scroll when routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Wheel:
-                scroll.ApplyWheelInput(-routedEvent.WheelDelta);
+                if (UiScrollViewerGenerated.TryScrollBy(ref scroll.State, 0, -routedEvent.WheelDelta))
+                {
+                    scroll.InvalidateChanged(UiDirtyMask.Arrange | UiDirtyMask.Visual);
+                }
+
                 break;
         }
     }
