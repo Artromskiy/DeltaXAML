@@ -310,6 +310,7 @@ internal static partial class Program
         ParticipationBoundary();
         RuntimeLayoutQueuesAreNonRecursive();
         NodeStagesFollowStructuralMutations();
+        NodeStoreHasSingleOwner();
         DisplayExtractionFollowsNodeLinksAfterTreeMutation();
         DescriptorLayoutDispatch();
     }
@@ -1298,14 +1299,12 @@ internal static partial class Program
         Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Measure) == 0, "foreground resource change does not invalidate measure");
         Assert.Equal(new Library.UiColor(255, 255, 255), other.Foreground, "unrelated element is not changed by a resource update");
 
-        using var stateTextService = new EmptyTextService();
-        using var stateDocument = new Library.UiDocument(text, stateTextService, null, theme);
         text.RetainedElement.SetHovered(true);
-        stateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         Assert.Equal(1, theme.LastRefreshCount, "state invalidation visits only the changed style subtree");
         Assert.Equal(hoverColor, text.Foreground, "visual state overrides the base style after input state changes");
         text.RetainedElement.SetHovered(false);
-        stateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         Assert.Equal(1, theme.LastRefreshCount, "leaving a visual state visits only the changed style subtree");
         Assert.Equal(secondColor, text.Foreground, "leaving a visual state restores the base resource style");
 
@@ -1624,6 +1623,35 @@ internal static partial class Program
         runtime.Layout(new(100, 40), 2f);
         Assert.Equal(1, runtime.NodeCount, "binding and scale stages see an incrementally removed node");
         Assert.Equal(1f, child.DpiScale, "detached child is not processed by the node-backed scale stage");
+    }
+
+    private static void NodeStoreHasSingleOwner()
+    {
+        var root = new Panel();
+        var first = new UiNodeStore(root);
+        try
+        {
+            var rejected = false;
+            try
+            {
+                _ = new UiNodeStore(root);
+            }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
+
+            Assert.True(rejected, "a retained root rejects a second authoritative node store");
+            root.Add(new TextBlock { Text = "owned" });
+            Assert.Equal(2, first.Count, "the original node store remains authoritative after a rejected attach");
+        }
+        finally
+        {
+            first.Detach();
+        }
+
+        var replacement = new UiNodeStore(root);
+        replacement.Detach();
     }
 
     private static void DisplayExtractionFollowsNodeLinksAfterTreeMutation()

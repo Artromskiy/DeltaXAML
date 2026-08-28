@@ -338,7 +338,7 @@ internal class UiElement
     private readonly Dictionary<string, UiBindingRuntime> _bindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IUiCompiledBindingRuntime> _compiledBindingRuntimes = new(StringComparer.Ordinal);
     private readonly UiPropertyStore _properties;
-    private List<UiNodeStore>? _nodeStores;
+    private UiNodeStore? _nodeStore;
     private UiElementState _state = new() { Width = float.NaN, Height = float.NaN, IsEnabled = true };
     private object? _bindingContext;
     private bool _hasExplicitBindingContext;
@@ -473,7 +473,7 @@ internal class UiElement
         }
 
         InvalidateChanged(invalidation);
-        RootElement.NotifyNodeStoresChildAdded(this, child);
+        RootElement.NotifyNodeStoreChildAdded(this, child);
     }
     public bool Remove(UiElement child)
     {
@@ -486,7 +486,7 @@ internal class UiElement
         _children.RemoveAt(index);
         child.Parent = null;
         InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
-        RootElement.NotifyNodeStoresChildRemoved(this, child, index);
+        RootElement.NotifyNodeStoreChildRemoved(this, child, index);
         return true;
     }
     public void ClearChildren()
@@ -884,45 +884,40 @@ internal class UiElement
     internal void AttachNodeStore(UiNodeStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
-        _nodeStores ??= new List<UiNodeStore>();
-        if (!_nodeStores.Contains(store))
+        if (_nodeStore is { } current && !ReferenceEquals(current, store))
         {
-            _nodeStores.Add(store);
+            throw new InvalidOperationException("A retained root can have only one authoritative node store.");
         }
+
+        _nodeStore = store;
     }
 
     internal void DetachNodeStore(UiNodeStore store)
     {
-        if (_nodeStores is not null && _nodeStores.Remove(store) && _nodeStores.Count == 0)
+        if (ReferenceEquals(_nodeStore, store))
         {
-            _nodeStores = null;
+            _nodeStore = null;
         }
     }
 
-    private void NotifyNodeStoresChildAdded(UiElement parent, UiElement child)
+    private void NotifyNodeStoreChildAdded(UiElement parent, UiElement child)
     {
-        if (_nodeStores is not { Count: > 0 } stores)
+        if (_nodeStore is not { } store)
         {
             return;
         }
 
-        for (var i = 0; i < stores.Count; i++)
-        {
-            stores[i].ApplyChildAdded(parent, child);
-        }
+        store.ApplyChildAdded(parent, child);
     }
 
-    private void NotifyNodeStoresChildRemoved(UiElement parent, UiElement child, int index)
+    private void NotifyNodeStoreChildRemoved(UiElement parent, UiElement child, int index)
     {
-        if (_nodeStores is not { Count: > 0 } stores)
+        if (_nodeStore is not { } store)
         {
             return;
         }
 
-        for (var i = 0; i < stores.Count; i++)
-        {
-            stores[i].ApplyChildRemoved(parent, child, index);
-        }
+        store.ApplyChildRemoved(parent, child, index);
     }
 
     internal void ApplyBindingStage()
