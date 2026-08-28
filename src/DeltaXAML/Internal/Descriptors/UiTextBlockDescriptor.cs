@@ -129,15 +129,18 @@ internal static class UiDescriptorCatalog
                 border.State.Padding = border.Padding;
                 UiBorderGenerated.Measure(ref border.State, in context);
                 return border.State.DesiredSize;
-            case 4 when element is ContentControl content:
+            case 4 or 7 or 8 when element is ContentControl content:
                 UiContentControlGenerated.Measure(ref content.State, in context);
                 return content.State.DesiredSize;
-            case 5 when element is Panel panel:
+            case 5 or 11 when element is Panel panel:
                 UiPanelGenerated.Measure(ref panel.State, in context);
                 return panel.State.DesiredSize;
             case 6 when element is Grid grid:
                 UiGridGenerated.Measure(ref grid.State, in context);
                 return grid.State.DesiredSize;
+            case 9 or 10 when element is TextBlock text:
+                UiTextBlockGenerated.Measure(ref text.State, in context);
+                return text.State.Layout.DesiredSize;
             case 12 when element is ScrollViewer scroll:
                 UiScrollViewerGenerated.Measure(ref scroll.State, in context);
                 return scroll.State.DesiredSize;
@@ -229,14 +232,17 @@ internal static class UiDescriptorCatalog
                 border.State.Padding = border.Padding;
                 UiBorderGenerated.Arrange(ref border.State, in context);
                 return;
-            case 4 when element is ContentControl content:
+            case 4 or 7 or 8 when element is ContentControl content:
                 UiContentControlGenerated.Arrange(ref content.State, in context);
                 return;
-            case 5 when element is Panel panel:
+            case 5 or 11 when element is Panel panel:
                 UiPanelGenerated.Arrange(ref panel.State, in context);
                 return;
             case 6 when element is Grid grid:
                 UiGridGenerated.Arrange(ref grid.State, in context);
+                return;
+            case 9 or 10 when element is TextBlock text:
+                UiTextBlockGenerated.Arrange(ref text.State, in context);
                 return;
             case 12 when element is ScrollViewer scroll:
                 UiScrollViewerGenerated.Arrange(ref scroll.State, in context);
