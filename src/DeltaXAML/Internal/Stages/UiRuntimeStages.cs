@@ -156,7 +156,7 @@ internal static class UiMeasureStage
                 continue;
             }
 
-            var childAvailable = request.Element.MeasureChildAvailable(request.Available);
+            var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(request.Element, request.Available);
             for (var childIndex = 0; childIndex < request.Element.Children.Count; childIndex++)
             {
                 if (request.Element.Children[childIndex] is UiElement child && child.NeedsMeasure(childAvailable))

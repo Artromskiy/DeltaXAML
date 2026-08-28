@@ -118,6 +118,18 @@ internal static class UiDescriptorCatalog
         }
     }
 
+    internal static UiSize ChildMeasureAvailable(UiElement element, UiSize available)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        if (element is Border border)
+        {
+            border.State.Padding = border.Padding;
+            return UiBorderGenerated.ChildMeasureAvailable(ref border.State, available);
+        }
+
+        return available;
+    }
+
     internal static bool Arrange(UiElement element, in UiArrangeContext context)
     {
         ArgumentNullException.ThrowIfNull(element);

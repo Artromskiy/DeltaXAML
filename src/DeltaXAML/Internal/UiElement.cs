@@ -526,7 +526,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
             return;
         }
 
-        var childAvailable = MeasureChildAvailable(available);
+        var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(this, available);
         foreach (var child in _children)
         {
             child.Measure(childAvailable);
@@ -534,8 +534,6 @@ internal class UiElement : IUiElement, IUiPropertyStore
 
         MeasureStage(available);
     }
-
-    internal virtual UiSize MeasureChildAvailable(UiSize available) => available;
 
     internal void MeasureStage(UiSize available)
     {
@@ -918,14 +916,6 @@ internal class Border : UiElement, IUiPanel
     internal ref BorderState State => ref _state;
 
     public override string TypeName => "Border";
-    internal override UiSize MeasureChildAvailable(UiSize available)
-    {
-        var padding = Padding;
-        return new(
-            MathF.Max(0, available.Width - padding.Horizontal),
-            MathF.Max(0, available.Height - padding.Vertical));
-    }
-
     public IUiElement? Child => Children.Count == 0 ? null : Children[0];
 }
 

@@ -14,6 +14,10 @@ internal static class UiBorderGenerated
     internal static void Measure(ref BorderState state, in UiMeasureContext context) =>
         BorderMeasureMixin.Measure(ref state, in context);
 
+    internal static UiSize ChildMeasureAvailable(ref BorderState state, UiSize available) => new(
+        MathF.Max(0, available.Width - state.Padding.Horizontal),
+        MathF.Max(0, available.Height - state.Padding.Vertical));
+
     internal static void Arrange(ref BorderState state, in UiArrangeContext context) =>
         BorderArrangeMixin.Arrange(ref state, in context);
 }
