@@ -56,6 +56,21 @@ internal static partial class Program
         Assert.True(generatedCustomSource.Contains("global::Sample.BadgeSetters.SetLabel(node0, \"hello\")", StringComparison.Ordinal), "custom property uses a direct generated setter thunk");
         Assert.True(!generatedCustomSource.Contains("Set(\"Label\"", StringComparison.Ordinal), "custom property does not use string runtime dispatch");
 
+        var incompleteCustomRegistry = XamlSemanticRegistry.CreateBuiltIns();
+        incompleteCustomRegistry.RegisterType(new(
+            new UiTypeId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D406")),
+            new XamlQualifiedName("urn:custom", "NoSetterBadge"),
+            XamlContentKind.None,
+            System.Collections.Immutable.ImmutableArray.Create(
+                new XamlPropertyDefinition(
+                    new UiPropertyId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D407")),
+                    "Label",
+                    XamlValueKind.String)),
+            "new global::Sample.NoSetterBadge()"));
+        var incompleteCustomPlan = XamlCompiler.Compile(sourceId, "<NoSetterBadge xmlns=\"urn:custom\" Label=\"hello\" />", incompleteCustomRegistry);
+        Assert.True(!CSharpArtifactEmitter.TryEmit(incompleteCustomPlan, incompleteCustomRegistry, "Generated", "IncompleteCustomArtifact", out _, out var incompleteCustomDiagnostic), "custom property without a typed setter is rejected");
+        Assert.Equal("DXAMLGEN002", incompleteCustomDiagnostic?.Code, "missing custom setter has a stable diagnostic");
+
         var resourceRegistry = XamlSemanticRegistry.CreateBuiltIns();
         resourceRegistry.RegisterResource("Accent", new UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D403")));
         var resourcePlan = XamlCompiler.Compile(sourceId, "<TextBlock Foreground=\"{StaticResource Accent}\" />", resourceRegistry);

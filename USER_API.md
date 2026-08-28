@@ -234,6 +234,8 @@ A custom control contributes:
 Generated companion code supplies factories, property metadata and runtime
 operation thunks. User controls are not required to be `partial`, do not store
 algorithms in the class, and do not register runtime property dictionaries.
+Custom generated properties use registered direct setter thunks; bindings and
+resources require the corresponding typed `UiProperty<T>` descriptor.
 
 `XamlTypeCatalog.Register(name, factory)` assigns a deterministic identity from
 the qualified XAML name for local catalog use. Generated or shared artifacts
