@@ -174,6 +174,45 @@ internal static class UiStyleStage
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(traversal);
         ArgumentNullException.ThrowIfNull(childOrder);
+        nodes.EnsureCurrent(root.RetainedElement);
+        traversal.Clear();
+        traversal.Add(new(root.RetainedElement.Id.Value, root.RetainedElement.Generation));
+        while (traversal.Count != 0)
+        {
+            var last = traversal.Count - 1;
+            var id = traversal[last];
+            traversal.RemoveAt(last);
+            if (!nodes.TryGetNode(id, out var record) || record.Element is not { } element)
+            {
+                continue;
+            }
+
+            if (element.NeedsResourceStage)
+            {
+                element.ApplyResourceStage();
+            }
+
+            if (theme is null)
+            {
+                element.CompleteStyleStage();
+            }
+
+            if (!nodes.TryCopyLogicalChildren(record.Id, childOrder))
+            {
+                continue;
+            }
+
+            for (var i = childOrder.Count - 1; i >= 0; i--)
+            {
+                if (nodes.TryGetNode(childOrder[i], out var child) &&
+                    child.Element is { } childElement &&
+                    (childElement.DirtyFlags & (UiDirtyMask.Resource | UiDirtyMask.Style)) != 0)
+                {
+                    traversal.Add(childOrder[i]);
+                }
+            }
+        }
+
         theme?.RefreshStates(nodes, root, traversal, childOrder);
     }
 }

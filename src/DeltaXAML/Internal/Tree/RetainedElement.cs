@@ -149,9 +149,14 @@ internal sealed class UiPropertyStore
                 return;
             }
 
-            var slots = GetSlots(name);
-            slots.StyleValue = new UiValue(ResolveResource(binding), UiValueSource.Style, invalidation);
-            ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
+            if (_owner.NodeStore is null)
+            {
+                ApplyResourceBinding(name, binding);
+                return;
+            }
+
+            binding.Pending = true;
+            _owner.InvalidateChanged(UiDirtyFlags.Resource | UiDirtyFlags.Style);
         };
         resources.Changed += binding.Handler;
         SetSource(name, new(ResolveResource(binding), UiValueSource.Style, invalidation));
@@ -210,6 +215,19 @@ internal sealed class UiPropertyStore
         if (string.IsNullOrWhiteSpace(handle.Name)) { diagnostic = "A UI property name is required."; return false; }
         if (handle.Element != _owner.Id || handle.Generation != _owner.Generation) { diagnostic = "The UI property handle is stale."; return false; }
         SetHandle(handle.Name, value, invalidation); diagnostic = null; return true;
+    }
+    internal void ApplyPendingResources()
+    {
+        foreach (var pair in _resourceBindings)
+        {
+            if (!pair.Value.Pending)
+            {
+                continue;
+            }
+
+            pair.Value.Pending = false;
+            ApplyResourceBinding(pair.Key, pair.Value);
+        }
     }
     private void RemoveBinding(string name)
     {
@@ -309,6 +327,12 @@ internal sealed class UiPropertyStore
         return null;
     }
     private object? ResolveResource(ResourceBinding binding) => binding.Resources.TryResolve(binding.Reference, out var value, out _) ? value : null;
+    private void ApplyResourceBinding(string name, ResourceBinding binding)
+    {
+        var slots = GetSlots(name);
+        slots.StyleValue = new UiValue(ResolveResource(binding), UiValueSource.Style, binding.Invalidation);
+        ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
+    }
     private static bool Same(UiValue? left, UiValue? right) =>
         (left is null && right is null) ||
         (left is not null && right is not null &&
@@ -327,6 +351,7 @@ internal sealed class UiPropertyStore
         public UiResourceReference Reference { get; }
         public UiDirtyFlags Invalidation { get; }
         public EventHandler<UiResourceChangedEventArgs>? Handler { get; set; }
+        public bool Pending { get; set; }
     }
 }
 
@@ -718,6 +743,12 @@ internal class UiElement
 
     internal void CompleteVisualExtraction() => DirtyFlags &= ~(UiDirtyFlags.Tree | UiDirtyFlags.Visual | UiDirtyFlags.Text);
     internal bool IsStyleDirty => (DirtyFlags & UiDirtyFlags.Style) != 0;
+    internal bool NeedsResourceStage => (DirtyFlags & UiDirtyFlags.Resource) != 0;
+    internal void ApplyResourceStage()
+    {
+        _properties.ApplyPendingResources();
+        DirtyFlags &= ~UiDirtyFlags.Resource;
+    }
     internal void CompleteStyleStage() => DirtyFlags &= ~UiDirtyFlags.Style;
     internal bool NeedsVisualExtraction => (DirtyFlags & (UiDirtyFlags.Tree | UiDirtyFlags.Style | UiDirtyFlags.Binding | UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual | UiDirtyFlags.Resource | UiDirtyFlags.Text)) != 0;
     internal int DisplayClipIndex => _displayClipIndex;

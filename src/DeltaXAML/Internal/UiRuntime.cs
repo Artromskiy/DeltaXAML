@@ -108,7 +108,7 @@ internal sealed class UiRuntime
         var bindingTreeChanged = _bindingTreeVersion != _retainedRoot.TreeVersion;
         UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder, bindingTreeChanged);
         _bindingTreeVersion = _retainedRoot.TreeVersion;
-        if (theme is not null && publicRoot is not null)
+        if (publicRoot is not null)
         {
             UiStyleStage.Run(theme, _nodes, publicRoot, _stageTraversal, _childOrder);
         }

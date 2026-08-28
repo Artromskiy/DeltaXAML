@@ -908,6 +908,13 @@ internal static partial class Program
         Assert.Equal(new Library.UiColor(30, 40, 50), typedResourceText.Foreground, "typed dynamic resource keeps its stable identity");
         catalog.Set(targetId, new Library.UiColor(31, 41, 51));
         Assert.Equal(new Library.UiColor(31, 41, 51), typedResourceText.Foreground, "typed alias target invalidates its dependent property");
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(typedResourceText, textService);
+        document.Layout(new(100, 20), 1);
+        catalog.Set(targetId, new Library.UiColor(32, 42, 52));
+        Assert.Equal(new Library.UiColor(31, 41, 51), typedResourceText.Foreground, "attached resource callback only queues retained work");
+        document.Layout(new(100, 20), 1);
+        Assert.Equal(new Library.UiColor(32, 42, 52), typedResourceText.Foreground, "style/resource stage applies the queued dependency update");
     }
 
     private static void TextDisplayListUsesDeltaText()
@@ -1473,7 +1480,9 @@ internal static partial class Program
         text.StyleKey = "Body";
         styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         resources.Set("TextColor", secondColor);
-        Assert.Equal(secondColor, text.Foreground, "resource change updates the dependent style value");
+        Assert.Equal(firstColor, text.Foreground, "attached resource callback does not mutate effective state before the style stage");
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(secondColor, text.Foreground, "resource stage updates the dependent style value");
         Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Measure) == 0, "foreground resource change does not invalidate measure");
         Assert.Equal(new Library.UiColor(255, 255, 255), other.Foreground, "unrelated element is not changed by a resource update");
 
