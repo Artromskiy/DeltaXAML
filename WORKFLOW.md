@@ -8,6 +8,46 @@ dotnet run --project tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj \
   -c Release --no-build
 ```
 
+## Repository layout (mandatory)
+
+Every DeltaXAML checkout must keep the same top-level shape, even when one of
+the domains is currently empty:
+
+```text
+DeltaXAML/
+├── src/
+├── tests/
+├── benchmarks/
+├── playground/
+├── tools/
+├── adr/
+├── docs/
+├── eng/
+├── artifacts/
+└── assets/
+```
+
+The canonical production project is `src/DeltaXAML/`. Every additional source
+project is a sibling named `src/DeltaXAML.<Area>/` (`.Contract`, `.Compiler`,
+`.Generator`, and so on). Do not add source projects directly at the repository
+root or use an unrelated `src/<name>` directory. Tests, benchmarks, playground
+code and helper tools stay in their matching top-level directory; they are not
+runtime contracts. Generated output belongs under `artifacts/`, while checked-in
+fixtures and source resources belong under `assets/`.
+
+The layout is enforced by a bounded, dependency-free gate:
+
+```bash
+./eng/check-layout.sh
+```
+
+The gate fails with the missing or invalid path when a required directory is
+absent, `src/DeltaXAML` is missing, or a source sibling does not use the
+`DeltaXAML.<Area>` naming form. Empty domains are represented by a tracked
+`.gitkeep`; do not remove a required directory because it has no implementation
+yet. Run this gate from the repository root before handing work to another
+project or changing the solution structure.
+
 Prefer headless layout/input tests before the editor native smoke. Geometry
 tests must cover original and resized viewports, clips and stable backing-array
 reuse. The real window command lives in
