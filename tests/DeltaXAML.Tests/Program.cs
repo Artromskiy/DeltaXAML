@@ -294,6 +294,7 @@ internal static partial class Program
         DescriptorLayoutDispatch();
         DescriptorPropertyDispatchIsNonVirtual();
         LegacyLayoutEntryPointsAreGone();
+        ControlStateOwnersAreFlat();
     }
 
     private static void PropertyInvalidation()
@@ -2015,5 +2016,31 @@ internal static partial class Program
         var numeric = new NumericEditor();
         numeric.SetLocal("Value", 3d, UiDirtyFlags.Visual);
         Assert.Equal(3d, numeric.Value, "descriptor applies numeric property");
+    }
+
+    private static void ControlStateOwnersAreFlat()
+    {
+        var retainedControls = new[]
+        {
+            typeof(Panel), typeof(StackPanel), typeof(ItemsControl), typeof(Border),
+            typeof(Grid), typeof(ContentControl), typeof(Button), typeof(ToggleButton),
+            typeof(TextBlock), typeof(TextBox), typeof(NumericEditor), typeof(ScrollViewer),
+        };
+        for (var i = 0; i < retainedControls.Length; i++)
+        {
+            Assert.Equal(typeof(UiElement), retainedControls[i].BaseType, $"{retainedControls[i].Name} owns composite state without algorithm inheritance");
+        }
+
+        var publicControls = new[]
+        {
+            typeof(Library.UiPanel), typeof(Library.UiStackPanel), typeof(Library.UiItemsControl),
+            typeof(Library.UiBorder), typeof(Library.UiGrid), typeof(Library.UiContentControl),
+            typeof(Library.UiButton), typeof(Library.UiTextBlock), typeof(Library.UiTextBox),
+            typeof(Library.UiNumericEditor), typeof(Library.UiScrollViewer),
+        };
+        for (var i = 0; i < publicControls.Length; i++)
+        {
+            Assert.Equal(typeof(Library.UiElement), publicControls[i].BaseType, $"{publicControls[i].Name} is a flat public accessor shell");
+        }
     }
 }

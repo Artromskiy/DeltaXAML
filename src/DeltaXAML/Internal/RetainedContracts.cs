@@ -64,7 +64,7 @@ internal static class UiPropertyKeys
             return typeof(double);
         }
 
-        if (element is TextBlock && name is "Text" or "FontKey")
+        if (element is TextBlock or TextBox or NumericEditor && name is "Text" or "FontKey")
         {
             return typeof(string);
         }

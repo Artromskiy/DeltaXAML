@@ -213,28 +213,30 @@ internal static class UiDescriptorCatalog
                 return key is UiPropertyKey.Columns or UiPropertyKey.Rows ? false : true;
             case 10 when element is NumericEditor numeric:
                 return TrySetNumericProperty(numeric, key, value);
-            case 1 or 9 when element is TextBlock text:
-                return TrySetTextProperty(text, key, value);
+            case 1 when element is TextBlock text:
+                return TrySetTextProperty(ref text.State, key, value);
+            case 9 when element is TextBox editor:
+                return TrySetTextProperty(ref editor.TextState, key, value);
             default:
                 return true;
         }
     }
 
-    private static bool TrySetTextProperty(TextBlock text, UiPropertyKey key, UiValue value)
+    private static bool TrySetTextProperty(ref TextBlockState state, UiPropertyKey key, UiValue value)
     {
         switch (key)
         {
             case UiPropertyKey.Text when value.UntypedValue is string textValue:
-                UiTextBlockGenerated.TrySetText(ref text.State, textValue);
+                UiTextBlockGenerated.TrySetText(ref state, textValue);
                 return true;
             case UiPropertyKey.FontKey when value.UntypedValue is string fontKey:
-                UiTextBlockGenerated.TrySetFontKey(ref text.State, fontKey);
+                UiTextBlockGenerated.TrySetFontKey(ref state, fontKey);
                 return true;
             case UiPropertyKey.FontSize when value.UntypedValue is float fontSize:
-                UiTextBlockGenerated.TrySetFontSize(ref text.State, fontSize);
+                UiTextBlockGenerated.TrySetFontSize(ref state, fontSize);
                 return true;
             case UiPropertyKey.Foreground when value.UntypedValue is UiColor foreground:
-                UiTextBlockGenerated.TrySetForeground(ref text.State, foreground);
+                UiTextBlockGenerated.TrySetForeground(ref state, foreground);
                 return true;
             case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground:
                 return false;
@@ -258,7 +260,7 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.Value or UiPropertyKey.Minimum or UiPropertyKey.Maximum:
                 return false;
             default:
-                return TrySetTextProperty(numeric, key, value);
+                return TrySetTextProperty(ref numeric.TextState, key, value);
         }
     }
 
@@ -277,18 +279,30 @@ internal static class UiDescriptorCatalog
                 border.State.Padding = border.Padding;
                 UiBorderGenerated.Measure(ref border.State, in context);
                 return border.State.DesiredSize;
-            case 4 or 7 or 8 when element is ContentControl content:
+            case 4 when element is ContentControl content:
                 UiContentControlGenerated.Measure(ref content.State, in context);
                 return content.State.DesiredSize;
-            case 5 or 11 when element is Panel panel:
+            case 7 when element is Button button:
+                UiContentControlGenerated.Measure(ref button.ContentState, in context);
+                return button.ContentState.DesiredSize;
+            case 8 when element is ToggleButton toggle:
+                UiContentControlGenerated.Measure(ref toggle.ContentState, in context);
+                return toggle.ContentState.DesiredSize;
+            case 5 when element is Panel panel:
                 UiPanelGenerated.Measure(ref panel.State, in context);
                 return panel.State.DesiredSize;
+            case 11 when element is ItemsControl items:
+                UiPanelGenerated.Measure(ref items.PanelState, in context);
+                return items.PanelState.DesiredSize;
             case 6 when element is Grid grid:
                 UiGridGenerated.Measure(ref grid.State, in context);
                 return grid.State.DesiredSize;
-            case 9 or 10 when element is TextBlock text:
-                UiTextBlockGenerated.Measure(ref text.State, in context);
-                return text.State.Layout.DesiredSize;
+            case 9 when element is TextBox editor:
+                UiTextBlockGenerated.Measure(ref editor.TextState, in context);
+                return editor.TextState.Layout.DesiredSize;
+            case 10 when element is NumericEditor numeric:
+                UiTextBlockGenerated.Measure(ref numeric.TextState, in context);
+                return numeric.TextState.Layout.DesiredSize;
             case 12 when element is ScrollViewer scroll:
                 UiScrollViewerGenerated.Measure(ref scroll.State, in context);
                 return scroll.State.DesiredSize;
@@ -316,17 +330,37 @@ internal static class UiDescriptorCatalog
         out UiTextRun run)
     {
         ArgumentNullException.ThrowIfNull(element);
-        if (type.Value is 1 or 9 or 10 && element is TextBlock text)
+        if (type.Value == 1 && element is TextBlock text)
         {
-            if (text is TextBox editor && editor.IsComposing)
+            run = UiTextBlockGenerated.EmitVisual(ref text.State, in context);
+            return true;
+        }
+
+        if (type.Value == 9 && element is TextBox editor)
+        {
+            if (editor.IsComposing)
             {
-                var displayState = text.State;
+                var displayState = editor.TextState;
                 displayState.Text = editor.VisualText;
                 run = UiTextBlockGenerated.EmitVisual(ref displayState, in context);
                 return true;
             }
 
-            run = UiTextBlockGenerated.EmitVisual(ref text.State, in context);
+            run = UiTextBlockGenerated.EmitVisual(ref editor.TextState, in context);
+            return true;
+        }
+
+        if (type.Value == 10 && element is NumericEditor numeric)
+        {
+            if (numeric.IsComposing)
+            {
+                var displayState = numeric.TextState;
+                displayState.Text = numeric.VisualText;
+                run = UiTextBlockGenerated.EmitVisual(ref displayState, in context);
+                return true;
+            }
+
+            run = UiTextBlockGenerated.EmitVisual(ref numeric.TextState, in context);
             return true;
         }
 
@@ -343,7 +377,7 @@ internal static class UiDescriptorCatalog
                 var wasPressed = toggle.InputState.IsPressed;
                 var clicked = UiButtonGenerated.Process(ref toggle.InputState, in routedEvent);
                 var toggled = UiToggleButtonGenerated.Process(ref toggle.State, in routedEvent);
-                ApplyButtonInputResult(toggle, wasPressed, clicked, toggled);
+                ApplyToggleInputResult(toggle, wasPressed, clicked, toggled);
                 break;
             case Button button:
                 var buttonWasPressed = button.InputState.IsPressed;
@@ -373,6 +407,19 @@ internal static class UiDescriptorCatalog
         }
     }
 
+    private static void ApplyToggleInputResult(ToggleButton button, bool wasPressed, bool clicked, bool toggled)
+    {
+        if (wasPressed != button.InputState.IsPressed || toggled)
+        {
+            button.InvalidateChanged(UiDirtyMask.Visual);
+        }
+
+        if (clicked)
+        {
+            button.RaiseClick();
+        }
+    }
+
     internal static void ProcessInput(UiElement element, in UiInputEvent input)
     {
         ArgumentNullException.ThrowIfNull(element);
@@ -380,6 +427,12 @@ internal static class UiDescriptorCatalog
         {
             case NumericEditor numeric when input.Kind == UiInputEventKind.Key:
                 numeric.ApplyKey(input.Key);
+                break;
+            case NumericEditor numeric when input.Kind == UiInputEventKind.Text:
+                numeric.ApplyText(input.Text);
+                break;
+            case NumericEditor numeric when input.Kind == UiInputEventKind.Composition:
+                numeric.ApplyComposition(input.Composition);
                 break;
             case TextBox text when input.Kind == UiInputEventKind.Key:
                 text.ApplyKey(input.Key);
@@ -408,17 +461,29 @@ internal static class UiDescriptorCatalog
                 border.State.Padding = border.Padding;
                 UiBorderGenerated.Arrange(ref border.State, in context);
                 return;
-            case 4 or 7 or 8 when element is ContentControl content:
+            case 4 when element is ContentControl content:
                 UiContentControlGenerated.Arrange(ref content.State, in context);
                 return;
-            case 5 or 11 when element is Panel panel:
+            case 7 when element is Button button:
+                UiContentControlGenerated.Arrange(ref button.ContentState, in context);
+                return;
+            case 8 when element is ToggleButton toggle:
+                UiContentControlGenerated.Arrange(ref toggle.ContentState, in context);
+                return;
+            case 5 when element is Panel panel:
                 UiPanelGenerated.Arrange(ref panel.State, in context);
+                return;
+            case 11 when element is ItemsControl items:
+                UiPanelGenerated.Arrange(ref items.PanelState, in context);
                 return;
             case 6 when element is Grid grid:
                 UiGridGenerated.Arrange(ref grid.State, in context);
                 return;
-            case 9 or 10 when element is TextBlock text:
-                UiTextBlockGenerated.Arrange(ref text.State, in context);
+            case 9 when element is TextBox editor:
+                UiTextBlockGenerated.Arrange(ref editor.TextState, in context);
+                return;
+            case 10 when element is NumericEditor numeric:
+                UiTextBlockGenerated.Arrange(ref numeric.TextState, in context);
                 return;
             case 12 when element is ScrollViewer scroll:
                 UiScrollViewerGenerated.Arrange(ref scroll.State, in context);

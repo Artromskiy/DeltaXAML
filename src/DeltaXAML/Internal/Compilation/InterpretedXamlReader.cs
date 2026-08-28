@@ -69,6 +69,12 @@ internal static class InterpretedXamlReader
     }
     private static void Apply(UiElement e, string name, string value, int line, List<InterpretedXamlDiagnostic> d, UiResourceStore? resources)
     {
+        if (!SupportsProperty(e, name))
+        {
+            d.Add(new("XAML003", $"Unsupported property '{name}' on '{e.TypeName}'.", line, 1));
+            return;
+        }
+
         if (XamlBindingParser.TryParse(value, out var binding, out var bindingError))
         {
             e.AddBindingSpec(binding with { Property = name });
@@ -117,14 +123,14 @@ internal static class InterpretedXamlReader
             case "Orientation" when e is StackPanel s && Enum.TryParse(value, true, out UiOrientation orientation): s.Orientation = orientation; break;
             case "Columns" when e is Grid grid && TryGridLengths(value, out var columns): grid.SetColumns(columns); break;
             case "Rows" when e is Grid grid && TryGridLengths(value, out var rows): grid.SetRows(rows); break;
-            case "Text" when e is TextBlock text: text.Text = value; break;
-            case "FontKey" when e is TextBlock text: text.FontKey = value; break;
-            case "FontSize" when e is TextBlock text && TryFloat(value, out var size): text.FontSize = size; break;
+            case "Text": e.SetLocal("Text", value, InvalidationFor("Text")); break;
+            case "FontKey": e.SetLocal("FontKey", value, InvalidationFor("FontKey")); break;
+            case "FontSize" when TryFloat(value, out var size): e.SetLocal("FontSize", size, InvalidationFor("FontSize")); break;
             case "Minimum" when e is NumericEditor numeric && TryFloat(value, out var minimum): numeric.Min = minimum; break;
             case "Maximum" when e is NumericEditor numeric && TryFloat(value, out var maximum): numeric.Max = maximum; break;
             case "Value" when e is NumericEditor numeric && TryFloat(value, out var numericValue): numeric.Initialize(numericValue); break;
-            case "Foreground" when e is TextBlock text && TryColor(value, out var fg): text.Foreground = fg; break;
-            case "ForegroundResource" when e is TextBlock text && resources is not null: text.SetStyleResource("Foreground", resources, new(NormalizeResourceKey(value)), InvalidationFor("Foreground")); break;
+            case "Foreground" when TryColor(value, out var fg): e.SetLocal("Foreground", fg, InvalidationFor("Foreground")); break;
+            case "ForegroundResource" when resources is not null: e.SetStyleResource("Foreground", resources, new(NormalizeResourceKey(value)), InvalidationFor("Foreground")); break;
             case "ForegroundResource": d.Add(new("XAML004", "ForegroundResource requires a resource store.", line, 1)); break;
             case "Padding" when TryThickness(value, out var padding): e.Padding = padding; break;
             case "StyleKey": e.StyleKey = value; break;
@@ -135,6 +141,26 @@ internal static class InterpretedXamlReader
             case "IsSelected" when bool.TryParse(value, out var selected): e.IsSelected = selected; break;
             default: d.Add(new("XAML003", $"Unsupported property '{name}'.", line, 1)); break;
         }
+    }
+
+    private static bool SupportsProperty(UiElement element, string name)
+    {
+        if (name is "Width" or "Height" or "Fill" or "Background" or "Padding" or
+            "StyleKey" or "TemplateKey" or "AutomationName" or "AutomationRole" or
+            "IsEnabled" or "IsSelected")
+        {
+            return true;
+        }
+
+        if (element is TextBlock or TextBox or NumericEditor &&
+            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundResource")
+        {
+            return true;
+        }
+
+        return (element is StackPanel && name == "Orientation") ||
+               (element is Grid && name is "Columns" or "Rows") ||
+               (element is NumericEditor && name is "Minimum" or "Maximum" or "Value");
     }
     internal static bool TryParseResourceReference(string value, out string key, out bool dynamicResource)
     {

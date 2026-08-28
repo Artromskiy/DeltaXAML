@@ -241,6 +241,257 @@ internal readonly struct TextBoxEditingMixin : ITextBoxInputMixin<TextBoxState>
     }
 }
 
+internal interface ITextEditorStateOwner
+{
+    UiElement Element { get; }
+    ref TextBlockState TextState { get; }
+    ref TextBoxState EditorState { get; }
+    List<string> UndoHistory { get; }
+    List<string> RedoHistory { get; }
+    IUiClipboard? Clipboard { get; }
+    string? ValidationDiagnostic { get; set; }
+    void RaiseTextChanged(string text);
+}
+
+internal readonly struct TextEditorBehaviorMixin
+{
+    internal static void Initialize<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var text = ref owner.TextState;
+        text.Text = string.Empty;
+        text.Visual.FontKey = "default";
+        text.Visual.GlyphRunKey = "default";
+        text.Visual.FontSize = 14;
+        text.Visual.Foreground = new(255, 255, 255);
+        owner.SetDefault("Text", text.Text, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("FontKey", text.Visual.FontKey, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("FontSize", text.Visual.FontSize, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("Foreground", text.Visual.Foreground, UiDirtyMask.Visual | UiDirtyMask.Text);
+    }
+
+    internal static void SetText<T>(T owner, string text, bool recordUndo = true)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ref var editor = ref owner.EditorState;
+        TextBoxEditingMixin.ClearComposition(ref editor);
+        if (recordUndo)
+        {
+            TextBoxEditingMixin.RecordUndo(owner.UndoHistory, owner.RedoHistory, owner.TextState.Text);
+        }
+
+        SetEditedText(owner, text);
+        editor.CaretIndex = Math.Min(editor.CaretIndex, owner.TextState.Text.Length);
+        editor.SelectionStart = editor.CaretIndex;
+        editor.SelectionLength = 0;
+        owner.ValidationDiagnostic = null;
+        owner.SetInvalid(false);
+    }
+
+    internal static bool ApplyText<T>(T owner, in UiTextInput input)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        TextBoxEditingMixin.ClearComposition(ref editor);
+        ReplaceSelection(owner, input.Text.Span);
+        return true;
+    }
+
+    internal static bool ApplyComposition<T>(T owner, in UiCompositionEvent input)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        if (!TextBoxEditingMixin.ApplyComposition(ref editor, owner.TextState.Text, in input))
+        {
+            return false;
+        }
+
+        owner.InvalidateChanged(UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
+        return true;
+    }
+
+    internal static bool ApplyKey<T>(T owner, in UiKeyEvent input)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        return UiTextBoxGenerated.ProcessKey(ref editor, in input, owner.TextState.Text.Length) switch
+        {
+            UiTextEditAction.SelectAll => true,
+            UiTextEditAction.Copy => CopyAndConsume(owner),
+            UiTextEditAction.Cut => CutAndConsume(owner),
+            UiTextEditAction.Paste => Paste(owner),
+            UiTextEditAction.Undo => Undo(owner),
+            UiTextEditAction.Redo => Redo(owner),
+            UiTextEditAction.DeleteSelection => DeleteSelection(owner),
+            _ => false,
+        };
+    }
+
+    internal static void SelectAll<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        TextBoxEditingMixin.SelectAll(ref editor, owner.TextState.Text.Length);
+    }
+
+    internal static void Copy<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        if (owner.Clipboard is { } clipboard && TextBoxEditingMixin.HasSelection(in editor))
+        {
+            clipboard.SetText(TextBoxEditingMixin.GetSelection(owner.TextState.Text, in editor));
+        }
+    }
+
+    internal static void Cut<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        if (!TextBoxEditingMixin.HasSelection(in editor))
+        {
+            return;
+        }
+
+        Copy(owner);
+        DeleteRange(owner, editor.SelectionStart, editor.SelectionLength);
+    }
+
+    internal static bool Paste<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        if (owner.Clipboard?.ReadText() is not { Length: > 0 } text)
+        {
+            return false;
+        }
+
+        ReplaceSelection(owner, text);
+        return true;
+    }
+
+    internal static bool Undo<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        if (!TextBoxEditingMixin.TryUndo(
+                ref editor,
+                owner.UndoHistory,
+                owner.RedoHistory,
+                owner.TextState.Text,
+                out var value))
+        {
+            return false;
+        }
+
+        SetEditedText(owner, value);
+        return true;
+    }
+
+    internal static bool Redo<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        if (!TextBoxEditingMixin.TryRedo(
+                ref editor,
+                owner.UndoHistory,
+                owner.RedoHistory,
+                owner.TextState.Text,
+                out var value))
+        {
+            return false;
+        }
+
+        SetEditedText(owner, value);
+        return true;
+    }
+
+    private static bool CopyAndConsume<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        Copy(owner);
+        return true;
+    }
+
+    private static bool CutAndConsume<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        Cut(owner);
+        return true;
+    }
+
+    private static bool DeleteSelection<T>(T owner)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        if (!TextBoxEditingMixin.HasSelection(in editor))
+        {
+            return false;
+        }
+
+        DeleteRange(owner, editor.SelectionStart, editor.SelectionLength);
+        return true;
+    }
+
+    private static void ReplaceSelection<T>(T owner, ReadOnlySpan<char> inserted)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        var value = TextBoxEditingMixin.ReplaceSelection(
+            ref editor,
+            owner.UndoHistory,
+            owner.RedoHistory,
+            owner.TextState.Text,
+            inserted);
+        owner.ValidationDiagnostic = null;
+        owner.SetInvalid(false);
+        SetEditedText(owner, value);
+    }
+
+    private static void DeleteRange<T>(T owner, int start, int length)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ref var editor = ref owner.EditorState;
+        var value = TextBoxEditingMixin.DeleteRange(
+            ref editor,
+            owner.UndoHistory,
+            owner.RedoHistory,
+            owner.TextState.Text,
+            start,
+            length,
+            true);
+        SetEditedText(owner, value);
+    }
+
+    private static void SetEditedText<T>(T owner, string value)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        var bound = owner.HasBinding("Text");
+        var changed = bound
+            ? UiTextBlockGenerated.TrySetText(ref owner.TextState, value)
+            : SetLocalText(owner, value);
+        if (bound && changed)
+        {
+            owner.InvalidateChanged(UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
+        }
+
+        owner.NotifyBindingTargetChanged("Text", owner.TextState.Text);
+        owner.RaiseTextChanged(owner.TextState.Text);
+    }
+
+    private static bool SetLocalText<T>(T owner, string value)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        if (owner.TextState.Text == value)
+        {
+            return false;
+        }
+
+        owner.SetLocal("Text", value, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
+        return true;
+    }
+}
+
 internal readonly struct NumericEditorInputMixin : ITextBoxInputMixin<NumericEditorState>
 {
     public static UiTextEditAction ProcessKey(ref NumericEditorState state, in UiKeyEvent input, int textLength)

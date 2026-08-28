@@ -657,6 +657,15 @@ public abstract class UiElement
         owner.Clipboard = clipboard is null ? null : new UiClipboardBridge(clipboard);
     }
 
+    internal static IUiClipboard? GetClipboard(Retained.NumericEditor owner) =>
+        owner.Clipboard is UiClipboardBridge bridge ? bridge.Source : null;
+
+    internal static void SetClipboard(Retained.NumericEditor owner, IUiClipboard? clipboard)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        owner.Clipboard = clipboard is null ? null : new UiClipboardBridge(clipboard);
+    }
+
     internal void AdoptViewCache(Dictionary<RetainedElement, UiElement> views)
     {
         if (ReferenceEquals(_views, views))

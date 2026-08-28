@@ -1163,14 +1163,16 @@ internal sealed class StackPanel : UiElement
 
 }
 
-internal sealed class ItemsControl : Panel
+internal sealed class ItemsControl : UiElement
 {
+    private PanelState _panelState;
     private ItemsControlState _state;
     private readonly List<object?> _items = new();
     private readonly List<UiElement> _realized = new();
     private readonly List<UiElement> _nextRealized = new();
 
-    internal new ref ItemsControlState State => ref _state;
+    internal ref PanelState PanelState => ref _panelState;
+    internal ref ItemsControlState State => ref _state;
 
     public ItemsControl() : base("ItemsControl") { }
     public IReadOnlyList<object?> Items => _items;
@@ -1265,27 +1267,37 @@ internal class ContentControl : UiElement
     public UiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
 }
 
-internal class Button : ContentControl
+internal class Button : UiElement
 {
+    private ContentControlState _contentState;
     private ButtonState _state;
 
-    internal new ref ButtonState State => ref _state;
+    internal ref ContentControlState ContentState => ref _contentState;
+    internal ref ButtonState State => ref _state;
     internal ref ButtonState InputState => ref _state;
 
     public Button(string typeName = "Button") : base(typeName) { Focusable = true; AutomationRole = UiAutomationRole.Button; }
+    public UiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
     public event EventHandler? Click;
     internal void RaiseClick() => Click?.Invoke(this, EventArgs.Empty);
 }
 
-internal sealed class ToggleButton : Button
+internal sealed class ToggleButton : UiElement
 {
+    private ContentControlState _contentState;
+    private ButtonState _buttonState;
     private ToggleButtonState _state;
 
-    internal new ref ToggleButtonState State => ref _state;
+    internal ref ContentControlState ContentState => ref _contentState;
+    internal ref ButtonState InputState => ref _buttonState;
+    internal ref ToggleButtonState State => ref _state;
 
-    public ToggleButton() : base("ToggleButton") { }
+    public ToggleButton() : base("ToggleButton") { Focusable = true; AutomationRole = UiAutomationRole.Button; }
 
     public bool IsChecked => _state.IsChecked;
+    public UiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
+    public event EventHandler? Click;
+    internal void RaiseClick() => Click?.Invoke(this, EventArgs.Empty);
 }
 
 internal class TextBlock : UiElement
@@ -1316,23 +1328,39 @@ internal class TextBlock : UiElement
 
 }
 
-internal class TextBox : TextBlock
+internal class TextBox : UiElement, ITextEditorStateOwner
 {
-    private TextBoxState _state;
     private readonly List<string> _undo = new();
     private readonly List<string> _redo = new();
-    internal new ref TextBoxState State => ref _state;
+    private TextBlockState _textState;
+    private TextBoxState _state;
+    private string? _diagnostic;
 
-    public TextBox(string typeName = "TextBox") : base(typeName)
+    internal ref TextBlockState TextState => ref _textState;
+    internal ref TextBoxState State => ref _state;
+    ref TextBlockState ITextEditorStateOwner.TextState => ref _textState;
+    ref TextBoxState ITextEditorStateOwner.EditorState => ref _state;
+    UiElement ITextEditorStateOwner.Element => this;
+    List<string> ITextEditorStateOwner.UndoHistory => _undo;
+    List<string> ITextEditorStateOwner.RedoHistory => _redo;
+    string? ITextEditorStateOwner.ValidationDiagnostic { get => _diagnostic; set => _diagnostic = value; }
+
+    public TextBox() : base("TextBox")
     {
         Focusable = true;
         AutomationRole = UiAutomationRole.TextBox;
+        TextEditorBehaviorMixin.Initialize(this);
     }
 
+    public string Text { get => _textState.Text; set => SetText(value, false); }
+    public string FontKey { get => _textState.Visual.FontKey; set { ArgumentNullException.ThrowIfNull(value); SetLocalProperty("FontKey", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
+    public string GlyphRunKey { get => _textState.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_textState.Visual.GlyphRunKey == value) { return; } _textState.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
+    public float FontSize { get => _textState.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public UiColor Foreground { get => _textState.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public int CaretIndex => _state.CaretIndex;
     public int SelectionStart => _state.SelectionStart;
     public int SelectionLength => _state.SelectionLength;
-    public string? Diagnostic { get; protected set; }
+    public string? Diagnostic => _diagnostic;
     internal string VisualText => _state.CompositionDisplayText ?? Text;
     internal bool IsComposing => _state.CompositionDisplayText is not null;
     internal string? CompositionText => _state.CompositionText;
@@ -1340,258 +1368,158 @@ internal class TextBox : TextBlock
     internal int CompositionSelectionLength => _state.CompositionSelectionLength;
     public IUiClipboard? Clipboard { get; set; }
     public event EventHandler<TextChangedEventArgs>? TextChanged;
-    public void SetText(string text, bool recordUndo = true)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-        TextBoxEditingMixin.ClearComposition(ref _state);
-        if (recordUndo)
-        {
-            TextBoxEditingMixin.RecordUndo(_undo, _redo, Text);
-        }
 
-        var bound = HasBinding("Text");
-        var changed = SetTextValue(text, bound);
-        _state.CaretIndex = Math.Min(_state.CaretIndex, Text.Length);
-        _state.SelectionStart = _state.CaretIndex;
-        _state.SelectionLength = 0;
-        Diagnostic = null;
-        SetInvalid(false);
-        if (bound && changed)
-        {
-            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
-        }
-
-        NotifyBindingTargetChanged("Text", Text);
-        TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
-    }
-    public bool ApplyText(in UiTextInput input)
-    {
-        TextBoxEditingMixin.ClearComposition(ref _state);
-        ReplaceSelection(input.Text.Span);
-        return true;
-    }
-
-    public bool ApplyComposition(in UiCompositionEvent input)
-    {
-        if (!TextBoxEditingMixin.ApplyComposition(ref _state, Text, in input))
-        {
-            return false;
-        }
-
-        InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
-        return true;
-    }
-
-    public bool ApplyKey(in UiKeyEvent input)
-    {
-        return UiTextBoxGenerated.ProcessKey(ref _state, in input, Text.Length) switch
-        {
-            UiTextEditAction.SelectAll => true,
-            UiTextEditAction.Copy => CopyAndConsume(),
-            UiTextEditAction.Cut => CutAndConsume(),
-            UiTextEditAction.Paste => Paste(),
-            UiTextEditAction.Undo => Undo(),
-            UiTextEditAction.Redo => Redo(),
-            UiTextEditAction.DeleteSelection => DeleteSelectionAndConsume(),
-            _ => false,
-        };
-
-        bool CopyAndConsume() { Copy(); return true; }
-        bool CutAndConsume() { Cut(); return true; }
-        bool DeleteSelectionAndConsume()
-        {
-            if (!TextBoxEditingMixin.HasSelection(in _state))
-            {
-                return false;
-            }
-
-            DeleteRange(_state.SelectionStart, _state.SelectionLength);
-            return true;
-        }
-    }
-    public void SelectAll() => TextBoxEditingMixin.SelectAll(ref _state, Text.Length);
-    public void Copy()
-    {
-        if (Clipboard is not null && TextBoxEditingMixin.HasSelection(in _state))
-        {
-            Clipboard.SetText(TextBoxEditingMixin.GetSelection(Text, in _state));
-        }
-    }
-    public void Cut() { if (!TextBoxEditingMixin.HasSelection(in _state)) { return; } if (Clipboard is not null) { Clipboard.SetText(TextBoxEditingMixin.GetSelection(Text, in _state)); } DeleteRange(_state.SelectionStart, _state.SelectionLength); }
-    public bool Paste() { if (Clipboard?.ReadText() is not { Length: > 0 } text) { return false; } ReplaceSelection(text); return true; }
-    public bool Undo()
-    {
-        if (!TextBoxEditingMixin.TryUndo(ref _state, _undo, _redo, Text, out var value))
-        {
-            return false;
-        }
-
-        ApplyEditedText(value);
-        return true;
-    }
-
-    public bool Redo()
-    {
-        if (!TextBoxEditingMixin.TryRedo(ref _state, _undo, _redo, Text, out var value))
-        {
-            return false;
-        }
-
-        ApplyEditedText(value);
-        return true;
-    }
-    protected void ReplaceSelection(ReadOnlySpan<char> inserted)
-    {
-        var bound = HasBinding("Text");
-        var value = TextBoxEditingMixin.ReplaceSelection(ref _state, _undo, _redo, Text, inserted);
-        var changed = SetTextValue(value, bound);
-        Diagnostic = null;
-        SetInvalid(false);
-        if (bound && changed)
-        {
-            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
-        }
-
-        NotifyBindingTargetChanged("Text", Text);
-        TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
-    }
-    private void DeleteRange(int start, int length, bool record = true)
-    {
-        var bound = HasBinding("Text");
-        var value = TextBoxEditingMixin.DeleteRange(ref _state, _undo, _redo, Text, start, length, record);
-        var changed = SetTextValue(value, bound);
-        if (bound && changed)
-        {
-            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
-        }
-
-        NotifyBindingTargetChanged("Text", Text);
-        TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
-    }
-
-    private void ApplyEditedText(string value)
-    {
-        var bound = HasBinding("Text");
-        var changed = SetTextValue(value, bound);
-        if (bound && changed)
-        {
-            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
-        }
-
-        NotifyBindingTargetChanged("Text", Text);
-        TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
-    }
-    private bool SetTextValue(string text, bool bound)
-    {
-        if (bound)
-        {
-            return UiTextBlockGenerated.TrySetText(ref ((TextBlock)this).State, text);
-        }
-
-        if (Text == text)
-        {
-            return false;
-        }
-
-        Text = text;
-        return true;
-    }
+    public void SetText(string text, bool recordUndo = true) => TextEditorBehaviorMixin.SetText(this, text, recordUndo);
+    public bool ApplyText(in UiTextInput input) => TextEditorBehaviorMixin.ApplyText(this, in input);
+    public bool ApplyComposition(in UiCompositionEvent input) => TextEditorBehaviorMixin.ApplyComposition(this, in input);
+    public bool ApplyKey(in UiKeyEvent input) => TextEditorBehaviorMixin.ApplyKey(this, in input);
+    public void SelectAll() => TextEditorBehaviorMixin.SelectAll(this);
+    public void Copy() => TextEditorBehaviorMixin.Copy(this);
+    public void Cut() => TextEditorBehaviorMixin.Cut(this);
+    public bool Paste() => TextEditorBehaviorMixin.Paste(this);
+    public bool Undo() => TextEditorBehaviorMixin.Undo(this);
+    public bool Redo() => TextEditorBehaviorMixin.Redo(this);
+    void ITextEditorStateOwner.RaiseTextChanged(string text) => TextChanged?.Invoke(this, new TextChangedEventArgs(text));
 }
 
-internal sealed class NumericEditor : TextBox
+internal sealed class NumericEditor : UiElement, ITextEditorStateOwner
 {
+    private readonly List<string> _undo = new();
+    private readonly List<string> _redo = new();
+    private TextBlockState _textState;
+    private TextBoxState _editorState;
     private NumericEditorState _state = new() { Min = double.MinValue, Max = double.MaxValue, CommittedText = string.Empty };
+    private string? _diagnostic;
 
-    internal new ref NumericEditorState State => ref _state;
+    internal ref TextBlockState TextState => ref _textState;
+    internal ref TextBoxState EditorState => ref _editorState;
+    internal ref NumericEditorState State => ref _state;
+    ref TextBlockState ITextEditorStateOwner.TextState => ref _textState;
+    ref TextBoxState ITextEditorStateOwner.EditorState => ref _editorState;
+    UiElement ITextEditorStateOwner.Element => this;
+    List<string> ITextEditorStateOwner.UndoHistory => _undo;
+    List<string> ITextEditorStateOwner.RedoHistory => _redo;
+    string? ITextEditorStateOwner.ValidationDiagnostic { get => _diagnostic; set => _diagnostic = value; }
 
     public NumericEditor() : base("NumericEditor")
     {
+        Focusable = true;
         AutomationRole = UiAutomationRole.NumericEditor;
+        TextEditorBehaviorMixin.Initialize(this);
         SetDefaultProperty("Value", _state.Value, UiDirtyFlags.Binding | UiDirtyFlags.Visual);
         SetDefaultProperty("Minimum", _state.Min, UiDirtyFlags.Visual);
         SetDefaultProperty("Maximum", _state.Max, UiDirtyFlags.Visual);
     }
 
+    public string Text { get => _textState.Text; set => SetText(value, false); }
+    public string FontKey { get => _textState.Visual.FontKey; set { ArgumentNullException.ThrowIfNull(value); SetLocalProperty("FontKey", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
+    public string GlyphRunKey { get => _textState.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_textState.Visual.GlyphRunKey == value) { return; } _textState.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
+    public float FontSize { get => _textState.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public UiColor Foreground { get => _textState.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public int CaretIndex => _editorState.CaretIndex;
+    public int SelectionStart => _editorState.SelectionStart;
+    public int SelectionLength => _editorState.SelectionLength;
+    public string? Diagnostic => _diagnostic;
+    internal string VisualText => _editorState.CompositionDisplayText ?? Text;
+    internal bool IsComposing => _editorState.CompositionDisplayText is not null;
+    internal string? CompositionText => _editorState.CompositionText;
+    internal int CompositionSelectionStart => _editorState.CompositionSelectionStart;
+    internal int CompositionSelectionLength => _editorState.CompositionSelectionLength;
+    public IUiClipboard? Clipboard { get; set; }
+    public event EventHandler<TextChangedEventArgs>? TextChanged;
     public double Value => _state.Value;
     public double Min { get => _state.Min; set => SetLocalProperty("Minimum", value, UiDirtyFlags.Visual); }
     public double Max { get => _state.Max; set => SetLocalProperty("Maximum", value, UiDirtyFlags.Visual); }
-    public bool HasValidationError => Diagnostic is not null;
+    public bool HasValidationError => _diagnostic is not null;
     public bool IsDirty => Text != _state.CommittedText;
-    public void Initialize(double value) { SetLocalProperty("Value", value, UiDirtyFlags.Binding | UiDirtyFlags.Visual); }
+
+    public void SetText(string text, bool recordUndo = true) => TextEditorBehaviorMixin.SetText(this, text, recordUndo);
+    public bool ApplyText(in UiTextInput input) => TextEditorBehaviorMixin.ApplyText(this, in input);
+    public bool ApplyComposition(in UiCompositionEvent input) => TextEditorBehaviorMixin.ApplyComposition(this, in input);
+    public void SelectAll() => TextEditorBehaviorMixin.SelectAll(this);
+    public void Copy() => TextEditorBehaviorMixin.Copy(this);
+    public void Cut() => TextEditorBehaviorMixin.Cut(this);
+    public bool Paste() => TextEditorBehaviorMixin.Paste(this);
+    public bool Undo() => TextEditorBehaviorMixin.Undo(this);
+    public bool Redo() => TextEditorBehaviorMixin.Redo(this);
+    public void Initialize(double value) => SetLocalProperty("Value", value, UiDirtyFlags.Binding | UiDirtyFlags.Visual);
+    public bool TryCommitText(string text) { SetText(text); return TryCommit(); }
+    public bool Increment(double step = 1) => Adjust(step);
+    public bool Decrement(double step = 1) => Adjust(-step);
+
+    public bool ApplyKey(in UiKeyEvent input)
+    {
+        return UiNumericEditorGenerated.ProcessKey(ref _state, in input, Text.Length) switch
+        {
+            UiTextEditAction.Increment => Increment(),
+            UiTextEditAction.Decrement => Decrement(),
+            _ => TextEditorBehaviorMixin.ApplyKey(this, in input),
+        };
+    }
+
     public bool TryCommit()
     {
-        if (!UiNumericEditorGenerated.TryCommit(ref _state, Text, Min, Max, out var formatted, out var diagnostic))
+        if (!UiNumericEditorGenerated.TryCommit(ref _state, Text, Min, Max, out var formatted, out _diagnostic))
         {
-            Diagnostic = diagnostic;
             SetInvalid(true);
             return false;
         }
 
         SetText(formatted, false);
-        Diagnostic = null;
+        _diagnostic = null;
         SetInvalid(false);
         return true;
     }
-    public void CancelEdit() { SetText(_state.CommittedText ?? string.Empty, false); Diagnostic = null; }
-    public bool TryCommitText(string text) { SetText(text); return TryCommit(); }
-    public bool Increment(double step = 1) { return Adjust(step); }
-    public bool Decrement(double step = 1) { return Adjust(-step); }
-    public new bool ApplyKey(in UiKeyEvent input)
+
+    public void CancelEdit()
     {
-        var action = UiNumericEditorGenerated.ProcessKey(ref _state, in input, Text.Length);
-        if (action == UiTextEditAction.Increment)
-        {
-            return Increment();
-        }
-
-        if (action == UiTextEditAction.Decrement)
-        {
-            return Decrement();
-        }
-
-        return base.ApplyKey(input);
+        SetText(_state.CommittedText ?? string.Empty, false);
+        _diagnostic = null;
+        SetInvalid(false);
     }
+
     public bool TryApplyValue(string text, out string? error)
     {
-        if (UiNumericEditorGenerated.TryCommit(ref _state, text, Min, Max, out var formatted, out var diagnostic))
+        if (UiNumericEditorGenerated.TryCommit(ref _state, text, Min, Max, out var formatted, out _diagnostic))
         {
             SetText(formatted, false);
-            Diagnostic = null;
+            _diagnostic = null;
             SetInvalid(false);
             error = null;
             return true;
         }
 
-        Diagnostic = diagnostic;
         SetInvalid(true);
-        error = Diagnostic;
+        error = _diagnostic;
         return false;
     }
 
     private bool Adjust(double delta)
     {
-        if (!UiNumericEditorGenerated.TryAdjust(ref _state, delta, out var diagnostic))
+        if (!UiNumericEditorGenerated.TryAdjust(ref _state, delta, out _diagnostic))
         {
-            Diagnostic = diagnostic;
             SetInvalid(true);
             return false;
         }
 
         _state.CommittedText = UiNumericEditorGenerated.Format(_state.Value);
         SetText(_state.CommittedText, false);
-        Diagnostic = null;
+        _diagnostic = null;
         SetInvalid(false);
         return true;
     }
+
+    void ITextEditorStateOwner.RaiseTextChanged(string text) => TextChanged?.Invoke(this, new TextChangedEventArgs(text));
 }
 
-internal class ScrollViewer : ContentControl
+internal class ScrollViewer : UiElement
 {
     private ScrollViewerState _state;
 
-    internal new ref ScrollViewerState State => ref _state;
+    internal ref ScrollViewerState State => ref _state;
 
     public ScrollViewer() : base("ScrollViewer") { }
+    public UiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
     public UiPoint Offset => _state.Offset;
     public void ScrollBy(float x, float y)
     {

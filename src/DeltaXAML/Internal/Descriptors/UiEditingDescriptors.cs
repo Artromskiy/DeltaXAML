@@ -83,7 +83,7 @@ internal static class UiNumericEditorGenerated
             return false;
         }
 
-        UiTextBlockGenerated.TrySetText(ref ((TextBlock)element).State, formatted);
+        UiTextBlockGenerated.TrySetText(ref element.TextState, formatted);
         return true;
     }
 }
