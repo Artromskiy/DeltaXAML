@@ -4,6 +4,10 @@ Public facade sequencing follows [API_REVIEW.md](API_REVIEW.md); the
 cross-project handoff order is in
 [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md).
 
+The concrete implementation order, internal types, stage ownership and
+compatibility-removal criteria for every unchecked item below are authoritative
+in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-implementation-specification).
+
 ## XAML capability expansion
 
 ### P0 — typed descriptor runtime

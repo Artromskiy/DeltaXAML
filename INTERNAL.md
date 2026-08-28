@@ -850,6 +850,364 @@ particular:
 
 These are migration tasks, not alternate architectures.
 
+## Remaining implementation specification
+
+This section is the execution plan after the completed `DXAML-MIXIN-1` through
+`DXAML-MIXIN-5` baseline. It defines how the unchecked items in `TODO.md` are
+implemented; it does not change `LIBRARY_CONTRACT.md`, `PUBLIC_CONTRACT.md` or
+the types in `src/DeltaXAML.Contract`. If this section and a public contract
+disagree, the public contract wins and implementation stops for a contract
+decision instead of inventing an adapter.
+
+The final implementation has one production path:
+
+```text
+XAML source
+  -> typed compile-time artifact
+  -> one retained UiDocumentState
+  -> fixed stages over generation-safe nodes
+  -> canonical borrowed UiDisplayList
+```
+
+There must not be a second object tree, a translated legacy draw list, a
+reflection fallback selected in shipping code or a compatibility facade around
+the old runtime.
+
+### Delivery order
+
+Implement these slices in order. A later slice may introduce declarations
+needed by the current slice, but it must not keep two active implementations.
+
+| Slice | TODO owner | Result |
+|---|---|---|
+| `DXAML-COMPILE-1` | compilation | One typed semantic model with exact source ranges and stable identities. |
+| `DXAML-COMPILE-2` | generation | Direct factories, setters, attachment, namescopes and descriptor registration. |
+| `DXAML-COMPILE-3` | binding | Generated typed read/write batches without steady-state path traversal or closures. |
+| `DXAML-COMPILE-4` | styling | Compiled resources, selectors, styles, states and template factories. |
+| `DXAML-RUNTIME-1` | retained storage | One generation-safe node store for logical and visual relations. |
+| `DXAML-RUNTIME-2` | stages | Fixed input, mutation, binding, style, measure, arrange and visual stages. |
+| `DXAML-RUNTIME-3` | extraction | Direct canonical `UiDisplayList` output and stable text caching. |
+| `DXAML-RUNTIME-4` | removal/integration | Remove the obsolete retained runtime and finish editor/game input and resize paths. |
+
+### Compile-time projects and ownership
+
+Keep the runtime library small. Compile-time implementation belongs in two
+supplementary projects only when `DXAML-COMPILE-1/2` begins:
+
+```text
+src/DeltaXAML.Compiler/
+  Internal/Compilation/       XML reading, semantic model and diagnostics
+  Internal/Plans/             immutable typed plans
+
+src/DeltaXAML.Generator/
+  IncrementalGenerator.cs     Roslyn AdditionalFiles adapter only
+  Emission/                   C# source emission from typed plans
+```
+
+`DeltaXAML.Compiler` owns the source-to-plan pipeline and may be reused by an
+explicit designer/hot-reload tool. `DeltaXAML.Generator` only supplies Roslyn
+incremental inputs and emits C#; it must not contain a second parser or semantic
+model. Neither project is a cross-project runtime contract. Runtime
+`DeltaXAML` consumes generated C# and does not reference Roslyn.
+
+Compilation is cold and may use immutable object graphs. Generated runtime
+artifacts contain compact IDs, literal values and direct typed operations;
+they do not retain XML nodes, `Type`, reflection metadata or property paths.
+
+### `DXAML-COMPILE-1`: typed semantic model
+
+The compiler pipeline is explicit and deterministic:
+
+```text
+XML token + source range
+  -> namespace/name resolution
+  -> UiTypeId / UiPropertyId resolution
+  -> content-model validation
+  -> typed literal/resource/binding value plan
+  -> namescope/template/style validation
+  -> immutable XamlDocumentPlan
+```
+
+Use one representation with these responsibilities (names may change only if
+the responsibility remains one-to-one):
+
+```csharp
+internal sealed record XamlDocumentPlan(
+    SourceId Source,
+    XamlObjectPlan Root,
+    ImmutableArray<XamlResourcePlan> Resources,
+    ImmutableArray<XamlStylePlan> Styles,
+    ImmutableArray<XamlTemplatePlan> Templates,
+    ImmutableArray<Diagnostic> Diagnostics);
+
+internal sealed record XamlObjectPlan(
+    UiTypeId Type,
+    SourceRange Range,
+    ImmutableArray<XamlMemberPlan> Members,
+    ImmutableArray<XamlObjectPlan> Children);
+
+internal readonly record struct XamlMemberPlan(
+    UiPropertyId Property,
+    XamlValuePlan Value,
+    SourceRange Range);
+```
+
+Every syntax node that can fail resolution carries a `SourceRange`. Unknown
+names, invalid content, duplicate names, incompatible values and unsupported
+markup extensions produce `Delta.Diagnostics` entries and recovery continues
+at the next attribute or sibling element so one build reports multiple errors.
+
+Stable IDs come from registered metadata or explicit generated declarations.
+Never derive a durable GUID from process-random hashes. Source order determines
+generated local indices, and identical input plus identical registries must
+emit byte-for-byte identical generated C#.
+
+### `DXAML-COMPILE-2`: generated document construction
+
+Generate a companion factory; do not modify a user control or require it to be
+`partial`. The generated method constructs the final retained document
+directly:
+
+```text
+create typed element
+  -> register/resolve immutable descriptor
+  -> apply typed literal and resource setters
+  -> attach logical child/content
+  -> record namescope slot
+  -> instantiate template plan when required
+  -> return UiDocument
+```
+
+Generated code calls generated descriptor thunks. It must not call
+`Activator.CreateInstance`, set properties by name, use `dynamic`, enumerate
+assemblies or create a dictionary per element. A namescope uses one generated
+compact table per scope; source names are retained only because name lookup is
+a user feature, not as runtime identities.
+
+Descriptor registration happens once per assembly or artifact. Registration
+validates duplicate `UiTypeId` and `UiPropertyId` values before a document is
+created. The artifact refers to the compact runtime index after registration.
+
+`IXamlLoader.Load(string, ...)` remains an explicit cold/tooling path. Shipping
+generated construction never silently calls it. If the build cannot generate
+an artifact, it reports a build diagnostic instead of producing reflection
+fallback code.
+
+### `DXAML-COMPILE-3`: compiled binding batches
+
+Each binding is resolved against a declared source type during compilation.
+The artifact generates direct member reads and, for `TwoWay`, direct writes.
+The generated document groups its concrete bindings into a typed batch so one
+batch dispatch may contain many property updates; there is no heterogeneous
+`object`/delegate call per property in the steady state.
+
+```text
+OneTime  : read once during construction; register no notification
+OneWay   : source notification -> deduplicated binding slot -> typed read
+TwoWay   : OneWay path + typed target commit -> source write
+```
+
+Binding attachment may allocate notification infrastructure once. A changed
+notification only records a compact binding slot. The binding stage later
+reads all queued slots and writes through the normal typed property/source
+resolver; callbacks never run layout recursively.
+
+Production binding rules:
+
+- no dotted string traversal after compilation;
+- no reflection, `dynamic`, boxing or captured lambda in an update;
+- nullable segments are validated and generate explicit propagation behavior;
+- source conversion and validation are generated typed calls;
+- `INotifyPropertyChanged` is a compatibility notification source, not the
+  binding execution engine;
+- an unsupported source shape is a compile diagnostic, not a runtime fallback.
+
+### `DXAML-COMPILE-4`: resources, styles and templates
+
+Compile names to stable GUID-backed identities and then to artifact-local
+indices. Runtime arrays are indexed by those local values; dictionaries are
+per artifact or scope and are not consulted per node during layout or visual
+extraction.
+
+Styles compile into:
+
+```text
+selector predicate over compact type/state/class indices
+  -> ordered typed property writes
+  -> exact invalidation metadata
+```
+
+Static resources resolve during artifact construction. Dynamic resources keep
+a compact dependency list from resource slot to affected property slots; a
+resource change queues only those writes. Visual states use the same property
+precedence resolver as styles and do not form a second property engine.
+
+Templates are generated factories. A template creates visual nodes in the
+same `UiDocumentState`, assigns their visual parent and templated owner, and
+does not create another `UiDocument`. Replacing a template destroys only that
+visual subtree and invalidates the affected layout/visual queues.
+
+### `DXAML-RUNTIME-1`: one node store
+
+Replace recursive identity lookup and per-object relation ownership with one
+document-owned store. Public `UiElement` instances remain stable identity
+shells; internal relations and generations live in indexed records:
+
+```csharp
+internal readonly record struct UiNodeId(uint Index, uint Generation);
+
+internal struct UiNodeRecord
+{
+    internal UiElement Element;
+    internal UiRuntimeTypeIndex RuntimeType;
+    internal UiNodeId LogicalParent;
+    internal UiNodeId VisualParent;
+    internal UiNodeId FirstLogicalChild;
+    internal UiNodeId FirstVisualChild;
+    internal UiNodeId NextLogicalSibling;
+    internal UiNodeId NextVisualSibling;
+    internal UiDirtyMask Dirty;
+}
+```
+
+The exact link encoding may use first-child/next-sibling or compact ranges, but
+there is one authoritative record per element. `UiNodeId.Index` resolves in
+O(1) and generation validation rejects stale handles. Do not add a parallel
+`Dictionary<UiElement, ...>` or translate between separate logical and visual
+documents. The node store naturally replaces `UiFrame.Find`; no separate
+mutation index is justified.
+
+All tree mutation is queued. Applying a mutation validates ownership, stale
+generation, duplicate parentage, cycles and logical/visual lifetime before
+changing links. Destroying a logical owner also destroys its template-owned
+visual subtree and increments released generations.
+
+### `DXAML-RUNTIME-2`: fixed stage pipeline
+
+`UiDocument` owns data and sequences stages; it is not a service locator.
+Stages are stateless algorithms over `UiDocumentState`. They do not invoke one
+another and do not expose interfaces without a second implementation.
+
+```text
+Dispatch()           queues normalized input only
+
+Layout():
+  1. input/focus     route queued input against last committed geometry
+  2. mutation        apply input and host tree/property mutations
+  3. binding         apply deduplicated changed binding slots
+  4. style/resource  resolve queued selectors, states and resources
+  5. measure         post-order dirty subtrees
+  6. arrange         pre-order dirty subtrees and refresh hit geometry
+  7. focus repair    release detached/disabled focus and capture
+
+BuildDisplayList():
+  8. visual/text     update dirty output ranges and return borrowed spans
+```
+
+The first document layout establishes hit-test geometry before input is
+accepted. A property write during input enters the mutation stage of the same
+`Layout` call. A stage may enqueue work for a later stage, never call it
+directly. An illegal earlier-stage invalidation discovered after its barrier
+is retained for the next `Layout`; it is not solved through recursion.
+
+Each stage has a reusable dense `UiNodeId[]` queue and a generation/stamp array
+for O(1) deduplication. Do not use per-frame `HashSet`, LINQ, recursive list
+construction or one heap allocation per node.
+
+### Invalidation and traversal rules
+
+Generated property metadata is the only source of invalidation flags. Compare
+the new typed effective value before enqueueing work.
+
+| Flag | Work queued |
+|---|---|
+| `Binding` | Binding slot only; its resulting typed write adds later flags. |
+| `Style` / `Resource` | Affected selector/resource dependency slots only. |
+| `Measure` | Node and logical ancestors until an already-dirty boundary. |
+| `Arrange` | Node; arranging a parent visits only children whose geometry can change. |
+| `HitTest` | Node geometry/capture state after arrange. |
+| `Visual` | Node output range and dependent clip/text records. |
+| `Tree` | Changed relation, affected ancestors and removed subtree lifetime. |
+
+Measure is post-order; arrange and visual extraction are pre-order in stable
+child/Z order. Hidden subtrees obey `UiParticipation` and are skipped without
+destroying their retained state. Layout never invokes a binding, resolves a
+resource by name or shapes text.
+
+### `DXAML-RUNTIME-3`: canonical extraction and text cache
+
+The visual stage writes `UiVisualCommand`, `UiClip` and `UiTextDraw` directly
+into reusable document-owned arrays. `UiDocument.TryBuildDisplayList` returns
+spans over those arrays. It does not first build `IUiDrawList`, compare a full
+duplicate previous list and translate every item into the contract types.
+
+Only dirty node ranges are rewritten; a structural or ordering change may
+compact the affected suffix. The returned view is invalid after the next
+mutation or extraction exactly as stated by `Delta.XAML.Contract`.
+
+Text shaping is cached by all inputs that can change shaping: retained node
+generation, text version, resolved font instance/fallback set, size, direction,
+script/language/features and layout constraint. Position/color/clip changes do
+not reshape glyphs. Replacing or destroying a cache entry releases the owned
+`ShapedText` lifetime according to the DeltaText contract.
+
+Custom visuals emit `UiVisualKind.Custom` with a stable `UiVisualTypeId` and
+resource identities. DeltaXAML does not resolve shaders, pipelines, textures
+or Vulkan handles.
+
+### `DXAML-RUNTIME-4`: removal and final integration
+
+Remove or split the following compatibility implementation as its replacement
+lands; do not wrap it in a new facade:
+
+- `Internal/UiFrame.cs`: recursive traversal, legacy `DrawList`, delta-list
+  comparison and O(n) `Find`;
+- `Internal/XamlLoader.cs`: shipping runtime parsing and string property switch;
+- `Internal/BindingRuntime.cs`: reflection path walking and per-binding closure
+  execution;
+- `Internal/Theme.cs`: delegate-based selectors/templates and string dispatch;
+- obsolete interfaces and packet types in `Internal/RetainedContracts.cs`;
+- retained-to-contract translation and legacy text requests in
+  `UserApi/LibraryFacade.cs`.
+
+Keep the public library contract while moving its implementation into focused
+files. If a compatibility symbol cannot be removed in the same slice, mark it
+`[Obsolete(..., error: true)]` with the exact replacement and the next slice;
+no new caller may use it.
+
+Final integration acceptance is one path for both editor and game:
+
+```text
+platform/engine normalizes input
+  -> UiDocument.Dispatch
+  -> UiDocument.Layout
+  -> UiDocument.BuildDisplayList
+  -> consumer adds the borrowed display list to DeltaRender
+```
+
+Resize changes viewport/DPI and invalidates only the required measure, arrange,
+hit-test and text-cache entries. Pointer capture, focus traversal, keyboard and
+IME editing, scrolling and clipping operate through the fixed stages. A game
+HUD uses the same document and display-list path; screen, texture or world-space
+placement is the renderer consumer's target choice.
+
+### Completion gate
+
+The remaining implementation is complete only when all of these are true:
+
+- every production XAML file has a generated typed artifact;
+- production bindings and style/template application have no reflection or
+  string traversal;
+- `UiDocument` owns one node/property/state model and one fixed stage pipeline;
+- public `UiElement` shells contain accessors/state composition, not algorithms;
+- canonical contract commands are emitted directly into reused storage;
+- unchanged text is not reshaped and unchanged subtrees are not remeasured;
+- the compatibility files listed above have been removed or are compile-error
+  obsolete with no active caller;
+- editor and game HUD paths consume the same `UiDisplayList` boundary;
+- Vulkan, SDL, ECS, application clocks and renderer pipelines remain outside
+  DeltaXAML.
+
 ## Non-goals
 
 DeltaXAML does not promise byte-for-byte WPF, Avalonia, Xamarin or MAUI
