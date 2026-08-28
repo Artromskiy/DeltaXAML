@@ -177,6 +177,7 @@ internal sealed record XamlResourcePlan(
 internal sealed record XamlStylePlan(
     string Key,
     XamlQualifiedName TargetType,
+    UiTypeId TargetTypeId,
     ImmutableArray<XamlMemberPlan> Setters,
     ImmutableArray<XamlVisualStatePlan> VisualStates,
     SourceRange Range);

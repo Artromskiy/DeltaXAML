@@ -112,6 +112,7 @@ public sealed class UiStyle
     private readonly Dictionary<string, StyleValue> _values = new(StringComparer.Ordinal);
     private readonly Dictionary<UiStyleState, Dictionary<string, StyleValue>> _stateValues = new();
     private readonly UiResourceCatalog? _resources;
+    private readonly UiTypeId _targetTypeId;
     private int _version;
 
     public UiStyle(string key, string targetType, UiResourceCatalog? resources = null)
@@ -120,6 +121,21 @@ public sealed class UiStyle
         ArgumentException.ThrowIfNullOrWhiteSpace(targetType);
         Key = key;
         TargetType = targetType;
+        _resources = resources;
+    }
+
+    /// <summary>Creates a compiled style selector backed by a stable element type identity.</summary>
+    public UiStyle(string key, UiTypeId targetType, UiResourceCatalog? resources = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (!targetType.IsValid)
+        {
+            throw new ArgumentException("A stable target type identity is required.", nameof(targetType));
+        }
+
+        Key = key;
+        TargetType = targetType.Value.ToString("D");
+        _targetTypeId = targetType;
         _resources = resources;
     }
 
@@ -295,7 +311,8 @@ public sealed class UiStyle
     internal void Apply(UiElement element)
     {
         ArgumentNullException.ThrowIfNull(element);
-        if (TargetType != "*" && !string.Equals(TargetType, element.TypeName, StringComparison.Ordinal))
+        if ((_targetTypeId.IsValid && !Retained.UiDescriptorCatalog.MatchesType(element.RetainedElement, _targetTypeId)) ||
+            (!_targetTypeId.IsValid && TargetType != "*" && !string.Equals(TargetType, element.TypeName, StringComparison.Ordinal)))
         {
             return;
         }

@@ -59,7 +59,7 @@ internal static partial class Program
             compositionRegistry);
         Assert.True(compositionPlan.Success, "styles and templates remain in the compiled semantic plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(compositionPlan, compositionRegistry, "Generated", "CompositionArtifact", out var compositionSource, out var compositionDiagnostic), "styles and templates emit through the companion path");
-        Assert.True(compositionDiagnostic is null && compositionSource.Contains("new global::Delta.XAML.UiStyle(\"Title\"", StringComparison.Ordinal), "compiled style initialization is direct");
+        Assert.True(compositionDiagnostic is null && compositionSource.Contains("new global::Delta.XAML.UiStyle(\"Title\", new global::Delta.XAML.UiTypeId", StringComparison.Ordinal), "compiled style initialization is direct and type-identity based");
         Assert.True(compositionSource.Contains("Set(global::Delta.XAML.UiTextBlockProperties.FontSize, 16f)", StringComparison.Ordinal), "compiled style uses a typed property descriptor");
         Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, global::Delta.XAML.UiTextBlockProperties.FontSize, 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
         Assert.True(!compositionSource.Contains("Set(\"FontSize\"", StringComparison.Ordinal), "compiled style does not use string property dispatch");
@@ -71,7 +71,7 @@ internal static partial class Program
         var typedResourceId = new UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D403"));
         var typedResources = new Library.UiResourceCatalog();
         typedResources.Set(typedResourceId, new Library.UiColor(12, 34, 56));
-        var typedStyle = new Library.UiStyle("Typed", "TextBlock", typedResources);
+        var typedStyle = new Library.UiStyle("Typed", new Library.UiTypeId(new Guid("22222222-2222-2222-2222-22222222220A")), typedResources);
         typedStyle.Set(Library.UiTextBlockProperties.FontSize, 18f);
         typedStyle.SetResource(Library.UiTextBlockProperties.Foreground, typedResourceId);
         typedStyle.SetState(Library.UiStyleState.Focused, Library.UiTextBlockProperties.FontSize, 20f);

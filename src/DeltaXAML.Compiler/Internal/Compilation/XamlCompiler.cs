@@ -320,9 +320,14 @@ internal static class XamlCompiler
                 }
                 else
                 {
+                    var qualifiedTargetType = ToQualifiedName(targetType, namespaces);
+                    var targetTypeId = _registry.TryResolveType(qualifiedTargetType, out var targetDefinition)
+                        ? targetDefinition.Id
+                        : default;
                     _styles.Add(new(
                         key,
-                        ToQualifiedName(targetType, namespaces),
+                        qualifiedTargetType,
+                        targetTypeId,
                         setters.ToImmutable(),
                         visualStates.ToImmutable(),
                         Range(elementStart, _offset)));

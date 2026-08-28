@@ -108,7 +108,7 @@ internal static class CSharpArtifactEmitter
         for (var styleIndex = 0; styleIndex < plan.Styles.Length; styleIndex++)
         {
             var style = plan.Styles[styleIndex];
-            if (!registry.TryResolveType(style.TargetType, out _))
+            if (!style.TargetTypeId.IsValid || !registry.TryResolveType(style.TargetTypeId, out _))
             {
                 diagnostic = new("DXAMLGEN004", $"Style '{style.Key}' targets an unknown type '{style.TargetType.LocalName}'.", style.Range);
                 return false;
@@ -671,7 +671,7 @@ internal static class CSharpArtifactEmitter
         {
             var style = styles[styleIndex];
             writer.Append("        var style").Append(styleIndex).Append(" = new global::Delta.XAML.UiStyle(")
-                .Append(Quote(style.Key)).Append(", ").Append(Quote(style.TargetType.LocalName)).AppendLine(", Resources);");
+                .Append(Quote(style.Key)).Append(", ").Append(TypeIdExpression(style.TargetTypeId)).AppendLine(", Resources);");
             for (var setterIndex = 0; setterIndex < style.Setters.Length; setterIndex++)
             {
                 var setter = style.Setters[setterIndex];
@@ -927,6 +927,16 @@ internal static class CSharpArtifactEmitter
         }
 
         return "new global::Delta.XAML.Contract.UiResourceId(new global::System.Guid(" + Quote(resource.Value.ToString("D")) + "))";
+    }
+
+    private static string TypeIdExpression(UiTypeId type)
+    {
+        if (!type.IsValid)
+        {
+            throw new InvalidOperationException("A generated type identity is required.");
+        }
+
+        return "new global::Delta.XAML.UiTypeId(new global::System.Guid(" + Quote(type.Value.ToString("D")) + "))";
     }
 
     private static string ResourceSlotExpression(

@@ -29,6 +29,22 @@ internal readonly record struct UiTypeDescriptor(UiRuntimeTypeIndex Index, UiDes
 /// <summary>Compact generated descriptor catalog; entries are immutable metadata only.</summary>
 internal static class UiDescriptorCatalog
 {
+    private static readonly Delta.XAML.UiTypeId[] TypeIdentities =
+    [
+        new(new Guid("22222222-2222-2222-2222-22222222220A")),
+        new(new Guid("22222222-2222-2222-2222-222222222205")),
+        new(new Guid("22222222-2222-2222-2222-222222222202")),
+        new(new Guid("22222222-2222-2222-2222-222222222203")),
+        new(new Guid("22222222-2222-2222-2222-222222222201")),
+        new(new Guid("22222222-2222-2222-2222-222222222206")),
+        new(new Guid("22222222-2222-2222-2222-222222222208")),
+        new(new Guid("22222222-2222-2222-2222-222222222209")),
+        new(new Guid("22222222-2222-2222-2222-22222222220B")),
+        new(new Guid("22222222-2222-2222-2222-22222222220C")),
+        new(new Guid("22222222-2222-2222-2222-222222222207")),
+        new(new Guid("22222222-2222-2222-2222-222222222204")),
+    ];
+
     private static readonly UiTypeDescriptor[] Entries =
     [
         UiTextBlockGenerated.Descriptor,
@@ -84,6 +100,18 @@ internal static class UiDescriptorCatalog
             _ => default,
         };
         return index.IsValid;
+    }
+
+    internal static bool MatchesType(UiElement element, Delta.XAML.UiTypeId expected)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        if (!expected.IsValid || !TryResolve(element, out var index))
+        {
+            return false;
+        }
+
+        var position = index.Value - 1;
+        return (uint)position < (uint)TypeIdentities.Length && TypeIdentities[position] == expected;
     }
 
     internal static UiSize Measure(UiElement element, in UiMeasureContext context)
