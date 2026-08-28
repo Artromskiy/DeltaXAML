@@ -116,6 +116,40 @@ internal static class UiDescriptorCatalog
         return (uint)position < (uint)TypeIdentities.Length && TypeIdentities[position] == expected;
     }
 
+    internal static bool IsPressed(UiElement element) => element switch
+    {
+        ToggleButton toggle => toggle.InputState.IsPressed,
+        Button button => button.InputState.IsPressed,
+        _ => false,
+    };
+
+    internal static void SetPressed(UiElement element, bool value)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        switch (element)
+        {
+            case ToggleButton toggle when toggle.InputState.IsPressed != value:
+                toggle.InputState.IsPressed = value;
+                toggle.InvalidateChanged(UiDirtyMask.Style | UiDirtyMask.Visual);
+                break;
+            case Button button when button.InputState.IsPressed != value:
+                button.InputState.IsPressed = value;
+                button.InvalidateChanged(UiDirtyMask.Style | UiDirtyMask.Visual);
+                break;
+        }
+    }
+
+    internal static string GetAutomationValueText(UiElement element) => element switch
+    {
+        NumericEditor numeric => numeric.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        TextBox editor => editor.Text,
+        TextBlock text => text.Text,
+        ToggleButton toggle when toggle.Content is TextBlock text => text.Text,
+        Button button when button.Content is TextBlock text => text.Text,
+        ContentControl content when content.Content is TextBlock text => text.Text,
+        _ => string.Empty,
+    };
+
     internal static bool TrySetProperty(UiElement element, UiPropertyKey key, UiValue value)
     {
         ArgumentNullException.ThrowIfNull(element);

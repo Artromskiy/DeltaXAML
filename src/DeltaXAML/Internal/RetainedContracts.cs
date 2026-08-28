@@ -54,6 +54,29 @@ internal static class UiPropertyKeys
         "Maximum" => UiPropertyKey.Maximum,
         _ => UiPropertyKey.Unknown,
     };
+
+    internal static Type ValueType(UiElement element, string name)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (element is NumericEditor && name == "Value")
+        {
+            return typeof(double);
+        }
+
+        if (element is TextBlock && name is "Text" or "FontKey")
+        {
+            return typeof(string);
+        }
+
+        return name switch
+        {
+            "Width" or "Height" or "FontSize" => typeof(float),
+            "Fill" or "IsEnabled" or "IsSelected" => typeof(bool),
+            "Background" or "Foreground" => typeof(UiColor),
+            _ => typeof(object),
+        };
+    }
 }
 internal readonly record struct UiSize(float Width, float Height);
 internal readonly record struct UiPoint(float X, float Y);

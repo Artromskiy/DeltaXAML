@@ -337,6 +337,7 @@ internal class UiElement
     private static uint _nextGeneration;
     private readonly List<UiElement> _detachedChildren = new();
     private readonly UiElementChildrenView _children;
+    private readonly string _typeName;
     private readonly List<UiBindingSpec> _bindingSpecs = new();
     private readonly Dictionary<string, UiInterpretedBinding> _bindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiExternalBindingRuntime> _externalBindingRuntimes = new(StringComparer.Ordinal);
@@ -374,8 +375,10 @@ internal class UiElement
     private int _displayVisualCount;
     private int _displayTextCount;
     internal ref UiElementState CommonState => ref _state;
-    public UiElement()
+    public UiElement(string typeName = "Element")
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(typeName);
+        _typeName = typeName;
         Id = new(++_nextId);
         Generation = ++_nextGeneration;
         _children = new(this);
@@ -391,7 +394,7 @@ internal class UiElement
     public UiElementId Id { get; }
     public uint Generation { get; }
     internal uint TreeVersion => _treeVersion;
-    public virtual string TypeName => "Element";
+    public string TypeName => _typeName;
     public UiElement? Parent => _nodeStore is { } store ? store.GetLogicalParent(this) : _detachedParent;
     public IReadOnlyList<UiElement> Children => _children;
     private UiElement? _detachedParent;
@@ -413,7 +416,7 @@ internal class UiElement
     internal UiColor CustomVisualColor => _state.CustomVisualColor;
     public bool IsEnabled { get => _state.IsEnabled; set => SetLocalProperty("IsEnabled", value, UiDirtyFlags.Visual); }
     public bool IsHovered { get; private set; }
-    public virtual bool IsPressed => false;
+    public bool IsPressed => UiDescriptorCatalog.IsPressed(this);
     public bool IsSelected { get => _state.IsSelected; set => SetLocalProperty("IsSelected", value, UiDirtyFlags.Visual); }
     public bool IsInvalid { get; protected set; }
     public string? StyleKey
@@ -631,7 +634,7 @@ internal class UiElement
         }
     }
     public void SetHovered(bool value) { if (IsHovered != value) { IsHovered = value; InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
-    public virtual void SetPressed(bool value) { if (IsPressed != value) { InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
+    public void SetPressed(bool value) => UiDescriptorCatalog.SetPressed(this, value);
     public void SetFocused(bool value) { if (IsFocused != value) { IsFocused = value; InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
     public void SetInvalid(bool value) { if (IsInvalid != value) { IsInvalid = value; InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
     internal void SetCustomVisual(Guid visualType, Guid resource, UiColor color)
@@ -743,7 +746,7 @@ internal class UiElement
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) => _properties.TryGet(name, out value);
     public UiPropertyHandle GetHandle(string name) => _properties.GetHandle(name);
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic) => _properties.TrySet(handle, value, invalidation, out diagnostic);
-    protected virtual string GetAutomationValueText() => string.Empty;
+    private string GetAutomationValueText() => UiDescriptorCatalog.GetAutomationValueText(this);
     public uint TextVersion => _textVersion;
     public uint LayoutVersion => _layoutVersion;
     internal uint OutputVersion => _outputVersion;
@@ -1021,13 +1024,7 @@ internal class UiElement
         }
     }
 
-    internal virtual Type BindingTargetType(string propertyName) => propertyName switch
-    {
-        "Width" or "Height" or "FontSize" => typeof(float),
-        "Fill" or "IsEnabled" or "IsSelected" => typeof(bool),
-        "Background" or "Foreground" => typeof(UiColor),
-        _ => typeof(object),
-    };
+    internal Type BindingTargetType(string propertyName) => UiPropertyKeys.ValueType(this, propertyName);
 
     protected void SetDefaultProperty(string name, object? value, UiDirtyFlags invalidation) =>
         _properties.InitializeDefault(name, value, invalidation);
@@ -1148,7 +1145,7 @@ internal class Panel : UiElement
 
     internal ref PanelState State => ref _state;
 
-    public override string TypeName => "Panel";
+    public Panel(string typeName = "Panel") : base(typeName) { }
 }
 
 internal sealed class StackPanel : UiElement
@@ -1157,9 +1154,7 @@ internal sealed class StackPanel : UiElement
 
     internal ref StackPanelState State => ref _state;
 
-    public StackPanel() => SetDefaultProperty("Orientation", _state.Orientation, UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
-
-    public override string TypeName => "StackPanel";
+    public StackPanel() : base("StackPanel") => SetDefaultProperty("Orientation", _state.Orientation, UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
     public UiOrientation Orientation
     {
         get => _state.Orientation;
@@ -1177,7 +1172,7 @@ internal sealed class ItemsControl : Panel
 
     internal new ref ItemsControlState State => ref _state;
 
-    public override string TypeName => "ItemsControl";
+    public ItemsControl() : base("ItemsControl") { }
     public IReadOnlyList<object?> Items => _items;
     public IReadOnlyList<UiElement> RealizedItems => _realized;
 
@@ -1225,7 +1220,7 @@ internal class Border : UiElement
 
     internal ref BorderState State => ref _state;
 
-    public override string TypeName => "Border";
+    public Border() : base("Border") { }
     public UiElement? Child => Children.Count == 0 ? null : Children[0];
 }
 
@@ -1238,7 +1233,7 @@ internal sealed class Grid : UiElement
 
     internal ref GridState State => ref _state;
 
-    public Grid()
+    public Grid() : base("Grid")
     {
         _state.Columns = Array.Empty<GridLength>();
         _state.Rows = Array.Empty<GridLength>();
@@ -1250,7 +1245,6 @@ internal sealed class Grid : UiElement
         SetDefaultProperty("Rows", _state.Rows, UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
     }
 
-    public override string TypeName => "Grid";
     public int ColumnCount => _state.Columns.Length;
     public int RowCount => _state.Rows.Length;
     public void SetColumns(params GridLength[] columns)
@@ -1267,7 +1261,8 @@ internal class ContentControl : UiElement
 
     internal ref ContentControlState State => ref _state;
 
-    public override string TypeName => "ContentControl"; public UiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
+    public ContentControl(string typeName = "ContentControl") : base(typeName) { }
+    public UiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
 }
 
 internal class Button : ContentControl
@@ -1277,21 +1272,9 @@ internal class Button : ContentControl
     internal new ref ButtonState State => ref _state;
     internal ref ButtonState InputState => ref _state;
 
-    public override bool IsPressed => _state.IsPressed;
-    public override string TypeName => "Button";
-    public Button() { Focusable = true; AutomationRole = UiAutomationRole.Button; }
+    public Button(string typeName = "Button") : base(typeName) { Focusable = true; AutomationRole = UiAutomationRole.Button; }
     public event EventHandler? Click;
     internal void RaiseClick() => Click?.Invoke(this, EventArgs.Empty);
-    public override void SetPressed(bool value)
-    {
-        if (_state.IsPressed != value)
-        {
-            _state.IsPressed = value;
-            InvalidateChanged(UiDirtyFlags.Visual);
-        }
-    }
-
-    protected override string GetAutomationValueText() => Content is TextBlock t ? t.Text : string.Empty;
 }
 
 internal sealed class ToggleButton : Button
@@ -1299,6 +1282,8 @@ internal sealed class ToggleButton : Button
     private ToggleButtonState _state;
 
     internal new ref ToggleButtonState State => ref _state;
+
+    public ToggleButton() : base("ToggleButton") { }
 
     public bool IsChecked => _state.IsChecked;
 }
@@ -1309,7 +1294,7 @@ internal class TextBlock : UiElement
 
     internal ref TextBlockState State => ref _state;
 
-    public TextBlock()
+    public TextBlock(string typeName = "TextBlock") : base(typeName)
     {
         AutomationRole = UiAutomationRole.Text;
         _state.Text = string.Empty;
@@ -1323,23 +1308,12 @@ internal class TextBlock : UiElement
         SetDefaultProperty("Foreground", _state.Visual.Foreground, UiDirtyFlags.Visual | UiDirtyFlags.Text);
     }
 
-    public override string TypeName => "TextBlock";
-
     public string Text { get => _state.Text; set { ArgumentNullException.ThrowIfNull(value); SetLocalProperty("Text", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public string FontKey { get => _state.Visual.FontKey; set { ArgumentNullException.ThrowIfNull(value); SetLocalProperty("FontKey", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public string GlyphRunKey { get => _state.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.GlyphRunKey == value) { return; } _state.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _state.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _state.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
 
-    protected override string GetAutomationValueText() => _state.Text;
-
-    internal override Type BindingTargetType(string propertyName) => propertyName switch
-    {
-        "Text" or "FontKey" => typeof(string),
-        "FontSize" => typeof(float),
-        "Foreground" => typeof(UiColor),
-        _ => base.BindingTargetType(propertyName),
-    };
 }
 
 internal class TextBox : TextBlock
@@ -1349,13 +1323,12 @@ internal class TextBox : TextBlock
     private readonly List<string> _redo = new();
     internal new ref TextBoxState State => ref _state;
 
-    public TextBox()
+    public TextBox(string typeName = "TextBox") : base(typeName)
     {
         Focusable = true;
         AutomationRole = UiAutomationRole.TextBox;
     }
 
-    public override string TypeName => "TextBox";
     public int CaretIndex => _state.CaretIndex;
     public int SelectionStart => _state.SelectionStart;
     public int SelectionLength => _state.SelectionLength;
@@ -1409,7 +1382,7 @@ internal class TextBox : TextBlock
         return true;
     }
 
-    public virtual bool ApplyKey(in UiKeyEvent input)
+    public bool ApplyKey(in UiKeyEvent input)
     {
         return UiTextBoxGenerated.ProcessKey(ref _state, in input, Text.Length) switch
         {
@@ -1523,7 +1496,6 @@ internal class TextBox : TextBlock
         Text = text;
         return true;
     }
-    protected override string GetAutomationValueText() => Text;
 }
 
 internal sealed class NumericEditor : TextBox
@@ -1532,7 +1504,7 @@ internal sealed class NumericEditor : TextBox
 
     internal new ref NumericEditorState State => ref _state;
 
-    public NumericEditor()
+    public NumericEditor() : base("NumericEditor")
     {
         AutomationRole = UiAutomationRole.NumericEditor;
         SetDefaultProperty("Value", _state.Value, UiDirtyFlags.Binding | UiDirtyFlags.Visual);
@@ -1540,7 +1512,6 @@ internal sealed class NumericEditor : TextBox
         SetDefaultProperty("Maximum", _state.Max, UiDirtyFlags.Visual);
     }
 
-    public override string TypeName => "NumericEditor";
     public double Value => _state.Value;
     public double Min { get => _state.Min; set => SetLocalProperty("Minimum", value, UiDirtyFlags.Visual); }
     public double Max { get => _state.Max; set => SetLocalProperty("Maximum", value, UiDirtyFlags.Visual); }
@@ -1565,7 +1536,7 @@ internal sealed class NumericEditor : TextBox
     public bool TryCommitText(string text) { SetText(text); return TryCommit(); }
     public bool Increment(double step = 1) { return Adjust(step); }
     public bool Decrement(double step = 1) { return Adjust(-step); }
-    public override bool ApplyKey(in UiKeyEvent input)
+    public new bool ApplyKey(in UiKeyEvent input)
     {
         var action = UiNumericEditorGenerated.ProcessKey(ref _state, in input, Text.Length);
         if (action == UiTextEditAction.Increment)
@@ -1612,8 +1583,6 @@ internal sealed class NumericEditor : TextBox
         SetInvalid(false);
         return true;
     }
-    protected override string GetAutomationValueText() => Value.ToString(CultureInfo.InvariantCulture);
-    internal override Type BindingTargetType(string propertyName) => propertyName == "Value" ? typeof(double) : base.BindingTargetType(propertyName);
 }
 
 internal class ScrollViewer : ContentControl
@@ -1622,7 +1591,7 @@ internal class ScrollViewer : ContentControl
 
     internal new ref ScrollViewerState State => ref _state;
 
-    public override string TypeName => "ScrollViewer";
+    public ScrollViewer() : base("ScrollViewer") { }
     public UiPoint Offset => _state.Offset;
     public void ScrollBy(float x, float y)
     {

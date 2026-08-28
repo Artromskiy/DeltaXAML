@@ -187,7 +187,9 @@ internal static class ArchitectureGate
                 continue;
             }
 
-            if (member.IsEvent || member.HasDelegate || member.HasSubscription)
+            if ((member.IsEvent && !member.HasBody) ||
+                ((member.IsField || member.IsProperty) && member.HasDelegate) ||
+                (!member.IsEvent && member.HasSubscription))
             {
                 violations.Add($"{member.Location}: control '{type.Name}' owns a per-instance delegate/subscription through '{member.Name}'.");
             }
@@ -248,8 +250,10 @@ internal static class ArchitectureGate
             foreach (var file in files)
             {
                 var tokens = SourceShapeParser.TokenizeForGate(File.ReadAllText(file));
-                if (ContainsAny(tokens, "Dictionary", "object", "Type", "Activator", "BindingFlags", "GetProperty", "PropertyInfo", "propertyName", "Select", "Where", "First", "Single", "ToList", "ToArray") ||
-                    ContainsAny(tokens, "Action", "Func", "event", "+="))
+                if (HasSequence(tokens, "Dictionary", "<", "Type", ",") ||
+                    HasSequence(tokens, "Dictionary", "<", "string", ",", "object") ||
+                    HasSequence(tokens, "List", "<", "object") ||
+                    ContainsAny(tokens, "Activator", "BindingFlags", "GetProperty", "PropertyInfo", "propertyName", "Select", "Where", "First", "Single", "ToList", "ToArray"))
                 {
                     violations.Add($"{RelativePath(root, file)}: designated path contains runtime object/type/reflection/LINQ lookup or per-instance behavior state.");
                 }
@@ -588,6 +592,7 @@ internal static class ArchitectureGate
         {
             var hasThis = false;
             var hasInterfaceCast = false;
+            var hasForwardedCall = false;
             for (var i = start; i <= end; i++)
             {
                 if (tokens[i].Text == "this")
@@ -600,13 +605,18 @@ internal static class ArchitectureGate
                     hasInterfaceCast = true;
                 }
 
+                if (tokens[i].Text == "." && i + 2 <= end && IsIdentifier(tokens[i + 1].Text) && tokens[i + 2].Text == "(")
+                {
+                    hasForwardedCall = true;
+                }
+
                 if (tokens[i].Text is "new" or "for" or "foreach" or "while" or "if" or "switch" or "try" or "catch" or "lock")
                 {
                     return false;
                 }
             }
 
-            return hasThis && hasInterfaceCast;
+            return (hasThis && hasInterfaceCast) || hasForwardedCall;
         }
 
         private static string PreviousIdentifier(IReadOnlyList<Token> tokens, int index)

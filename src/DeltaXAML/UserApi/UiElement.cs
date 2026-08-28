@@ -388,32 +388,28 @@ public abstract class UiElement
             return view;
         }
 
-        return element switch
+        UiElement created = element switch
         {
-            Retained.NumericEditor numericEditor => new UiNumericEditor(numericEditor, cache),
-            Retained.TextBox textBox => new UiTextBox(textBox, cache),
-            Retained.TextBlock textBlock => AdoptViewCache(new UiTextBlock(textBlock), cache),
-            Retained.StackPanel stackPanel => new UiStackPanel(stackPanel, cache),
-            Retained.ItemsControl itemsControl => new UiItemsControl(itemsControl, cache),
-            Retained.Panel panel => new UiPanel(panel, cache),
-            Retained.Border border => new UiBorder(border, cache),
-            Retained.Grid grid => new UiGrid(grid, cache),
-            Retained.Button button => new UiButton(button, cache),
-            Retained.ScrollViewer scrollViewer => new UiScrollViewer(scrollViewer, cache),
-            Retained.ContentControl contentControl => new UiContentControl(contentControl, cache),
+            Retained.NumericEditor numericEditor => new UiNumericEditor(numericEditor),
+            Retained.TextBox textBox => new UiTextBox(textBox),
+            Retained.TextBlock textBlock => new UiTextBlock(textBlock),
+            Retained.StackPanel stackPanel => new UiStackPanel(stackPanel),
+            Retained.ItemsControl itemsControl => new UiItemsControl(itemsControl),
+            Retained.Panel panel => new UiPanel(panel),
+            Retained.Border border => new UiBorder(border),
+            Retained.Grid grid => new UiGrid(grid),
+            Retained.Button button => new UiButton(button),
+            Retained.ScrollViewer scrollViewer => new UiScrollViewer(scrollViewer),
+            Retained.ContentControl contentControl => new UiContentControl(contentControl),
             _ => new RetainedElementView(element, cache),
         };
+        created.AdoptViewCache(cache);
+        return created;
     }
 
     private sealed class RetainedElementView : UiElement
     {
         public RetainedElementView(RetainedElement element, Dictionary<RetainedElement, UiElement> views) : base(element, views) { }
-    }
-
-    private static UiElement AdoptViewCache(UiElement view, Dictionary<RetainedElement, UiElement> views)
-    {
-        view.AdoptViewCache(views);
-        return view;
     }
 
     private sealed class RetainedChildrenView : IReadOnlyList<UiElement>
@@ -596,6 +592,71 @@ public abstract class UiElement
         element.AdoptViewCache(_views);
     }
 
+    internal void AddChild(UiElement child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        MutableChildren.Add(child);
+    }
+
+    internal bool RemoveChild(UiElement child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        return MutableChildren.Remove(child);
+    }
+
+    internal void SetSingleChild(UiElement? child)
+    {
+        MutableChildren.Clear();
+        if (child is not null)
+        {
+            MutableChildren.Add(child);
+        }
+    }
+
+    internal void SetItemsCore(
+        Retained.ItemsControl owner,
+        IReadOnlyList<object?> items,
+        Func<object?, UiElement> factory)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(factory);
+        owner.SetItems(items, item =>
+        {
+            var created = factory(item);
+            ArgumentNullException.ThrowIfNull(created, nameof(item));
+            RegisterView(created);
+            return created.RetainedElement;
+        });
+    }
+
+    internal static Retained.GridLength[] ConvertGridLengths(UiGridLength[] values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        var converted = new Retained.GridLength[values.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            converted[i] = new(values[i].Value, (Retained.GridUnitType)values[i].Unit);
+        }
+
+        return converted;
+    }
+
+    internal static UiColor ToPublicColor(Retained.UiColor value) =>
+        new(value.R, value.G, value.B, value.A);
+
+    internal static Retained.UiColor ToRetainedColor(UiColor value) =>
+        new(value.R, value.G, value.B, value.A);
+
+    internal static IUiClipboard? GetClipboard(Retained.TextBox owner) =>
+        owner.Clipboard is UiClipboardBridge bridge ? bridge.Source : null;
+
+    internal static void SetClipboard(Retained.TextBox owner, IUiClipboard? clipboard)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        owner.Clipboard = clipboard is null ? null : new UiClipboardBridge(clipboard);
+    }
+
     internal void AdoptViewCache(Dictionary<RetainedElement, UiElement> views)
     {
         if (ReferenceEquals(_views, views))
@@ -656,150 +717,17 @@ public abstract class UiElement
         _ => RetainedDirty.Visual,
     };
 
-}
-
-/// <summary>Convenience retained panel for code-authored composition.</summary>
-public class UiPanel : UiElement
-{
-    public UiPanel() : base(Retained.UiPanelGenerated.Create(), null) { }
-    internal UiPanel(RetainedElement element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public void Add(UiElement child)
+    private sealed class UiClipboardBridge(IUiClipboard source) : Retained.IUiClipboard
     {
-        ArgumentNullException.ThrowIfNull(child);
-        MutableChildren.Add(child);
+        internal IUiClipboard Source { get; } = source;
+
+        public string? ReadText() => Source.ReadText();
+
+        public void SetText(string? text) => Source.SetText(text);
+
+        public bool HasText => Source.HasText;
     }
 
-    public bool Remove(UiElement child)
-    {
-        ArgumentNullException.ThrowIfNull(child);
-        return MutableChildren.Remove(child);
-    }
-}
-
-/// <summary>Vertical or horizontal retained stack panel.</summary>
-public sealed class UiStackPanel : UiPanel
-{
-    private Retained.StackPanel StackElement => (Retained.StackPanel)RetainedElement;
-
-    public UiStackPanel() : base(Retained.UiStackPanelGenerated.Create(), null) { }
-    internal UiStackPanel(Retained.StackPanel element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public UiOrientation Orientation
-    {
-        get => (UiOrientation)StackElement.Orientation;
-        set => StackElement.Orientation = (Retained.UiOrientation)value;
-    }
-}
-
-/// <summary>Retained collection host that reuses rows when item identity is unchanged.</summary>
-public sealed class UiItemsControl : UiPanel
-{
-    private Retained.ItemsControl ItemsElement => (Retained.ItemsControl)RetainedElement;
-
-    public UiItemsControl() : base(Retained.UiItemsControlGenerated.Create(), null) { }
-    internal UiItemsControl(Retained.ItemsControl element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public IReadOnlyList<object?> Items => ItemsElement.Items;
-
-    public void SetItems(IReadOnlyList<object?> items, Func<object?, UiElement> factory)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-        ArgumentNullException.ThrowIfNull(factory);
-        ItemsElement.SetItems(items, item =>
-        {
-            var created = factory(item);
-            ArgumentNullException.ThrowIfNull(created, nameof(item));
-            RegisterView(created);
-            return created.RetainedElement;
-        });
-    }
-}
-
-/// <summary>Retained border with one optional child.</summary>
-public sealed class UiBorder : UiElement
-{
-    private Retained.Border BorderElement => (Retained.Border)RetainedElement;
-
-    public UiBorder() : base(Retained.UiBorderGenerated.Create(), null) { }
-    internal UiBorder(Retained.Border element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public UiElement? Child => Children.Count == 0 ? null : Children[0];
-
-    public void SetChild(UiElement? child)
-    {
-        BorderElement.ClearChildren();
-        if (child is null)
-        {
-            return;
-        }
-
-        BorderElement.Add(child.RetainedElement);
-        RegisterView(child);
-    }
-}
-
-/// <summary>Retained content host with one optional child.</summary>
-public class UiContentControl : UiElement
-{
-    private Retained.ContentControl ContentElement => (Retained.ContentControl)RetainedElement;
-
-    public UiContentControl() : base(Retained.UiContentControlGenerated.Create(), null) { }
-    internal UiContentControl(Retained.ContentControl element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public UiElement? Content => Children.Count == 0 ? null : Children[0];
-
-    public void SetContent(UiElement? content)
-    {
-        if (content is not null)
-        {
-            RegisterView(content);
-        }
-
-        ContentElement.Content = content?.RetainedElement;
-    }
-}
-
-/// <summary>Retained button control with a neutral click callback.</summary>
-public class UiButton : UiContentControl
-{
-    private Retained.Button ButtonElement => (Retained.Button)RetainedElement;
-
-    public UiButton() : base(Retained.UiButtonGenerated.Create(), null) { }
-    internal UiButton(Retained.Button element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public event EventHandler? Click
-    {
-        add => ButtonElement.Click += value;
-        remove => ButtonElement.Click -= value;
-    }
-}
-
-/// <summary>Retained grid facade with fixed, auto and star definitions.</summary>
-public sealed class UiGrid : UiElement
-{
-    private Retained.Grid GridElement => (Retained.Grid)RetainedElement;
-
-    public UiGrid() : base(Retained.UiGridGenerated.Create(), null) { }
-    internal UiGrid(Retained.Grid element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public void Add(UiElement child)
-    {
-        ArgumentNullException.ThrowIfNull(child);
-        MutableChildren.Add(child);
-    }
-
-    public bool Remove(UiElement child)
-    {
-        ArgumentNullException.ThrowIfNull(child);
-        return MutableChildren.Remove(child);
-    }
-
-    public void SetColumns(params UiGridLength[] columns) => GridElement.SetColumns(columns.Select(ToRetained).ToArray());
-
-    public void SetRows(params UiGridLength[] rows) => GridElement.SetRows(rows.Select(ToRetained).ToArray());
-
-    private static Retained.GridLength ToRetained(UiGridLength value) => new(value.Value, (Retained.GridUnitType)value.Unit);
 }
 
 public enum UiGridUnitType { Pixel, Auto, Star }
@@ -811,84 +739,4 @@ public readonly record struct UiGridLength(float Value, UiGridUnitType Unit)
     public static UiGridLength Pixel(float value) => new(value, UiGridUnitType.Pixel);
     public static UiGridLength Auto => new(1, UiGridUnitType.Auto);
     public static UiGridLength Star(float weight = 1) => new(weight, UiGridUnitType.Star);
-}
-
-/// <summary>Convenience retained text editor for code-authored composition.</summary>
-public class UiTextBox : UiTextBlock
-{
-    private Retained.TextBox TextBoxElement => (Retained.TextBox)RetainedElement;
-    private ClipboardBridge? _clipboardBridge;
-
-    public UiTextBox() : base(Retained.UiTextBoxGenerated.Create()) { }
-
-    internal UiTextBox(Retained.TextBox element, Dictionary<RetainedElement, UiElement>? views)
-        : base(element)
-    {
-        if (views is not null)
-        {
-            AdoptViewCache(views);
-        }
-    }
-
-    public void SetText(string text) => TextBoxElement.SetText(text);
-
-    public IUiClipboard? Clipboard
-    {
-        get => _clipboardBridge?.Source;
-        set
-        {
-            _clipboardBridge = value is null ? null : new ClipboardBridge(value);
-            TextBoxElement.Clipboard = _clipboardBridge;
-        }
-    }
-
-    public void SelectAll() => TextBoxElement.SelectAll();
-    public void Copy() => TextBoxElement.Copy();
-    public void Cut() => TextBoxElement.Cut();
-    public bool Paste() => TextBoxElement.Paste();
-    public bool Undo() => TextBoxElement.Undo();
-    public bool Redo() => TextBoxElement.Redo();
-
-    private sealed class ClipboardBridge(IUiClipboard clipboard) : Retained.IUiClipboard
-    {
-        public IUiClipboard Source => clipboard;
-        public string? ReadText() => clipboard.ReadText();
-        public void SetText(string? text) => clipboard.SetText(text);
-        public bool HasText => clipboard.HasText;
-    }
-}
-
-/// <summary>Numeric retained editor with explicit validation and commit state.</summary>
-public sealed class UiNumericEditor : UiTextBox
-{
-    private Retained.NumericEditor NumericElement => (Retained.NumericEditor)RetainedElement;
-
-    public UiNumericEditor() : base(Retained.UiNumericEditorGenerated.Create(), null) { }
-    internal UiNumericEditor(Retained.NumericEditor element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public double CurrentValue => NumericElement.Value;
-    public double Minimum { get => NumericElement.Min; set => NumericElement.Min = value; }
-    public double Maximum { get => NumericElement.Max; set => NumericElement.Max = value; }
-    public bool HasValidationError => NumericElement.HasValidationError;
-    public bool IsDirty => NumericElement.IsDirty;
-    public string? Diagnostic => NumericElement.Diagnostic;
-    public void Initialize(double value) => NumericElement.Initialize(value);
-    public bool TryCommit() => NumericElement.TryCommit();
-    public bool TryCommitText(string text) => NumericElement.TryCommitText(text);
-    public void CancelEdit() => NumericElement.CancelEdit();
-    public bool Increment(double step = 1) => NumericElement.Increment(step);
-    public bool Decrement(double step = 1) => NumericElement.Decrement(step);
-}
-
-/// <summary>Retained content viewport with platform-neutral scrolling.</summary>
-public sealed class UiScrollViewer : UiContentControl
-{
-    private Retained.ScrollViewer ScrollElement => (Retained.ScrollViewer)RetainedElement;
-
-    public UiScrollViewer() : base(Retained.UiScrollViewerGenerated.Create(), null) { }
-    internal UiScrollViewer(Retained.ScrollViewer element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
-
-    public float OffsetX => ScrollElement.Offset.X;
-    public float OffsetY => ScrollElement.Offset.Y;
-    public void ScrollBy(float x, float y) => ScrollElement.ScrollBy(x, y);
 }
