@@ -85,6 +85,70 @@ internal static class UiDescriptorCatalog
         };
         return index.IsValid;
     }
+
+    internal static UiSize Measure(UiElement element, in UiMeasureContext context)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        switch (element)
+        {
+            case TextBlock text:
+                UiTextBlockGenerated.Measure(ref text.State, in context);
+                return text.State.Layout.DesiredSize;
+            case StackPanel stack:
+                UiStackPanelGenerated.Measure(ref stack.State, in context);
+                return stack.State.DesiredSize;
+            case Border border:
+                border.State.Padding = border.Padding;
+                UiBorderGenerated.Measure(ref border.State, in context);
+                return border.State.DesiredSize;
+            case Grid grid:
+                UiGridGenerated.Measure(ref grid.State, in context);
+                return grid.State.DesiredSize;
+            case ScrollViewer scroll:
+                UiScrollViewerGenerated.Measure(ref scroll.State, in context);
+                return scroll.State.DesiredSize;
+            case Panel panel:
+                UiPanelGenerated.Measure(ref panel.State, in context);
+                return panel.State.DesiredSize;
+            case ContentControl content:
+                UiContentControlGenerated.Measure(ref content.State, in context);
+                return content.State.DesiredSize;
+            default:
+                return default;
+        }
+    }
+
+    internal static bool Arrange(UiElement element, in UiArrangeContext context)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        switch (element)
+        {
+            case TextBlock text:
+                UiTextBlockGenerated.Arrange(ref text.State, in context);
+                return true;
+            case StackPanel stack:
+                UiStackPanelGenerated.Arrange(ref stack.State, in context);
+                return true;
+            case Border border:
+                border.State.Padding = border.Padding;
+                UiBorderGenerated.Arrange(ref border.State, in context);
+                return true;
+            case Grid grid:
+                UiGridGenerated.Arrange(ref grid.State, in context);
+                return true;
+            case ScrollViewer scroll:
+                UiScrollViewerGenerated.Arrange(ref scroll.State, in context);
+                return true;
+            case Panel panel:
+                UiPanelGenerated.Arrange(ref panel.State, in context);
+                return true;
+            case ContentControl content:
+                UiContentControlGenerated.Arrange(ref content.State, in context);
+                return true;
+            default:
+                return false;
+        }
+    }
 }
 
 /// <summary>Typed companion for <see cref="TextBlock"/>; the generated path owns no instance state.</summary>

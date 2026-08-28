@@ -537,7 +537,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
 
     internal virtual UiSize MeasureChildAvailable(UiSize available) => available;
 
-    internal virtual void MeasureStage(UiSize available)
+    internal void MeasureStage(UiSize available)
     {
         if (CanSkipMeasure(available))
         {
@@ -551,13 +551,13 @@ internal class UiElement : IUiElement, IUiPropertyStore
             return;
         }
 
-        DesiredSize = RequestedSize(new(0, 0));
+        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(this, new(available, LayoutScale, Children, false)));
         CompleteMeasure(available);
     }
 
     public virtual void Arrange(UiRect bounds) => ArrangeStage(bounds, null);
 
-    internal virtual void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
+    internal void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -574,8 +574,15 @@ internal class UiElement : IUiElement, IUiPropertyStore
 
         Bounds = bounds;
         Clip = bounds;
-        foreach (var child in _children)
+        if (UiDescriptorCatalog.Arrange(this, new(bounds, bounds, Children, requests)))
         {
+            CompleteArrange(bounds);
+            return;
+        }
+
+        for (var i = 0; i < _children.Count; i++)
+        {
+            var child = _children[i];
             if (requests is not null && child is UiElement element)
             {
                 requests.Add(new(element, bounds));
@@ -816,48 +823,6 @@ internal class Panel : UiElement, IUiPanel
     internal ref PanelState State => ref _state;
 
     public override string TypeName => "Panel";
-    internal override void MeasureStage(UiSize available)
-    {
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            DesiredSize = default;
-            _state.DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        UiPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
-        DesiredSize = RequestedSize(_state.DesiredSize);
-        CompleteMeasure(available);
-    }
-    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
-    {
-        if (CanSkipArrange(bounds))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            Bounds = default;
-            Clip = default;
-            _state.Bounds = default;
-            _state.Clip = default;
-            CompleteArrange(bounds);
-            return;
-        }
-
-        UiPanelGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
-        Bounds = _state.Bounds;
-        Clip = _state.Clip;
-
-        CompleteArrange(bounds);
-    }
 }
 
 internal sealed class StackPanel : UiElement, IUiPanel
@@ -886,48 +851,6 @@ internal sealed class StackPanel : UiElement, IUiPanel
         return key == UiPropertyKey.Orientation ? false : base.TryApplyTypedProperty(key, value);
     }
 
-    internal override void MeasureStage(UiSize available)
-    {
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            DesiredSize = default;
-            _state.DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        UiStackPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
-        DesiredSize = RequestedSize(_state.DesiredSize);
-        CompleteMeasure(available);
-    }
-    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
-    {
-        if (CanSkipArrange(bounds))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            Bounds = default;
-            Clip = default;
-            _state.Bounds = default;
-            _state.Clip = default;
-            CompleteArrange(bounds);
-            return;
-        }
-
-        UiStackPanelGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
-        Bounds = _state.Bounds;
-        Clip = _state.Clip;
-
-        CompleteArrange(bounds);
-    }
 }
 
 internal sealed class ItemsControl : Panel
@@ -997,47 +920,6 @@ internal class Border : UiElement, IUiPanel
     }
 
     public IUiElement? Child => Children.Count == 0 ? null : Children[0];
-    internal override void MeasureStage(UiSize available)
-    {
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        _state.Padding = Padding;
-        UiBorderGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
-        DesiredSize = RequestedSize(_state.DesiredSize);
-
-        CompleteMeasure(available);
-    }
-    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
-    {
-        if (CanSkipArrange(bounds))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            Bounds = default;
-            Clip = default;
-            CompleteArrange(bounds);
-            return;
-        }
-
-        _state.Padding = Padding;
-        UiBorderGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
-        Bounds = _state.Bounds;
-        Clip = _state.Clip;
-        CompleteArrange(bounds);
-    }
 }
 
 internal readonly record struct GridLength(float Value, GridUnitType Unit) { public static GridLength Fixed(float v) => new(v, GridUnitType.Pixel); public static GridLength Auto => new(1, GridUnitType.Auto); public static GridLength Star(float weight = 1) => new(weight, GridUnitType.Star); }
@@ -1087,48 +969,6 @@ internal sealed class Grid : UiElement, IUiPanel
         return key is UiPropertyKey.Columns or UiPropertyKey.Rows ? false : base.TryApplyTypedProperty(key, value);
     }
 
-    internal override void MeasureStage(UiSize available)
-    {
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            DesiredSize = default;
-            _state.DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        UiGridGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
-        DesiredSize = RequestedSize(_state.DesiredSize);
-        CompleteMeasure(available);
-    }
-    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
-    {
-        if (CanSkipArrange(bounds))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            Bounds = default;
-            Clip = default;
-            _state.Bounds = default;
-            _state.Clip = default;
-            CompleteArrange(bounds);
-            return;
-        }
-
-        UiGridGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
-        Bounds = _state.Bounds;
-        Clip = _state.Clip;
-
-        CompleteArrange(bounds);
-    }
 }
 
 internal class ContentControl : UiElement
@@ -1138,44 +978,6 @@ internal class ContentControl : UiElement
     internal ref ContentControlState State => ref _state;
 
     public override string TypeName => "ContentControl"; public IUiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
-    internal override void MeasureStage(UiSize available)
-    {
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        UiContentControlGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
-        DesiredSize = RequestedSize(_state.DesiredSize);
-        CompleteMeasure(available);
-    }
-    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
-    {
-        if (CanSkipArrange(bounds))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            Bounds = default;
-            Clip = default;
-            CompleteArrange(bounds);
-            return;
-        }
-
-        UiContentControlGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
-        Bounds = _state.Bounds;
-        Clip = _state.Clip;
-        CompleteArrange(bounds);
-    }
 }
 
 internal class Button : ContentControl, IUiRoutedEventSink
@@ -1263,47 +1065,6 @@ internal class TextBlock : UiElement
         }
 
         return base.TryApplyTypedProperty(key, value);
-    }
-
-    internal override void MeasureStage(UiSize available)
-    {
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        UiTextBlockGenerated.Measure(ref _state, new(available, LayoutScale));
-        DesiredSize = RequestedSize(_state.Layout.DesiredSize);
-        CompleteMeasure(available);
-    }
-
-    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
-    {
-        if (CanSkipArrange(bounds))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            Bounds = default;
-            Clip = default;
-            UiTextBlockGenerated.Arrange(ref _state, new(default, default));
-            CompleteArrange(bounds);
-            return;
-        }
-
-        Bounds = bounds;
-        Clip = bounds;
-        UiTextBlockGenerated.Arrange(ref _state, new(bounds, bounds, null, requests));
-        CompleteArrange(bounds);
     }
 
     internal override bool TryGetTextRun(out UiTextRun run)
@@ -1571,48 +1332,5 @@ internal class ScrollViewer : ContentControl
         {
             InvalidateChanged(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
         }
-    }
-
-    internal override void MeasureStage(UiSize available)
-    {
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            DesiredSize = default;
-            _state.DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        UiScrollViewerGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
-        DesiredSize = RequestedSize(_state.DesiredSize);
-        CompleteMeasure(available);
-    }
-
-    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
-    {
-        if (CanSkipArrange(bounds))
-        {
-            return;
-        }
-
-        if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
-        {
-            Bounds = default;
-            Clip = default;
-            _state.Bounds = default;
-            _state.Clip = default;
-            CompleteArrange(bounds);
-            return;
-        }
-
-        UiScrollViewerGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
-        Bounds = _state.Bounds;
-        Clip = _state.Clip;
-        CompleteArrange(bounds);
     }
 }

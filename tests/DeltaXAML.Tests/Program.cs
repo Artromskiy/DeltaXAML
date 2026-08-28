@@ -259,6 +259,7 @@ internal static partial class Program
         FrameContractAndBatchedMutations();
         ParticipationBoundary();
         RuntimeLayoutQueuesAreNonRecursive();
+        DescriptorLayoutDispatch();
     }
 
     private static void PropertyInvalidation()
@@ -1130,5 +1131,39 @@ internal static partial class Program
 
         leaf.Invalidate(UiDirtyFlags.Visual);
         Assert.True((root.DirtyFlags & UiDirtyFlags.Visual) != 0, "deep invalidation reaches the root without recursive propagation");
+    }
+
+    private static void DescriptorLayoutDispatch()
+    {
+        var roots = new UiElement[]
+        {
+            new Panel(),
+            new StackPanel(),
+            new Border { Padding = new(2, 2, 2, 2) },
+            new Grid(),
+            new ContentControl(),
+            new Button(),
+            new ItemsControl(),
+            new ScrollViewer(),
+        };
+
+        foreach (var root in roots)
+        {
+            root.Width = 100;
+            root.Height = 40;
+            if (root is not ItemsControl)
+            {
+                root.Add(new TextBlock { Text = "layout" });
+            }
+
+            var runtime = new UiRuntime(root);
+            runtime.Layout(new(100, 40), 1);
+            Assert.Equal(new UiRect(0, 0, 100, 40), root.Bounds, $"descriptor layout bounds for {root.TypeName}");
+        }
+
+        var text = new TextBlock { Text = "typed" };
+        var textRuntime = new UiRuntime(text);
+        textRuntime.Layout(new(100, 40), 1);
+        Assert.True(text.DesiredSize.Width > 0 && text.DesiredSize.Height > 0, "text descriptor dispatch produces desired size");
     }
 }
