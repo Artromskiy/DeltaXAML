@@ -187,12 +187,12 @@ internal static class UiDescriptorCatalog
                 var wasPressed = toggle.InputState.IsPressed;
                 var clicked = UiButtonGenerated.Process(ref toggle.InputState, in routedEvent);
                 var toggled = UiToggleButtonGenerated.Process(ref toggle.State, in routedEvent);
-                toggle.ApplyInputResult(wasPressed, clicked, toggled);
+                ApplyButtonInputResult(toggle, wasPressed, clicked, toggled);
                 break;
             case Button button:
                 var buttonWasPressed = button.InputState.IsPressed;
                 var buttonClicked = UiButtonGenerated.Process(ref button.InputState, in routedEvent);
-                button.ApplyInputResult(buttonWasPressed, buttonClicked, false);
+                ApplyButtonInputResult(button, buttonWasPressed, buttonClicked, false);
                 break;
             case ScrollViewer scroll when routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Wheel:
                 if (UiScrollViewerGenerated.TryScrollBy(ref scroll.State, 0, -routedEvent.WheelDelta))
@@ -201,6 +201,19 @@ internal static class UiDescriptorCatalog
                 }
 
                 break;
+        }
+    }
+
+    private static void ApplyButtonInputResult(Button button, bool wasPressed, bool clicked, bool toggled)
+    {
+        if (wasPressed != button.InputState.IsPressed || toggled)
+        {
+            button.InvalidateChanged(UiDirtyMask.Visual);
+        }
+
+        if (clicked)
+        {
+            button.RaiseClick();
         }
     }
 

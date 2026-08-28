@@ -1257,6 +1257,7 @@ internal class Button : ContentControl
     public override string TypeName => "Button";
     public Button() { Focusable = true; AutomationRole = UiAutomationRole.Button; }
     public event EventHandler? Click;
+    internal void RaiseClick() => Click?.Invoke(this, EventArgs.Empty);
     public override void SetPressed(bool value)
     {
         if (_state.IsPressed != value)
@@ -1266,18 +1267,6 @@ internal class Button : ContentControl
         }
     }
 
-    internal void ApplyInputResult(bool wasPressed, bool clicked, bool toggled)
-    {
-        if (wasPressed != _state.IsPressed || toggled)
-        {
-            InvalidateChanged(UiDirtyFlags.Visual);
-        }
-
-        if (clicked)
-        {
-            Click?.Invoke(this, EventArgs.Empty);
-        }
-    }
     protected override string GetAutomationValueText() => Content is TextBlock t ? t.Text : string.Empty;
 }
 
