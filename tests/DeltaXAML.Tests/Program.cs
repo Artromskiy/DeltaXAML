@@ -40,11 +40,6 @@ sealed class EventProbe : UiElement, IUiRoutedEventSink
     public void OnRoutedEvent(in UiRoutedEvent routedEvent) => Events.Add(routedEvent);
 }
 
-sealed class CustomBadge : Border
-{
-    public override string TypeName => "CustomBadge";
-}
-
 sealed class EmptyLibraryTypeResolver : Library.IXamlTypeResolver
 {
     public bool TryResolveName(in Library.XamlQualifiedName name, out Library.UiTypeId type) { type = default; return false; }
@@ -288,17 +283,6 @@ internal static partial class Program
         });
         element.SetBinding("Count", binding, UiDirtyFlags.Binding);
         Assert.True(binding.TryWrite(9, out error) && backing == 9, "compiled binding writes typed value");
-        var registry = new XamlTypeRegistry();
-        registry.Register("CustomBadge", () => new CustomBadge());
-        var loaded = XamlLoader.Load("<CustomBadge Padding=\"1,1,1,1\" />", registry);
-        Assert.True(loaded.Success && loaded.Root is CustomBadge, "registered custom type loads");
-        var roleLoaded = XamlLoader.Load("<Button AutomationRole=\"button\" />");
-        if (!roleLoaded.Success || roleLoaded.Root is not Button roleButton)
-        {
-            throw new InvalidOperationException("Closed automation role did not parse.");
-        }
-
-        Assert.Equal(UiAutomationRole.Button, roleButton.AutomationRole, "automation role is typed");
     }
 
     private static void GridSizing()

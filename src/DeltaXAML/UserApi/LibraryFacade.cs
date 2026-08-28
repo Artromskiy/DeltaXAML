@@ -684,7 +684,7 @@ public sealed class XamlLoader : IXamlLoader
             return new(null, contextDiagnostics.ToArray());
         }
 
-        var retained = Retained.XamlLoader.LoadForAdapter(
+        var retained = Retained.XamlDialectParser.ParseForAdapter(
             source,
             (namespaceUri, localName) => CreateCustomElement(namespaceUri, localName, typeResolver, views),
             resources);
@@ -772,7 +772,7 @@ public sealed class XamlLoader : IXamlLoader
                         continue;
                     }
 
-                    if (!Retained.XamlLoader.TryParseResourceReference(reader.Value, out var resourceKey))
+                    if (!Retained.XamlDialectParser.TryParseResourceReference(reader.Value, out var resourceKey))
                     {
                         continue;
                     }

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Xml;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
@@ -6,33 +5,30 @@ namespace DeltaXAML.Internal;
 
 internal readonly record struct XamlDiagnostic(string Code, string Message, int Line, int Column);
 internal sealed record XamlLoadResult(UiElement? Root, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Root is not null && Diagnostics.Count == 0; }
-internal sealed class XamlTypeRegistry
+/// <summary>Cold dialect parser used by the explicit tooling/library loader.</summary>
+/// <remarks>Generated artifacts bypass this parser and construct the same retained tree directly.</remarks>
+internal static class XamlDialectParser
 {
-    private readonly Dictionary<string, Func<UiElement>> _factories = new(StringComparer.Ordinal);
-    public void Register(string name, Func<UiElement> factory)
+    internal static XamlLoadResult ParseForAdapter(string source, Func<string, string, UiElement?>? factory, UiResourceStore? resources)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(factory);
-        _factories[name] = factory;
-    }
-    internal bool TryCreate(string name, [NotNullWhen(true)] out UiElement? element)
-    {
-        if (_factories.TryGetValue(name, out var factory)) { element = factory(); return true; }
-        element = null; return false;
-    }
-}
-internal static class XamlLoader
-{
-    public static XamlLoadResult Load(string source) => Load(source, null, null, null);
-    public static XamlLoadResult Load(string source, XamlTypeRegistry? registry) => Load(source, registry, null, null);
-    internal static XamlLoadResult LoadForAdapter(string source, Func<string, string, UiElement?>? factory, UiResourceStore? resources) => Load(source, null, resources, factory);
-    private static XamlLoadResult Load(string source, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory) { ArgumentNullException.ThrowIfNull(source); var d = new List<XamlDiagnostic>(); try { using var r = XmlReader.Create(new StringReader(source), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, IgnoreComments = true }); r.MoveToContent(); return new(Read(r, d, registry, resources, factory), d); } catch (XmlException e) { d.Add(new("XAML001", e.Message, e.LineNumber, e.LinePosition)); return new(null, d); } }
-    private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
-    {
-        var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => UiPanelGenerated.Create(), "StackPanel" => UiStackPanelGenerated.Create(), "ItemsControl" => UiItemsControlGenerated.Create(), "Border" => UiBorderGenerated.Create(), "Grid" => UiGridGenerated.Create(), "ContentControl" => UiContentControlGenerated.Create(), "Button" => UiButtonGenerated.Create(), "ToggleButton" => UiToggleButtonGenerated.Create(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => UiTextBoxGenerated.Create(), "NumericEditor" => UiNumericEditorGenerated.Create(), "ScrollViewer" => UiScrollViewerGenerated.Create(), _ => null }; if (e is null && registry is not null)
+        ArgumentNullException.ThrowIfNull(source);
+        var diagnostics = new List<XamlDiagnostic>();
+        try
         {
-            registry.TryCreate(r.LocalName, out e);
+            using var reader = XmlReader.Create(new StringReader(source), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, IgnoreComments = true });
+            reader.MoveToContent();
+            return new(Read(reader, diagnostics, resources, factory), diagnostics);
         }
+        catch (XmlException exception)
+        {
+            diagnostics.Add(new("XAML001", exception.Message, exception.LineNumber, exception.LinePosition));
+            return new(null, diagnostics);
+        }
+    }
+
+    private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
+    {
+        var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => UiPanelGenerated.Create(), "StackPanel" => UiStackPanelGenerated.Create(), "ItemsControl" => UiItemsControlGenerated.Create(), "Border" => UiBorderGenerated.Create(), "Grid" => UiGridGenerated.Create(), "ContentControl" => UiContentControlGenerated.Create(), "Button" => UiButtonGenerated.Create(), "ToggleButton" => UiToggleButtonGenerated.Create(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => UiTextBoxGenerated.Create(), "NumericEditor" => UiNumericEditorGenerated.Create(), "ScrollViewer" => UiScrollViewerGenerated.Create(), _ => null };
         if (e is null && factory is not null)
         {
             e = factory(r.NamespaceURI, r.LocalName);
@@ -51,7 +47,7 @@ internal static class XamlLoader
         {
             if (r.NodeType == XmlNodeType.Element)
             {
-                var child = Read(r, d, registry, resources, factory); if (child is not null && e is IUiPanel p)
+                var child = Read(r, d, resources, factory); if (child is not null && e is IUiPanel p)
                 {
                     p.Add(child);
                 }
