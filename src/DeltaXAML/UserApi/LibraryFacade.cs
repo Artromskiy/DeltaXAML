@@ -382,6 +382,12 @@ public abstract class UiElement
         _retained.SetStyle(propertyName, ToRetainedValue(value), PropertyInvalidation(propertyName));
     }
 
+    internal void ApplyStyleValue(IUiProperty property, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        ApplyStyleValue(property.Name, value);
+    }
+
     internal void ApplyStyleResource(string propertyName, UiResourceCatalog resources, string resourceKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
