@@ -54,7 +54,8 @@ internal static class UiBindingStage
         UiNodeStore nodes,
         UiElement root,
         List<UiNodeId> traversal,
-        List<UiNodeId> childOrder)
+        List<UiNodeId> childOrder,
+        bool force = false)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
@@ -73,6 +74,11 @@ internal static class UiBindingStage
                 continue;
             }
 
+            if (!force && !element.NeedsBindingStage)
+            {
+                continue;
+            }
+
             element.EnableBindingStage();
             element.ApplyBindingStage();
             element.CompleteBindingStage();
@@ -82,7 +88,10 @@ internal static class UiBindingStage
             }
             for (var i = childOrder.Count - 1; i >= 0; i--)
             {
-                traversal.Add(childOrder[i]);
+                if (force || (nodes.TryGetNode(childOrder[i], out var child) && child.Element is { } childElement && childElement.NeedsBindingStage))
+                {
+                    traversal.Add(childOrder[i]);
+                }
             }
         }
     }

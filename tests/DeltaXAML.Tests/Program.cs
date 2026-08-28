@@ -250,6 +250,7 @@ internal static partial class Program
         EditorShellLibrarySlice();
         HandlesCompiledBindingsAndCustomTypes();
         RuntimeStagesAreOrdered();
+        BindingStageSkipsCleanSubtrees();
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
         ResourceDependencyInvalidation();
@@ -797,6 +798,37 @@ internal static partial class Program
         document.Layout(new Delta.Maths.float2(100, 20), 1);
         Assert.Equal("after", text.Text, "binding stage applies queued source changes before measure");
         Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Binding) == 0, "binding stage clears its transient dirty flag");
+    }
+
+    private static void BindingStageSkipsCleanSubtrees()
+    {
+        var firstModel = new BindingModel { Name = "first" };
+        var secondModel = new BindingModel { Name = "second" };
+        var firstReads = 0;
+        var secondReads = 0;
+        var root = new Panel();
+        var first = new TextBlock();
+        var second = new TextBlock();
+        root.Add(first);
+        root.Add(second);
+        using var firstBinding = new Library.UiCompiledBinding<BindingModel, string>(firstModel, model => { firstReads++; return model.Name; });
+        using var secondBinding = new Library.UiCompiledBinding<BindingModel, string>(secondModel, model => { secondReads++; return model.Name; });
+        first.AttachExternalBinding("Text", firstBinding);
+        second.AttachExternalBinding("Text", secondBinding);
+        var runtime = new UiRuntime(root);
+
+        runtime.Layout(new(100, 40), 1);
+        var firstInitialReads = firstReads;
+        var secondInitialReads = secondReads;
+        runtime.Layout(new(100, 40), 1);
+        Assert.Equal(firstInitialReads, firstReads, "unchanged binding stage does not reread the first source");
+        Assert.Equal(secondInitialReads, secondReads, "unchanged binding stage does not reread the second source");
+
+        firstModel.Name = "updated";
+        runtime.Layout(new(100, 40), 1);
+        Assert.True(firstReads > firstInitialReads, "dirty binding branch refreshes its source");
+        Assert.Equal(secondInitialReads, secondReads, "dirty binding branch does not refresh a clean sibling");
+        Assert.Equal("updated", first.Text, "dirty binding value is applied before layout");
     }
 
     private static void EditorShellLibrarySlice()

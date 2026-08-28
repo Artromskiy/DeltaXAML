@@ -20,6 +20,7 @@ internal sealed class UiRuntime
     private readonly List<UiArrangeRequest> _arrangeQueue = new();
     private float _appliedScale = float.NaN;
     private uint _scaledTreeVersion;
+    private uint _bindingTreeVersion;
 
     public UiRuntime(IUiElement root)
     {
@@ -28,7 +29,8 @@ internal sealed class UiRuntime
         Root = _retainedRoot;
         _nodes = new(_retainedRoot);
         _input = new(this);
-        UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder);
+        UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder, force: true);
+        _bindingTreeVersion = _retainedRoot.TreeVersion;
     }
 
     public IUiElement Root { get; }
@@ -65,7 +67,9 @@ internal sealed class UiRuntime
         UiMutationStage.Run(_nodes, _retainedRoot, _mutations, out var applied, out var rejected);
         AppliedMutationCount = applied;
         RejectedMutationCount = rejected;
-        UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder);
+        var bindingTreeChanged = _bindingTreeVersion != _retainedRoot.TreeVersion;
+        UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder, bindingTreeChanged);
+        _bindingTreeVersion = _retainedRoot.TreeVersion;
         if (theme is not null && publicRoot is not null)
         {
             UiStyleStage.Run(theme, publicRoot);
