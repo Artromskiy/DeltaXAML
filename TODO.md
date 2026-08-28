@@ -85,9 +85,11 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   `UiNodeStore` also retains the compact runtime descriptor index. Template
   expansion may create a visual subtree but not a second logical document or
   per-frame translated tree.
-- [ ] Add precise property invalidation and dirty-subtree processing. Layout
-  must not invoke bindings, perform reflection, allocate child collections or
-  reshape unchanged text.
+- [x] Add precise property invalidation and dirty-subtree processing. Text
+  identity now changes only for text/font/foreground/DPI changes; visual-only
+  updates preserve it, child text invalidation reaches the document output,
+  and layout skips clean binding/layout subtrees without per-node collections
+  or unchanged text reshaping.
 - [ ] Complete the screen-space game HUD flow: host input -> `UiDocument` ->
   borrowed `UiDisplayList` -> DeltaRender graph target. Keep off-screen/world-
   space UI a consumer-side target choice, not a second DeltaXAML runtime.
