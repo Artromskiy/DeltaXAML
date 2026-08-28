@@ -161,10 +161,18 @@ internal static class UiScaleStage
 
 internal static class UiStyleStage
 {
-    internal static void Run(Delta.XAML.UiTheme? theme, Delta.XAML.UiElement root)
+    internal static void Run(
+        Delta.XAML.UiTheme? theme,
+        UiNodeStore nodes,
+        Delta.XAML.UiElement root,
+        List<UiNodeId> traversal,
+        List<UiNodeId> childOrder)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
-        theme?.RefreshStates(root);
+        ArgumentNullException.ThrowIfNull(traversal);
+        ArgumentNullException.ThrowIfNull(childOrder);
+        theme?.RefreshStates(nodes, root, traversal, childOrder);
     }
 }
 

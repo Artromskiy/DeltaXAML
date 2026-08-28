@@ -109,7 +109,7 @@ internal sealed class UiRuntime
         _bindingTreeVersion = _retainedRoot.TreeVersion;
         if (theme is not null && publicRoot is not null)
         {
-            UiStyleStage.Run(theme, publicRoot);
+            UiStyleStage.Run(theme, _nodes, publicRoot, _stageTraversal, _childOrder);
         }
 
         if (!_appliedScale.Equals(dpiScale) || _scaledTreeVersion != _retainedRoot.TreeVersion)

@@ -662,9 +662,16 @@ public sealed class UiTheme
         }
     }
 
-    internal void RefreshStates(UiElement root)
+    internal void RefreshStates(
+        Retained.UiNodeStore nodes,
+        UiElement root,
+        List<Retained.UiNodeId> traversal,
+        List<Retained.UiNodeId> childOrder)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(traversal);
+        ArgumentNullException.ThrowIfNull(childOrder);
         LastRefreshCount = 0;
         var fullRefresh = _templateGeneration != _appliedTemplateGeneration;
         for (var styleIndex = 0; styleIndex < _changedStyles.Count; styleIndex++)
@@ -693,13 +700,19 @@ public sealed class UiTheme
             return;
         }
 
-        _stateTraversal.Clear();
-        _stateTraversal.Add(root);
-        while (_stateTraversal.Count != 0)
+        traversal.Clear();
+        traversal.Add(new(root.RetainedElement.Id.Value, root.RetainedElement.Generation));
+        while (traversal.Count != 0)
         {
-            var last = _stateTraversal.Count - 1;
-            var element = _stateTraversal[last];
-            _stateTraversal.RemoveAt(last);
+            var last = traversal.Count - 1;
+            var id = traversal[last];
+            traversal.RemoveAt(last);
+            if (!nodes.TryGetNode(id, out var node) || node.Element is not { } retained)
+            {
+                continue;
+            }
+
+            var element = root.WrapRetained(retained);
             TrackStyleDependency(element);
             if (!fullRefresh && !element.RetainedElement.IsStyleDirty)
             {
@@ -722,12 +735,17 @@ public sealed class UiTheme
             ApplyTemplate(element);
 
             element.RetainedElement.CompleteStyleStage();
-            for (var i = element.Children.Count - 1; i >= 0; i--)
+            if (!nodes.TryCopyLogicalChildren(node.Id, childOrder))
             {
-                var child = element.Children[i];
-                if (fullRefresh || child.RetainedElement.IsStyleDirty)
+                continue;
+            }
+
+            for (var i = childOrder.Count - 1; i >= 0; i--)
+            {
+                if (fullRefresh || (nodes.TryGetNode(childOrder[i], out var childNode) &&
+                    childNode.Element is { } child && child.IsStyleDirty))
                 {
-                    _stateTraversal.Add(child);
+                    traversal.Add(childOrder[i]);
                 }
             }
         }

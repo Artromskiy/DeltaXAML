@@ -130,6 +130,12 @@ public abstract class UiElement
     }
     internal RetainedElement RetainedElement => _retained;
 
+    internal UiElement WrapRetained(RetainedElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        return Wrap(element, _views);
+    }
+
     public UiElement? Parent => _retained.Parent is RetainedElement parent ? Wrap(parent, _views) : null;
     public IReadOnlyList<UiElement> Children => _childrenView;
     protected IList<UiElement> MutableChildren => _childrenEditor;

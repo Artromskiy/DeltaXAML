@@ -163,7 +163,7 @@ internal static partial class Program
         Assert.Equal(18f, styledText.FontSize, "typed style descriptor applies its value");
         Assert.Equal(new Library.UiColor(12, 34, 56), styledText.Foreground, "typed resource identity applies its value");
         styledText.RetainedElement.SetFocused(true);
-        typedTheme.RefreshStates(styledText);
+        typedTheme.Apply(styledText);
         Assert.Equal(20f, styledText.FontSize, "typed visual-state descriptor applies its value");
 
         var compiledStyleId = new Library.UiStyleId(new Guid("E2D9B7AB-6F54-4FE4-8A3F-5F2F1F5E4701"));
