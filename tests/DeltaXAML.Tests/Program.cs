@@ -254,6 +254,13 @@ internal static partial class Program
         var defaultHandle = default(Library.UiPropertyHandle);
         Assert.True(!defaultHandle.IsValid && defaultHandle.Name.Length == 0, "default public handle has a safe empty name");
         var element = new UiElement();
+        element.DirtyFlags = UiDirtyFlags.None;
+        var firstDirtyVersion = element.OutputVersion;
+        element.Invalidate(UiDirtyFlags.Visual);
+        var coalescedDirtyVersion = element.OutputVersion;
+        element.Invalidate(UiDirtyFlags.Visual);
+        Assert.Equal(coalescedDirtyVersion, element.OutputVersion, "repeated visual invalidation coalesces before extraction");
+        Assert.True(coalescedDirtyVersion > firstDirtyVersion, "first visual invalidation advances the output version");
         element.Measure(new(100, 100));
         element.Arrange(new(0, 0, 100, 100));
         element.SetLocal("Width", 42, UiDirtyFlags.Measure | UiDirtyFlags.Visual);

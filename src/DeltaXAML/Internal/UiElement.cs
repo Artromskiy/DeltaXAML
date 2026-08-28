@@ -181,7 +181,7 @@ internal sealed class UiPropertyStore : IUiPropertyStore
         }
 
         var invalidation = effective?.Invalidation ?? previous?.Invalidation ?? UiDirtyFlags.Visual;
-        _owner.Invalidate(invalidation);
+        _owner.InvalidateChanged(invalidation);
         if (effective is null)
         {
             _values.Remove(name);
@@ -336,9 +336,9 @@ internal class UiElement : IUiElement, IUiPropertyStore
         }
 
         _children.Add(owned);
-        Invalidate(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
     }
-    public bool Remove(IUiElement child) { if (!_children.Remove(child)) { return false; } if (child is UiElement owned) { owned.Parent = null; } Invalidate(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); return true; }
+    public bool Remove(IUiElement child) { if (!_children.Remove(child)) { return false; } if (child is UiElement owned) { owned.Parent = null; } InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); return true; }
     public void ClearChildren()
     {
         for (var i = _children.Count - 1; i >= 0; i--)
@@ -348,40 +348,73 @@ internal class UiElement : IUiElement, IUiPropertyStore
     }
     public void Invalidate(UiDirtyFlags flags)
     {
-        DirtyFlags |= flags;
-        if (flags != UiDirtyFlags.None)
+        InvalidateCore(flags, false);
+    }
+
+    internal void InvalidateChanged(UiDirtyFlags flags)
+    {
+        InvalidateCore(flags, true);
+    }
+
+    private void InvalidateCore(UiDirtyFlags flags, bool changed)
+    {
+        if (flags == UiDirtyFlags.None)
         {
-            _outputVersion++;
+            return;
         }
 
-        if ((flags & UiDirtyFlags.Tree) != 0)
+        var newFlags = flags & ~DirtyFlags;
+        DirtyFlags |= flags;
+        if (!changed && newFlags == UiDirtyFlags.None)
+        {
+            return;
+        }
+
+        var versionFlags = changed ? flags : newFlags;
+        _outputVersion++;
+        if ((versionFlags & UiDirtyFlags.Tree) != 0)
         {
             _treeVersion++;
         }
 
-        if ((flags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Style | UiDirtyFlags.Resource)) != 0)
+        if ((versionFlags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Style | UiDirtyFlags.Resource)) != 0)
         {
             _layoutVersion++;
         }
 
-        if ((flags & (UiDirtyFlags.Binding | UiDirtyFlags.Visual)) != 0) { _textVersion++; _layoutVersion++; }
-        if ((flags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange)) != 0)
+        if ((versionFlags & (UiDirtyFlags.Binding | UiDirtyFlags.Visual)) != 0)
         {
-            (Parent as UiElement)?.Invalidate(UiDirtyFlags.Measure);
+            _textVersion++;
+            _layoutVersion++;
         }
-        else if ((flags & UiDirtyFlags.Tree) != 0)
+
+        var parentFlags = UiDirtyFlags.None;
+        if ((versionFlags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Style | UiDirtyFlags.Resource)) != 0)
         {
-            (Parent as UiElement)?.Invalidate(UiDirtyFlags.Tree);
+            parentFlags |= UiDirtyFlags.Measure;
         }
-        else if ((flags & UiDirtyFlags.Visual) != 0)
+
+        if ((versionFlags & UiDirtyFlags.Tree) != 0)
         {
-            (Parent as UiElement)?.Invalidate(UiDirtyFlags.Visual);
+            parentFlags |= UiDirtyFlags.Tree;
         }
+
+        if ((versionFlags & UiDirtyFlags.Visual) != 0)
+        {
+            parentFlags |= UiDirtyFlags.Visual;
+        }
+
+        if ((versionFlags & UiDirtyFlags.HitTest) != 0)
+        {
+            parentFlags |= UiDirtyFlags.HitTest;
+        }
+
+        (Parent as UiElement)?.InvalidateCore(parentFlags, changed);
     }
-    public void SetHovered(bool value) { if (IsHovered != value) { IsHovered = value; Invalidate(UiDirtyFlags.Visual); } }
-    public virtual void SetPressed(bool value) { if (IsPressed != value) { Invalidate(UiDirtyFlags.Visual); } }
-    public void SetFocused(bool value) { if (IsFocused != value) { IsFocused = value; Invalidate(UiDirtyFlags.Visual); } }
-    public void SetInvalid(bool value) { if (IsInvalid != value) { IsInvalid = value; Invalidate(UiDirtyFlags.Visual); } }
+    public void SetHovered(bool value) { if (IsHovered != value) { IsHovered = value; InvalidateChanged(UiDirtyFlags.Visual); } }
+    public virtual void SetPressed(bool value) { if (IsPressed != value) { InvalidateChanged(UiDirtyFlags.Visual); } }
+    public void SetFocused(bool value) { if (IsFocused != value) { IsFocused = value; InvalidateChanged(UiDirtyFlags.Visual); } }
+    public void SetInvalid(bool value) { if (IsInvalid != value) { IsInvalid = value; InvalidateChanged(UiDirtyFlags.Visual); } }
     internal void SetCustomVisual(Guid visualType, Guid resource, UiColor color)
     {
         if (visualType == Guid.Empty)
@@ -397,7 +430,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
         _state.CustomVisualType = visualType;
         _state.CustomVisualResource = resource;
         _state.CustomVisualColor = color;
-        Invalidate(UiDirtyFlags.Visual);
+        InvalidateChanged(UiDirtyFlags.Visual);
     }
 
     internal void ClearCustomVisual()
@@ -410,7 +443,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
         _state.CustomVisualType = Guid.Empty;
         _state.CustomVisualResource = Guid.Empty;
         _state.CustomVisualColor = default;
-        Invalidate(UiDirtyFlags.Visual);
+        InvalidateChanged(UiDirtyFlags.Visual);
     }
     public void SetParticipation(Delta.XAML.UiParticipation value)
     {
@@ -420,7 +453,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
         }
 
         Participation = value;
-        Invalidate(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
+        InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
     }
     public virtual void Measure(UiSize available)
     {
@@ -1061,7 +1094,7 @@ internal class Button : ContentControl, IUiRoutedEventSink
         if (_state.IsPressed != value)
         {
             _state.IsPressed = value;
-            Invalidate(UiDirtyFlags.Visual);
+            InvalidateChanged(UiDirtyFlags.Visual);
         }
     }
 
@@ -1114,7 +1147,7 @@ internal class TextBlock : UiElement
 
     public string Text { get => _state.Text; set { ArgumentNullException.ThrowIfNull(value); SetLocalProperty("Text", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
     public string FontKey { get => _state.Visual.FontKey; set { ArgumentNullException.ThrowIfNull(value); SetLocalProperty("FontKey", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual); } }
-    public string GlyphRunKey { get => _state.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.GlyphRunKey == value) { return; } _state.Visual.GlyphRunKey = value; Invalidate(UiDirtyFlags.Visual); } }
+    public string GlyphRunKey { get => _state.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.GlyphRunKey == value) { return; } _state.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual); } }
     public float FontSize { get => _state.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual); }
     public UiColor Foreground { get => _state.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual); }
 
@@ -1223,7 +1256,7 @@ internal class TextBox : TextBlock
         SetInvalid(false);
         if (bound && changed)
         {
-            Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         }
 
         NotifyBindingTargetChanged("Text", Text);
@@ -1267,8 +1300,8 @@ internal class TextBox : TextBlock
     }
     public void Cut() { if (!HasSelection()) { return; } if (Clipboard is not null) { Clipboard.SetText(GetSelection()); } DeleteRange(_state.SelectionStart, _state.SelectionLength); }
     public bool Paste() { if (Clipboard?.ReadText() is not { Length: > 0 } text) { return false; } ReplaceSelection(text); return true; }
-    public bool Undo() { if (_undo.Count == 0) { return false; } _redo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_undo[^1], bound); _undo.RemoveAt(_undo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
-    public bool Redo() { if (_redo.Count == 0) { return false; } _undo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_redo[^1], bound); _redo.RemoveAt(_redo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
+    public bool Undo() { if (_undo.Count == 0) { return false; } _redo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_undo[^1], bound); _undo.RemoveAt(_undo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
+    public bool Redo() { if (_redo.Count == 0) { return false; } _undo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_redo[^1], bound); _redo.RemoveAt(_redo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
     protected void ReplaceSelection(string inserted)
     {
         ArgumentNullException.ThrowIfNull(inserted);
@@ -1286,14 +1319,14 @@ internal class TextBox : TextBlock
         SetInvalid(false);
         if (bound && changed)
         {
-            Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         }
 
         NotifyBindingTargetChanged("Text", Text);
         TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
     }
     private void PushUndo() { _undo.Add(Text); _redo.Clear(); }
-    private void DeleteRange(int start, int length, bool record = true) { if (record) { PushUndo(); } var bound = HasBinding("Text"); var changed = SetTextValue(Text.Remove(start, length), bound); _state.CaretIndex = start; _state.SelectionStart = start; _state.SelectionLength = 0; if (bound && changed) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); }
+    private void DeleteRange(int start, int length, bool record = true) { if (record) { PushUndo(); } var bound = HasBinding("Text"); var changed = SetTextValue(Text.Remove(start, length), bound); _state.CaretIndex = start; _state.SelectionStart = start; _state.SelectionLength = 0; if (bound && changed) { InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); }
     private bool SetTextValue(string text, bool bound)
     {
         if (bound)
@@ -1437,7 +1470,7 @@ internal class ScrollViewer : ContentControl
     {
         if (UiScrollViewerGenerated.TryScrollBy(ref _state, x, y))
         {
-            Invalidate(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            InvalidateChanged(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
         }
     }
 
