@@ -1,6 +1,6 @@
 namespace DeltaXAML.Internal;
 
-internal sealed class UiInputRouter : IUiInputRouter
+internal sealed class UiInputRouter
 {
     private readonly UiRuntime _runtime;
     private readonly List<UiElement> _focusable = new();

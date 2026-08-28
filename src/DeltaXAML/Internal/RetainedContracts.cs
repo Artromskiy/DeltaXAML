@@ -114,12 +114,6 @@ internal readonly record struct UiRoutedEvent(
     UiPointerEventKind Kind,
     UiPoint Position,
     float WheelDelta = 0);
-internal interface IUiInputRouter
-{
-    UiElementId? Focused { get; }
-    UiElementId? Captured { get; }
-    void RoutePointer(in UiPointerEvent input); void RouteKey(in UiKeyEvent input); void RouteText(in UiTextInput input); void RouteIme(in UiImeComposition input); void Focus(UiElementId? element);
-}
 internal interface IUiClipboard
 {
     string? ReadText();

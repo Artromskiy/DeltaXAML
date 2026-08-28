@@ -37,7 +37,7 @@ internal sealed class UiRuntime
     }
 
     public UiElement Root { get; }
-    public IUiInputRouter Input => _input;
+    public UiInputRouter Input => _input;
     public int AppliedMutationCount { get; private set; }
     public int RejectedMutationCount { get; private set; }
     public int PendingMutationCount => _mutations.Count;
