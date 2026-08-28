@@ -912,6 +912,23 @@ internal static partial class Program
                 new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
                 out var first),
             "text fixture emits an initial run");
+        root.CompleteVisualExtraction();
+        text.CompleteVisualExtraction();
+        root.DirtyFlags = UiDirtyFlags.None;
+        text.DirtyFlags = UiDirtyFlags.None;
+        var rootOutputVersion = root.OutputVersion;
+        text.InvalidateChanged(UiDirtyFlags.Text);
+        Assert.True(root.OutputVersion > rootOutputVersion, "child text invalidation reaches the document output");
+        root.CompleteVisualExtraction();
+        text.CompleteVisualExtraction();
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                new UiRuntimeTypeIndex(1),
+                text,
+                new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
+                out var textInvalidated),
+            "text invalidation keeps the run available");
+        Assert.True(textInvalidated.Version != first.Version, "text invalidation advances text identity");
 
         text.Background = new UiColor(1, 2, 3);
         Assert.True(
@@ -921,7 +938,7 @@ internal static partial class Program
                 new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
                 out var background),
             "background update keeps the text run available");
-        Assert.Equal(first.Version, background.Version, "background-only updates preserve text identity");
+        Assert.Equal(textInvalidated.Version, background.Version, "background-only updates preserve text identity");
 
         root.Background = new UiColor(4, 5, 6);
         Assert.True(
@@ -931,7 +948,7 @@ internal static partial class Program
                 new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
                 out var parentVisual),
             "parent visual update keeps the child text run available");
-        Assert.Equal(first.Version, parentVisual.Version, "parent visual updates preserve child text identity");
+        Assert.Equal(textInvalidated.Version, parentVisual.Version, "parent visual updates preserve child text identity");
 
         text.Foreground = new UiColor(10, 11, 12);
         Assert.True(
@@ -941,7 +958,7 @@ internal static partial class Program
                 new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
                 out var foreground),
             "foreground update keeps the text run available");
-        Assert.True(foreground.Version != first.Version, "foreground updates invalidate text identity");
+        Assert.True(foreground.Version != textInvalidated.Version, "foreground updates invalidate text identity");
     }
 
     private static void PublicDisplayListWarmFrameHasNoAllocations()

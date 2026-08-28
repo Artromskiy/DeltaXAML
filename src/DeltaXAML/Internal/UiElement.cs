@@ -541,6 +541,11 @@ internal class UiElement : IUiElement, IUiPropertyStore
                 parentFlags |= UiDirtyFlags.Visual;
             }
 
+            if ((versionedFlags & UiDirtyFlags.Text) != 0)
+            {
+                parentFlags |= UiDirtyFlags.Visual;
+            }
+
             if ((versionedFlags & UiDirtyFlags.HitTest) != 0)
             {
                 parentFlags |= UiDirtyFlags.HitTest;
