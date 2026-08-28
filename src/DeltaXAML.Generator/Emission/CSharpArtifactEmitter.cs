@@ -448,21 +448,14 @@ internal static class CSharpArtifactEmitter
         writer.AppendLine("    {");
         for (var i = 0; i < bindingSites.Count; i++)
         {
-            var site = bindingSites[i];
-            if (!TryTypedPropertyExpression(site.Member.Name, out var property))
-            {
-                throw new InvalidOperationException($"Property '{site.Member.Name}' has no typed binding target.");
-            }
-
-            writer.Append("        _bindingTarget").Append(i).Append(".QueueCompiledBindingRefresh(")
-                .Append(property).Append(", _binding").Append(i).AppendLine(");");
+            EmitBindingQueue(writer, i, bindingSites[i], "        ");
         }
 
         writer.AppendLine("    }");
         writer.AppendLine();
         if (bindingSites.Count != 0)
         {
-            writer.AppendLine("    private void OnContextPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs args) => RefreshBindings();");
+            EmitBindingNotificationHandler(writer, bindingSites);
             writer.AppendLine();
         }
 
@@ -739,6 +732,69 @@ internal static class CSharpArtifactEmitter
         writer.Append(", global::Delta.XAML.UiBindingMode.").Append(binding.Mode).AppendLine(", false);");
         writer.Append("        node").Append(site.NodeIndex).Append(".SetCompiledBinding(")
             .Append(property).Append(", _binding").Append(bindingIndex).AppendLine(", true);");
+    }
+
+    private static void EmitBindingNotificationHandler(StringBuilder writer, IReadOnlyList<BindingSite> bindingSites)
+    {
+        writer.AppendLine("    private void OnContextPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs args)");
+        writer.AppendLine("    {");
+        writer.AppendLine("        switch (args.PropertyName)");
+        writer.AppendLine("        {");
+        for (var i = 0; i < bindingSites.Count; i++)
+        {
+            var sourceName = BindingNotificationName(bindingSites[i].Definition.Path);
+            var alreadyEmitted = false;
+            for (var previous = 0; previous < i; previous++)
+            {
+                if (string.Equals(sourceName, BindingNotificationName(bindingSites[previous].Definition.Path), StringComparison.Ordinal))
+                {
+                    alreadyEmitted = true;
+                    break;
+                }
+            }
+
+            if (alreadyEmitted)
+            {
+                continue;
+            }
+
+            writer.Append("            case ").Append(Quote(sourceName)).AppendLine(":");
+            for (var siteIndex = i; siteIndex < bindingSites.Count; siteIndex++)
+            {
+                if (string.Equals(sourceName, BindingNotificationName(bindingSites[siteIndex].Definition.Path), StringComparison.Ordinal))
+                {
+                    EmitBindingQueue(writer, siteIndex, bindingSites[siteIndex], "                ");
+                }
+            }
+
+            writer.AppendLine("                break;");
+        }
+
+        writer.AppendLine("            case null:");
+        writer.AppendLine("            case \"\":");
+        writer.AppendLine("                RefreshBindings();");
+        writer.AppendLine("                break;");
+        writer.AppendLine("            default:");
+        writer.AppendLine("                break;");
+        writer.AppendLine("        }");
+        writer.AppendLine("    }");
+    }
+
+    private static void EmitBindingQueue(StringBuilder writer, int bindingIndex, BindingSite site, string indentation)
+    {
+        if (!TryTypedPropertyExpression(site.Member.Name, out var property))
+        {
+            throw new InvalidOperationException($"Property '{site.Member.Name}' has no typed binding target.");
+        }
+
+        writer.Append(indentation).Append("_bindingTarget").Append(bindingIndex).Append(".QueueCompiledBindingRefresh(")
+            .Append(property).Append(", _binding").Append(bindingIndex).AppendLine(");");
+    }
+
+    private static string BindingNotificationName(string path)
+    {
+        var separator = path.IndexOf('.', StringComparison.Ordinal);
+        return separator < 0 ? path : path[..separator];
     }
 
     private static void EmitStyles(

@@ -208,6 +208,24 @@ internal static partial class Program
         Assert.True(!bindingSource.Contains("GetProperty", StringComparison.Ordinal) && !bindingSource.Contains("Split", StringComparison.Ordinal), "typed binding artifact has no reflection or path traversal");
 
         bindingRegistry.RegisterBinding(new(
+            "Other",
+            "global::Sample.BindingModel",
+            "string",
+            "source.Other",
+            "source.Other = value"));
+        var targetedBindingPlan = XamlCompiler.Compile(
+            sourceId,
+            "<Panel><TextBlock Text=\"{Binding Name}\" /><TextBlock Text=\"{Binding Other}\" /></Panel>",
+            bindingRegistry);
+        Assert.True(targetedBindingPlan.Success, "multiple source bindings are a valid semantic plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(targetedBindingPlan, bindingRegistry, "Generated", "TargetedBindingArtifact", out var targetedBindingSource, out _), "multiple source bindings emit");
+        Assert.True(targetedBindingSource.Contains("case \"Name\":", StringComparison.Ordinal), "generated binding batch routes the Name notification");
+        Assert.True(targetedBindingSource.Contains("case \"Other\":", StringComparison.Ordinal), "generated binding batch routes the Other notification");
+        Assert.True(targetedBindingSource.Contains("case null:", StringComparison.Ordinal) && targetedBindingSource.Contains("case \"\":", StringComparison.Ordinal), "all-properties notifications refresh the complete binding batch");
+        Assert.True(targetedBindingSource.Contains("default:\n                break;", StringComparison.Ordinal), "unrelated source notifications do not refresh binding slots");
+        Assert.True(!targetedBindingSource.Contains("OnContextPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs args) => RefreshBindings();", StringComparison.Ordinal), "source notification routing is generated as a typed switch");
+
+        bindingRegistry.RegisterBinding(new(
             "DisplayName",
             "global::Sample.BindingModel",
             "string",
