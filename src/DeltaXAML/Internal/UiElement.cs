@@ -180,7 +180,13 @@ internal sealed class UiPropertyStore : IUiPropertyStore
 
             return;
         }
-        if (effective is not null && !_owner.TryApplyTypedProperty(UiPropertyKeys.Resolve(name), effective.UntypedValue))
+        while (effective is not null && !_owner.TryApplyTypedProperty(UiPropertyKeys.Resolve(name), effective.UntypedValue))
+        {
+            SetValue(slots, effective.Source, null);
+            effective = Resolve(slots);
+        }
+
+        if (Same(previous, effective))
         {
             return;
         }

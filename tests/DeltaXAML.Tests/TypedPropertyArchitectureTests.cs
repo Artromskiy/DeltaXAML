@@ -99,6 +99,12 @@ internal static partial class Program
         Assert.Equal(before, text.LayoutVersion, "rejected typed style does not invalidate layout");
         Assert.True(text.TryGet("FontSize", out var value) && value.Source == UiValueSource.Default, "rejected typed style is not published as effective");
 
+        text.SetLocal("FontSize", 20f, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        text.SetStyle("FontSize", "not-a-float", UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        text.Clear("FontSize", UiValueSource.Local);
+        Assert.Equal(14f, text.FontSize, "an invalid hidden source is discarded before fallback");
+        Assert.True(text.TryGet("FontSize", out value) && value.Source == UiValueSource.Default, "fallback skips a discarded invalid source");
+
         var numeric = new NumericEditor();
         numeric.Min = 0d;
         numeric.SetStyle("Value", -1d, UiDirtyFlags.Binding | UiDirtyFlags.Visual);
