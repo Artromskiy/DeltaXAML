@@ -1358,7 +1358,7 @@ internal class TextBox : TextBlock
         ArgumentNullException.ThrowIfNull(text);
         if (recordUndo)
         {
-            PushUndo();
+            TextBoxEditingMixin.RecordUndo(_undo, _redo, Text);
         }
 
         var bound = HasBinding("Text");
@@ -1395,7 +1395,7 @@ internal class TextBox : TextBlock
         bool CutAndConsume() { Cut(); return true; }
         bool DeleteSelectionAndConsume()
         {
-            if (!HasSelection())
+            if (!TextBoxEditingMixin.HasSelection(in _state))
             {
                 return false;
             }
@@ -1404,30 +1404,42 @@ internal class TextBox : TextBlock
             return true;
         }
     }
-    public void SelectAll() { _state.SelectionStart = 0; _state.SelectionLength = Text.Length; _state.CaretIndex = Text.Length; }
+    public void SelectAll() => TextBoxEditingMixin.SelectAll(ref _state, Text.Length);
     public void Copy()
     {
-        if (Clipboard is not null && HasSelection())
+        if (Clipboard is not null && TextBoxEditingMixin.HasSelection(in _state))
         {
-            Clipboard.SetText(GetSelection());
+            Clipboard.SetText(TextBoxEditingMixin.GetSelection(Text, in _state));
         }
     }
-    public void Cut() { if (!HasSelection()) { return; } if (Clipboard is not null) { Clipboard.SetText(GetSelection()); } DeleteRange(_state.SelectionStart, _state.SelectionLength); }
+    public void Cut() { if (!TextBoxEditingMixin.HasSelection(in _state)) { return; } if (Clipboard is not null) { Clipboard.SetText(TextBoxEditingMixin.GetSelection(Text, in _state)); } DeleteRange(_state.SelectionStart, _state.SelectionLength); }
     public bool Paste() { if (Clipboard?.ReadText() is not { Length: > 0 } text) { return false; } ReplaceSelection(text); return true; }
-    public bool Undo() { if (_undo.Count == 0) { return false; } _redo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_undo[^1], bound); _undo.RemoveAt(_undo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
-    public bool Redo() { if (_redo.Count == 0) { return false; } _undo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_redo[^1], bound); _redo.RemoveAt(_redo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
-    protected void ReplaceSelection(ReadOnlySpan<char> inserted)
+    public bool Undo()
     {
-        PushUndo();
-        if (HasSelection())
+        if (!TextBoxEditingMixin.TryUndo(ref _state, _undo, _redo, Text, out var value))
         {
-            DeleteRange(_state.SelectionStart, _state.SelectionLength, false);
+            return false;
         }
 
+        ApplyEditedText(value);
+        return true;
+    }
+
+    public bool Redo()
+    {
+        if (!TextBoxEditingMixin.TryRedo(ref _state, _undo, _redo, Text, out var value))
+        {
+            return false;
+        }
+
+        ApplyEditedText(value);
+        return true;
+    }
+    protected void ReplaceSelection(ReadOnlySpan<char> inserted)
+    {
         var bound = HasBinding("Text");
-        var changed = SetTextValue(InsertText(Text, _state.CaretIndex, inserted), bound);
-        _state.CaretIndex += inserted.Length;
-        _state.SelectionStart = _state.CaretIndex; _state.SelectionLength = 0;
+        var value = TextBoxEditingMixin.ReplaceSelection(ref _state, _undo, _redo, Text, inserted);
+        var changed = SetTextValue(value, bound);
         Diagnostic = null;
         SetInvalid(false);
         if (bound && changed)
@@ -1438,8 +1450,32 @@ internal class TextBox : TextBlock
         NotifyBindingTargetChanged("Text", Text);
         TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
     }
-    private void PushUndo() { _undo.Add(Text); _redo.Clear(); }
-    private void DeleteRange(int start, int length, bool record = true) { if (record) { PushUndo(); } var bound = HasBinding("Text"); var changed = SetTextValue(Text.Remove(start, length), bound); _state.CaretIndex = start; _state.SelectionStart = start; _state.SelectionLength = 0; if (bound && changed) { InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); }
+    private void DeleteRange(int start, int length, bool record = true)
+    {
+        var bound = HasBinding("Text");
+        var value = TextBoxEditingMixin.DeleteRange(ref _state, _undo, _redo, Text, start, length, record);
+        var changed = SetTextValue(value, bound);
+        if (bound && changed)
+        {
+            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        }
+
+        NotifyBindingTargetChanged("Text", Text);
+        TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
+    }
+
+    private void ApplyEditedText(string value)
+    {
+        var bound = HasBinding("Text");
+        var changed = SetTextValue(value, bound);
+        if (bound && changed)
+        {
+            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        }
+
+        NotifyBindingTargetChanged("Text", Text);
+        TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
+    }
     private bool SetTextValue(string text, bool bound)
     {
         if (bound)
@@ -1454,12 +1490,6 @@ internal class TextBox : TextBlock
 
         Text = text;
         return true;
-    }
-    private bool HasSelection() => _state.SelectionLength > 0;
-    private string GetSelection() => Text.Substring(_state.SelectionStart, _state.SelectionLength);
-    private static string InsertText(string value, int index, ReadOnlySpan<char> inserted)
-    {
-        return string.Concat(value.AsSpan(0, index), inserted, value.AsSpan(index));
     }
     protected override string GetAutomationValueText() => Text;
 }
