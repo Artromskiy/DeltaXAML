@@ -11,11 +11,11 @@ internal static class UiItemsControlGenerated
 
     internal static ItemsControl Create() => new();
 
-    internal static void ApplyItems(
+    internal static void ApplyItems<T>(
         ref ItemsControlState state,
-        IUiItemSource source,
-        IUiItemSource? previous,
-        IUiItemFactory factory,
+        IUiItemSource<T> source,
+        IUiItemSource<T>? previous,
+        IUiItemFactory<T> factory,
         List<UiElement> previousRealized,
         List<UiElement> nextRealized)
     {

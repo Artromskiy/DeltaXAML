@@ -1152,16 +1152,16 @@ internal sealed class ItemsControl : Panel
         }
     }
 
-    private sealed class ItemSource(IReadOnlyList<object?> values) : IUiItemSource
+    private sealed class ItemSource(IReadOnlyList<object?> values) : IUiItemSource<object?>
     {
         public int Count => values.Count;
         public object? GetValue(int index) => values[index];
-        public bool Matches(IUiItemSource previous, int index) => Equals(values[index], previous.GetValue(index));
+        public bool Matches(IUiItemSource<object?> previous, int index) => Equals(values[index], previous.GetValue(index));
     }
 
-    private sealed class ItemFactoryAdapter(Func<object?, UiElement> factory) : IUiItemFactory
+    private sealed class ItemFactoryAdapter(Func<object?, UiElement> factory) : IUiItemFactory<object?>
     {
-        public UiElement Create(IUiItemSource source, int index)
+        public UiElement Create(IUiItemSource<object?> source, int index)
         {
             var element = factory(source.GetValue(index));
             return element ?? throw new InvalidOperationException("The item factory returned a null UI element.");

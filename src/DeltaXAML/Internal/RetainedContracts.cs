@@ -138,14 +138,14 @@ internal sealed class TextChangedEventArgs(string text) : EventArgs
     public string Text { get; } = text;
 }
 
-internal interface IUiItemSource
+internal interface IUiItemSource<T>
 {
     int Count { get; }
-    object? GetValue(int index);
-    bool Matches(IUiItemSource previous, int index);
+    T GetValue(int index);
+    bool Matches(IUiItemSource<T> previous, int index);
 }
 
-internal interface IUiItemFactory
+internal interface IUiItemFactory<T>
 {
-    UiElement Create(IUiItemSource source, int index);
+    UiElement Create(IUiItemSource<T> source, int index);
 }
