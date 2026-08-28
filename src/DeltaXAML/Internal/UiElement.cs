@@ -15,9 +15,59 @@ internal sealed class UiValue : IUiValue
 
 internal sealed class UiBindingValue : IUiBinding
 {
-    private readonly Func<object?> _read; private readonly Func<object?, (bool Success, string? Error)> _write;
-    public UiBindingValue(Func<object?> read, Func<object?, (bool Success, string? Error)> write) { ArgumentNullException.ThrowIfNull(read); ArgumentNullException.ThrowIfNull(write); _read = read; _write = write; }
-    public object? Read() => _read(); public bool TryWrite(object? value, [NotNullWhen(false)] out string? diagnostic) { var r = _write(value); diagnostic = r.Error ?? (r.Success ? null : "Binding write failed."); return r.Success; }
+    private readonly Func<object?>? _read;
+    private readonly Func<object?, (bool Success, string? Error)>? _write;
+    private readonly Delta.XAML.IUiBinding? _external;
+
+    public UiBindingValue(Func<object?> read, Func<object?, (bool Success, string? Error)> write)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+        ArgumentNullException.ThrowIfNull(write);
+        _read = read;
+        _write = write;
+    }
+
+    internal UiBindingValue(Delta.XAML.IUiBinding external)
+    {
+        ArgumentNullException.ThrowIfNull(external);
+        _external = external;
+    }
+
+    public object? Read()
+    {
+        if (_external is { } external)
+        {
+            return external.Read();
+        }
+
+        if (_read is not { } read)
+        {
+            throw new InvalidOperationException("The binding read operation is not initialized.");
+        }
+
+        return read();
+    }
+
+    public bool TryWrite(object? value, [NotNullWhen(false)] out string? diagnostic)
+    {
+        if (_external is { } external)
+        {
+            var success = external.TryWrite(value, out var externalDiagnostic);
+            diagnostic = externalDiagnostic?.Message ?? (success ? null : "Binding write failed.");
+            return success;
+        }
+
+        if (_write is not { } write)
+        {
+            diagnostic = "The binding write operation is not initialized.";
+            return false;
+        }
+
+        var result = write(value);
+        diagnostic = result.Error ?? (result.Success ? null : "Binding write failed.");
+        return result.Success;
+    }
+
     public event EventHandler? Changed; public void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
 }
 

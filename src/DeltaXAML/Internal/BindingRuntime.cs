@@ -52,7 +52,9 @@ internal sealed class UiBindingRuntime : IDisposable
     {
         ArgumentNullException.ThrowIfNull(owner);
         _owner = owner;
-        _binding = new UiBindingValue(Read, Write);
+        _binding = _external is { } external
+            ? new UiBindingValue(external)
+            : new UiBindingValue(Read, Write);
         owner.SetBinding(PropertyName, _binding, invalidation);
         if (_external is PublicBindingChanged changed && _external.Mode != PublicBindingMode.OneTime)
         {
