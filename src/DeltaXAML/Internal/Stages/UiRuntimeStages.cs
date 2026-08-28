@@ -63,6 +63,7 @@ internal static class UiBindingStage
             traversal.RemoveAt(last);
             element.EnableBindingStage();
             element.ApplyBindingStage();
+            element.CompleteBindingStage();
             for (var i = element.Children.Count - 1; i >= 0; i--)
             {
                 if (element.Children[i] is UiElement child)

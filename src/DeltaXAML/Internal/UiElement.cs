@@ -615,6 +615,8 @@ internal class UiElement : IUiElement, IUiPropertyStore
         }
     }
 
+    internal void CompleteBindingStage() => DirtyFlags &= ~UiDirtyFlags.Binding;
+
     internal void EnableBindingStage()
     {
         _bindingStageManaged = true;

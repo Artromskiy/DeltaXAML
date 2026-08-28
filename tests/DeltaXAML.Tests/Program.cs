@@ -637,9 +637,11 @@ internal static partial class Program
         using var document = new Library.UiDocument(root, textService);
         document.Layout(new Delta.Maths.float2(100, 20), 1);
         model.Name = "after";
+        Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Binding) != 0, "source notification marks the binding stage dirty");
         Assert.Equal("before", text.Text, "binding notifications wait for the document binding stage");
         document.Layout(new Delta.Maths.float2(100, 20), 1);
         Assert.Equal("after", text.Text, "binding stage applies queued source changes before measure");
+        Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Binding) == 0, "binding stage clears its transient dirty flag");
     }
 
     private static void EditorShellLibrarySlice()
