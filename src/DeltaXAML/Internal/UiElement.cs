@@ -248,6 +248,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private uint _layoutVersion;
     private uint _dpiVersion;
     private uint _textVersion;
+    private uint _treeVersion;
     public UiElement()
     {
         Id = new(++_nextId);
@@ -263,6 +264,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     }
     public UiElementId Id { get; }
     public uint Generation { get; }
+    internal uint TreeVersion => _treeVersion;
     public virtual string TypeName => "Element"; public IUiElement? Parent { get; private set; }
     public IReadOnlyList<IUiElement> Children => _children;
     public UiVisibility Visibility { get; set; } = UiVisibility.Visible; public bool Focusable { get; set; }
@@ -331,6 +333,11 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public void Invalidate(UiDirtyFlags flags)
     {
         DirtyFlags |= flags;
+        if ((flags & UiDirtyFlags.Tree) != 0)
+        {
+            _treeVersion++;
+        }
+
         if ((flags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Style | UiDirtyFlags.Resource)) != 0)
         {
             _layoutVersion++;
@@ -340,6 +347,10 @@ internal class UiElement : IUiElement, IUiPropertyStore
         if ((flags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange)) != 0)
         {
             (Parent as UiElement)?.Invalidate(UiDirtyFlags.Measure);
+        }
+        else if ((flags & UiDirtyFlags.Tree) != 0)
+        {
+            (Parent as UiElement)?.Invalidate(UiDirtyFlags.Tree);
         }
         else if ((flags & UiDirtyFlags.Visual) != 0)
         {

@@ -907,6 +907,12 @@ internal static partial class Program
         frame.ApplyMutations();
         Assert.Equal(2, frame.AppliedMutationCount, "queued mutations applied");
         Assert.Equal(0, frame.RejectedMutationCount, "valid mutation accepted");
+        var rootNodeId = new UiNodeId(root.Id.Value, root.Generation);
+        var textNodeId = new UiNodeId(text.Id.Value, text.Generation);
+        var otherNodeId = new UiNodeId(other.Id.Value, other.Generation);
+        Assert.True(frame.TryGetNode(rootNodeId, out var rootNode) && rootNode.FirstLogicalChild == textNodeId, "node store records the first logical child");
+        Assert.True(frame.TryGetNode(textNodeId, out var textNode) && textNode.LogicalParent == rootNodeId && textNode.NextLogicalSibling == otherNodeId, "node store records logical parent and sibling links");
+        Assert.True(textNode.VisualParent == rootNodeId && rootNode.FirstVisualChild == textNodeId, "node store records the visual relation in the same node record");
         Assert.True(text.TryGet("Text", out var value) && Equals(value.UntypedValue, "value") && value.Source == UiValueSource.Handle, "handle source retained");
         Assert.True(other.TryGet("Text", out var otherValue) && Equals(otherValue.UntypedValue, "other"), "second mutation targets second element");
         var stale = new UiPropertyHandle(text.Id, text.Generation + 1, "Text");
@@ -933,6 +939,8 @@ internal static partial class Program
         frame.ApplyMutations();
         Assert.Equal(0, frame.AppliedMutationCount, "removed element mutation not applied");
         Assert.Equal(1, frame.RejectedMutationCount, "removed element mutation rejected");
+        Assert.True(!frame.TryResolve(otherHandle, out _), "removed element is absent from the frame identity index");
+        Assert.True(frame.TryResolve(handle, out var indexed) && ReferenceEquals(indexed, text), "frame resolves a live handle through the dense node index");
         frame.Layout(new(100, 20), 1);
         var draw = frame.ExtractDrawList(new UiFrameContext(new(100, 20), 1, 1));
         Assert.Equal(new UiRect(0, 0, 100, 20), text.Bounds, "frame layout boundary");

@@ -5,7 +5,16 @@ internal sealed class UiFrame : IUiFrame
     private readonly DrawList _drawList = new();
     private readonly UiInputRouter _input;
     private readonly List<UiMutation> _mutations = new();
-    public UiFrame(IUiElement root) { ArgumentNullException.ThrowIfNull(root); Root = root; _input = new(this); }
+    private readonly UiElement _retainedRoot;
+    private readonly UiNodeStore _nodes;
+    public UiFrame(IUiElement root)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        _retainedRoot = root as UiElement ?? throw new ArgumentException("Root must be a DeltaXAML element.", nameof(root));
+        Root = _retainedRoot;
+        _nodes = new(_retainedRoot);
+        _input = new(this);
+    }
     public IUiElement Root { get; }
     public IUiInputRouter Input => _input;
     public int AppliedMutationCount { get; private set; }
@@ -18,7 +27,7 @@ internal sealed class UiFrame : IUiFrame
         for (var i = 0; i < _mutations.Count; i++)
         {
             var mutation = _mutations[i];
-            if (Find(Root, mutation.Target.Element) is UiElement element && element.TrySet(mutation.Target, mutation.Value, mutation.Invalidation, out _))
+            if (TryResolve(mutation.Target, out var element) && element.TrySet(mutation.Target, mutation.Value, mutation.Invalidation, out _))
             {
                 AppliedMutationCount++;
             }
@@ -31,9 +40,29 @@ internal sealed class UiFrame : IUiFrame
     }
     public void Layout(UiSize viewport, float dpiScale) { if (Root is UiElement element) { element.SetLayoutScale(dpiScale); } var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale); Root.Measure(scaled); Root.Arrange(new(0, 0, viewport.Width, viewport.Height)); }
     public IUiDrawList ExtractDrawList(in UiFrameContext context) { _drawList.Build(Root, new(0, 0, context.Viewport.Width, context.Viewport.Height)); return _drawList; }
-    // Temporary O(n) lookup: correct for the current small retained trees. Replace with a
-    // frame-local neutral index after profiling shows mutation volume warrants its maintenance cost.
-    internal static UiElement? Find(IUiElement root, UiElementId id) { if (root.Id == id) { return root as UiElement; } foreach (var child in root.Children) { if (Find(child, id) is { } found) { return found; } } return null; }
+    internal bool TryResolve(UiPropertyHandle handle, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element)
+    {
+        _nodes.EnsureCurrent(_retainedRoot);
+        return _nodes.TryResolve(handle, out element);
+    }
+
+    internal bool TryResolve(UiElementId id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element)
+    {
+        _nodes.EnsureCurrent(_retainedRoot);
+        return _nodes.TryResolve(id, out element);
+    }
+
+    internal bool TryGetNode(UiNodeId id, out UiNodeRecord record)
+    {
+        _nodes.EnsureCurrent(_retainedRoot);
+        return _nodes.TryGetNode(id, out record);
+    }
+
+    internal bool Contains(UiElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        return TryResolve(element.Id, out var current) && current.Generation == element.Generation;
+    }
 }
 
 internal sealed class DrawList : IUiDrawList
@@ -199,7 +228,7 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
             case UiInputPacketKind.Ime: { var ime = packet.Ime; RouteIme(in ime); break; }
         }
     }
-    public void Focus(UiElementId? element) => _focused = element is null ? null : UiFrame.Find(_frame.Root, element.Value);
+    public void Focus(UiElementId? element) => _focused = element is { } id && _frame.TryResolve(id, out var resolved) ? resolved : null;
     public void RoutePointer(in UiPointerEvent input)
     {
         PruneDetachedState();
@@ -250,17 +279,17 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     }
     private void PruneDetachedState()
     {
-        if (_focused is not null && UiFrame.Find(_frame.Root, _focused.Id) is null)
+        if (_focused is not null && !_frame.Contains(_focused))
         {
             _focused = null;
         }
 
-        if (_captured is not null && UiFrame.Find(_frame.Root, _captured.Id) is null)
+        if (_captured is not null && !_frame.Contains(_captured))
         {
             _captured = null;
         }
 
-        if (_hovered is not null && UiFrame.Find(_frame.Root, _hovered.Id) is null)
+        if (_hovered is not null && !_frame.Contains(_hovered))
         {
             _hovered = null;
         }
