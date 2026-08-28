@@ -329,6 +329,17 @@ public abstract class UiElement
             PropertyInvalidation(property.Name));
     }
 
+    /// <summary>Queues a generated typed binding refresh for the next document binding stage.</summary>
+    /// <remarks>Generated companions use this after their single source-notification boundary.</remarks>
+    public void QueueCompiledBindingRefresh<TSource, TValue>(
+        UiProperty<TValue> property,
+        UiCompiledBinding<TSource, TValue> binding)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        ArgumentNullException.ThrowIfNull(binding);
+        _retained.QueueCompiledBindingRefresh(property.Name);
+    }
+
     internal static UiElement Wrap(RetainedElement element, Dictionary<RetainedElement, UiElement>? views = null)
     {
         ArgumentNullException.ThrowIfNull(element);

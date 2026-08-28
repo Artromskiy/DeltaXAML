@@ -879,6 +879,15 @@ internal class UiElement
         UiDirtyFlags invalidation) =>
         _properties.SetBindingValue(propertyName, property, value, invalidation);
 
+    internal void QueueCompiledBindingRefresh(string propertyName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        if (_compiledBindingRuntimes.TryGetValue(propertyName, out var binding))
+        {
+            binding.QueueRefresh();
+        }
+    }
+
     internal bool HasBinding(string propertyName) =>
         _bindingRuntimes.ContainsKey(propertyName) || _compiledBindingRuntimes.ContainsKey(propertyName);
 

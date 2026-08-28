@@ -1054,10 +1054,11 @@ The current implementation represents the declared source contract as an
 `XamlBindingDefinition` in `XamlSemanticRegistry`. `CSharpArtifactEmitter`
 requires all bindings in one artifact to use that source type, emits static
 typed lambdas, attaches them through the source-managed `SetCompiledBinding`
-overload, and exposes direct typed `RefreshBindings`/`Dispose` calls over the
-binding fields. The artifact installs one source notification boundary and
-refreshes each target directly; generated bindings do not subscribe per
-property. `OneTime` still registers no notification. The legacy string-path `UiBindingRuntime` remains
+overload, and exposes typed `RefreshBindings`/`Dispose` calls over the binding
+fields. The artifact installs one source notification boundary; it only queues
+the affected target runtimes, and the next binding stage reads them. Generated
+bindings do not subscribe per property. `OneTime` still registers no
+notification. The legacy string-path `UiBindingRuntime` remains
 tooling/compatibility-only until the runtime stage migration.
 
 Binding attachment may allocate notification infrastructure once. A changed

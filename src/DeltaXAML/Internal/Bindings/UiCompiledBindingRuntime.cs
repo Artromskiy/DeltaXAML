@@ -5,6 +5,7 @@ namespace DeltaXAML.Internal;
 internal interface IUiCompiledBindingRuntime : IDisposable
 {
     void Attach();
+    void QueueRefresh();
     void ApplyPending();
     bool TryWrite(object? value, out string? diagnostic);
 }
@@ -62,6 +63,17 @@ internal sealed class UiCompiledBindingRuntime<TSource, TValue> : IUiCompiledBin
         ApplyValue();
     }
 
+    public void QueueRefresh()
+    {
+        if (_disposed || _pending)
+        {
+            return;
+        }
+
+        _pending = true;
+        _owner.InvalidateChanged(UiDirtyMask.Binding);
+    }
+
     public bool TryWrite(object? value, out string? diagnostic)
     {
         if (value is not TValue typed)
@@ -102,8 +114,7 @@ internal sealed class UiCompiledBindingRuntime<TSource, TValue> : IUiCompiledBin
             return;
         }
 
-        _pending = true;
-        _owner.InvalidateChanged(UiDirtyMask.Binding);
+        QueueRefresh();
     }
 
     private void ApplyValue() => _owner.ApplyCompiledBinding(_propertyName, _property, _binding.ReadValue(), _invalidation);

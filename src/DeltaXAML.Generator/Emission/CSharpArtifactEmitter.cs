@@ -405,7 +405,7 @@ internal static class CSharpArtifactEmitter
                 throw new InvalidOperationException($"Property '{site.Member.Name}' has no typed binding target.");
             }
 
-            writer.Append("        _bindingTarget").Append(i).Append(".RefreshCompiledBinding(")
+            writer.Append("        _bindingTarget").Append(i).Append(".QueueCompiledBindingRefresh(")
                 .Append(property).Append(", _binding").Append(i).AppendLine(");");
         }
 

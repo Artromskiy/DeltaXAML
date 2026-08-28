@@ -102,7 +102,7 @@ internal static partial class Program
         Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text", StringComparison.Ordinal), "generated binding uses the typed target attachment");
         Assert.True(!bindingSource.Contains("SetBinding(\"Text\"", StringComparison.Ordinal), "generated binding bypasses the compatibility bridge");
         Assert.True(bindingSource.Contains("RefreshBindings", StringComparison.Ordinal), "binding artifact exposes one direct refresh batch");
-        Assert.True(bindingSource.Contains("_bindingTarget0.RefreshCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text, _binding0);", StringComparison.Ordinal), "binding batch refreshes the typed target directly");
+        Assert.True(bindingSource.Contains("_bindingTarget0.QueueCompiledBindingRefresh(global::Delta.XAML.UiTextBlockProperties.Text, _binding0);", StringComparison.Ordinal), "binding batch queues the typed target for the binding stage");
         Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text, _binding0, true);", StringComparison.Ordinal), "generated binding marks source notifications as batch-managed");
         Assert.True(!bindingSource.Contains("_binding0.NotifyChanged();", StringComparison.Ordinal), "binding batch does not fan out through per-binding notifications");
         Assert.True(bindingSource.Contains("_bindingSource.PropertyChanged += OnContextPropertyChanged", StringComparison.Ordinal), "binding artifact uses one source notification boundary");
@@ -161,6 +161,22 @@ internal static partial class Program
         using var directDocument = new Library.UiDocument(directText, directTextService);
         directDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         Assert.Equal("Queued", directText.Text, "typed binding stage applies the queued value");
+
+        var sourceManagedModel = new BindingModel { Name = "ManagedInitial" };
+        var sourceManagedText = new Library.UiTextBlock();
+        using var sourceManagedBinding = new UiCompiledBinding<BindingModel, string>(
+            sourceManagedModel,
+            static model => model.Name,
+            mode: UiBindingMode.OneWay,
+            subscribeToSource: false);
+        sourceManagedText.SetCompiledBinding(Library.UiTextBlockProperties.Text, sourceManagedBinding, true);
+        sourceManagedModel.Name = "ManagedQueued";
+        sourceManagedText.QueueCompiledBindingRefresh(Library.UiTextBlockProperties.Text, sourceManagedBinding);
+        Assert.Equal("ManagedInitial", sourceManagedText.Text, "source-managed refresh waits for the binding stage");
+        using var sourceManagedTextService = new EmptyTextService();
+        using var sourceManagedDocument = new Library.UiDocument(sourceManagedText, sourceManagedTextService);
+        sourceManagedDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal("ManagedQueued", sourceManagedText.Text, "source-managed binding applies at the binding stage");
 
         var replacementModel = new BindingModel { Name = "Replacement" };
         using var replacementBinding = new UiCompiledBinding<BindingModel, string>(
