@@ -46,6 +46,12 @@ internal static class XamlCompiler
             var root = _offset < _text.Length && Current == '<'
                 ? ParseElement(new Dictionary<string, string>(StringComparer.Ordinal))
                 : null;
+            if (root is null && (_resources.Count != 0 || _styles.Count != 0 || _templates.Count != 0) &&
+                _registry.TryResolveType(new XamlQualifiedName(string.Empty, "ResourceDictionary"), out var resourceDictionary))
+            {
+                root = new XamlObjectPlan(resourceDictionary.Id, resourceDictionary.Name, null, Range(0, _offset), ImmutableArray<XamlMemberPlan>.Empty, ImmutableArray<XamlObjectPlan>.Empty);
+            }
+
             if (root is null && _text.Length == 0)
             {
                 Report("XAML000", "The XAML document is empty.", 0, 0);
@@ -199,6 +205,8 @@ internal static class XamlCompiler
                 {
                     Report("XAML006", $"Resource '{resourceKey}' has no registered stable identity.", resourceRange);
                 }
+
+                return null;
             }
 
             return plan;

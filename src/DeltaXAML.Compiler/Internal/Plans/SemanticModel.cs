@@ -180,7 +180,9 @@ internal sealed record XamlDocumentPlan(
     ImmutableArray<XamlResourceSlotPlan> ResourceSlots,
     ImmutableArray<Diagnostic> Diagnostics)
 {
-    internal bool Success => Root is not null && Diagnostics.All(static diagnostic => diagnostic.Severity != DiagnosticSeverity.Error);
+    internal bool Success =>
+        (Root is not null || Resources.Length != 0 || Styles.Length != 0 || Templates.Length != 0) &&
+        Diagnostics.All(static diagnostic => diagnostic.Severity != DiagnosticSeverity.Error);
 }
 
 internal sealed class XamlSemanticRegistry

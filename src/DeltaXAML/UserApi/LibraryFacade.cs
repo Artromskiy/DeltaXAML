@@ -361,6 +361,26 @@ public abstract class UiElement
         _retained.SetStyleResource(propertyName, resources.Store, new(resourceKey), RetainedDirty.Measure | RetainedDirty.Visual);
     }
 
+    /// <summary>Assigns a resource-backed style value that follows later catalog changes.</summary>
+    public void SetDynamicResource(string propertyName, UiResourceCatalog resources, string resourceKey)
+    {
+        ApplyStyleResource(propertyName, resources, resourceKey);
+    }
+
+    /// <summary>Assigns the current resource value once without subscribing to later changes.</summary>
+    public void SetStaticResource(string propertyName, UiResourceCatalog resources, string resourceKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(resources);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+        if (!resources.TryResolve(resourceKey, out var value))
+        {
+            throw new KeyNotFoundException($"Resource '{resourceKey}' was not found.");
+        }
+
+        ApplyStyleValue(propertyName, value);
+    }
+
     internal void SetTemplateContent(UiElement content)
     {
         ArgumentNullException.ThrowIfNull(content);

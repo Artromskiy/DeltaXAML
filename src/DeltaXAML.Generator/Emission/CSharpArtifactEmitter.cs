@@ -35,40 +35,53 @@ internal static class CSharpArtifactEmitter
             return false;
         }
 
+        var hasVisualRoot = !string.Equals(root.Name.LocalName, "ResourceDictionary", StringComparison.Ordinal);
         var nodes = new List<XamlObjectPlan>();
-        Flatten(root, nodes);
+        if (hasVisualRoot)
+        {
+            Flatten(root, nodes);
+        }
+        var resourceNodes = new List<XamlObjectPlan>();
+        for (var resourceIndex = 0; resourceIndex < plan.Resources.Length; resourceIndex++)
+        {
+            Flatten(plan.Resources[resourceIndex].Value, resourceNodes);
+        }
+
+        var validationNodes = new List<XamlObjectPlan>(nodes.Count + resourceNodes.Count);
+        validationNodes.AddRange(nodes);
+        validationNodes.AddRange(resourceNodes);
         var bindingSites = new List<BindingSite>();
         string? bindingSourceType = null;
-        for (var i = 0; i < nodes.Count; i++)
+        for (var i = 0; i < validationNodes.Count; i++)
         {
-            if (!registry.TryResolveType(nodes[i].Type, out var type))
+            if (!registry.TryResolveType(validationNodes[i].Type, out var type))
             {
-                diagnostic = new("DXAMLGEN001", $"No generated factory is registered for '{nodes[i].Name.LocalName}'.", nodes[i].Range);
+                diagnostic = new("DXAMLGEN001", $"No generated factory is registered for '{validationNodes[i].Name.LocalName}'.", validationNodes[i].Range);
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(type.FactoryExpression))
             {
-                diagnostic = new("DXAMLGEN001", $"Type '{type.Name.LocalName}' has no compile-time factory expression.", nodes[i].Range);
+                diagnostic = new("DXAMLGEN001", $"Type '{type.Name.LocalName}' has no compile-time factory expression.", validationNodes[i].Range);
                 return false;
             }
 
             if (!TryValidateFactory(type.FactoryExpression, out var factoryError))
             {
-                diagnostic = new("DXAMLGEN001", factoryError, nodes[i].Range);
+                diagnostic = new("DXAMLGEN001", factoryError, validationNodes[i].Range);
                 return false;
             }
 
-            for (var memberIndex = 0; memberIndex < nodes[i].Members.Length; memberIndex++)
+            for (var memberIndex = 0; memberIndex < validationNodes[i].Members.Length; memberIndex++)
             {
-                var member = nodes[i].Members[memberIndex];
+                var member = validationNodes[i].Members[memberIndex];
                 if (!CanEmitMember(member, registry, out var memberError))
                 {
                     diagnostic = new("DXAMLGEN002", memberError, member.Range);
                     return false;
                 }
 
-                if (member.Value.Kind == XamlValueKind.Binding)
+                if (i < nodes.Count && member.Value.Kind == XamlValueKind.Binding)
                 {
                     if (!registry.TryResolveBinding(member.Value.Binding.Path, out var bindingDefinition))
                     {
@@ -87,6 +100,63 @@ internal static class CSharpArtifactEmitter
                     }
 
                     bindingSites.Add(new(i, member, bindingDefinition));
+                }
+            }
+        }
+
+        for (var styleIndex = 0; styleIndex < plan.Styles.Length; styleIndex++)
+        {
+            var style = plan.Styles[styleIndex];
+            if (!registry.TryResolveType(style.TargetType, out _))
+            {
+                diagnostic = new("DXAMLGEN004", $"Style '{style.Key}' targets an unknown type '{style.TargetType.LocalName}'.", style.Range);
+                return false;
+            }
+
+            for (var setterIndex = 0; setterIndex < style.Setters.Length; setterIndex++)
+            {
+                var setter = style.Setters[setterIndex];
+                if (setter.Value.Kind == XamlValueKind.Binding)
+                {
+                    diagnostic = new("DXAMLGEN002", "Compiled style setters cannot contain bindings.", setter.Range);
+                    return false;
+                }
+
+                if (!CanEmitMember(setter, registry, out var setterError))
+                {
+                    diagnostic = new("DXAMLGEN002", setterError, setter.Range);
+                    return false;
+                }
+            }
+        }
+
+        for (var templateIndex = 0; templateIndex < plan.Templates.Length; templateIndex++)
+        {
+            var templateNodes = new List<XamlObjectPlan>();
+            Flatten(plan.Templates[templateIndex].Root, templateNodes);
+            for (var nodeIndex = 0; nodeIndex < templateNodes.Count; nodeIndex++)
+            {
+                if (!registry.TryResolveType(templateNodes[nodeIndex].Type, out var templateType) ||
+                    string.IsNullOrWhiteSpace(templateType.FactoryExpression))
+                {
+                    diagnostic = new("DXAMLGEN001", $"Template '{plan.Templates[templateIndex].Key}' contains a type without a compile-time factory.", templateNodes[nodeIndex].Range);
+                    return false;
+                }
+
+                for (var memberIndex = 0; memberIndex < templateNodes[nodeIndex].Members.Length; memberIndex++)
+                {
+                    var member = templateNodes[nodeIndex].Members[memberIndex];
+                    if (member.Value.Kind == XamlValueKind.Binding)
+                    {
+                        diagnostic = new("DXAMLGEN002", "Compiled template members cannot contain bindings.", member.Range);
+                        return false;
+                    }
+
+                    if (!CanEmitMember(member, registry, out var memberError))
+                    {
+                        diagnostic = new("DXAMLGEN002", memberError, member.Range);
+                        return false;
+                    }
                 }
             }
         }
@@ -110,7 +180,9 @@ internal static class CSharpArtifactEmitter
                 .AppendLine(";");
         }
 
-        writer.AppendLine("    public global::Delta.XAML.UiDocument Document { get; }");
+        writer.AppendLine("    public global::Delta.XAML.UiResourceCatalog Resources { get; }");
+        writer.AppendLine("    public global::Delta.XAML.UiTheme Theme { get; }");
+        writer.Append("    public global::Delta.XAML.UiDocument").Append(hasVisualRoot ? string.Empty : "?").AppendLine(" Document { get; }");
         writer.AppendLine();
         writer.Append("    public ").Append(className).Append('(');
         if (bindingSourceType is not null)
@@ -125,6 +197,64 @@ internal static class CSharpArtifactEmitter
         {
             writer.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(context);");
         }
+
+        writer.AppendLine("        Resources = new global::Delta.XAML.UiResourceCatalog();");
+        writer.AppendLine("        Theme = new global::Delta.XAML.UiTheme(Resources);");
+        for (var i = 0; i < resourceNodes.Count; i++)
+        {
+            if (!registry.TryResolveType(resourceNodes[i].Type, out var resourceType))
+            {
+                diagnostic = new("DXAMLGEN001", $"No generated factory is registered for '{resourceNodes[i].Name.LocalName}'.", resourceNodes[i].Range);
+                return false;
+            }
+
+            writer.Append("        var resource").Append(i).Append(" = ").Append(resourceType.FactoryExpression).AppendLine(";");
+            for (var memberIndex = 0; memberIndex < resourceNodes[i].Members.Length; memberIndex++)
+            {
+                EmitMember(writer, i, resourceNodes[i].Members[memberIndex], "resource");
+            }
+        }
+
+        for (var resourceIndex = 0; resourceIndex < plan.Resources.Length; resourceIndex++)
+        {
+            var resourceRoot = plan.Resources[resourceIndex].Value;
+            var rootIndex = FindNode(resourceNodes, resourceRoot);
+            if (rootIndex < 0)
+            {
+                diagnostic = new("DXAMLGEN003", "A resource plan is not present in the flattened resource tree.", plan.Resources[resourceIndex].Range);
+                return false;
+            }
+
+            writer.Append("        Resources.Set(").Append(Quote(plan.Resources[resourceIndex].Key)).Append(", resource").Append(rootIndex).AppendLine(");");
+        }
+
+        for (var i = 0; i < resourceNodes.Count; i++)
+        {
+            for (var childIndex = 0; childIndex < resourceNodes[i].Children.Length; childIndex++)
+            {
+                var childPosition = FindNode(resourceNodes, resourceNodes[i].Children[childIndex]);
+                if (childPosition < 0)
+                {
+                    diagnostic = new("DXAMLGEN003", "A resource child is not present in the flattened resource tree.", resourceNodes[i].Children[childIndex].Range);
+                    return false;
+                }
+
+                if (!registry.TryResolveType(resourceNodes[i].Type, out var resourceParentType))
+                {
+                    diagnostic = new("DXAMLGEN001", $"No generated factory is registered for '{resourceNodes[i].Name.LocalName}'.", resourceNodes[i].Range);
+                    return false;
+                }
+
+                if (!TryEmitAttachment(writer, i, childPosition, resourceParentType.Name.LocalName, resourceNodes[i].Children[childIndex].Range, out var attachmentError, "resource"))
+                {
+                    diagnostic = new("DXAMLGEN003", attachmentError, resourceNodes[i].Children[childIndex].Range);
+                    return false;
+                }
+            }
+        }
+
+        EmitStyles(writer, plan.Styles);
+        EmitTemplates(writer, plan.Templates, registry);
 
         for (var i = 0; i < nodes.Count; i++)
         {
@@ -165,7 +295,7 @@ internal static class CSharpArtifactEmitter
                     return false;
                 }
 
-                if (!TryEmitAttachment(writer, i, childPosition, parentType.Name.LocalName, child.Range, out var attachmentError))
+                if (!TryEmitAttachment(writer, i, childPosition, parentType.Name.LocalName, child.Range, out var attachmentError, "node"))
                 {
                     diagnostic = new("DXAMLGEN003", attachmentError, child.Range);
                     return false;
@@ -178,7 +308,11 @@ internal static class CSharpArtifactEmitter
             EmitBinding(writer, i, bindingSites[i]);
         }
 
-        writer.Append("        Document = new global::Delta.XAML.UiDocument(node0, textService);").AppendLine();
+        if (hasVisualRoot)
+        {
+            writer.AppendLine("        Theme.Apply(node0);");
+            writer.Append("        Document = new global::Delta.XAML.UiDocument(node0, textService);").AppendLine();
+        }
         var namedNodes = nodes.Where(static node => node.ScopeName is not null).ToList();
         writer.Append("        _scopeElements = new global::Delta.XAML.UiElement[]").AppendLine();
         writer.AppendLine("        {");
@@ -297,8 +431,11 @@ internal static class CSharpArtifactEmitter
         }
         else if (member.Value.Kind == XamlValueKind.ResourceReference)
         {
-            error = $"Property '{member.Name}' uses a resource plan; compiled resource emission belongs to a later compile slice.";
-            return false;
+            if (!member.Value.Resource.Id.IsValid || string.IsNullOrWhiteSpace(member.Value.Resource.Key))
+            {
+                error = $"Property '{member.Name}' has an invalid compiled resource reference.";
+                return false;
+            }
         }
 
         if (!IsSupportedProperty(member.Name))
@@ -313,7 +450,8 @@ internal static class CSharpArtifactEmitter
             return false;
         }
 
-        if (member.Value.Kind != XamlValueKind.Binding && !TryLiteralExpression(member.Name, member.Value, out _, out error))
+        if (member.Value.Kind != XamlValueKind.Binding && member.Value.Kind != XamlValueKind.ResourceReference &&
+            !TryLiteralExpression(member.Name, member.Value, out _, out error))
         {
             return false;
         }
@@ -364,10 +502,18 @@ internal static class CSharpArtifactEmitter
         return true;
     }
 
-    private static void EmitMember(StringBuilder writer, int nodeIndex, XamlMemberPlan member)
+    private static void EmitMember(StringBuilder writer, int nodeIndex, XamlMemberPlan member, string variablePrefix = "node")
     {
         if (member.Value.Kind == XamlValueKind.Binding)
         {
+            return;
+        }
+
+        if (member.Value.Kind == XamlValueKind.ResourceReference)
+        {
+            writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append('.');
+            writer.Append(member.Value.Resource.IsDynamic ? "SetDynamicResource" : "SetStaticResource");
+            writer.Append('(').Append(Quote(member.Name)).Append(", Resources, ").Append(Quote(member.Value.Resource.Key)).AppendLine(");");
             return;
         }
 
@@ -376,7 +522,7 @@ internal static class CSharpArtifactEmitter
             throw new InvalidOperationException(error);
         }
 
-        writer.Append("        node").Append(nodeIndex).Append('.');
+        writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append('.');
         switch (member.Name)
         {
             case "Columns":
@@ -419,32 +565,114 @@ internal static class CSharpArtifactEmitter
             .Append(Quote(site.Member.Name)).Append(", _binding").Append(bindingIndex).AppendLine(");");
     }
 
+    private static void EmitStyles(StringBuilder writer, IReadOnlyList<XamlStylePlan> styles)
+    {
+        for (var styleIndex = 0; styleIndex < styles.Count; styleIndex++)
+        {
+            var style = styles[styleIndex];
+            writer.Append("        var style").Append(styleIndex).Append(" = new global::Delta.XAML.UiStyle(")
+                .Append(Quote(style.Key)).Append(", ").Append(Quote(style.TargetType.LocalName)).AppendLine(", Resources);");
+            for (var setterIndex = 0; setterIndex < style.Setters.Length; setterIndex++)
+            {
+                var setter = style.Setters[setterIndex];
+                if (setter.Value.Kind == XamlValueKind.ResourceReference)
+                {
+                    writer.Append("        style").Append(styleIndex).Append('.')
+                        .Append(setter.Value.Resource.IsDynamic ? "SetResource" : "SetStaticResource")
+                        .Append('(').Append(Quote(setter.Name)).Append(", ").Append(Quote(setter.Value.Resource.Key)).AppendLine(");");
+                    continue;
+                }
+
+                if (!TryLiteralExpression(setter.Name, setter.Value, out var expression, out var error))
+                {
+                    throw new InvalidOperationException(error);
+                }
+
+                writer.Append("        style").Append(styleIndex).Append(".Set(").Append(Quote(setter.Name)).Append(", ").Append(expression).AppendLine(");");
+            }
+
+            writer.Append("        Theme.Add(style").Append(styleIndex).AppendLine(");");
+        }
+    }
+
+    private static void EmitTemplates(StringBuilder writer, IReadOnlyList<XamlTemplatePlan> templates, XamlSemanticRegistry registry)
+    {
+        for (var templateIndex = 0; templateIndex < templates.Count; templateIndex++)
+        {
+            var template = templates[templateIndex];
+            var nodes = new List<XamlObjectPlan>();
+            Flatten(template.Root, nodes);
+            writer.Append("        Theme.RegisterTemplate(").Append(Quote(template.Key)).AppendLine(", new global::Delta.XAML.UiTemplate(owner =>");
+            writer.AppendLine("        {");
+            for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
+            {
+                if (!registry.TryResolveType(nodes[nodeIndex].Type, out var type))
+                {
+                    throw new InvalidOperationException($"No generated factory is registered for '{nodes[nodeIndex].Name.LocalName}'.");
+                }
+
+                writer.Append("            var template").Append(nodeIndex).Append(" = ").Append(type.FactoryExpression).AppendLine(";");
+                for (var memberIndex = 0; memberIndex < nodes[nodeIndex].Members.Length; memberIndex++)
+                {
+                    EmitMember(writer, nodeIndex, nodes[nodeIndex].Members[memberIndex], "template");
+                }
+            }
+
+            for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
+            {
+                for (var childIndex = 0; childIndex < nodes[nodeIndex].Children.Length; childIndex++)
+                {
+                    var childPosition = FindNode(nodes, nodes[nodeIndex].Children[childIndex]);
+                    if (childPosition < 0)
+                    {
+                        throw new InvalidOperationException("A template child is not present in the flattened semantic tree.");
+                    }
+
+                    if (!registry.TryResolveType(nodes[nodeIndex].Type, out var type))
+                    {
+                        throw new InvalidOperationException($"No generated factory is registered for '{nodes[nodeIndex].Name.LocalName}'.");
+                    }
+
+                    if (!TryEmitAttachment(writer, nodeIndex, childPosition, type.Name.LocalName, nodes[nodeIndex].Children[childIndex].Range, out var error, "template"))
+                    {
+                        throw new InvalidOperationException(error);
+                    }
+                }
+            }
+
+            writer.AppendLine("            return template0;");
+            writer.AppendLine("        }));");
+        }
+    }
+
     private static bool TryEmitAttachment(
         StringBuilder writer,
         int parentIndex,
         int childIndex,
         string parentType,
         SourceRange range,
-        out string error)
+        out string error,
+        string variablePrefix)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(variablePrefix);
         switch (parentType)
         {
             case "Panel":
             case "StackPanel":
             case "Grid":
             case "ItemsControl":
-                writer.Append("        node").Append(parentIndex).Append(".Add(node").Append(childIndex).AppendLine(");");
+                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".Add(").Append(variablePrefix).Append(childIndex).AppendLine(");");
                 error = string.Empty;
                 return true;
             case "Border":
-                writer.Append("        node").Append(parentIndex).Append(".SetChild(node").Append(childIndex).AppendLine(");");
+                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".SetChild(").Append(variablePrefix).Append(childIndex).AppendLine(");");
                 error = string.Empty;
                 return true;
             case "ContentControl":
             case "Button":
             case "ToggleButton":
             case "ScrollViewer":
-                writer.Append("        node").Append(parentIndex).Append(".SetContent(node").Append(childIndex).AppendLine(");");
+                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".SetContent(").Append(variablePrefix).Append(childIndex).AppendLine(");");
                 error = string.Empty;
                 return true;
             default:

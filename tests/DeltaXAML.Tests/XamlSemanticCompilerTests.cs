@@ -84,7 +84,7 @@ internal static partial class Program
         Assert.Equal("Border", resourceDocument.Templates[0].Root.Name.LocalName, "template keeps its semantic visual root");
         Assert.Equal(1, resourceDocument.ResourceSlots.Length, "one stable resource identity uses one local slot");
         Assert.True(resourceDocument.ResourceSlots[0].IsDynamic, "dynamic resource reference marks its dependency slot");
-        Assert.Equal(0, resourceDocument.Root?.Children[1].Members[0].Value.Resource.Slot, "resource reference points at its compact local slot");
+        Assert.Equal(0, resourceDocument.Root?.Children[0].Members[0].Value.Resource.Slot, "resource reference points at its compact local slot");
     }
 
     private static bool HasCode(IEnumerable<Diagnostic> diagnostics, string code)

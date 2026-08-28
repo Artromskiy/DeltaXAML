@@ -117,6 +117,18 @@ public sealed class UiStyle
         _values[propertyName] = new UiResourceReference(resourceKey);
     }
 
+    public void SetStaticResource(string propertyName, string resourceKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+        if (_resources is null)
+        {
+            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
+        }
+
+        _values[propertyName] = new StaticResourceReference(resourceKey);
+    }
+
     internal void Apply(UiElement element)
     {
         ArgumentNullException.ThrowIfNull(element);
@@ -136,11 +148,28 @@ public sealed class UiStyle
 
                 element.ApplyStyleResource(pair.Key, _resources, reference.Key);
             }
+            else if (pair.Value is StaticResourceReference staticReference)
+            {
+                if (_resources is null || !staticReference.IsValid)
+                {
+                    continue;
+                }
+
+                if (_resources.TryResolve(staticReference.Key, out var value))
+                {
+                    element.ApplyStyleValue(pair.Key, value);
+                }
+            }
             else
             {
                 element.ApplyStyleValue(pair.Key, pair.Value);
             }
         }
+    }
+
+    private readonly record struct StaticResourceReference(string Key)
+    {
+        internal bool IsValid => !string.IsNullOrWhiteSpace(Key);
     }
 }
 

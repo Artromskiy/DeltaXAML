@@ -41,8 +41,23 @@ internal static partial class Program
         resourceRegistry.RegisterResource("Accent", new UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D403")));
         var resourcePlan = XamlCompiler.Compile(sourceId, "<TextBlock Foreground=\"{StaticResource Accent}\" />", resourceRegistry);
         Assert.True(resourcePlan.Success, "resource markup remains a valid semantic plan");
-        Assert.True(!CSharpArtifactEmitter.TryEmit(resourcePlan, resourceRegistry, "Generated", "ResourceArtifact", out _, out var resourceDiagnostic), "resource values wait for the compiled resource slice");
-        Assert.Equal("DXAMLGEN002", resourceDiagnostic?.Code, "deferred resource emission has a stable diagnostic");
+        Assert.True(CSharpArtifactEmitter.TryEmit(resourcePlan, resourceRegistry, "Generated", "ResourceArtifact", out var resourceSource, out var resourceDiagnostic), "resource markup emits through the compiled resource path");
+        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(\"Foreground\", Resources, \"Accent\")", StringComparison.Ordinal), "static resource values use the typed resource setter");
+        var resourceDocumentPlan = XamlCompiler.Compile(sourceId, "<Panel x:Key=\"Accent\" Background=\"#112233\" />", resourceRegistry);
+        Assert.True(resourceDocumentPlan.Success && resourceDocumentPlan.Root?.Name.LocalName == "ResourceDictionary", "resource-only XAML gets a semantic resource root");
+        Assert.True(CSharpArtifactEmitter.TryEmit(resourceDocumentPlan, resourceRegistry, "Generated", "ResourceDictionaryArtifact", out var resourceDocumentSource, out _), "resource-only XAML emits a catalog artifact");
+        Assert.True(resourceDocumentSource.Contains("Resources.Set(\"Accent\", resource0);", StringComparison.Ordinal), "resource-only artifact registers its generated value");
+
+        var compositionRegistry = XamlSemanticRegistry.CreateBuiltIns();
+        var compositionPlan = XamlCompiler.Compile(
+            sourceId,
+            "<Panel><TextBlock StyleKey=\"Title\" /><Style x:Key=\"Title\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></Panel>",
+            compositionRegistry);
+        Assert.True(compositionPlan.Success, "styles and templates remain in the compiled semantic plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(compositionPlan, compositionRegistry, "Generated", "CompositionArtifact", out var compositionSource, out var compositionDiagnostic), "styles and templates emit through the companion path");
+        Assert.True(compositionDiagnostic is null && compositionSource.Contains("new global::Delta.XAML.UiStyle(\"Title\"", StringComparison.Ordinal), "compiled style initialization is direct");
+        Assert.True(compositionSource.Contains("Theme.RegisterTemplate(\"ButtonTemplate\"", StringComparison.Ordinal), "compiled template registration is direct");
+        Assert.True(compositionSource.Contains("Theme.Apply(node0);", StringComparison.Ordinal), "compiled style/template state is applied after attachment");
 
         var bindingRegistry = XamlSemanticRegistry.CreateBuiltIns();
         bindingRegistry.RegisterBinding(new(
