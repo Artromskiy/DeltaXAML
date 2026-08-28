@@ -116,6 +116,7 @@ public sealed class UiStyle
     public string TargetType { get; }
 
     internal int Version => _version;
+    internal event EventHandler? Changed;
 
     public void Set(string propertyName, object? value)
     {
@@ -314,6 +315,7 @@ public sealed class UiStyle
 
         values[propertyName] = value;
         _version++;
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     private Dictionary<string, object?> GetStateValues(UiStyleState state) =>
@@ -372,6 +374,10 @@ public sealed class UiTheme
     private readonly List<UiStyle> _styles = new();
     private readonly Dictionary<string, UiTemplate> _templates = new(StringComparer.Ordinal);
     private readonly List<UiElement> _stateTraversal = new();
+    private uint _styleGeneration;
+    private uint _appliedStyleGeneration;
+
+    internal int LastRefreshCount { get; private set; }
 
     public UiTheme(UiResourceCatalog? resources = null)
     {
@@ -384,6 +390,8 @@ public sealed class UiTheme
     {
         ArgumentNullException.ThrowIfNull(style);
         _styles.Add(style);
+        style.Changed += OnStyleChanged;
+        _styleGeneration++;
     }
 
     public void RegisterTemplate(string key, UiTemplate template)
@@ -435,6 +443,13 @@ public sealed class UiTheme
     internal void RefreshStates(UiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
+        LastRefreshCount = 0;
+        var fullRefresh = _styleGeneration != _appliedStyleGeneration;
+        if (!fullRefresh && !root.RetainedElement.IsStyleDirty)
+        {
+            return;
+        }
+
         _stateTraversal.Clear();
         _stateTraversal.Add(root);
         while (_stateTraversal.Count != 0)
@@ -442,6 +457,12 @@ public sealed class UiTheme
             var last = _stateTraversal.Count - 1;
             var element = _stateTraversal[last];
             _stateTraversal.RemoveAt(last);
+            if (!fullRefresh && !element.RetainedElement.IsStyleDirty)
+            {
+                continue;
+            }
+
+            LastRefreshCount++;
             if (element.StyleKey is { } styleKey)
             {
                 for (var i = 0; i < _styles.Count; i++)
@@ -453,10 +474,19 @@ public sealed class UiTheme
                 }
             }
 
+            element.RetainedElement.CompleteStyleStage();
             for (var i = element.Children.Count - 1; i >= 0; i--)
             {
-                _stateTraversal.Add(element.Children[i]);
+                var child = element.Children[i];
+                if (fullRefresh || child.RetainedElement.IsStyleDirty)
+                {
+                    _stateTraversal.Add(child);
+                }
             }
         }
+
+        _appliedStyleGeneration = _styleGeneration;
     }
+
+    private void OnStyleChanged(object? sender, EventArgs args) => _styleGeneration++;
 }

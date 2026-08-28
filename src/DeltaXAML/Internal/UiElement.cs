@@ -409,12 +409,17 @@ internal class UiElement : IUiElement, IUiPropertyStore
             parentFlags |= UiDirtyFlags.HitTest;
         }
 
+        if ((versionFlags & UiDirtyFlags.Style) != 0)
+        {
+            parentFlags |= UiDirtyFlags.Style;
+        }
+
         (Parent as UiElement)?.InvalidateCore(parentFlags, changed);
     }
-    public void SetHovered(bool value) { if (IsHovered != value) { IsHovered = value; InvalidateChanged(UiDirtyFlags.Visual); } }
-    public virtual void SetPressed(bool value) { if (IsPressed != value) { InvalidateChanged(UiDirtyFlags.Visual); } }
-    public void SetFocused(bool value) { if (IsFocused != value) { IsFocused = value; InvalidateChanged(UiDirtyFlags.Visual); } }
-    public void SetInvalid(bool value) { if (IsInvalid != value) { IsInvalid = value; InvalidateChanged(UiDirtyFlags.Visual); } }
+    public void SetHovered(bool value) { if (IsHovered != value) { IsHovered = value; InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
+    public virtual void SetPressed(bool value) { if (IsPressed != value) { InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
+    public void SetFocused(bool value) { if (IsFocused != value) { IsFocused = value; InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
+    public void SetInvalid(bool value) { if (IsInvalid != value) { IsInvalid = value; InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
     internal void SetCustomVisual(Guid visualType, Guid resource, UiColor color)
     {
         if (visualType == Guid.Empty)
@@ -539,6 +544,8 @@ internal class UiElement : IUiElement, IUiPropertyStore
     }
 
     internal void CompleteVisualExtraction() => DirtyFlags &= ~UiDirtyFlags.Visual;
+    internal bool IsStyleDirty => (DirtyFlags & UiDirtyFlags.Style) != 0;
+    internal void CompleteStyleStage() => DirtyFlags &= ~UiDirtyFlags.Style;
     internal int DisplayClipIndex => _displayClipIndex;
     internal int DisplayVisualIndex => _displayVisualIndex;
     internal int DisplayTextIndex => _displayTextIndex;

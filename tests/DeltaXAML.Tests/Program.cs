@@ -759,6 +759,8 @@ internal static partial class Program
         styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         Assert.Equal(20f, text.FontSize, "changing an applied style refreshes its retained value");
         Assert.True(text.RetainedElement.OutputVersion > unchangedStyleVersion, "changed style invalidates the dependent retained element");
+        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(0, theme.LastRefreshCount, "unchanged style frame skips the style tree");
         var changedStyleVersion = text.RetainedElement.OutputVersion;
         style.Set("FontSize", 20f);
         styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
@@ -771,9 +773,11 @@ internal static partial class Program
         using var stateDocument = new Library.UiDocument(text, stateTextService, null, theme);
         text.RetainedElement.SetHovered(true);
         stateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(1, theme.LastRefreshCount, "state invalidation visits only the changed style subtree");
         Assert.Equal(hoverColor, text.Foreground, "visual state overrides the base style after input state changes");
         text.RetainedElement.SetHovered(false);
         stateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal(1, theme.LastRefreshCount, "leaving a visual state visits only the changed style subtree");
         Assert.Equal(secondColor, text.Foreground, "leaving a visual state restores the base resource style");
 
         var loader = new Library.XamlLoader();
