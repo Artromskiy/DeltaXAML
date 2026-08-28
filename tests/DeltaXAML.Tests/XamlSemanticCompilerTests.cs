@@ -12,6 +12,7 @@ internal static partial class Program
         var accent = new UiResourceId(new Guid("33333333-3333-3333-3333-333333333301"));
         registry.RegisterResource("Accent", accent);
         registry.RegisterResource("PanelResource", new UiResourceId(new Guid("33333333-3333-3333-3333-333333333302")));
+        registry.RegisterResource("AccentValue", new UiResourceId(new Guid("33333333-3333-3333-3333-333333333303")));
         var customType = new UiTypeId(new Guid("55555555-5555-5555-5555-555555555501"));
         var customProperty = new UiPropertyId(new Guid("55555555-5555-5555-5555-555555555502"));
         registry.RegisterType(new(
@@ -69,6 +70,21 @@ internal static partial class Program
 
         var missingResource = XamlCompiler.Compile(sourceId, "<TextBlock Foreground=\"{StaticResource Missing}\" />", registry);
         Assert.True(HasCode(missingResource.Diagnostics, "XAML006"), "missing resource identity is diagnosed");
+
+        var resourceDocument = XamlCompiler.Compile(
+            sourceId,
+            "<ResourceDictionary><TextBlock x:Key=\"AccentValue\" Foreground=\"#112233\" /><TextBlock Foreground=\"{DynamicResource AccentValue}\" /><Style x:Key=\"TitleStyle\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><Setter Property=\"Foreground\" Value=\"#AABBCC\" /></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></ResourceDictionary>",
+            registry);
+        Assert.True(resourceDocument.Success, "resource, style and template declarations recover into one document plan");
+        Assert.Equal(1, resourceDocument.Resources.Length, "x:Key resource declaration is retained");
+        Assert.Equal(1, resourceDocument.Styles.Length, "Style declaration is retained");
+        Assert.Equal(2, resourceDocument.Styles[0].Setters.Length, "Style setters are typed and ordered");
+        Assert.Equal("FontSize", resourceDocument.Styles[0].Setters[0].Name, "style setter preserves property identity");
+        Assert.Equal(1, resourceDocument.Templates.Length, "Template declaration is retained");
+        Assert.Equal("Border", resourceDocument.Templates[0].Root.Name.LocalName, "template keeps its semantic visual root");
+        Assert.Equal(1, resourceDocument.ResourceSlots.Length, "one stable resource identity uses one local slot");
+        Assert.True(resourceDocument.ResourceSlots[0].IsDynamic, "dynamic resource reference marks its dependency slot");
+        Assert.Equal(0, resourceDocument.Root?.Children[1].Members[0].Value.Resource.Slot, "resource reference points at its compact local slot");
     }
 
     private static bool HasCode(IEnumerable<Diagnostic> diagnostics, string code)

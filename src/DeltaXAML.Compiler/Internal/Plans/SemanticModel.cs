@@ -102,6 +102,13 @@ internal readonly record struct XamlLiteralValue(
 internal readonly record struct XamlResourceReferencePlan(
     UiResourceId Id,
     string Key,
+    bool IsDynamic,
+    int Slot = -1);
+
+internal readonly record struct XamlResourceSlotPlan(
+    UiResourceId Id,
+    string Key,
+    int LocalIndex,
     bool IsDynamic);
 
 internal readonly record struct XamlBindingPlan(
@@ -170,6 +177,7 @@ internal sealed record XamlDocumentPlan(
     ImmutableArray<XamlResourcePlan> Resources,
     ImmutableArray<XamlStylePlan> Styles,
     ImmutableArray<XamlTemplatePlan> Templates,
+    ImmutableArray<XamlResourceSlotPlan> ResourceSlots,
     ImmutableArray<Diagnostic> Diagnostics)
 {
     internal bool Success => Root is not null && Diagnostics.All(static diagnostic => diagnostic.Severity != DiagnosticSeverity.Error);
@@ -307,6 +315,11 @@ internal sealed class XamlSemanticRegistry
                 Property("Value", "11111111-1111-1111-1111-111111111113", XamlValueKind.Double),
                 Property("Minimum", "11111111-1111-1111-1111-111111111114", XamlValueKind.Double),
                 Property("Maximum", "11111111-1111-1111-1111-111111111115", XamlValueKind.Double))));
+        registry.RegisterType(new(
+            new UiTypeId(Guid.Parse("22222222-2222-2222-2222-22222222220D")),
+            new XamlQualifiedName(string.Empty, "ResourceDictionary"),
+            XamlContentKind.Children,
+            ImmutableArray<XamlPropertyDefinition>.Empty));
         return registry;
     }
 

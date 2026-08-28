@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using Delta.Diagnostics;
 using Delta.XAML;
+using Delta.XAML.Contract;
 
 namespace DeltaXAML.Compiler;
 
@@ -25,6 +26,10 @@ internal static class XamlCompiler
         private readonly XamlSemanticRegistry _registry;
         private readonly ImmutableArray<Diagnostic>.Builder _diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         private readonly ImmutableArray<XamlResourcePlan>.Builder _resources = ImmutableArray.CreateBuilder<XamlResourcePlan>();
+        private readonly ImmutableArray<XamlStylePlan>.Builder _styles = ImmutableArray.CreateBuilder<XamlStylePlan>();
+        private readonly ImmutableArray<XamlTemplatePlan>.Builder _templates = ImmutableArray.CreateBuilder<XamlTemplatePlan>();
+        private readonly List<XamlResourceSlotPlan> _resourceSlots = new();
+        private readonly Dictionary<UiResourceId, int> _resourceSlotIndices = new();
         private readonly HashSet<string> _names = new(StringComparer.Ordinal);
         private int _offset;
 
@@ -68,8 +73,9 @@ internal static class XamlCompiler
                 _source,
                 root,
                 _resources.ToImmutable(),
-                ImmutableArray<XamlStylePlan>.Empty,
-                ImmutableArray<XamlTemplatePlan>.Empty,
+                _styles.ToImmutable(),
+                _templates.ToImmutable(),
+                _resourceSlots.ToImmutableArray(),
                 _diagnostics.ToImmutable());
         }
 
@@ -113,6 +119,18 @@ internal static class XamlCompiler
             }
 
             var name = ToQualifiedName(lexicalName, namespaces);
+            if (lexicalName == "Style")
+            {
+                ParseStyle(attributes, selfClosing, elementStart, namespaces);
+                return null;
+            }
+
+            if (lexicalName == "Template")
+            {
+                ParseTemplate(attributes, selfClosing, elementStart, namespaces);
+                return null;
+            }
+
             var hasType = _registry.TryResolveType(name, out var type);
             if (!hasType)
             {
@@ -174,6 +192,7 @@ internal static class XamlCompiler
             {
                 if (_registry.TryResolveResource(resourceKey, out var resourceId))
                 {
+                    RegisterResourceSlot(resourceId, resourceKey, false);
                     _resources.Add(new(resourceId, resourceKey, plan, resourceRange));
                 }
                 else
@@ -183,6 +202,263 @@ internal static class XamlCompiler
             }
 
             return plan;
+        }
+
+        private void ParseStyle(
+            List<AttributeSyntax> attributes,
+            bool selfClosing,
+            int elementStart,
+            Dictionary<string, string> namespaces)
+        {
+            string? key = null;
+            string? targetType = null;
+            foreach (var attribute in attributes)
+            {
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                if (attribute.IsKey)
+                {
+                    key = attribute.Value;
+                }
+                else if (attribute.Prefix.Length == 0 && attribute.LocalName == "TargetType")
+                {
+                    targetType = attribute.Value;
+                }
+                else
+                {
+                    Report("XAML021", $"Unsupported Style attribute '{attribute.LocalName}'.", attribute.Range);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                Report("XAML022", "A Style requires a non-empty x:Key.", Range(elementStart, _offset));
+            }
+
+            if (string.IsNullOrWhiteSpace(targetType))
+            {
+                Report("XAML023", "A Style requires a non-empty TargetType.", Range(elementStart, _offset));
+            }
+
+            var setters = ImmutableArray.CreateBuilder<XamlMemberPlan>();
+            var closed = selfClosing;
+            if (!selfClosing)
+            {
+                while (_offset < _text.Length)
+                {
+                    if (StartsWith("</"))
+                    {
+                        var closeStart = _offset;
+                        var closeName = ParseEndElement();
+                        if (!string.Equals(closeName, "Style", StringComparison.Ordinal))
+                        {
+                            Report("XAML013", $"Closing element '{closeName}' does not match 'Style'.", closeStart, _offset);
+                        }
+
+                        closed = true;
+                        break;
+                    }
+
+                    if (Current == '<')
+                    {
+                        if (_text.AsSpan(_offset).StartsWith("<Setter", StringComparison.Ordinal))
+                        {
+                            ParseSetter(targetType, namespaces, setters);
+                        }
+                        else
+                        {
+                            var unexpected = ParseElement(namespaces);
+                            if (unexpected is not null)
+                            {
+                                Report("XAML021", "Only Setter children are supported in a Style.", unexpected.Range);
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    var textStart = _offset;
+                    ReadText();
+                    if (!string.IsNullOrWhiteSpace(_text[textStart.._offset]))
+                    {
+                        Report("XAML004", "Text content is not supported in a Style.", textStart, _offset);
+                    }
+                }
+            }
+
+            if (!closed)
+            {
+                Report("XAML012", "Element 'Style' is not closed.", _offset, _offset);
+            }
+
+            if (key is not null && targetType is not null)
+            {
+                _styles.Add(new(
+                    key,
+                    ToQualifiedName(targetType, namespaces),
+                    setters.ToImmutable(),
+                    Range(elementStart, _offset)));
+            }
+        }
+
+        private void ParseSetter(
+            string? targetType,
+            Dictionary<string, string> namespaces,
+            ImmutableArray<XamlMemberPlan>.Builder setters)
+        {
+            var start = _offset;
+            Consume('<');
+            var setterName = ReadName();
+            var attributes = new List<AttributeSyntax>();
+            var selfClosing = ParseStartTag(attributes, start);
+            if (!string.Equals(setterName, "Setter", StringComparison.Ordinal))
+            {
+                Report("XAML021", "Only Setter elements are supported in a Style.", start, _offset);
+                return;
+            }
+
+            string? propertyName = null;
+            string? valueText = null;
+            SourceRange valueRange = Range(start, _offset);
+            foreach (var attribute in attributes)
+            {
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                if (attribute.Prefix.Length == 0 && attribute.LocalName == "Property")
+                {
+                    propertyName = attribute.Value;
+                }
+                else if (attribute.Prefix.Length == 0 && attribute.LocalName == "Value")
+                {
+                    valueText = attribute.Value;
+                    valueRange = attribute.Range;
+                }
+                else
+                {
+                    Report("XAML021", $"Unsupported Setter attribute '{attribute.LocalName}'.", attribute.Range);
+                }
+            }
+
+            if (!selfClosing)
+            {
+                Report("XAML024", "Setter must be self-closing in the compiled dialect.", Range(start, _offset));
+                RecoverToTagEnd();
+            }
+
+            if (string.IsNullOrWhiteSpace(targetType) || string.IsNullOrWhiteSpace(propertyName) || valueText is null)
+            {
+                Report("XAML025", "Setter requires Property and Value and its parent Style requires TargetType.", Range(start, _offset));
+                return;
+            }
+
+            var qualifiedTarget = ToQualifiedName(targetType, namespaces);
+            if (!_registry.TryResolveType(qualifiedTarget, out var type) || !type.TryGetProperty(propertyName, out var property))
+            {
+                Report("XAML003", $"Unsupported styled property '{propertyName}' on '{targetType}'.", valueRange);
+                return;
+            }
+
+            if (TryParseValue(valueText, property.ValueKind, valueRange, out var value))
+            {
+                setters.Add(new(property.Id, property.Name, value, valueRange));
+            }
+        }
+
+        private void ParseTemplate(
+            List<AttributeSyntax> attributes,
+            bool selfClosing,
+            int elementStart,
+            Dictionary<string, string> namespaces)
+        {
+            string? key = null;
+            foreach (var attribute in attributes)
+            {
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                if (attribute.IsKey)
+                {
+                    key = attribute.Value;
+                }
+                else
+                {
+                    Report("XAML026", $"Unsupported Template attribute '{attribute.LocalName}'.", attribute.Range);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                Report("XAML027", "A Template requires a non-empty x:Key.", Range(elementStart, _offset));
+            }
+
+            XamlObjectPlan? root = null;
+            var closed = selfClosing;
+            if (!selfClosing)
+            {
+                SkipWhitespace();
+                if (Current == '<')
+                {
+                    root = ParseElement(namespaces);
+                }
+                else if (_offset < _text.Length)
+                {
+                    var textStart = _offset;
+                    ReadText();
+                    if (!string.IsNullOrWhiteSpace(_text[textStart.._offset]))
+                    {
+                        Report("XAML004", "Text content is not supported in a Template.", textStart, _offset);
+                    }
+                }
+
+                SkipWhitespace();
+                if (StartsWith("</"))
+                {
+                    var closeStart = _offset;
+                    var closeName = ParseEndElement();
+                    if (!string.Equals(closeName, "Template", StringComparison.Ordinal))
+                    {
+                        Report("XAML013", $"Closing element '{closeName}' does not match 'Template'.", closeStart, _offset);
+                    }
+
+                    closed = true;
+                }
+            }
+
+            if (!closed)
+            {
+                Report("XAML012", "Element 'Template' is not closed.", _offset, _offset);
+            }
+
+            if (key is not null && root is not null)
+            {
+                _templates.Add(new(key, root, Range(elementStart, _offset)));
+            }
+        }
+
+        private int RegisterResourceSlot(UiResourceId id, string key, bool isDynamic)
+        {
+            if (_resourceSlotIndices.TryGetValue(id, out var existing))
+            {
+                if (isDynamic && !_resourceSlots[existing].IsDynamic)
+                {
+                    _resourceSlots[existing] = _resourceSlots[existing] with { IsDynamic = true };
+                }
+
+                return existing;
+            }
+
+            var index = _resourceSlots.Count;
+            _resourceSlotIndices.Add(id, index);
+            _resourceSlots.Add(new(id, key, index, isDynamic));
+            return index;
         }
 
         private void ParseChildren(
@@ -359,7 +635,7 @@ internal static class XamlCompiler
                     return false;
                 }
 
-                plan = XamlValuePlan.FromResource(new(id, resource.Key, resource.IsDynamic));
+                plan = XamlValuePlan.FromResource(new(id, resource.Key, resource.IsDynamic, RegisterResourceSlot(id, resource.Key, resource.IsDynamic)));
                 return true;
             }
 
