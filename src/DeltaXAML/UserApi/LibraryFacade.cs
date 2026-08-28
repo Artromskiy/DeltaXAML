@@ -379,14 +379,14 @@ public abstract class UiElement
     internal void ApplyStyleValue(string propertyName, object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
-        _retained.SetStyle(propertyName, ToRetainedValue(value), StyleInvalidation(propertyName));
+        _retained.SetStyle(propertyName, ToRetainedValue(value), PropertyInvalidation(propertyName));
     }
 
     internal void ApplyStyleResource(string propertyName, UiResourceCatalog resources, string resourceKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentNullException.ThrowIfNull(resources);
-        _retained.SetStyleResource(propertyName, resources.Store, new(resourceKey), StyleInvalidation(propertyName));
+        _retained.SetStyleResource(propertyName, resources.Store, new(resourceKey), PropertyInvalidation(propertyName));
     }
 
     /// <summary>Assigns a resource-backed style value that follows later catalog changes.</summary>
@@ -515,14 +515,6 @@ public abstract class UiElement
         _ => RetainedDirty.Visual,
     };
 
-    private static RetainedDirty StyleInvalidation(string propertyName) => propertyName switch
-    {
-        "Text" or "FontKey" or "FontSize" => RetainedDirty.Measure | RetainedDirty.Visual | RetainedDirty.Text,
-        "Foreground" => RetainedDirty.Visual | RetainedDirty.Text,
-        "Width" or "Height" or "Padding" or
-        "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
-        _ => RetainedDirty.Visual,
-    };
 }
 
 /// <summary>Convenience retained panel for code-authored composition.</summary>
