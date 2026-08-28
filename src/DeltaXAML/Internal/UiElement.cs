@@ -1241,7 +1241,7 @@ internal class TextBox : TextBlock
         NotifyBindingTargetChanged("Text", Text);
         TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
     }
-    public bool ApplyText(in UiTextInput input) { ReplaceSelection(input.Text); return true; }
+    public bool ApplyText(in UiTextInput input) { ReplaceSelection(input.Text.Span); return true; }
     public virtual bool ApplyKey(in UiKeyEvent input)
     {
         return UiTextBoxGenerated.ProcessKey(ref _state, in input, Text.Length) switch
@@ -1281,9 +1281,8 @@ internal class TextBox : TextBlock
     public bool Paste() { if (Clipboard?.ReadText() is not { Length: > 0 } text) { return false; } ReplaceSelection(text); return true; }
     public bool Undo() { if (_undo.Count == 0) { return false; } _redo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_undo[^1], bound); _undo.RemoveAt(_undo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
     public bool Redo() { if (_redo.Count == 0) { return false; } _undo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_redo[^1], bound); _redo.RemoveAt(_redo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
-    protected void ReplaceSelection(string inserted)
+    protected void ReplaceSelection(ReadOnlySpan<char> inserted)
     {
-        ArgumentNullException.ThrowIfNull(inserted);
         PushUndo();
         if (HasSelection())
         {
@@ -1291,7 +1290,7 @@ internal class TextBox : TextBlock
         }
 
         var bound = HasBinding("Text");
-        var changed = SetTextValue(Text.Insert(_state.CaretIndex, inserted), bound);
+        var changed = SetTextValue(InsertText(Text, _state.CaretIndex, inserted), bound);
         _state.CaretIndex += inserted.Length;
         _state.SelectionStart = _state.CaretIndex; _state.SelectionLength = 0;
         Diagnostic = null;
@@ -1323,6 +1322,10 @@ internal class TextBox : TextBlock
     }
     private bool HasSelection() => _state.SelectionLength > 0;
     private string GetSelection() => Text.Substring(_state.SelectionStart, _state.SelectionLength);
+    private static string InsertText(string value, int index, ReadOnlySpan<char> inserted)
+    {
+        return string.Concat(value.AsSpan(0, index), inserted, value.AsSpan(index));
+    }
     protected override string GetAutomationValueText() => Text;
 }
 

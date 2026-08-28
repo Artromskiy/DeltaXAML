@@ -136,8 +136,8 @@ internal readonly record struct UiBindingSpec(string Property, string Path, UiBi
 internal enum UiPointerEventKind { Enter, Leave, Move, Down, Up, Wheel, Cancel, CaptureLost }
 internal readonly record struct UiPointerEvent(UiPointerEventKind Kind, UiPoint Position, int Button = 0, float WheelDelta = 0);
 internal readonly record struct UiKeyEvent(int PhysicalKey, bool IsDown, bool IsRepeat = false, bool Shift = false, bool Control = false, bool Alt = false, bool Meta = false);
-internal readonly record struct UiTextInput(string Text);
-internal readonly record struct UiImeComposition(string Text, int SelectionStart, int SelectionLength, bool IsCommitted);
+internal readonly record struct UiTextInput(ReadOnlyMemory<char> Text);
+internal readonly record struct UiImeComposition(ReadOnlyMemory<char> Text, int SelectionStart, int SelectionLength, bool IsCommitted);
 internal enum UiInputPacketKind { Spatial, Key, Text, Ime }
 internal readonly record struct UiInputPacket(UiPointerEvent Spatial, UiKeyEvent Key, UiTextInput Text, UiImeComposition Ime, UiInputPacketKind Kind)
 {

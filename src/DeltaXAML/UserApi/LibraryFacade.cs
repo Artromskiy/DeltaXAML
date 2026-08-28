@@ -1016,7 +1016,7 @@ public sealed class UiDocument : IDisposable
                 }
             case UiInputEventKind.Text:
                 {
-                    var packet = Retained.UiInputPacket.From(new Retained.UiTextInput(input.Text.Text.ToString()));
+                    var packet = Retained.UiInputPacket.From(new Retained.UiTextInput(input.Text.Text));
                     _runtime.EnqueueInput(in packet);
                     break;
                 }
@@ -1024,7 +1024,7 @@ public sealed class UiDocument : IDisposable
                 {
                     var composition = input.Composition;
                     var packet = Retained.UiInputPacket.From(new Retained.UiImeComposition(
-                        composition.Preedit.ToString(),
+                        composition.Preedit,
                         composition.Selection.StartUtf16,
                         composition.Selection.LengthUtf16,
                         composition.Stage == UiCompositionStage.Finished));

@@ -242,6 +242,7 @@ internal static partial class Program
         TextClipboardUndoAndValidation();
         PointerFocusAndDispatch();
         PublicInputPreservesKeyModifiers();
+        QueuedTextInputOwnsItsSnapshot();
         PublicWheelScrollsScrollViewer();
         ScrollAndClips();
         TextDisplayListUsesDeltaText();
@@ -453,7 +454,7 @@ internal static partial class Program
         button.Click += (_, _) => clicked = true;
         frame.Input.Focus(box.Id);
         Assert.True(box.IsFocused, "explicit focus updates the focused visual state");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiTextInput("12")));
+        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiTextInput("12".AsMemory())));
         Assert.Equal("12", box.Text, "UTF text is separate input");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiKeyEvent(8, true)));
         Assert.Equal("1", box.Text, "physical backspace");
@@ -507,6 +508,33 @@ internal static partial class Program
         document.Layout(new Delta.Maths.float2(100, 20), 1);
 
         Assert.Equal("z", text.Text, "public input preserves Ctrl+A for text editing");
+    }
+
+    private static void QueuedTextInputOwnsItsSnapshot()
+    {
+        var text = new Library.UiTextBox { Width = 100, Height = 20 };
+        var root = new Library.UiPanel();
+        root.Add(text);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(root, textService);
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(new LibraryContract.UiPointerEvent(
+            LibraryContract.UiPointerEventKind.ButtonDown,
+            LibraryContract.UiPointerDeviceKind.Mouse,
+            1,
+            new(5, 5),
+            default,
+            default,
+            LibraryContract.UiPointerButton.Primary,
+            new(1),
+            0,
+            default)));
+
+        var chars = new[] { 'A' };
+        document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput(chars.AsMemory())));
+        chars[0] = 'B';
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        Assert.Equal("A", text.Text, "queued text input owns a snapshot until the next layout");
     }
 
     private static void PublicWheelScrollsScrollViewer()

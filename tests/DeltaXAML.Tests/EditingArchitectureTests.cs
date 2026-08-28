@@ -27,7 +27,7 @@ internal static class EditingArchitectureTests
         retained.SetText("abc", false);
         Assert.True(retained.ApplyKey(in selectAll), "retained TextBox handles select-all through the generated path");
         Assert.Equal(3, retained.SelectionLength, "retained TextBox stores selection in TextBoxState");
-        retained.ApplyText(new UiTextInput("x"));
+        retained.ApplyText(new UiTextInput("x".AsMemory()));
         Assert.Equal("x", retained.Text, "retained TextBox edits through the existing text event boundary");
         Assert.Equal(1, retained.CaretIndex, "retained TextBox updates the typed caret state");
 

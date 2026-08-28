@@ -18,6 +18,8 @@ internal sealed class UiRuntime
     private readonly List<UiNodeId> _stageTraversal = new();
     private readonly List<UiMeasureRequest> _measureQueue = new();
     private readonly List<UiArrangeRequest> _arrangeQueue = new();
+    private char[] _inputTextStorage = Array.Empty<char>();
+    private int _inputTextCount;
     private float _appliedScale = float.NaN;
     private uint _scaledTreeVersion;
     private uint _bindingTreeVersion;
@@ -55,7 +57,26 @@ internal sealed class UiRuntime
 
     public void Enqueue(in UiMutation mutation) => _mutations.Add(mutation);
 
-    internal void EnqueueInput(in UiInputPacket packet) => _inputQueue.Add(packet);
+    internal void EnqueueInput(in UiInputPacket packet)
+    {
+        switch (packet.Kind)
+        {
+            case UiInputPacketKind.Text:
+                _inputQueue.Add(UiInputPacket.From(new UiTextInput(CopyInputText(packet.Text.Text.Span))));
+                break;
+            case UiInputPacketKind.Ime:
+                var ime = packet.Ime;
+                _inputQueue.Add(UiInputPacket.From(new UiImeComposition(
+                    CopyInputText(ime.Text.Span),
+                    ime.SelectionStart,
+                    ime.SelectionLength,
+                    ime.IsCommitted)));
+                break;
+            default:
+                _inputQueue.Add(packet);
+                break;
+        }
+    }
 
     public void ApplyMutations()
     {
@@ -76,6 +97,7 @@ internal sealed class UiRuntime
         Delta.XAML.UiElement? publicRoot)
     {
         UiInputStage.Run(_input, _inputQueue);
+        _inputTextCount = 0;
         UiMutationStage.Run(_nodes, _retainedRoot, _mutations, out var applied, out var rejected);
         AppliedMutationCount = applied;
         RejectedMutationCount = rejected;
@@ -245,4 +267,23 @@ internal sealed class UiRuntime
     }
 
     private readonly record struct UiTraversalEntry(UiNodeId Id, bool Exit);
+
+    private ReadOnlyMemory<char> CopyInputText(ReadOnlySpan<char> text)
+    {
+        if (text.Length == 0)
+        {
+            return ReadOnlyMemory<char>.Empty;
+        }
+
+        var required = checked(_inputTextCount + text.Length);
+        if (required > _inputTextStorage.Length)
+        {
+            Array.Resize(ref _inputTextStorage, Math.Max(required, Math.Max(32, _inputTextStorage.Length * 2)));
+        }
+
+        text.CopyTo(_inputTextStorage.AsSpan(_inputTextCount));
+        var result = new ReadOnlyMemory<char>(_inputTextStorage, _inputTextCount, text.Length);
+        _inputTextCount = required;
+        return result;
+    }
 }
