@@ -74,16 +74,6 @@ internal readonly record struct UiAutomationMetadata(string Name, UiAutomationRo
 internal enum UiVisualState { Normal, Hover, Pressed, Focused, Disabled, Invalid, Selected }
 internal readonly record struct UiStateSnapshot(UiVisualState State, bool IsEnabled, bool IsInvalid, bool IsSelected, bool IsFocused, bool IsHovered, bool IsPressed);
 
-internal interface IUiValue
-{
-    object? UntypedValue { get; }
-    UiValueSource Source { get; }
-    UiDirtyFlags Invalidation { get; }
-}
-internal interface IUiBinding
-{
-    object? Read(); bool TryWrite(object? value, [NotNullWhen(false)] out string? diagnostic); event EventHandler? Changed;
-}
 internal readonly record struct UiClipId(uint Value);
 /// <summary>Renderer-neutral text request; it is not shaped glyph data.</summary>
 /// <remarks>DeltaXAML owns content, style, layout bounds, DPI-dependent text metrics and identity. Owner plus OwnerGeneration identify retained lifetime; Version identifies text/style/DPI dirtiness. Layout changes are represented by Bounds, Clip and draw-list deltas. Shaping and glyph pixels remain external.</remarks>

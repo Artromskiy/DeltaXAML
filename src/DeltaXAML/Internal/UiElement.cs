@@ -5,7 +5,7 @@ using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 namespace DeltaXAML.Internal;
 
-internal sealed class UiValue : IUiValue
+internal sealed class UiValue
 {
     public UiValue(object? value, UiValueSource source, UiDirtyFlags invalidation) { UntypedValue = value; Source = source; Invalidation = invalidation; }
     public object? UntypedValue { get; }
@@ -13,7 +13,7 @@ internal sealed class UiValue : IUiValue
     public UiDirtyFlags Invalidation { get; }
 }
 
-internal sealed class UiBindingValue : IUiBinding
+internal sealed class UiBindingValue
 {
     private readonly Func<object?>? _read;
     private readonly Func<object?, (bool Success, string? Error)>? _write;
@@ -73,9 +73,9 @@ internal sealed class UiBindingValue : IUiBinding
 
 internal sealed class UiPropertyStore
 {
-    private readonly Dictionary<string, IUiValue> _values = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UiValue> _values = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SourceSlots> _slots = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IUiBinding> _bindings = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UiBindingValue> _bindings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, EventHandler> _bindingHandlers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResourceBinding> _resourceBindings = new(StringComparer.Ordinal);
     private readonly UiElement _owner;
@@ -155,7 +155,7 @@ internal sealed class UiPropertyStore
         resources.Changed += binding.Handler;
         SetSource(name, new(ResolveResource(binding), UiValueSource.Style, invalidation));
     }
-    public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation)
+    public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(binding);
@@ -186,7 +186,7 @@ internal sealed class UiPropertyStore
             ApplyEffective(name, slots);
         }
     }
-    public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) { ArgumentException.ThrowIfNullOrWhiteSpace(name); return _values.TryGetValue(name, out value); }
+    public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) { ArgumentException.ThrowIfNullOrWhiteSpace(name); return _values.TryGetValue(name, out value); }
     public UiPropertyHandle GetHandle(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -300,7 +300,7 @@ internal sealed class UiPropertyStore
         return null;
     }
     private object? ResolveResource(ResourceBinding binding) => binding.Resources.TryResolve(binding.Reference.Key, out var value, out _) ? value : null;
-    private static bool Same(IUiValue? left, UiValue? right) =>
+    private static bool Same(UiValue? left, UiValue? right) =>
         left is not null && right is not null &&
         left.Source == right.Source && Equals(left.UntypedValue, right.UntypedValue);
     private sealed class SourceSlots
@@ -756,7 +756,7 @@ internal class UiElement
         SetDisplaySubtreeCounts(0, 0, 0);
     }
     protected UiSize RequestedSize(UiSize measured) => new(float.IsNaN(Width) ? measured.Width : Width, float.IsNaN(Height) ? measured.Height : Height);
-    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
+    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) => _properties.TryGet(name, out value);
     internal virtual bool TryApplyTypedProperty(UiPropertyKey key, object? value)
     {
         switch (key)
