@@ -99,6 +99,8 @@ internal static partial class Program
         Assert.True(bindingSource.Contains("UiCompiledBinding<global::Sample.BindingModel, string>", StringComparison.Ordinal), "binding artifact preserves source and value types");
         Assert.True(bindingSource.Contains("static source => source.Name", StringComparison.Ordinal), "binding read accessor is direct and static");
         Assert.True(bindingSource.Contains("static (source, value) => source.Name = value", StringComparison.Ordinal), "two-way binding write accessor is direct and static");
+        Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text", StringComparison.Ordinal), "generated binding uses the typed target attachment");
+        Assert.True(!bindingSource.Contains("SetBinding(\"Text\"", StringComparison.Ordinal), "generated binding bypasses the compatibility bridge");
         Assert.True(bindingSource.Contains("RefreshBindings", StringComparison.Ordinal), "binding artifact exposes one direct refresh batch");
         Assert.True(bindingSource.Contains("_bindingSource.PropertyChanged += OnContextPropertyChanged", StringComparison.Ordinal), "binding artifact uses one source notification boundary");
         Assert.True(bindingSource.Contains("UiBindingMode.TwoWay, false", StringComparison.Ordinal), "generated bindings disable per-binding source subscriptions");
@@ -139,5 +141,22 @@ internal static partial class Program
         Assert.Equal(0, batchedNotifications, "batched binding does not subscribe per binding");
         batched.NotifyChanged();
         Assert.Equal(1, batchedNotifications, "batched binding refreshes through the explicit batch boundary");
+
+        var directModel = new BindingModel { Name = "Direct" };
+        var directText = new Library.UiTextBlock();
+        using var directBinding = new UiCompiledBinding<BindingModel, string>(
+            directModel,
+            static model => model.Name,
+            mode: UiBindingMode.OneWay,
+            subscribeToSource: false);
+        directText.SetCompiledBinding(Library.UiTextBlockProperties.Text, directBinding);
+        Assert.Equal("Direct", directText.Text, "typed binding attachment applies its initial value");
+        directModel.Name = "Queued";
+        directBinding.NotifyChanged();
+        Assert.Equal("Direct", directText.Text, "typed binding notification waits for the binding stage");
+        using var directTextService = new EmptyTextService();
+        using var directDocument = new Library.UiDocument(directText, directTextService);
+        directDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal("Queued", directText.Text, "typed binding stage applies the queued value");
     }
 }

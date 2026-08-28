@@ -150,7 +150,7 @@ internal sealed class UiPropertyStore
 
             var slots = GetSlots(name);
             slots.StyleValue = new UiValue(ResolveResource(binding), UiValueSource.Style, invalidation);
-            ApplyEffective(name, slots);
+            ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
         };
         resources.Changed += binding.Handler;
         SetSource(name, new(ResolveResource(binding), UiValueSource.Style, invalidation));
@@ -163,14 +163,22 @@ internal sealed class UiPropertyStore
         _bindings[name] = binding;
         var slots = GetSlots(name);
         slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
-        ApplyEffective(name, slots);
+        ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
         EventHandler handler = (_, _) =>
         {
             slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
-            ApplyEffective(name, slots);
+            ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
         };
         _bindingHandlers[name] = handler;
         binding.Changed += handler;
+    }
+
+    public void SetBindingValue(string name, UiPropertyKey property, object? value, UiDirtyFlags invalidation)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var slots = GetSlots(name);
+        slots.BindingValue = new UiValue(value, UiValueSource.Binding, invalidation);
+        ApplyEffective(name, slots, property);
     }
     public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => SetSource(name, new(value, UiValueSource.Handle, invalidation));
     public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => SetSource(name, new(value, UiValueSource.Animation, invalidation));
@@ -183,7 +191,7 @@ internal sealed class UiPropertyStore
         if (_slots.TryGetValue(name, out var slots))
         {
             SetValue(slots, source, null);
-            ApplyEffective(name, slots);
+            ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
         }
     }
     public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) { ArgumentException.ThrowIfNullOrWhiteSpace(name); return _values.TryGetValue(name, out value); }
@@ -222,7 +230,7 @@ internal sealed class UiPropertyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var slots = GetSlots(name);
         SetValue(slots, value.Source, value);
-        ApplyEffective(name, slots);
+        ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
     }
     private static void SetValue(SourceSlots slots, UiValueSource source, UiValue? value)
     {
@@ -238,7 +246,7 @@ internal sealed class UiPropertyStore
     }
     private SourceSlots GetSlots(string name) => _slots.TryGetValue(name, out var slots) ? slots : AddSlots(name);
     private SourceSlots AddSlots(string name) { var slots = new SourceSlots(); _slots.Add(name, slots); return slots; }
-    private void ApplyEffective(string name, SourceSlots slots)
+    private void ApplyEffective(string name, SourceSlots slots, UiPropertyKey property)
     {
         _values.TryGetValue(name, out var previous);
         var effective = Resolve(slots);
@@ -255,7 +263,7 @@ internal sealed class UiPropertyStore
 
             return;
         }
-        while (effective is not null && !_owner.TryApplyTypedProperty(UiPropertyKeys.Resolve(name), effective.UntypedValue))
+        while (effective is not null && !_owner.TryApplyTypedProperty(property, effective.UntypedValue))
         {
             SetValue(slots, effective.Source, null);
             effective = Resolve(slots);
@@ -327,6 +335,7 @@ internal class UiElement
     private readonly List<UiElement> _children = new();
     private readonly List<UiBindingSpec> _bindingSpecs = new();
     private readonly Dictionary<string, UiBindingRuntime> _bindingRuntimes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IUiCompiledBindingRuntime> _compiledBindingRuntimes = new(StringComparer.Ordinal);
     private readonly UiPropertyStore _properties;
     private UiElementState _state = new() { Width = float.NaN, Height = float.NaN, IsEnabled = true };
     private object? _bindingContext;
@@ -828,11 +837,49 @@ internal class UiElement
     internal void AttachExternalBinding(string propertyName, Delta.XAML.IUiBinding binding) =>
         AttachBinding(new UiBindingRuntime(propertyName, binding));
 
-    internal bool HasBinding(string propertyName) => _bindingRuntimes.ContainsKey(propertyName);
+    internal void AttachCompiledBinding<TSource, TValue>(
+        string propertyName,
+        UiPropertyKey property,
+        UiDirtyFlags invalidation,
+        Delta.XAML.UiCompiledBinding<TSource, TValue> binding)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(binding);
+        if (_compiledBindingRuntimes.Remove(propertyName, out var previous))
+        {
+            previous.Dispose();
+        }
+
+        var runtime = new UiCompiledBindingRuntime<TSource, TValue>(this, propertyName, property, invalidation, binding);
+        if (binding.Mode == Delta.XAML.UiBindingMode.OneTime)
+        {
+            runtime.Attach();
+            runtime.Dispose();
+            return;
+        }
+
+        _compiledBindingRuntimes.Add(propertyName, runtime);
+        runtime.Attach();
+    }
+
+    internal void ApplyCompiledBinding(
+        string propertyName,
+        UiPropertyKey property,
+        object? value,
+        UiDirtyFlags invalidation) =>
+        _properties.SetBindingValue(propertyName, property, value, invalidation);
+
+    internal bool HasBinding(string propertyName) =>
+        _bindingRuntimes.ContainsKey(propertyName) || _compiledBindingRuntimes.ContainsKey(propertyName);
 
     internal void ApplyBindingStage()
     {
         foreach (var binding in _bindingRuntimes.Values)
+        {
+            binding.ApplyPending();
+        }
+
+        foreach (var binding in _compiledBindingRuntimes.Values)
         {
             binding.ApplyPending();
         }
@@ -855,6 +902,11 @@ internal class UiElement
         if (_bindingRuntimes.TryGetValue(propertyName, out var binding))
         {
             binding.WriteTarget(value);
+        }
+
+        if (_compiledBindingRuntimes.TryGetValue(propertyName, out var compiledBinding))
+        {
+            compiledBinding.TryWrite(value, out _);
         }
     }
 
@@ -906,7 +958,13 @@ internal class UiElement
                 binding.Dispose();
             }
 
+            foreach (var binding in element._compiledBindingRuntimes.Values)
+            {
+                binding.Dispose();
+            }
+
             element._bindingRuntimes.Clear();
+            element._compiledBindingRuntimes.Clear();
             for (var childIndex = 0; childIndex < element._children.Count; childIndex++)
             {
                 if (element._children[childIndex] is UiElement child)

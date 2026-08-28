@@ -298,6 +298,20 @@ public abstract class UiElement
         _retained.AttachBinding(new Retained.UiBindingRuntime(propertyName, expression));
     }
 
+    /// <summary>Attaches a generated typed binding without the reflection-based compatibility bridge.</summary>
+    public void SetCompiledBinding<TSource, TValue>(
+        UiProperty<TValue> property,
+        UiCompiledBinding<TSource, TValue> binding)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        ArgumentNullException.ThrowIfNull(binding);
+        _retained.AttachCompiledBinding(
+            property.Name,
+            Retained.UiPropertyKeys.Resolve(property.Name),
+            PropertyInvalidation(property.Name),
+            binding);
+    }
+
     internal static UiElement Wrap(RetainedElement element, Dictionary<RetainedElement, UiElement>? views = null)
     {
         ArgumentNullException.ThrowIfNull(element);

@@ -136,6 +136,11 @@ dirty masks.
 compilation emits typed read/write accessors and reports invalid paths at build
 time.
 
+Generated artifacts attach these bindings with `SetCompiledBinding` and a
+typed property descriptor. Their source notifications are collected at the
+artifact boundary and applied by the document binding stage; the string-based
+`SetBinding` overloads remain only for cold compatibility loading.
+
 - `OneTime` reads once and registers no notification;
 - `OneWay` updates the target when the source changes;
 - `TwoWay` additionally writes validated target changes back to the source.

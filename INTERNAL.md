@@ -1055,11 +1055,12 @@ TwoWay   : OneWay path + typed target commit -> source write
 The current implementation represents the declared source contract as an
 `XamlBindingDefinition` in `XamlSemanticRegistry`. `CSharpArtifactEmitter`
 requires all bindings in one artifact to use that source type, emits static
-typed lambdas, disables per-binding source subscriptions, and exposes direct
-`RefreshBindings`/`Dispose` calls over the typed binding fields. The artifact
-installs one source notification boundary that dispatches the batch; `OneTime`
-still registers no notification. The legacy string-path `UiBindingRuntime`
-remains tooling/compatibility-only until the runtime stage migration.
+typed lambdas, attaches them through `SetCompiledBinding`, disables
+per-binding source subscriptions, and exposes direct `RefreshBindings`/
+`Dispose` calls over the typed binding fields. The artifact installs one source
+notification boundary that dispatches the batch; `OneTime` still registers no
+notification. The legacy string-path `UiBindingRuntime` remains
+tooling/compatibility-only until the runtime stage migration.
 
 Binding attachment may allocate notification infrastructure once. A changed
 notification only records a compact binding slot. The binding stage later

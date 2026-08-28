@@ -623,6 +623,11 @@ internal static class CSharpArtifactEmitter
     {
         var binding = site.Member.Value.Binding;
         var definition = site.Definition;
+        if (!TryTypedPropertyExpression(site.Member.Name, out var property))
+        {
+            throw new InvalidOperationException($"Property '{site.Member.Name}' has no typed binding target.");
+        }
+
         writer.Append("        _binding").Append(bindingIndex).Append(" = new global::Delta.XAML.UiCompiledBinding<")
             .Append(definition.SourceTypeName)
             .Append(", ")
@@ -640,8 +645,8 @@ internal static class CSharpArtifactEmitter
         }
 
         writer.Append(", global::Delta.XAML.UiBindingMode.").Append(binding.Mode).AppendLine(", false);");
-        writer.Append("        node").Append(site.NodeIndex).Append(".SetBinding(")
-            .Append(Quote(site.Member.Name)).Append(", _binding").Append(bindingIndex).AppendLine(");");
+        writer.Append("        node").Append(site.NodeIndex).Append(".SetCompiledBinding(")
+            .Append(property).Append(", _binding").Append(bindingIndex).AppendLine(");");
     }
 
     private static void EmitStyles(
