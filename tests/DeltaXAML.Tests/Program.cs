@@ -890,6 +890,21 @@ internal static partial class Program
         Assert.Equal(1, theme.LastRefreshCount, "leaving a visual state visits only the changed style subtree");
         Assert.Equal(secondColor, text.Foreground, "leaving a visual state restores the base resource style");
 
+        var styleRoot = new Library.UiPanel();
+        var styled = new Library.UiTextBlock { StyleKey = "Body" };
+        var unrelated = new Library.UiTextBlock { StyleKey = "Alternate" };
+        styleRoot.Add(styled);
+        styleRoot.Add(unrelated);
+        theme.Apply(styleRoot);
+        using var targetedStyleTextService = new EmptyTextService();
+        using var targetedStyleDocument = new Library.UiDocument(styleRoot, targetedStyleTextService, null, theme);
+        targetedStyleDocument.Layout(new Delta.Maths.float2(100, 60), 1);
+        style.Set("FontSize", 19f);
+        targetedStyleDocument.Layout(new Delta.Maths.float2(100, 60), 1);
+        Assert.Equal(2, theme.LastRefreshCount, "style change refreshes the root and only the dependent styled element");
+        Assert.Equal(19f, styled.FontSize, "dependent element receives the changed style value");
+        Assert.Equal(22f, unrelated.FontSize, "unrelated style remains unchanged");
+
         var loader = new Library.XamlLoader();
         var dynamicLoaded = loader.Load(
             "<TextBlock Foreground=\"{DynamicResource TextColor}\" />",

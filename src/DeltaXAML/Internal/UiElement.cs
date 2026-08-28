@@ -372,7 +372,13 @@ internal class UiElement : IUiElement, IUiPropertyStore
         }
 
         _children.Add(owned);
-        InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        var invalidation = UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual;
+        if (owned.IsStyleDirty)
+        {
+            invalidation |= UiDirtyFlags.Style;
+        }
+
+        InvalidateChanged(invalidation);
     }
     public bool Remove(IUiElement child) { if (!_children.Remove(child)) { return false; } if (child is UiElement owned) { owned.Parent = null; } InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); return true; }
     public void ClearChildren()

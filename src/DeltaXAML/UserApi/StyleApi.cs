@@ -376,8 +376,10 @@ public sealed class UiTheme
     private readonly List<UiStyle> _styles = new();
     private readonly Dictionary<string, UiTemplate> _templates = new(StringComparer.Ordinal);
     private readonly List<UiElement> _stateTraversal = new();
-    private uint _styleGeneration;
-    private uint _appliedStyleGeneration;
+    private readonly Dictionary<string, List<UiElement>> _styleDependents = new(StringComparer.Ordinal);
+    private readonly List<UiStyle> _changedStyles = new();
+    private uint _templateGeneration;
+    private uint _appliedTemplateGeneration;
 
     internal int LastRefreshCount { get; private set; }
 
@@ -393,7 +395,7 @@ public sealed class UiTheme
         ArgumentNullException.ThrowIfNull(style);
         _styles.Add(style);
         style.Changed += OnStyleChanged;
-        _styleGeneration++;
+        QueueStyleRefresh(style);
     }
 
     public void RegisterTemplate(string key, UiTemplate template)
@@ -401,7 +403,7 @@ public sealed class UiTheme
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(template);
         _templates[key] = template;
-        _styleGeneration++;
+        _templateGeneration++;
     }
 
     public bool TryGetTemplate(string key, [NotNullWhen(true)] out UiTemplate? template)
@@ -420,6 +422,7 @@ public sealed class UiTheme
             var last = _stateTraversal.Count - 1;
             var element = _stateTraversal[last];
             _stateTraversal.RemoveAt(last);
+            TrackStyleDependency(element);
             if (element.StyleKey is { } styleKey)
             {
                 for (var i = 0; i < _styles.Count; i++)
@@ -444,8 +447,26 @@ public sealed class UiTheme
     {
         ArgumentNullException.ThrowIfNull(root);
         LastRefreshCount = 0;
-        var fullRefresh = _styleGeneration != _appliedStyleGeneration;
-        if (!fullRefresh && !root.RetainedElement.IsStyleDirty)
+        var fullRefresh = _templateGeneration != _appliedTemplateGeneration;
+        for (var styleIndex = 0; styleIndex < _changedStyles.Count; styleIndex++)
+        {
+            var style = _changedStyles[styleIndex];
+            if (!_styleDependents.TryGetValue(style.Key, out var dependents))
+            {
+                continue;
+            }
+
+            for (var dependentIndex = 0; dependentIndex < dependents.Count; dependentIndex++)
+            {
+                var dependent = dependents[dependentIndex];
+                if (string.Equals(dependent.StyleKey, style.Key, StringComparison.Ordinal))
+                {
+                    dependent.RetainedElement.InvalidateChanged(Retained.UiDirtyMask.Style);
+                }
+            }
+        }
+
+        if (!fullRefresh && _changedStyles.Count == 0 && !root.RetainedElement.IsStyleDirty)
         {
             return;
         }
@@ -457,6 +478,7 @@ public sealed class UiTheme
             var last = _stateTraversal.Count - 1;
             var element = _stateTraversal[last];
             _stateTraversal.RemoveAt(last);
+            TrackStyleDependency(element);
             if (!fullRefresh && !element.RetainedElement.IsStyleDirty)
             {
                 continue;
@@ -494,10 +516,54 @@ public sealed class UiTheme
             }
         }
 
-        _appliedStyleGeneration = _styleGeneration;
+        _changedStyles.Clear();
+        _appliedTemplateGeneration = _templateGeneration;
     }
 
-    private void OnStyleChanged(object? sender, EventArgs args) => _styleGeneration++;
+    private void OnStyleChanged(object? sender, EventArgs args)
+    {
+        if (sender is UiStyle style)
+        {
+            QueueStyleRefresh(style);
+        }
+    }
+
+    private void QueueStyleRefresh(UiStyle style)
+    {
+        for (var i = 0; i < _changedStyles.Count; i++)
+        {
+            if (ReferenceEquals(_changedStyles[i], style))
+            {
+                return;
+            }
+        }
+
+        _changedStyles.Add(style);
+    }
+
+    private void TrackStyleDependency(UiElement element)
+    {
+        if (element.StyleKey is not { } key)
+        {
+            return;
+        }
+
+        if (!_styleDependents.TryGetValue(key, out var dependents))
+        {
+            dependents = new List<UiElement>();
+            _styleDependents.Add(key, dependents);
+        }
+
+        for (var i = 0; i < dependents.Count; i++)
+        {
+            if (ReferenceEquals(dependents[i], element))
+            {
+                return;
+            }
+        }
+
+        dependents.Add(element);
+    }
 
     private void ApplyTemplate(UiElement element)
     {
