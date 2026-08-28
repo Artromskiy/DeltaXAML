@@ -399,10 +399,13 @@ internal static partial class Program
         var clicked = false;
         button.Click += (_, _) => clicked = true;
         frame.Input.Focus(box.Id);
+        Assert.True(box.IsFocused, "explicit focus updates the focused visual state");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiTextInput("12")));
         Assert.Equal("12", box.Text, "UTF text is separate input");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiKeyEvent(8, true)));
         Assert.Equal("1", box.Text, "physical backspace");
+        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Move, new(10, 65))));
+        Assert.True(button.IsHovered && !box.IsHovered, "pointer move updates only the current hovered visual state");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Down, new(10, 65), 1)));
         if (frame.Input.Captured is not { } captured)
         {
@@ -413,8 +416,10 @@ internal static partial class Program
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Up, new(10, 65), 1)));
         Assert.True(clicked, "button bubble click");
         Assert.True(frame.Input.Focused == button.Id, "pointer focuses control");
+        Assert.True(button.IsFocused && !box.IsFocused, "pointer focus clears the previous focused visual state");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiKeyEvent(9, true)));
         Assert.True(frame.Input.Focused == probe.Id || frame.Input.Focused == box.Id, "tab focus traversal");
+        Assert.True(!button.IsFocused, "tab focus clears the previous focused visual state");
     }
 
     private static void ScrollAndClips()

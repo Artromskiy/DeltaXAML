@@ -41,8 +41,11 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
         }
     }
 
-    public void Focus(UiElementId? element) =>
-        _focused = element is { } id && _runtime.TryResolve(id, out var resolved) ? resolved : null;
+    public void Focus(UiElementId? element)
+    {
+        var next = element is { } id && _runtime.TryResolve(id, out var resolved) ? resolved : null;
+        SetFocused(next);
+    }
 
     internal void RepairFocusAndCapture() => PruneDetachedState();
 
@@ -52,13 +55,13 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
         var target = _captured ?? _runtime.FindHit(input.Position);
         if (input.Kind == UiPointerEventKind.Move)
         {
-            _hovered = target;
+            SetHovered(target);
         }
 
         if (input.Kind == UiPointerEventKind.Down)
         {
             _captured = target;
-            _focused = target;
+            SetFocused(target);
         }
 
         if (target is not null)
@@ -115,7 +118,7 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     {
         if (_focused is not null && (!_runtime.Contains(_focused) || !_focused.IsEnabled || _focused.Visibility != UiVisibility.Visible))
         {
-            _focused = null;
+            SetFocused(null);
         }
 
         if (_captured is not null && (!_runtime.Contains(_captured) || !_captured.IsEnabled || _captured.Visibility != UiVisibility.Visible))
@@ -125,7 +128,7 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 
         if (_hovered is not null && (!_runtime.Contains(_hovered) || !_hovered.IsEnabled || _hovered.Visibility != UiVisibility.Visible))
         {
-            _hovered = null;
+            SetHovered(null);
         }
     }
 
@@ -134,7 +137,31 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
         _focusable.Clear();
         _runtime.CollectFocusable(_focusable);
         var index = _focused is null ? -1 : _focusable.IndexOf(_focused);
-        _focused = _focusable.Count == 0 ? null : _focusable[(index + 1) % _focusable.Count];
+        SetFocused(_focusable.Count == 0 ? null : _focusable[(index + 1) % _focusable.Count]);
+    }
+
+    private void SetFocused(UiElement? next)
+    {
+        if (ReferenceEquals(_focused, next))
+        {
+            return;
+        }
+
+        _focused?.SetFocused(false);
+        _focused = next;
+        _focused?.SetFocused(true);
+    }
+
+    private void SetHovered(UiElement? next)
+    {
+        if (ReferenceEquals(_hovered, next))
+        {
+            return;
+        }
+
+        _hovered?.SetHovered(false);
+        _hovered = next;
+        _hovered?.SetHovered(true);
     }
 
     private void Raise(UiElement target, in UiRoutedEvent routedEvent)
