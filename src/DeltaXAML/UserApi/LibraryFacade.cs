@@ -1050,13 +1050,27 @@ public sealed class UiDocument : IDisposable
                 continue;
             }
 
-            if (current.DisplayClipIndex != clipCount)
+            if (current.DisplayClipIndex < 0 || current.DisplayClipIndex >= _clipCount)
             {
                 return true;
             }
 
             var effective = Retained.UiRect.Intersect(visit.Clip, current.Bounds);
             var expectedClip = new UiClip(ToFloat4(effective), new UiClipId(visit.ParentClip.Value));
+            if (!current.NeedsVisualExtraction &&
+                expectedClip.Equals(_clips[current.DisplayClipIndex]))
+            {
+                clipCount += current.DisplayClipCount;
+                visualCount += current.DisplayVisualCount;
+                textCount += current.DisplayTextCount;
+                continue;
+            }
+
+            if (current.DisplayClipIndex != clipCount)
+            {
+                return true;
+            }
+
             if (!expectedClip.Equals(_clips[current.DisplayClipIndex]))
             {
                 _clips[current.DisplayClipIndex] = expectedClip;
@@ -1139,10 +1153,30 @@ public sealed class UiDocument : IDisposable
             var visit = _visualTraversal[last];
             _visualTraversal.RemoveAt(last);
             var current = visit.Element;
+            if (visit.Exit)
+            {
+                var clips = 1;
+                var visuals = current.DisplayVisualIndex >= 0 ? 1 : 0;
+                var text = current.DisplayTextIndex >= 0 ? 1 : 0;
+                for (var i = 0; i < current.Children.Count; i++)
+                {
+                    if (current.Children[i] is RetainedElement child)
+                    {
+                        clips += child.DisplayClipCount;
+                        visuals += child.DisplayVisualCount;
+                        text += child.DisplayTextCount;
+                    }
+                }
+
+                current.SetDisplaySubtreeCounts(clips, visuals, text);
+                continue;
+            }
+
             if (current.Visibility != Retained.UiVisibility.Visible ||
                 (current.Participation & UiParticipation.Layout) == 0)
             {
                 current.ClearDisplayRange();
+                current.CompleteVisualExtraction();
                 continue;
             }
 
@@ -1175,6 +1209,7 @@ public sealed class UiDocument : IDisposable
 
             current.SetDisplayRange(clipId.Value, visualIndex, textIndex);
             current.CompleteVisualExtraction();
+            _visualTraversal.Add(new(current, effective, visit.ParentClip, true));
 
             for (var i = current.Children.Count - 1; i >= 0; i--)
             {
@@ -1329,16 +1364,18 @@ public sealed class UiDocument : IDisposable
 
     private readonly struct VisualVisit
     {
-        public VisualVisit(RetainedElement element, Retained.UiRect clip, UiClipId parentClip)
+        public VisualVisit(RetainedElement element, Retained.UiRect clip, UiClipId parentClip, bool exit = false)
         {
             Element = element;
             Clip = clip;
             ParentClip = parentClip;
+            Exit = exit;
         }
 
         public RetainedElement Element { get; }
         public Retained.UiRect Clip { get; }
         public UiClipId ParentClip { get; }
+        public bool Exit { get; }
     }
 
     private sealed class EmptyFontResolver : IUiFontResolver

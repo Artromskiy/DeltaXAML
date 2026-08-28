@@ -261,6 +261,9 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private int _displayClipIndex = -1;
     private int _displayVisualIndex = -1;
     private int _displayTextIndex = -1;
+    private int _displayClipCount;
+    private int _displayVisualCount;
+    private int _displayTextCount;
     public UiElement()
     {
         Id = new(++_nextId);
@@ -540,22 +543,36 @@ internal class UiElement : IUiElement, IUiPropertyStore
     {
         _arrangedBounds = bounds;
         _hasArranged = true;
-        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        DirtyFlags &= ~UiDirtyFlags.Arrange;
     }
 
-    internal void CompleteVisualExtraction() => DirtyFlags &= ~UiDirtyFlags.Visual;
+    internal void CompleteVisualExtraction() => DirtyFlags &= ~(UiDirtyFlags.Tree | UiDirtyFlags.Visual);
     internal bool IsStyleDirty => (DirtyFlags & UiDirtyFlags.Style) != 0;
     internal void CompleteStyleStage() => DirtyFlags &= ~UiDirtyFlags.Style;
+    internal bool NeedsVisualExtraction => (DirtyFlags & (UiDirtyFlags.Tree | UiDirtyFlags.Style | UiDirtyFlags.Binding | UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual | UiDirtyFlags.Resource)) != 0;
     internal int DisplayClipIndex => _displayClipIndex;
     internal int DisplayVisualIndex => _displayVisualIndex;
     internal int DisplayTextIndex => _displayTextIndex;
+    internal int DisplayClipCount => _displayClipCount;
+    internal int DisplayVisualCount => _displayVisualCount;
+    internal int DisplayTextCount => _displayTextCount;
     internal void SetDisplayRange(int clipIndex, int visualIndex, int textIndex)
     {
         _displayClipIndex = clipIndex;
         _displayVisualIndex = visualIndex;
         _displayTextIndex = textIndex;
     }
-    internal void ClearDisplayRange() => SetDisplayRange(-1, -1, -1);
+    internal void SetDisplaySubtreeCounts(int clips, int visuals, int text)
+    {
+        _displayClipCount = clips;
+        _displayVisualCount = visuals;
+        _displayTextCount = text;
+    }
+    internal void ClearDisplayRange()
+    {
+        SetDisplayRange(-1, -1, -1);
+        SetDisplaySubtreeCounts(0, 0, 0);
+    }
     protected UiSize RequestedSize(UiSize measured) => new(float.IsNaN(Width) ? measured.Width : Width, float.IsNaN(Height) ? measured.Height : Height);
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
     internal virtual bool TryApplyTypedProperty(UiPropertyKey key, object? value)

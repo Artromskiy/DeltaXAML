@@ -206,6 +206,17 @@ sealed class CountingTextService : TextContract.ITextService
     public void Dispose() => _inner.Dispose();
 }
 
+sealed class CountingFontResolver(Library.UiFontCatalog catalog) : Library.IUiFontResolver
+{
+    public int ResolveCount { get; private set; }
+
+    public bool TryResolve(string fontKey, out TextContract.FontOpenRequest request)
+    {
+        ResolveCount++;
+        return catalog.TryResolve(fontKey, out request);
+    }
+}
+
 internal static partial class Program
 {
     public static void Main()
@@ -231,6 +242,7 @@ internal static partial class Program
         PointerFocusAndDispatch();
         ScrollAndClips();
         TextDisplayListUsesDeltaText();
+        DisplayListDirtySubtreeReusesStableText();
         DpiInvalidatesLayoutWithoutCompoundingScale();
         CustomVisualsRemainNeutral();
         PublicDisplayListWarmFrameHasNoAllocations();
@@ -527,6 +539,35 @@ internal static partial class Program
         Assert.Equal(3, textService.ShapeCount, "value-only visual update does not reshape unchanged text");
         Assert.True(ReferenceEquals(first.Text[1].Text, third.Text[1].Text), "value-only visual update preserves unchanged shaped text");
         Assert.Equal(first.Text[0].Clip, third.Text[0].Clip, "text clip identity remains canonical");
+    }
+
+    private static void DisplayListDirtySubtreeReusesStableText()
+    {
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
+        var fonts = new Library.UiFontCatalog();
+        fonts.Register(
+            "default",
+            new TextContract.FontSourceId(new Guid("B67E4FD5-9A68-49F1-BB7E-3C841779B0C3")),
+            File.ReadAllBytes(fontPath));
+        var changed = new Library.UiTextBlock { Text = "A", Width = 100, Height = 20 };
+        var stable = new Library.UiTextBlock { Text = "unchanged", Width = 100, Height = 20 };
+        var root = new Library.UiPanel();
+        root.Add(changed);
+        root.Add(stable);
+        var resolver = new CountingFontResolver(fonts);
+        using var textService = new CountingTextService();
+        using var document = new Library.UiDocument(root, textService, resolver);
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        var first = document.BuildDisplayList();
+        Assert.Equal(2, resolver.ResolveCount, "initial display extraction resolves both text runs");
+        var stableShaped = first.Text[1].Text;
+
+        changed.Text = "B";
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        var second = document.BuildDisplayList();
+        Assert.Equal(3, resolver.ResolveCount, "dirty extraction resolves only the changed text subtree");
+        Assert.Equal(3, textService.ShapeCount, "dirty extraction reshapes only the changed text");
+        Assert.True(ReferenceEquals(stableShaped, second.Text[1].Text), "dirty extraction reuses the stable shaped text");
     }
 
     private static void DpiInvalidatesLayoutWithoutCompoundingScale()
