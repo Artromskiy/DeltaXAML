@@ -312,6 +312,7 @@ internal static partial class Program
         NodeStagesFollowStructuralMutations();
         NodeStoreHasSingleOwner();
         NodeStoreOwnsDetachedRoot();
+        NodeStoreRejectsCrossDocumentReparenting();
         DisplayExtractionFollowsNodeLinksAfterTreeMutation();
         DescriptorLayoutDispatch();
     }
@@ -1692,6 +1693,44 @@ internal static partial class Program
         finally
         {
             store.Detach();
+        }
+    }
+
+    private static void NodeStoreRejectsCrossDocumentReparenting()
+    {
+        var sourceRoot = new Panel();
+        var sourceParent = new Panel();
+        var child = new TextBlock { Text = "owned" };
+        sourceRoot.Add(sourceParent);
+        sourceParent.Add(child);
+        var sourceStore = new UiNodeStore(sourceRoot);
+        var targetRoot = new Panel();
+        var targetStore = new UiNodeStore(targetRoot);
+        try
+        {
+            var rejected = false;
+            try
+            {
+                targetRoot.Add(child);
+            }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
+
+            Assert.True(rejected, "an attached document rejects direct cross-document reparenting");
+            Assert.True(ReferenceEquals(child.Parent, sourceParent), "rejected cross-document reparenting preserves the original parent");
+            Assert.Equal(3, sourceStore.Count, "the source node store keeps the child after rejected reparenting");
+            Assert.Equal(1, targetStore.Count, "the target node store does not register a rejected child");
+
+            Assert.True(sourceParent.Remove(child), "explicit detachment removes the child from the source document");
+            targetRoot.Add(child);
+            Assert.Equal(2, targetStore.Count, "an explicitly detached child can be attached to the target document");
+        }
+        finally
+        {
+            sourceStore.Detach();
+            targetStore.Detach();
         }
     }
 
