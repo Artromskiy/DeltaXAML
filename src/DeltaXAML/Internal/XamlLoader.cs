@@ -5,8 +5,7 @@ using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 namespace DeltaXAML.Internal;
 
 internal readonly record struct XamlDiagnostic(string Code, string Message, int Line, int Column);
-internal sealed record XamlLoadResult(UiElement? Root, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Root is not null && Diagnostics.Count == 0; public UiFrame? CreateFrame() { if (!Success || Root is null) { return null; } return new UiFrame(Root); } }
-internal sealed record XamlFrameLoadResult(UiFrame? Frame, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Frame is not null && Diagnostics.Count == 0; }
+internal sealed record XamlLoadResult(UiElement? Root, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Root is not null && Diagnostics.Count == 0; }
 internal sealed class XamlTypeRegistry
 {
     private readonly Dictionary<string, Func<UiElement>> _factories = new(StringComparer.Ordinal);
@@ -28,9 +27,6 @@ internal static class XamlLoader
     public static XamlLoadResult Load(string source, XamlTypeRegistry? registry) => Load(source, registry, null, null);
     internal static XamlLoadResult LoadForAdapter(string source, Func<string, string, UiElement?>? factory, UiResourceStore? resources) => Load(source, null, resources, factory);
     private static XamlLoadResult Load(string source, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory) { ArgumentNullException.ThrowIfNull(source); var d = new List<XamlDiagnostic>(); try { using var r = XmlReader.Create(new StringReader(source), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, IgnoreComments = true }); r.MoveToContent(); return new(Read(r, d, registry, resources, factory), d); } catch (XmlException e) { d.Add(new("XAML001", e.Message, e.LineNumber, e.LinePosition)); return new(null, d); } }
-    public static XamlFrameLoadResult LoadFrame(string source) => LoadFrame(source, (XamlTypeRegistry?)null);
-    public static XamlFrameLoadResult LoadFrame(string source, XamlTypeRegistry? registry) { var result = Load(source, registry); return new(result.CreateFrame(), result.Diagnostics); }
-    public static XamlFrameLoadResult LoadFrame(string source, UiResourceStore resources) { ArgumentNullException.ThrowIfNull(resources); var result = Load(source, null, resources, null); return new(result.CreateFrame(), result.Diagnostics); }
     private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, XamlTypeRegistry? registry, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
     {
         var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => UiPanelGenerated.Create(), "StackPanel" => UiStackPanelGenerated.Create(), "ItemsControl" => UiItemsControlGenerated.Create(), "Border" => UiBorderGenerated.Create(), "Grid" => UiGridGenerated.Create(), "ContentControl" => UiContentControlGenerated.Create(), "Button" => UiButtonGenerated.Create(), "ToggleButton" => UiToggleButtonGenerated.Create(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => UiTextBoxGenerated.Create(), "NumericEditor" => UiNumericEditorGenerated.Create(), "ScrollViewer" => UiScrollViewerGenerated.Create(), _ => null }; if (e is null && registry is not null)

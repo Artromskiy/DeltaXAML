@@ -68,7 +68,6 @@ internal readonly record struct UiPropertyHandle(UiElementId Element, uint Gener
 internal readonly record struct UiMutation(UiPropertyHandle Target, object? Value, UiDirtyFlags Invalidation);
 internal enum UiBindingMode { OneWay, TwoWay, OneTime }
 internal enum UiTextEditAction { None, SelectAll, Copy, Cut, Paste, Undo, Redo, DeleteSelection, Increment, Decrement }
-internal readonly record struct UiResourceHandle(ulong Value, uint Generation);
 internal readonly record struct UiResourceReference(string Key);
 internal enum UiAutomationRole { None, Unknown, Generic, Button, Window, Text, TextBox, NumericEditor }
 internal readonly record struct UiAutomationMetadata(string Name, UiAutomationRole Role, string ValueText, bool IsEnabled, bool IsInvalid);
@@ -114,9 +113,7 @@ internal interface IUiPropertyStore
     UiPropertyHandle GetHandle(string name); bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic);
 }
 
-internal enum UiDrawKind { Rectangle, TextRun, Image, Viewport }
 internal readonly record struct UiClipId(uint Value);
-internal readonly record struct UiClipEntry(UiClipId Id, UiRect Bounds, UiClipId Parent);
 /// <summary>Renderer-neutral text request; it is not shaped glyph data.</summary>
 /// <remarks>DeltaXAML owns content, style, layout bounds, DPI-dependent text metrics and identity. Owner plus OwnerGeneration identify retained lifetime; Version identifies text/style/DPI dirtiness. Layout changes are represented by Bounds, Clip and draw-list deltas. Shaping and glyph pixels remain external.</remarks>
 internal readonly record struct UiTextRun(string FontKey, float FontSize, string Text, string GlyphRunKey, UiColor Color, UiRect Bounds, UiRect Clip, UiElementId Owner, uint OwnerGeneration, uint Version, UiClipId ClipId = default);
@@ -130,13 +127,6 @@ internal readonly record struct UiArrangeContext(
     IReadOnlyList<IUiElement>? Children = null);
 internal readonly record struct UiTextVisualContext(UiElementId Owner, uint OwnerGeneration, float LayoutScale, uint Version);
 internal readonly record struct UiBindingSpec(string Property, string Path, UiBindingMode Mode, string? ConverterKey, string? StringFormat);
-internal readonly record struct UiDrawRange(int Start, int Count);
-internal readonly record struct UiDrawDelta(UiDrawRange Commands, UiDrawRange TextRuns, uint BaseVersion, uint NextVersion)
-{
-    public UiDrawRange Clips { get; init; }
-}
-internal readonly record struct UiDrawCommand(UiDrawKind Kind, UiRect Bounds, UiRect Clip, UiClipId ClipId, UiResourceHandle Resource, UiColor Color, string? Text, int ZIndex, uint Order, UiElementId Owner);
-internal readonly record struct UiFrameContext(UiSize Viewport, float DpiScale, uint FrameNumber);
 
 internal enum UiPointerEventKind { Move, Down, Up, Wheel }
 internal readonly record struct UiPointerEvent(UiPointerEventKind Kind, UiPoint Position, int Button = 0, float WheelDelta = 0);

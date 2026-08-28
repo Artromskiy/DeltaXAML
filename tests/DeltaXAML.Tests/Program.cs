@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.ComponentModel;
 using Delta.Text;
 using DeltaXAML.Internal;
@@ -217,12 +216,9 @@ internal static partial class Program
         TextClipboardUndoAndValidation();
         PointerFocusAndDispatch();
         ScrollAndClips();
-        TextRunStabilityAndDelta();
         TextDisplayListUsesDeltaText();
         BindingExpressionsAndContexts();
         EditorShellLibrarySlice();
-        DrawListProducerContract();
-        StorageReuse();
         HandlesCompiledBindingsAndCustomTypes();
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
@@ -366,7 +362,7 @@ internal static partial class Program
         root.Add(box);
         var button = new Button { Width = 100, Height = 30 };
         root.Add(button);
-        var frame = new UiFrame(root);
+        var frame = new UiRuntime(root);
         frame.Layout(new(100, 90), 1);
         var clicked = false;
         button.Click += (_, _) => clicked = true;
@@ -391,166 +387,23 @@ internal static partial class Program
 
     private static void ScrollAndClips()
     {
-        var scroll = new ScrollViewer { Width = 100, Height = 40 };
-        var content = new StackPanel { Height = 120 };
-        content.Add(new Panel { Width = 100, Height = 60, Background = new(255, 0, 0) });
-        content.Add(new Panel { Width = 100, Height = 60, Background = new(0, 255, 0) });
-        scroll.Content = content;
-        var frame = new UiFrame(scroll);
-        frame.Layout(new(100, 40), 1);
+        var scroll = new Library.UiScrollViewer { Width = 100, Height = 40 };
+        var content = new Library.UiStackPanel { Height = 120 };
+        content.Add(new Library.UiPanel { Width = 100, Height = 60, Background = new(255, 0, 0) });
+        content.Add(new Library.UiPanel { Width = 100, Height = 60, Background = new(0, 255, 0) });
+        scroll.SetContent(content);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(scroll, textService);
+        document.Layout(new(100, 40), 1);
         scroll.ScrollBy(0, 20);
-        frame.Layout(new(100, 40), 1);
-        var list = frame.ExtractDrawList(new UiFrameContext(new(100, 40), 1, 1));
-        Assert.Equal(2, list.Commands.Length, "scroll retains both commands");
-        Assert.Equal(0, list.TextRuns.Length, "plain scrolling content has no text runs");
-        foreach (var command in list.Commands.Span)
+        document.Layout(new(100, 40), 1);
+        var list = document.BuildDisplayList();
+        Assert.Equal(2, list.Visuals.Length, "scroll retains both commands");
+        Assert.Equal(0, list.Text.Length, "plain scrolling content has no text runs");
+        foreach (var command in list.Visuals)
         {
-            Assert.True(command.Clip.IsInside(new UiRect(0, 0, 100, 40)), "scroll clips to viewport");
+            Assert.True(list.Clips[command.Clip.Value].Bounds.z <= 100 && list.Clips[command.Clip.Value].Bounds.w <= 40, "scroll clips to viewport");
         }
-    }
-
-    private static void TextRunStabilityAndDelta()
-    {
-        var root = new Panel { Width = 200, Height = 40 };
-        var first = new TextBlock { Text = "first", Width = 100, Height = 20 };
-        var second = new TextBlock { Text = "second", Width = 100, Height = 20 };
-        root.Add(first);
-        root.Add(second);
-        var frame = new UiFrame(root);
-        frame.Layout(new(200, 40), 1);
-        var initial = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 1));
-        var initialRuns = initial.TextRuns.ToArray();
-        var initialVersion = initial.Version;
-        Assert.True(MemoryMarshal.TryGetArray(initial.TextRuns, out ArraySegment<UiTextRun> initialTextStorage), "text request backing array");
-        Assert.Equal("default", initialRuns[0].FontKey, "text request font key");
-        Assert.Equal("first", initialRuns[0].Text, "text request content");
-        Assert.Equal(first.Id, initialRuns[0].Owner, "text request owner");
-        Assert.Equal(first.Generation, initialRuns[0].OwnerGeneration, "text request owner generation");
-        for (var index = 0; index < 20; index++)
-        {
-            frame.Layout(new(200, 40), 1);
-            var next = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, (uint)(index + 2)));
-            Assert.Equal(initialVersion, next.Version, "unchanged frame keeps draw-list version");
-            Assert.Equal(initialRuns.Length, next.TextRuns.Length, "unchanged frame keeps text run count");
-            Assert.True(MemoryMarshal.TryGetArray(next.TextRuns, out ArraySegment<UiTextRun> nextTextStorage) && ReferenceEquals(initialTextStorage.Array, nextTextStorage.Array), "unchanged frame reuses text backing array");
-            var unchangedDelta = next.GetDeltaSince(initialVersion);
-            Assert.Equal(0, unchangedDelta.Commands.Count, "unchanged frame has no command delta");
-            Assert.Equal(0, unchangedDelta.Clips.Count, "unchanged frame has no clip delta");
-            Assert.Equal(0, unchangedDelta.TextRuns.Count, "unchanged frame has no text delta");
-            for (var runIndex = 0; runIndex < next.TextRuns.Length; runIndex++)
-            {
-                Assert.Equal(initialRuns[runIndex].Version, next.TextRuns.Span[runIndex].Version, "unchanged frame keeps text version");
-                Assert.Equal(initialRuns[runIndex].Owner, next.TextRuns.Span[runIndex].Owner, "unchanged frame keeps text owner");
-                Assert.Equal(initialRuns[runIndex].OwnerGeneration, next.TextRuns.Span[runIndex].OwnerGeneration, "unchanged frame keeps owner generation");
-            }
-        }
-
-        first.Foreground = new UiColor(200, 210, 220);
-        frame.Layout(new(200, 40), 1);
-        var styled = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 22));
-        var styleDelta = styled.GetDeltaSince(initialVersion);
-        Assert.Equal(new UiDrawRange(0, 1), styleDelta.TextRuns, "style update changes one text range");
-        Assert.True(styled.TextRuns.Span[0].Version != initialRuns[0].Version, "style update changes the owning text version");
-        Assert.Equal(initialRuns[1].Version, styled.TextRuns.Span[1].Version, "style update keeps the other text version");
-        initialRuns = styled.TextRuns.ToArray();
-        initialVersion = styled.Version;
-
-        first.Text = "changed";
-        frame.Layout(new(200, 40), 1);
-        var changed = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 23));
-        var changedVersion = changed.Version;
-        Assert.True(changed.TextRuns.Span[0].Version != initialRuns[0].Version, "changed text updates its version");
-        Assert.Equal(initialRuns[0].Owner, changed.TextRuns.Span[0].Owner, "text mutation keeps owner identity");
-        Assert.Equal(initialRuns[0].OwnerGeneration, changed.TextRuns.Span[0].OwnerGeneration, "text mutation keeps owner generation");
-        Assert.Equal(initialRuns[1].Version, changed.TextRuns.Span[1].Version, "unchanged text keeps its version");
-        var valueDelta = changed.GetDeltaSince(initialVersion);
-        Assert.Equal(new UiDrawRange(0, 1), valueDelta.TextRuns, "value update changes one text range");
-        Assert.Equal(new UiDrawRange(0, 0), valueDelta.Clips, "value update does not change clips");
-
-        root.Width = 240;
-        frame.Layout(new(240, 40), 1);
-        var layoutChanged = frame.ExtractDrawList(new UiFrameContext(new(240, 40), 1, 24));
-        var layoutChangedVersion = layoutChanged.Version;
-        var layoutDelta = layoutChanged.GetDeltaSince(changedVersion);
-        Assert.Equal(new UiDrawRange(0, layoutChanged.Clips.Length), layoutDelta.Clips, "layout update changes the clip ranges");
-        Assert.Equal(new UiDrawRange(0, 2), layoutDelta.TextRuns, "layout update changes positioned text ranges");
-        Assert.Equal(changed.TextRuns.Span[0].Version, layoutChanged.TextRuns.Span[0].Version, "layout update preserves first text identity");
-        Assert.Equal(changed.TextRuns.Span[1].Version, layoutChanged.TextRuns.Span[1].Version, "layout update preserves second text identity");
-
-        frame.Layout(new(240, 40), 2);
-        var dpiChanged = frame.ExtractDrawList(new UiFrameContext(new(240, 40), 2, 25));
-        var dpiDelta = dpiChanged.GetDeltaSince(layoutChangedVersion);
-        Assert.Equal(new UiDrawRange(0, 2), dpiDelta.TextRuns, "DPI update changes both text layout requests");
-    }
-
-    private static void DrawListProducerContract()
-    {
-        var root = new Panel { Width = 120, Height = 40, Background = new UiColor(10, 20, 30) };
-        var border = new Border { Background = new UiColor(40, 50, 60) };
-        var text = new TextBlock { Text = "Draw", GlyphRunKey = "draw-key" };
-        border.Add(text);
-        root.Add(border);
-        var frame = new UiFrame(root);
-        frame.Layout(new(120, 40), 1);
-        var first = frame.ExtractDrawList(new UiFrameContext(new(120, 40), 1, 1));
-        Assert.Equal(2, first.Commands.Length, "producer keeps rectangle commands");
-        Assert.Equal(3, first.Clips.Length, "producer keeps each clip node");
-        Assert.Equal(1, first.TextRuns.Length, "producer keeps positioned text request");
-        Assert.Equal(first.Clips.Span[0].Id, first.Commands.Span[0].ClipId, "root command keeps clip id");
-        Assert.Equal(first.Clips.Span[1].Id, first.Commands.Span[1].ClipId, "child command keeps clip id");
-        Assert.Equal(first.Clips.Span[0].Id, first.Clips.Span[1].Parent, "clip hierarchy keeps parent");
-        Assert.Equal(first.Clips.Span[1].Id, first.Clips.Span[2].Parent, "text clip keeps parent");
-        Assert.Equal(default, first.Commands.Span[0].Resource, "rectangle resource handle is preserved");
-        Assert.Equal(default, first.Commands.Span[1].Resource, "child resource handle is preserved");
-        var firstVersion = first.Version;
-        var firstRun = first.TextRuns.Span[0];
-        Assert.Equal("draw-key", firstRun.GlyphRunKey, "positioned text reference is preserved");
-        Assert.Equal(text.Id, firstRun.Owner, "text owner is preserved");
-        Assert.Equal(text.Generation, firstRun.OwnerGeneration, "text owner generation is preserved");
-
-        border.Background = new UiColor(70, 80, 90);
-        var changed = frame.ExtractDrawList(new UiFrameContext(new(120, 40), 1, 2));
-        var delta = changed.GetDeltaSince(firstVersion);
-        Assert.Equal(new UiDrawRange(1, 1), delta.Commands, "one rectangle produces one command delta");
-        Assert.Equal(new UiDrawRange(0, 0), delta.Clips, "unchanged clip hierarchy produces no clip delta");
-        Assert.Equal(new UiDrawRange(0, 0), delta.TextRuns, "unchanged text produces no text delta");
-        Assert.Equal(firstVersion, delta.BaseVersion, "delta keeps base version");
-        Assert.Equal(changed.Version, delta.NextVersion, "delta keeps next version");
-        Assert.Equal(firstRun, changed.TextRuns.Span[0], "rectangle-only update preserves text request");
-
-        var stale = changed.GetDeltaSince(0);
-        Assert.Equal(new UiDrawRange(0, changed.Commands.Length), stale.Commands, "stale version requests all commands");
-        Assert.Equal(new UiDrawRange(0, changed.Clips.Length), stale.Clips, "stale version requests all clips");
-        Assert.Equal(new UiDrawRange(0, changed.TextRuns.Length), stale.TextRuns, "stale version requests all text");
-    }
-
-    private static void StorageReuse()
-    {
-        var root = new Panel { Width = 20, Height = 20, Background = new(1, 2, 3) };
-        var frame = new UiFrame(root);
-        frame.Layout(new(20, 20), 1);
-        var list = frame.ExtractDrawList(new UiFrameContext(new(20, 20), 1, 1));
-        var commands = list.Commands;
-        Assert.True(MemoryMarshal.TryGetArray(commands, out ArraySegment<UiDrawCommand> first), "command backing array");
-        frame.ExtractDrawList(new UiFrameContext(new(20, 20), 1, 2));
-        Assert.True(MemoryMarshal.TryGetArray(list.Commands, out ArraySegment<UiDrawCommand> second), "second command backing array");
-        Assert.True(ReferenceEquals(first.Array, second.Array), "draw storage stable after warmup");
-        Assert.Equal(1, list.Commands.Length, "draw count stable");
-        for (var index = 0; index < 3; index++)
-        {
-            frame.Layout(new(20, 20), 1);
-            frame.ExtractDrawList(new UiFrameContext(new(20, 20), 1, (uint)index));
-        }
-
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var index = 0; index < 20; index++)
-        {
-            frame.Layout(new(20, 20), 1);
-            frame.ExtractDrawList(new UiFrameContext(new(20, 20), 1, (uint)index));
-        }
-
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        Assert.True(allocated == 0, $"warm frame allocated {allocated} bytes");
     }
 
     private static void ResourceLookupDiagnostics()
@@ -590,25 +443,6 @@ internal static partial class Program
         element.Clear("Value", UiValueSource.Style);
         Assert.True(element.TryGet("Value", out value) && Equals(value.UntypedValue, "default"), "clear style reveals default");
 
-        var loaded = XamlLoader.LoadFrame("<Panel><TextBlock Text=\"Label\" ForegroundResource=\"Color.Text\" /></Panel>", resources);
-        Assert.True(loaded.Success && loaded.Frame?.Root.Children[0] is TextBlock, "XAML resource fixture loads");
-        var root = (Panel)loaded.Frame!.Root;
-        var first = (TextBlock)root.Children[0];
-        var second = new TextBlock { Text = "Other" };
-        root.Add(second);
-        var frame = loaded.Frame;
-        frame.Layout(new(200, 40), 1);
-        var before = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 1));
-        var beforeVersion = before.Version;
-        resources.Set("Color.Text", new UiColor(40, 50, 60));
-        var unchangedAssignment = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 2));
-        Assert.True(unchangedAssignment.Version != beforeVersion, "dependent resource change invalidates output");
-        Assert.Equal(new UiDrawRange(0, 1), unchangedAssignment.GetDeltaSince(beforeVersion).TextRuns, "resource change has bounded text delta");
-        resources.Set("Color.Text", new UiColor(40, 50, 60));
-        var unchanged = frame.ExtractDrawList(new UiFrameContext(new(200, 40), 1, 3));
-        Assert.Equal(unchangedAssignment.Version, unchanged.Version, "unchanged resource assignment has no draw delta");
-        Assert.Equal(new UiColor(40, 50, 60), first.Foreground, "resource style updates the consuming property");
-        Assert.Equal(new UiColor(255, 255, 255), second.Foreground, "unrelated property remains unchanged");
     }
 
     private static void LibraryFacadeSmoke()
@@ -776,12 +610,6 @@ internal static partial class Program
             Assert.True(ReferenceEquals(first.Text[i].Text, second.Text[i].Text), "unchanged EditorShell text reuses shaped state");
         }
 
-        var retainedFrame = new UiFrame(root.RetainedElement);
-        retainedFrame.Layout(new UiSize(960, 540), 1);
-        var neutral = retainedFrame.ExtractDrawList(new UiFrameContext(new UiSize(960, 540), 1, 1));
-        Assert.True(neutral.Commands.Length >= 4, "EditorShell retained producer emits rectangle commands");
-        Assert.True(neutral.TextRuns.Length >= 1, "EditorShell retained producer emits a neutral text request");
-        Assert.True(neutral.TextRuns.Span[0].Owner.IsValid && neutral.TextRuns.Span[0].OwnerGeneration != 0, "EditorShell text request preserves owner lifetime identity");
     }
 
     private static void PublicResourcesStylesTemplatesAndTypes()
@@ -899,7 +727,7 @@ internal static partial class Program
         var root = new Panel();
         root.Add(text);
         root.Add(other);
-        var frame = new UiFrame(root);
+        var frame = new UiRuntime(root);
         var handle = text.GetHandle("Text");
         var otherHandle = other.GetHandle("Text");
         frame.Enqueue(new UiMutation(handle, "value", UiDirtyFlags.Binding | UiDirtyFlags.Visual));
@@ -943,9 +771,7 @@ internal static partial class Program
         Assert.True(!frame.TryResolve(otherHandle, out _), "removed element is absent from the frame identity index");
         Assert.True(frame.TryResolve(handle, out var indexed) && ReferenceEquals(indexed, text), "frame resolves a live handle through the dense node index");
         frame.Layout(new(100, 20), 1);
-        var draw = frame.ExtractDrawList(new UiFrameContext(new(100, 20), 1, 1));
         Assert.Equal(new UiRect(0, 0, 100, 20), text.Bounds, "frame layout boundary");
-        Assert.True(draw.TextRuns.Length == 1 && draw.TextRuns.Span[0].Owner == text.Id, "frame draw boundary retains owner");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Down, new(10, 10), 1)));
         if (frame.Input.Focused is not { } focused || frame.Input.Captured is not { } captured)
         {
