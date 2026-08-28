@@ -52,16 +52,27 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     public void RoutePointer(in UiPointerEvent input)
     {
         PruneDetachedState();
-        var target = _captured ?? _runtime.FindHit(input.Position);
-        if (input.Kind == UiPointerEventKind.Move)
+        var target = _captured ?? (input.Kind is UiPointerEventKind.Leave or UiPointerEventKind.CaptureLost
+            ? _hovered
+            : _runtime.FindHit(input.Position));
+        switch (input.Kind)
         {
-            SetHovered(target);
-        }
-
-        if (input.Kind == UiPointerEventKind.Down)
-        {
-            _captured = target;
-            SetFocused(target);
+            case UiPointerEventKind.Enter:
+            case UiPointerEventKind.Move:
+                SetHovered(target);
+                break;
+            case UiPointerEventKind.Leave:
+                SetHovered(null);
+                break;
+            case UiPointerEventKind.Down:
+                _captured = target;
+                SetFocused(target);
+                break;
+            case UiPointerEventKind.Cancel:
+            case UiPointerEventKind.CaptureLost:
+                _captured = null;
+                SetHovered(null);
+                break;
         }
 
         if (target is not null)

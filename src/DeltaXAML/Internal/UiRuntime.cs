@@ -163,6 +163,7 @@ internal sealed class UiRuntime
             }
 
             if (element.Visibility != UiVisibility.Visible ||
+                !element.IsEnabled ||
                 (element.Participation & Delta.XAML.UiParticipation.Layout) == 0 ||
                 !element.Clip.Contains(point))
             {

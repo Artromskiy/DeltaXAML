@@ -241,6 +241,7 @@ internal static partial class Program
         GridSizing();
         TextClipboardUndoAndValidation();
         PointerFocusAndDispatch();
+        PublicInputPreservesKeyModifiers();
         ScrollAndClips();
         TextDisplayListUsesDeltaText();
         DisplayListDirtySubtreeReusesStableText();
@@ -470,6 +471,39 @@ internal static partial class Program
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiKeyEvent(9, true)));
         Assert.True(frame.Input.Focused == probe.Id || frame.Input.Focused == box.Id, "tab focus traversal");
         Assert.True(!button.IsFocused, "tab focus clears the previous focused visual state");
+    }
+
+    private static void PublicInputPreservesKeyModifiers()
+    {
+        var root = new Library.UiPanel();
+        var text = new Library.UiTextBox { Width = 100, Height = 20 };
+        text.SetText("abc");
+        root.Add(text);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(root, textService);
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+
+        document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(new LibraryContract.UiPointerEvent(
+            LibraryContract.UiPointerEventKind.ButtonDown,
+            LibraryContract.UiPointerDeviceKind.Mouse,
+            1,
+            new Delta.Maths.float2(10, 10),
+            default,
+            default,
+            LibraryContract.UiPointerButton.Primary,
+            new LibraryContract.UiPointerButtons(1),
+            0,
+            default)));
+        document.Dispatch(LibraryContract.UiInputEvent.FromKey(new LibraryContract.UiKeyEvent(
+            LibraryContract.UiKeyEventKind.Down,
+            new LibraryContract.UiPhysicalKey(65),
+            new LibraryContract.UiLogicalKey(65),
+            new LibraryContract.UiModifierState(LibraryContract.UiModifierBits.Control),
+            false)));
+        document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("z".AsMemory())));
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+
+        Assert.Equal("z", text.Text, "public input preserves Ctrl+A for text editing");
     }
 
     private static void ScrollAndClips()

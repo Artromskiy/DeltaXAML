@@ -999,7 +999,11 @@ public sealed class UiDocument : IDisposable
                     var packet = Retained.UiInputPacket.From(new Retained.UiKeyEvent(
                         checked((int)input.Key.PhysicalKey.Value),
                         input.Key.Kind == UiKeyEventKind.Down,
-                        input.Key.IsRepeat));
+                        input.Key.IsRepeat,
+                        input.Key.Modifiers.Contains(UiModifierBits.Shift),
+                        input.Key.Modifiers.Contains(UiModifierBits.Control),
+                        input.Key.Modifiers.Contains(UiModifierBits.Alt),
+                        input.Key.Modifiers.Contains(UiModifierBits.Super)));
                     _runtime.EnqueueInput(in packet);
                     break;
                 }
@@ -1503,10 +1507,15 @@ public sealed class UiDocument : IDisposable
 
     private static Retained.UiPointerEventKind ToRetainedPointerKind(UiPointerEventKind kind) => kind switch
     {
+        UiPointerEventKind.Enter => Retained.UiPointerEventKind.Enter,
+        UiPointerEventKind.Leave => Retained.UiPointerEventKind.Leave,
+        UiPointerEventKind.Move => Retained.UiPointerEventKind.Move,
         UiPointerEventKind.ButtonDown => Retained.UiPointerEventKind.Down,
         UiPointerEventKind.ButtonUp => Retained.UiPointerEventKind.Up,
         UiPointerEventKind.Wheel => Retained.UiPointerEventKind.Wheel,
-        _ => Retained.UiPointerEventKind.Move,
+        UiPointerEventKind.Cancel => Retained.UiPointerEventKind.Cancel,
+        UiPointerEventKind.CaptureLost => Retained.UiPointerEventKind.CaptureLost,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported pointer event kind."),
     };
 
     private static float4 ToFloat4(Retained.UiRect value) => new(value.X, value.Y, value.Width, value.Height);

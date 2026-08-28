@@ -133,7 +133,7 @@ internal readonly record struct UiArrangeRequest(UiNodeId Element, UiRect Bounds
 internal readonly record struct UiTextVisualContext(UiElementId Owner, uint OwnerGeneration, float LayoutScale, uint Version);
 internal readonly record struct UiBindingSpec(string Property, string Path, UiBindingMode Mode, string? ConverterKey, string? StringFormat);
 
-internal enum UiPointerEventKind { Move, Down, Up, Wheel }
+internal enum UiPointerEventKind { Enter, Leave, Move, Down, Up, Wheel, Cancel, CaptureLost }
 internal readonly record struct UiPointerEvent(UiPointerEventKind Kind, UiPoint Position, int Button = 0, float WheelDelta = 0);
 internal readonly record struct UiKeyEvent(int PhysicalKey, bool IsDown, bool IsRepeat = false, bool Shift = false, bool Control = false, bool Alt = false, bool Meta = false);
 internal readonly record struct UiTextInput(string Text);
