@@ -1175,6 +1175,10 @@ internal static partial class Program
         Assert.Equal(1.5f, child.DpiScale, "scale stage visits a child through the node links");
         Assert.Equal(new UiRect(0, 0, 100, 40), child.Bounds, "new child is laid out after node refresh");
 
+        var stableTreeVersion = root.TreeVersion;
+        runtime.Layout(new(100, 40), 1.5f);
+        Assert.Equal(stableTreeVersion, root.TreeVersion, "unchanged layout does not mutate the tree version");
+
         root.Remove(child);
         child.SetLayoutScale(1f);
         runtime.Layout(new(100, 40), 2f);

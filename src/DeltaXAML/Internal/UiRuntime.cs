@@ -18,6 +18,8 @@ internal sealed class UiRuntime
     private readonly List<UiNodeId> _stageTraversal = new();
     private readonly List<UiMeasureRequest> _measureQueue = new();
     private readonly List<UiArrangeRequest> _arrangeQueue = new();
+    private float _appliedScale = float.NaN;
+    private uint _scaledTreeVersion;
 
     public UiRuntime(IUiElement root)
     {
@@ -69,7 +71,12 @@ internal sealed class UiRuntime
             UiStyleStage.Run(theme, publicRoot);
         }
 
-        UiScaleStage.Run(_nodes, _retainedRoot, dpiScale, _stageTraversal, _childOrder);
+        if (!_appliedScale.Equals(dpiScale) || _scaledTreeVersion != _retainedRoot.TreeVersion)
+        {
+            UiScaleStage.Run(_nodes, _retainedRoot, dpiScale, _stageTraversal, _childOrder);
+            _appliedScale = dpiScale;
+            _scaledTreeVersion = _retainedRoot.TreeVersion;
+        }
         var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
         UiMeasureStage.Run(_nodes, _retainedRoot, scaled, _measureQueue, _childOrder);
         UiArrangeStage.Run(_nodes, _retainedRoot, new(0, 0, viewport.Width, viewport.Height), _arrangeQueue);
