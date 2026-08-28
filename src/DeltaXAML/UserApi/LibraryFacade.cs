@@ -869,7 +869,7 @@ public sealed class XamlLoader : IXamlLoader
                         continue;
                     }
 
-                    if (!Retained.XamlDialectParser.TryParseResourceReference(reader.Value, out var resourceKey))
+                    if (!Retained.XamlDialectParser.TryParseResourceReference(reader.Value, out var resourceKey, out _))
                     {
                         continue;
                     }

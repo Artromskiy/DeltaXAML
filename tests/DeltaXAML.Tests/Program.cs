@@ -1259,6 +1259,14 @@ internal static partial class Program
         resources.Set("TextColor", firstColor);
         Assert.Equal(firstColor, dynamicText.Foreground, "DynamicResource remains live after a catalog update");
         Assert.True(dynamicText.RetainedElement.TextVersion > dynamicTextVersion, "DynamicResource foreground changes invalidate text style identity");
+        var staticLoaded = loader.Load(
+            "<TextBlock Foreground=\"{StaticResource TextColor}\" />",
+            new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), resources));
+        Assert.True(staticLoaded.Success && staticLoaded.Root is Library.UiTextBlock, "StaticResource markup loads through the public facade");
+        if (staticLoaded.Root is not Library.UiTextBlock staticText) { throw new InvalidOperationException("static resource text missing"); }
+        Assert.Equal(firstColor, staticText.Foreground, "StaticResource resolves its initial value");
+        resources.Set("TextColor", secondColor);
+        Assert.Equal(firstColor, staticText.Foreground, "StaticResource does not subscribe to later catalog changes");
         resources.Set("Alias", new Library.UiResourceReference("TextColor"));
         Assert.True(resources.TryResolve("Alias", out var aliasValue) && aliasValue is Library.UiColor, "resource aliases resolve through the public catalog");
         resources.Set("CycleA", new Library.UiResourceReference("CycleB"));

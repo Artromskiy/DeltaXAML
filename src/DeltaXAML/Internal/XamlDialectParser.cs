@@ -75,7 +75,7 @@ internal static class XamlDialectParser
             return;
         }
 
-        if (TryParseResourceReference(value, out var resourceKey))
+        if (TryParseResourceReference(value, out var resourceKey, out var dynamicResource))
         {
             if (resources is null)
             {
@@ -89,7 +89,16 @@ internal static class XamlDialectParser
                 return;
             }
 
-            e.SetStyleResource(name, resources, new(resourceKey), InvalidationFor(name));
+            if (dynamicResource)
+            {
+                e.SetStyleResource(name, resources, new(resourceKey), InvalidationFor(name));
+            }
+            else
+            {
+                resources.TryResolve(resourceKey, out var resolved, out _);
+                e.SetStyle(name, resolved, InvalidationFor(name));
+            }
+
             return;
         }
 
@@ -127,10 +136,18 @@ internal static class XamlDialectParser
             default: d.Add(new("XAML003", $"Unsupported property '{name}'.", line, 1)); break;
         }
     }
-    internal static bool TryParseResourceReference(string value, out string key)
+    internal static bool TryParseResourceReference(string value, out string key, out bool dynamicResource)
     {
         key = string.Empty;
-        if (!value.StartsWith("{DynamicResource ", StringComparison.Ordinal) && !value.StartsWith("{StaticResource ", StringComparison.Ordinal))
+        dynamicResource = false;
+        const string dynamicPrefix = "{DynamicResource ";
+        const string staticPrefix = "{StaticResource ";
+        var prefix = value.StartsWith(dynamicPrefix, StringComparison.Ordinal)
+            ? dynamicPrefix
+            : value.StartsWith(staticPrefix, StringComparison.Ordinal)
+                ? staticPrefix
+                : string.Empty;
+        if (prefix.Length == 0)
         {
             return false;
         }
@@ -140,15 +157,8 @@ internal static class XamlDialectParser
             return false;
         }
 
-        key = value[1..^1].Trim();
-        var separator = key.IndexOf(' ', StringComparison.Ordinal);
-        if (separator < 0)
-        {
-            key = string.Empty;
-            return false;
-        }
-
-        key = key[(separator + 1)..].Trim();
+        dynamicResource = prefix == dynamicPrefix;
+        key = value[prefix.Length..^1].Trim();
         return key.Length != 0;
     }
     private static UiDirtyFlags InvalidationFor(string name) => name switch
