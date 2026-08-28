@@ -1,7 +1,7 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
-using System.Diagnostics.CodeAnalysis;
 using Delta.Diagnostics;
 using PublicBinding = Delta.XAML.IUiBinding;
 using PublicBindingChanged = Delta.XAML.IUiBindingChanged;
@@ -11,6 +11,14 @@ using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 namespace DeltaXAML.Internal;
 
+/// <summary>
+/// Cold compatibility bridge for the public string-path binding expression.
+/// </summary>
+/// <remarks>
+/// Generated typed binding artifacts do not use this type. It remains only for
+/// the explicit tooling/compatibility loader path until the generated binding
+/// path replaces that loader mode.
+/// </remarks>
 internal sealed class UiBindingRuntime : IDisposable
 {
     private readonly string[] _segments;
@@ -151,7 +159,6 @@ internal sealed class UiBindingRuntime : IDisposable
         {
             changed.Changed -= OnExternalChanged;
         }
-
     }
 
     private object? Read()

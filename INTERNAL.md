@@ -765,10 +765,9 @@ is not an accepted architecture pass.
 | Path | Classification | Boundary rule |
 |---|---|---|
 | `Internal/UiElement.cs` | migration compatibility implementation | Existing retained owner/traversal shell plus the single cold source resolver; typed effective values now enter composite state through `ApplyTypedProperty`; remove the virtual compatibility shell during the retained-stage split. |
-| `Internal/UiFrame.cs` | obsolete compatibility implementation | Existing recursive frame, input and draw traversal; keep only for current callers until descriptor stages replace it. |
-| `Internal/XamlLoader.cs` | obsolete compatibility implementation | Runtime XML inflation bridge; replace with the compiled artifact path during `DXAML-COMPILE-1/2`. |
-| `Internal/BindingRuntime.cs` and `Internal/Theme.cs` | obsolete compatibility implementation | Existing cold binding/resource/style bridge; replace with typed plans during `DXAML-COMPILE-3/4`. |
-| `Internal/RetainedContracts.cs` | obsolete compatibility contracts | Current internal adapter vocabulary; do not extend it; remove each operation with its migrated control group. |
+| `Internal/Compatibility/UiBindingRuntime.cs` | migration-only cold compatibility implementation | Public `UiBindingExpression` bridge used by the explicit tooling/compatibility loader; generated typed binding artifacts do not call it. Remove after the loader has a generated construction mode. |
+| `UserApi/LibraryFacade.cs` (`XamlLoader`) | migration-only cold compatibility implementation | Public XML inflation entry point; generated companions bypass it and use direct construction. Keep it bounded to the explicit loader contract until a generated loader mode replaces it. |
+| `Internal/RetainedContracts.cs` | retained runtime vocabulary | Concrete records and the typed item source/factory and clipboard adapter boundaries still used by the retained compatibility shell; do not add new runtime algorithms here. |
 | `UserApi/LibraryFacade.cs` | active public compatibility facade | Existing public callers remain supported; new controls and generated descriptors must live in the designated locations, not in this file. |
 | `Internal/State/TextBlockState.cs` | migrated exemplar state | Composite text/layout state only; no algorithms, services or ownership. |
 | `Internal/Mixins/TextBlockMixin.cs` | migrated exemplar capabilities | Static generic measure/arrange/input/visual capability shapes and stateless readonly algorithms. |
@@ -835,18 +834,20 @@ migration compiling until their removal milestone.
 The current retained implementation remains a migration surface. In
 particular:
 
-- the common `UiElement`/`UiFrame` owner and traversal shells remain as
-  compatibility implementation while the later stage split removes their
-  virtual operation surface;
-- runtime XAML loading still performs work that belongs in generated artifacts;
-- the legacy draw representation is not the canonical `UiDisplayList`;
-- retained text requests are not a substitute for canonical shaped
-  `UiTextDraw`;
-- compatibility type/resource factories do not yet map losslessly to stable
-  GUID identities;
+- the common `UiElement` owner and traversal shell still contains the
+  compatibility operations that the final node-store stage must retire;
+- the public XML loader and `Internal/Compatibility/UiBindingRuntime.cs` are
+  intentionally cold compatibility paths; generated construction and typed
+  binding artifacts bypass both;
+- the canonical display-list producer is now the borrowed `UiVisualStage`
+  storage, while final editor/game consumer integration remains outside this
+  repository;
+- style/resource application still uses the public cold store and string keys;
+  the compiler plan has stable resource slots, but generated typed style plans
+  are not yet the sole runtime path;
 - source slots and loader/editor discovery still use the retained compatibility
-  store, but effective values now reach composite state through typed property
-  descriptors; generated binding/resource plans remain future work.
+  store, while effective values reach composite state through typed property
+  descriptors.
 
 These are migration tasks, not alternate architectures.
 
@@ -1209,12 +1210,14 @@ or Vulkan handles.
 Remove or split the following compatibility implementation as its replacement
 lands; do not wrap it in a new facade:
 
-- `Internal/UiFrame.cs`: recursive traversal, legacy `DrawList`, delta-list
-  comparison and O(n) `Find`;
-- `Internal/XamlLoader.cs`: shipping runtime parsing and string property switch;
-- `Internal/BindingRuntime.cs`: reflection path walking and per-binding closure
-  execution;
-- `Internal/Theme.cs`: delegate-based selectors/templates and string dispatch;
+- `Internal/UiElement.cs`: compatibility owner/traversal operations and the
+  retained relation fields;
+- `UserApi/LibraryFacade.cs` (`XamlLoader`): runtime parsing and string
+  property application;
+- `Internal/Compatibility/UiBindingRuntime.cs`: reflection path walking and
+  per-binding closure execution;
+- `UserApi/StyleApi.cs`: delegate-based templates and string-key style
+  application;
 - obsolete interfaces and packet types in `Internal/RetainedContracts.cs`;
 - retained-to-contract translation and legacy text requests in
   `UserApi/LibraryFacade.cs`.
