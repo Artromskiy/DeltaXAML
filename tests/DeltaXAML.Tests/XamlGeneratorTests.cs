@@ -43,12 +43,13 @@ internal static partial class Program
         var resourcePlan = XamlCompiler.Compile(sourceId, "<TextBlock Foreground=\"{StaticResource Accent}\" />", resourceRegistry);
         Assert.True(resourcePlan.Success, "resource markup remains a valid semantic plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(resourcePlan, resourceRegistry, "Generated", "ResourceArtifact", out var resourceSource, out var resourceDiagnostic), "resource markup emits through the compiled resource path");
-        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(\"Foreground\", Resources, new global::Delta.XAML.Contract.UiResourceId(new global::System.Guid(\"a4b05d1a-0a47-4e8c-b1b8-5dda7ea1d403\")))", StringComparison.Ordinal), "static resource values use the stable resource identity");
+        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(\"Foreground\", Resources, _resourceIds[0])", StringComparison.Ordinal), "static resource values use the artifact-local resource slot");
+        Assert.True(resourceSource.Contains("private static readonly global::Delta.XAML.Contract.UiResourceId[] _resourceIds", StringComparison.Ordinal), "generated artifacts retain one stable resource identity table");
         Assert.True(!resourceSource.Contains("Resources, \"Accent\"", StringComparison.Ordinal), "generated resource values do not use name lookup");
         var resourceDocumentPlan = XamlCompiler.Compile(sourceId, "<Panel x:Key=\"Accent\" Background=\"#112233\" />", resourceRegistry);
         Assert.True(resourceDocumentPlan.Success && resourceDocumentPlan.Root?.Name.LocalName == "ResourceDictionary", "resource-only XAML gets a semantic resource root");
         Assert.True(CSharpArtifactEmitter.TryEmit(resourceDocumentPlan, resourceRegistry, "Generated", "ResourceDictionaryArtifact", out var resourceDocumentSource, out _), "resource-only XAML emits a catalog artifact");
-        Assert.True(resourceDocumentSource.Contains("Resources.Set(new global::Delta.XAML.Contract.UiResourceId(new global::System.Guid(\"a4b05d1a-0a47-4e8c-b1b8-5dda7ea1d403\")), resource0);", StringComparison.Ordinal), "resource-only artifact registers its stable identity");
+        Assert.True(resourceDocumentSource.Contains("Resources.Set(_resourceIds[0], resource0);", StringComparison.Ordinal), "resource-only artifact registers its stable identity slot");
         Assert.True(!resourceDocumentSource.Contains("Document.Dispose();", StringComparison.Ordinal), "resource-only artifact does not dispose a missing document");
 
         var compositionRegistry = XamlSemanticRegistry.CreateBuiltIns();

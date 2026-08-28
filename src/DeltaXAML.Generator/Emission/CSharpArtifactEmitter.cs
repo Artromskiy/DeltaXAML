@@ -189,6 +189,18 @@ internal static class CSharpArtifactEmitter
         writer.Append("public sealed class ").Append(className).AppendLine(" : global::System.IDisposable");
         writer.AppendLine("{");
         writer.AppendLine("    private readonly global::Delta.XAML.UiElement[] _scopeElements;");
+        if (plan.ResourceSlots.Length != 0)
+        {
+            writer.AppendLine("    private static readonly global::Delta.XAML.Contract.UiResourceId[] _resourceIds =");
+            writer.AppendLine("    {");
+            for (var slotIndex = 0; slotIndex < plan.ResourceSlots.Length; slotIndex++)
+            {
+                writer.Append("        ").Append(ResourceIdExpression(plan.ResourceSlots[slotIndex].Id)).AppendLine(",");
+            }
+
+            writer.AppendLine("    };");
+        }
+
         for (var i = 0; i < bindingSites.Count; i++)
         {
             var binding = bindingSites[i];
@@ -232,7 +244,7 @@ internal static class CSharpArtifactEmitter
             writer.Append("        var resource").Append(i).Append(" = ").Append(resourceType.FactoryExpression).AppendLine(";");
             for (var memberIndex = 0; memberIndex < resourceNodes[i].Members.Length; memberIndex++)
             {
-                EmitMember(writer, i, resourceNodes[i].Members[memberIndex], "resource");
+                EmitMember(writer, i, resourceNodes[i].Members[memberIndex], "resource", plan.ResourceSlots);
             }
         }
 
@@ -246,7 +258,7 @@ internal static class CSharpArtifactEmitter
                 return false;
             }
 
-            writer.Append("        Resources.Set(").Append(ResourceIdExpression(plan.Resources[resourceIndex].Id)).Append(", resource").Append(rootIndex).AppendLine(");");
+            writer.Append("        Resources.Set(").Append(ResourceSlotExpression(plan.Resources[resourceIndex].Id, plan.ResourceSlots)).Append(", resource").Append(rootIndex).AppendLine(");");
         }
 
         for (var i = 0; i < resourceNodes.Count; i++)
@@ -274,8 +286,8 @@ internal static class CSharpArtifactEmitter
             }
         }
 
-        EmitStyles(writer, plan.Styles);
-        EmitTemplates(writer, plan.Templates, registry);
+        EmitStyles(writer, plan.Styles, plan.ResourceSlots);
+        EmitTemplates(writer, plan.Templates, registry, plan.ResourceSlots);
 
         for (var i = 0; i < nodes.Count; i++)
         {
@@ -293,7 +305,7 @@ internal static class CSharpArtifactEmitter
 
             for (var memberIndex = 0; memberIndex < nodes[i].Members.Length; memberIndex++)
             {
-                EmitMember(writer, i, nodes[i].Members[memberIndex]);
+                EmitMember(writer, i, nodes[i].Members[memberIndex], "node", plan.ResourceSlots);
             }
         }
 
@@ -526,7 +538,12 @@ internal static class CSharpArtifactEmitter
         return true;
     }
 
-    private static void EmitMember(StringBuilder writer, int nodeIndex, XamlMemberPlan member, string variablePrefix = "node")
+    private static void EmitMember(
+        StringBuilder writer,
+        int nodeIndex,
+        XamlMemberPlan member,
+        string variablePrefix,
+        IReadOnlyList<XamlResourceSlotPlan> resourceSlots)
     {
         if (member.Value.Kind == XamlValueKind.Binding)
         {
@@ -537,7 +554,8 @@ internal static class CSharpArtifactEmitter
         {
             writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append('.');
             writer.Append(member.Value.Resource.IsDynamic ? "SetDynamicResource" : "SetStaticResource");
-            writer.Append('(').Append(Quote(member.Name)).Append(", Resources, ").Append(ResourceIdExpression(member.Value.Resource.Id)).AppendLine(");");
+            writer.Append('(').Append(Quote(member.Name)).Append(", Resources, ")
+                .Append(ResourceSlotExpression(member.Value.Resource, resourceSlots)).AppendLine(");");
             return;
         }
 
@@ -589,7 +607,10 @@ internal static class CSharpArtifactEmitter
             .Append(Quote(site.Member.Name)).Append(", _binding").Append(bindingIndex).AppendLine(");");
     }
 
-    private static void EmitStyles(StringBuilder writer, IReadOnlyList<XamlStylePlan> styles)
+    private static void EmitStyles(
+        StringBuilder writer,
+        IReadOnlyList<XamlStylePlan> styles,
+        IReadOnlyList<XamlResourceSlotPlan> resourceSlots)
     {
         for (var styleIndex = 0; styleIndex < styles.Count; styleIndex++)
         {
@@ -608,7 +629,8 @@ internal static class CSharpArtifactEmitter
 
                     writer.Append("        style").Append(styleIndex).Append('.')
                         .Append(setter.Value.Resource.IsDynamic ? "SetResource" : "SetStaticResource")
-                        .Append('(').Append(resourceProperty).Append(", ").Append(ResourceIdExpression(setter.Value.Resource.Id)).AppendLine(");");
+                        .Append('(').Append(resourceProperty).Append(", ")
+                        .Append(ResourceSlotExpression(setter.Value.Resource, resourceSlots)).AppendLine(");");
                     continue;
                 }
 
@@ -640,7 +662,8 @@ internal static class CSharpArtifactEmitter
 
                         writer.Append("        style").Append(styleIndex).Append(".SetState").Append(setter.Value.Resource.IsDynamic ? "Resource" : "StaticResource");
                         writer.Append("(global::Delta.XAML.UiStyleState.").Append(state.State).Append(", ")
-                            .Append(stateResourceProperty).Append(", ").Append(ResourceIdExpression(setter.Value.Resource.Id)).AppendLine(");");
+                            .Append(stateResourceProperty).Append(", ")
+                            .Append(ResourceSlotExpression(setter.Value.Resource, resourceSlots)).AppendLine(");");
                         continue;
                     }
 
@@ -663,7 +686,11 @@ internal static class CSharpArtifactEmitter
         }
     }
 
-    private static void EmitTemplates(StringBuilder writer, IReadOnlyList<XamlTemplatePlan> templates, XamlSemanticRegistry registry)
+    private static void EmitTemplates(
+        StringBuilder writer,
+        IReadOnlyList<XamlTemplatePlan> templates,
+        XamlSemanticRegistry registry,
+        IReadOnlyList<XamlResourceSlotPlan> resourceSlots)
     {
         for (var templateIndex = 0; templateIndex < templates.Count; templateIndex++)
         {
@@ -682,7 +709,7 @@ internal static class CSharpArtifactEmitter
                 writer.Append("            var template").Append(nodeIndex).Append(" = ").Append(type.FactoryExpression).AppendLine(";");
                 for (var memberIndex = 0; memberIndex < nodes[nodeIndex].Members.Length; memberIndex++)
                 {
-                    EmitMember(writer, nodeIndex, nodes[nodeIndex].Members[memberIndex], "template");
+                    EmitMember(writer, nodeIndex, nodes[nodeIndex].Members[memberIndex], "template", resourceSlots);
                 }
             }
 
@@ -831,6 +858,33 @@ internal static class CSharpArtifactEmitter
         }
 
         return "new global::Delta.XAML.Contract.UiResourceId(new global::System.Guid(" + Quote(resource.Value.ToString("D")) + "))";
+    }
+
+    private static string ResourceSlotExpression(
+        XamlResourceReferencePlan resource,
+        IReadOnlyList<XamlResourceSlotPlan> resourceSlots)
+    {
+        if ((uint)resource.Slot >= (uint)resourceSlots.Count || resourceSlots[resource.Slot].Id != resource.Id)
+        {
+            throw new InvalidOperationException($"Resource '{resource.Key}' has no matching artifact-local slot.");
+        }
+
+        return "_resourceIds[" + resource.Slot.ToString(CultureInfo.InvariantCulture) + "]";
+    }
+
+    private static string ResourceSlotExpression(
+        UiResourceId resource,
+        IReadOnlyList<XamlResourceSlotPlan> resourceSlots)
+    {
+        for (var i = 0; i < resourceSlots.Count; i++)
+        {
+            if (resourceSlots[i].Id == resource)
+            {
+                return "_resourceIds[" + i.ToString(CultureInfo.InvariantCulture) + "]";
+            }
+        }
+
+        throw new InvalidOperationException("A generated resource declaration has no artifact-local slot.");
     }
 
     private static bool TryColor(string value, out string expression, out string error)
