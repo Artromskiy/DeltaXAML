@@ -430,23 +430,6 @@ internal class UiElement : IUiElement, IUiPropertyStore
         DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }
     protected UiSize RequestedSize(UiSize measured) => new(float.IsNaN(Width) ? measured.Width : Width, float.IsNaN(Height) ? measured.Height : Height);
-    public IUiElement? HitTest(UiPoint point)
-    {
-        if (Visibility != UiVisibility.Visible || (Participation & Delta.XAML.UiParticipation.Layout) == 0 || !Clip.Contains(point))
-        {
-            return null;
-        }
-
-        for (var i = _children.Count - 1; i >= 0; i--)
-        {
-            if (_children[i] is UiElement child && child.HitTest(point) is { } hit)
-            {
-                return hit;
-            }
-        }
-
-        return (Participation & Delta.XAML.UiParticipation.HitTesting) != 0 ? this : null;
-    }
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
     internal virtual bool TryApplyTypedProperty(UiPropertyKey key, object? value)
     {
