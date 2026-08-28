@@ -332,6 +332,20 @@ internal static partial class Program
         });
         element.SetBinding("Count", binding, UiDirtyFlags.Binding);
         Assert.True(binding.TryWrite(9, out error) && backing == 9, "compiled binding writes typed value");
+        var typedSource = new BindingModel { Name = "typed" };
+        using var typedCompiled = new Library.UiCompiledBinding<BindingModel, string>(
+            typedSource,
+            static source => source.Name,
+            static (source, value) => source.Name = value,
+            Library.UiBindingMode.TwoWay);
+        AssertTypedBinding(typedCompiled, typedSource);
+    }
+
+    private static void AssertTypedBinding<TBinding>(TBinding binding, BindingModel source)
+        where TBinding : Library.IUiBinding<string>
+    {
+        Assert.Equal("typed", binding.ReadValue(), "compiled binding exposes typed reads");
+        Assert.True(binding.TryWriteValue("updated", out var diagnostic) && diagnostic is null && source.Name == "updated", "compiled binding exposes typed writes");
     }
 
     private static void GridSizing()

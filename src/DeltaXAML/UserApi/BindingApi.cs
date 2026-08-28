@@ -100,7 +100,7 @@ public sealed class UiBindingResolver : IUiBindingResolver
 }
 
 /// <summary>Typed code binding that can be refreshed by a source notification.</summary>
-public sealed class UiCompiledBinding<TSource, TValue> : IUiBinding, IUiBindingChanged, IDisposable
+public sealed class UiCompiledBinding<TSource, TValue> : IUiBinding<TValue>, IUiBindingChanged, IDisposable
 {
     private readonly TSource _source;
     private readonly Func<TSource, TValue> _read;
@@ -138,13 +138,28 @@ public sealed class UiCompiledBinding<TSource, TValue> : IUiBinding, IUiBindingC
 
     public event EventHandler? Changed;
 
-    public object? Read() => _read(_source);
+    public TValue ReadValue() => _read(_source);
 
-    public bool TryWrite(object? value, [NotNullWhen(false)] out Diagnostic? diagnostic)
+    public object? Read() => ReadValue();
+
+    public bool TryWriteValue(TValue value, [NotNullWhen(false)] out Diagnostic? diagnostic)
     {
         if (Mode != UiBindingMode.TwoWay || _write is null)
         {
             diagnostic = BindingDiagnostic("Binding is read-only.");
+            return false;
+        }
+
+        _write(_source, value);
+        diagnostic = null;
+        return true;
+    }
+
+    public bool TryWrite(object? value, [NotNullWhen(false)] out Diagnostic? diagnostic)
+    {
+        if (value is null)
+        {
+            diagnostic = BindingDiagnostic($"Expected {typeof(TValue).Name}.");
             return false;
         }
 
@@ -154,9 +169,7 @@ public sealed class UiCompiledBinding<TSource, TValue> : IUiBinding, IUiBindingC
             return false;
         }
 
-        _write(_source, typed);
-        diagnostic = null;
-        return true;
+        return TryWriteValue(typed, out diagnostic);
     }
 
     public void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
