@@ -1,7 +1,7 @@
 # DeltaXAML library contract
 
 This document is the authoritative consumer-facing API shape for the retained
-DeltaXAML library. It complements [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md): the
+DeltaXAML library. It complements [CONTRACT.md](CONTRACT.md): the
 library contract owns loading, the retained document, element/property access,
 bindings and resource/type resolution; the cross-project contract owns neutral
 input packets and the borrowed renderer-facing display list.

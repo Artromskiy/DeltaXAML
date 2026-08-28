@@ -3,23 +3,23 @@
 Scope: Delta-owned XAML dialect, retained UI tree, properties/bindings,
 controls, layout, hit testing, input routing and renderer-neutral primitives.
 
-- [README.md](README.md) — stable UI ownership and pipeline.
-- [USER_API.md](USER_API.md) — explicitly user-facing library API.
-- [INTERNAL.md](INTERNAL.md) — authoritative internal architecture for typed
+- [docs/README.md](docs/README.md) — stable UI ownership and pipeline.
+- [docs/USER_API.md](docs/USER_API.md) — explicitly user-facing library API.
+- [docs/INTERNAL.md](docs/INTERNAL.md) — authoritative internal architecture for typed
   state, static generic mixins, generated descriptors, compiled XAML and the
   retained stage pipeline. Read it before implementation work.
-- [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) — authoritative cross-project input
+- [docs/CONTRACT.md](docs/CONTRACT.md) — authoritative cross-project input
   and display-list contract; do not duplicate or edit it as implementation
   cleanup.
-- [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md) — authoritative consumer-facing
+- [docs/LIBRARY_CONTRACT.md](docs/LIBRARY_CONTRACT.md) — authoritative consumer-facing
   loader/document/element/property boundary; implementation work converges on
   it without extending the legacy abstractions.
 - [TODO.md](TODO.md) — selected UI work.
 - [IDEAS.md](IDEAS.md) — deferred language/designer features.
 - [WORKFLOW.md](WORKFLOW.md) — fast build, headless harness and checks.
-- [ARCHITECTURE.md](ARCHITECTURE.md) — implemented retained/render-neutral
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — implemented retained/render-neutral
   boundary.
-- [API_REVIEW.md](API_REVIEW.md) — public API and type-policy migration review;
+- [docs/API_REVIEW.md](docs/API_REVIEW.md) — public API and type-policy migration review;
   required for API-shape work.
 - [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) — shared inspector acceptance.
 - [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md) — canonical UI/text/render

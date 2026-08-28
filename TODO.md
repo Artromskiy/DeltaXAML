@@ -1,19 +1,19 @@
 # DeltaXAML TODO
 
-Public facade sequencing follows [API_REVIEW.md](API_REVIEW.md); the
+Public facade sequencing follows [docs/API_REVIEW.md](docs/API_REVIEW.md); the
 cross-project handoff order is in
 [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md).
 
 The concrete implementation order, internal types, stage ownership and
 superseded-path removal criteria for every unchecked item below are authoritative
-in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-implementation-specification).
+in [docs/INTERNAL.md#remaining-implementation-specification](docs/INTERNAL.md#remaining-implementation-specification).
 
 ## P0 — finish DeltaXAML completely
 
 This completion goal is satisfied by the canonical implementation and its
 headless acceptance harness. Implement the architecture and
-completion gate in `INTERNAL.md` as one coherent production path. The frozen
-`LIBRARY_CONTRACT.md`, `PUBLIC_CONTRACT.md` and `src/DeltaXAML.Contract/**` are
+completion gate in `docs/INTERNAL.md` as one coherent production path. The frozen
+`docs/LIBRARY_CONTRACT.md`, `docs/CONTRACT.md` and `src/DeltaXAML.Contract/**` are
 constraints, not implementation blockers, and must not be expanded or edited.
 
 - [x] Finish `DXAML-RUNTIME-4`: remove the remaining duplicate retained owner,
@@ -50,7 +50,7 @@ constraints, not implementation blockers, and must not be expanded or edited.
   retained public symbol must be `[Obsolete(..., error: true)]`
   with its exact replacement and removal milestone, and must have no production
   caller.
-- [x] Satisfy every item in `INTERNAL.md#completion-gate`, update the migration
+- [x] Satisfy every item in `docs/INTERNAL.md#completion-gate`, update the migration
   classification to the final state, leave no unchecked DeltaXAML-owned item
   below, and finish with one clean commit without push.
 
@@ -151,7 +151,7 @@ and incompatible requirements.
   remain outside DeltaXAML.
 
 - [x] Implement the additive facade selected in
-  [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md): `IXamlLoader`, concrete
+  [docs/LIBRARY_CONTRACT.md](docs/LIBRARY_CONTRACT.md): `IXamlLoader`, concrete
   `UiDocument`, the common typed/untyped property and binding surfaces,
   GUID-backed resource/type resolution, and validated `UiParticipation`.
   Reuse the current retained tree and stores; do not create a second UI engine.
@@ -192,8 +192,8 @@ Shared ownership and gates are in [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md).
 
 This is the next mandatory implementation milestone. The previous completion
 gate established the canonical kernel; it did not complete the capability
-families specified in `USER_API.md#full-capability-dialect-target` and
-`INTERNAL.md#full-capability-implementation`. Do not mark this section complete
+families specified in `docs/USER_API.md#full-capability-dialect-target` and
+`docs/INTERNAL.md#full-capability-implementation`. Do not mark this section complete
 with host-built sample substitutions.
 
 - [x] Add typed generated `ItemsSource`, `DataTemplate` and deterministic

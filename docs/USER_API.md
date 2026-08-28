@@ -2,7 +2,7 @@
 
 This file describes the user-facing retained UI library. It is not the
 cross-project packet contract; that boundary is frozen in
-[PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md). Exact selected public signatures are
+[CONTRACT.md](CONTRACT.md). Exact selected public signatures are
 defined by [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md). Runtime implementation
 mechanics are documented only in [INTERNAL.md](INTERNAL.md).
 

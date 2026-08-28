@@ -3,7 +3,7 @@
 This document is the authoritative implementation architecture for DeltaXAML.
 It is explicitly internal: it does not replace the consumer-facing
 [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md) or the frozen cross-project
-[PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md).
+[CONTRACT.md](CONTRACT.md).
 
 The selected target is a retained UI library with compiled XAML, typed state,
 static generic mixins, generated descriptors and a renderer-neutral borrowed
@@ -939,7 +939,7 @@ milestone.
 
 This section is the execution plan after the completed `DXAML-MIXIN-1` through
 `DXAML-MIXIN-5` baseline. It defines how the unchecked items in `TODO.md` are
-implemented; it does not change `LIBRARY_CONTRACT.md`, `PUBLIC_CONTRACT.md` or
+implemented; it does not change `LIBRARY_CONTRACT.md`, `CONTRACT.md` or
 the types in `src/DeltaXAML.Contract`. If this section and a public contract
 disagree, the public contract wins and implementation stops for a contract
 decision instead of inventing an adapter.

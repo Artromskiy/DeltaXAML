@@ -9,12 +9,12 @@ Authoritative documents:
 - [USER_API.md](USER_API.md) — explicitly user-facing library API;
 - [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md) — selected loader/document/
   element/property contract;
-- [PUBLIC_CONTRACT.md](PUBLIC_CONTRACT.md) — cross-project input and borrowed
+- [CONTRACT.md](CONTRACT.md) — cross-project input and borrowed
   display-list contract;
 - [INTERNAL.md](INTERNAL.md) — authoritative typed-state, static-mixin,
   generated-descriptor and compiled-XAML implementation architecture;
-- [TODO.md](TODO.md) — selected project work and completed milestones;
-- [WORKFLOW.md](WORKFLOW.md) — bounded local checks.
+- [TODO.md](../TODO.md) — selected project work and completed milestones;
+- [WORKFLOW.md](../WORKFLOW.md) — bounded local checks.
 
 Ownership is intentionally split: DeltaXAML owns the retained document and
 display-list production, DeltaText owns shaping, DeltaRender owns GPU/atlas

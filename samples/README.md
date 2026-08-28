@@ -1,5 +1,10 @@
 # Generated sample parity
 
+Runnable sample projects:
+
+- [`TipCalc`](TipCalc/README.md) — a generated-XAML, typed-binding adaptation
+  that runs headlessly through `UiDocument` and the canonical display list.
+
 The executable sample acceptance lives in
 `tests/DeltaXAML.Tests/Fixtures/Samples`. All twenty fixtures enter the same
 `AdditionalFiles` compiler/generator path as application XAML and are created,
@@ -31,7 +36,7 @@ snapshot `e78b47511ac706bb179abc4a09f182355ae75178`:
 | `Popups` | Navigation/Pop-ups | focus-scope overlay |
 | `Hyperlink` | UserInterface/HyperlinkDemo | inline hit range and command |
 | `WorkingWithFiles` | UserInterface/WorkingWithFiles | host-owned file request command |
-| `TipCalc` | Apps/TipCalc | numeric editor and slider |
+| `TipCalc` | Apps/TipCalc | typed converters, two-way inputs and slider |
 
 These are DeltaXAML equivalents, not MAUI source compatibility claims.
 Platform navigation, dialogs, URI activation, drag/drop and asset I/O remain

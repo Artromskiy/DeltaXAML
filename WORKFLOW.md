@@ -8,6 +8,9 @@ SixLaborsLicenseFile=/path/to/sixlabors.lic \
 SixLaborsLicenseFile=/path/to/sixlabors.lic \
   dotnet run --project tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj \
   -c Release --no-build
+SixLaborsLicenseFile=/path/to/sixlabors.lic \
+  dotnet run --project samples/TipCalc/DeltaXAML.Samples.TipCalc.csproj \
+  -c Release --no-build --no-restore
 ```
 
 The headless harness references DeltaText and therefore SixLabors.Fonts. Local
@@ -69,7 +72,7 @@ reuse. The real window command lives in
 
 ## Descriptor/mixin architecture (mandatory)
 
-Read [INTERNAL.md](INTERNAL.md) before changing retained controls, properties,
+Read [docs/INTERNAL.md](docs/INTERNAL.md) before changing retained controls, properties,
 bindings, layout, input or visual extraction. The hard rule is:
 
 > An element class owns identity and composite state. A generic interface

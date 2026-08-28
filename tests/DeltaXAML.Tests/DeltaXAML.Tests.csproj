@@ -12,8 +12,8 @@
     <ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" OutputItemType="Analyzer"/>
     <ProjectReference Include="../../src/DeltaXAML.Contract/DeltaXAML.Contract.csproj"/>
     <ProjectReference Include="../../../DeltaDiagnostics/src/Delta.Diagnostics.Contract/Delta.Diagnostics.Contract.csproj"/>
-    <ProjectReference Include="../../../DeltaMaths/DeltaMaths.csproj"/>
-    <ProjectReference Include="../../../DeltaText/DeltaText.csproj"/>
+    <ProjectReference Include="../../../DeltaMaths/src/DeltaMaths/DeltaMaths.csproj"/>
+    <ProjectReference Include="../../../DeltaText/src/DeltaText/DeltaText.csproj"/>
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Compiler.dll"/>
@@ -28,7 +28,7 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace"/>
   </ItemGroup>
   <ItemGroup>
-    <None Include="../../../DeltaText/Tests/Fixtures/NotoSans-Regular.ttf" Link="Fixtures/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf" Link="Fixtures/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest"/>
     <AdditionalFiles Include="Fixtures/EditorShell.xaml" DeltaXamlClassName="EditorShellArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <AdditionalFiles Include="Fixtures/GameHud.xaml" DeltaXamlClassName="GameHudArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <AdditionalFiles Include="Fixtures/CustomBadge.xaml" DeltaXamlClassName="CustomBadgeArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
