@@ -143,7 +143,7 @@ internal sealed class UiPropertyStore
         _resourceBindings[name] = binding;
         binding.Handler = (_, args) =>
         {
-            if (!resources.DependsOn(binding.Reference.Key, args.Key))
+            if (!resources.DependsOn(binding.Reference, args))
             {
                 return;
             }
@@ -307,7 +307,7 @@ internal sealed class UiPropertyStore
 
         return null;
     }
-    private object? ResolveResource(ResourceBinding binding) => binding.Resources.TryResolve(binding.Reference.Key, out var value, out _) ? value : null;
+    private object? ResolveResource(ResourceBinding binding) => binding.Resources.TryResolve(binding.Reference, out var value, out _) ? value : null;
     private static bool Same(UiValue? left, UiValue? right) =>
         (left is null && right is null) ||
         (left is not null && right is not null &&

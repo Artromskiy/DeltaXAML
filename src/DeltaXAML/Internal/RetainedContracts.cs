@@ -68,7 +68,18 @@ internal readonly record struct UiPropertyHandle(UiElementId Element, uint Gener
 internal readonly record struct UiMutation(UiPropertyHandle Target, object? Value, UiDirtyFlags Invalidation);
 internal enum UiBindingMode { OneWay, TwoWay, OneTime }
 internal enum UiTextEditAction { None, SelectAll, Copy, Cut, Paste, Undo, Redo, DeleteSelection, Increment, Decrement }
-internal readonly record struct UiResourceReference(string Key);
+internal readonly record struct UiResourceReference(string Key, Guid ResourceId = default)
+{
+    internal UiResourceReference(Guid resource) : this(resource.ToString("D"), resource)
+    {
+        if (resource == Guid.Empty)
+        {
+            throw new ArgumentException("A resource identity is required.", nameof(resource));
+        }
+    }
+
+    internal bool HasResourceId => ResourceId != Guid.Empty;
+}
 internal enum UiAutomationRole { None, Unknown, Generic, Button, Window, Text, TextBox, NumericEditor }
 internal readonly record struct UiAutomationMetadata(string Name, UiAutomationRole Role, string ValueText, bool IsEnabled, bool IsInvalid);
 internal enum UiVisualState { Normal, Hover, Pressed, Focused, Disabled, Invalid, Selected }

@@ -463,7 +463,7 @@ public abstract class UiElement
             throw new ArgumentException("A resource identity is required.", nameof(resource));
         }
 
-        _retained.SetStyleResource(propertyName, resources.Store, new(resource.Value.ToString("D")), PropertyInvalidation(propertyName));
+        _retained.SetStyleResource(propertyName, resources.Store, new(resource.Value), PropertyInvalidation(propertyName));
     }
 
     /// <summary>Assigns a resource-backed style value that follows later catalog changes.</summary>
@@ -590,7 +590,9 @@ public abstract class UiElement
     {
         UiColor color => new Retained.UiColor(color.R, color.G, color.B, color.A),
         UiThickness thickness => new Retained.UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
-        UiResourceReference reference => new Retained.UiResourceReference(reference.Key),
+        UiResourceReference reference => reference.Resource.IsValid
+            ? new Retained.UiResourceReference(reference.Resource.Value)
+            : new Retained.UiResourceReference(reference.Key),
         _ => value,
     };
 
@@ -598,7 +600,9 @@ public abstract class UiElement
     {
         Retained.UiColor color => new UiColor(color.R, color.G, color.B, color.A),
         Retained.UiThickness thickness => new UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
-        Retained.UiResourceReference reference => new UiResourceReference(reference.Key),
+        Retained.UiResourceReference reference => reference.HasResourceId
+            ? new UiResourceReference(new UiResourceId(reference.ResourceId))
+            : new UiResourceReference(reference.Key),
         _ => value,
     };
 

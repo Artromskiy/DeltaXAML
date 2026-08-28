@@ -30,7 +30,7 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
             throw new ArgumentException("A resource identity is required.", nameof(resource));
         }
 
-        Set(resource.Value.ToString("D"), value);
+        _store.Set(resource.Value, ToRetainedValue(value));
     }
 
     public bool TryResolve(string key, out object? value)
@@ -54,7 +54,14 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
             return false;
         }
 
-        return TryResolve(resource.Value.ToString("D"), out value);
+        if (!_store.TryResolve(resource.Value, out var retainedValue, out _))
+        {
+            value = null;
+            return false;
+        }
+
+        value = ToPublicValue(retainedValue);
+        return true;
     }
 
     private static object? ToRetainedValue(object? value) => value switch
@@ -413,7 +420,10 @@ public sealed class UiStyle
         }
         else if (value is StaticResourceReference staticReference)
         {
-            if (_resources is not null && staticReference.IsValid && _resources.TryResolve(staticReference.Key, out var resolved))
+            if (_resources is not null && staticReference.IsValid &&
+                (staticReference.Resource.IsValid
+                    ? _resources.TryResolve(staticReference.Resource, out var resolved)
+                    : _resources.TryResolve(staticReference.Key, out resolved)))
             {
                 element.ApplyStyleValue(propertyName, resolved);
             }

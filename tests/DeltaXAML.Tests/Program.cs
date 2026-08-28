@@ -792,6 +792,19 @@ internal static partial class Program
 
         resources.Set("Alias", new UiResourceReference("Other"));
         Assert.True((element.DirtyFlags & UiDirtyFlags.Visual) != 0, "changing an alias target invalidates the dependent property");
+
+        var targetId = new LibraryContract.UiResourceId(new Guid("A3D23E31-9C65-4C72-A60A-1C7A0E7CE001"));
+        var aliasId = new LibraryContract.UiResourceId(new Guid("A3D23E31-9C65-4C72-A60A-1C7A0E7CE002"));
+        var catalog = new Library.UiResourceCatalog();
+        catalog.Set(targetId, new Library.UiColor(30, 40, 50));
+        catalog.Set(aliasId, new Library.UiResourceReference(targetId));
+        Assert.Equal(2, catalog.Store.ResourceSlotCount, "compiled resource identities occupy compact catalog slots");
+        Assert.True(catalog.TryResolve(aliasId, out var resolvedAlias) && resolvedAlias is Library.UiColor { R: 30, G: 40, B: 50 }, "resource aliases resolve through their stable identity");
+        var typedResourceText = new Library.UiTextBlock();
+        typedResourceText.SetDynamicResource("Foreground", catalog, aliasId);
+        Assert.Equal(new Library.UiColor(30, 40, 50), typedResourceText.Foreground, "typed dynamic resource keeps its stable identity");
+        catalog.Set(targetId, new Library.UiColor(31, 41, 51));
+        Assert.Equal(new Library.UiColor(31, 41, 51), typedResourceText.Foreground, "typed alias target invalidates its dependent property");
     }
 
     private static void TextDisplayListUsesDeltaText()
