@@ -249,6 +249,7 @@ internal static partial class Program
         BindingExpressionsAndContexts();
         EditorShellLibrarySlice();
         HandlesCompiledBindingsAndCustomTypes();
+        TypedPropertyCatalog();
         RuntimeStagesAreOrdered();
         BindingStageSkipsCleanSubtrees();
         ResourceLookupDiagnostics();
@@ -346,6 +347,19 @@ internal static partial class Program
     {
         Assert.Equal("typed", binding.ReadValue(), "compiled binding exposes typed reads");
         Assert.True(binding.TryWriteValue("updated", out var diagnostic) && diagnostic is null && source.Name == "updated", "compiled binding exposes typed writes");
+    }
+
+    private static void TypedPropertyCatalog()
+    {
+        var text = new Library.UiTextBlock();
+        text.SetValue(Library.UiTextBlockProperties.Text, "typed text");
+        text.SetValue(Library.UiTextBlockProperties.Foreground, new Library.UiColor(10, 20, 30));
+        text.SetValue(Library.UiElementProperties.Width, 120f);
+        Assert.Equal("typed text", text.GetValue(Library.UiTextBlockProperties.Text), "typed property catalog reads text");
+        Assert.Equal(new Library.UiColor(10, 20, 30), text.GetValue(Library.UiTextBlockProperties.Foreground), "typed property catalog converts visual values");
+        Assert.Equal(120f, text.GetValue(Library.UiElementProperties.Width), "typed property catalog writes common values");
+
+        Assert.True(!text.TrySetValue(Library.UiTextBlockProperties.FontSize, "wrong", out var diagnostic) && diagnostic is not null, "typed property object path rejects incompatible values");
     }
 
     private static void GridSizing()

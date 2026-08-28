@@ -239,7 +239,7 @@ public abstract class UiElement
 
     public bool TrySet(UiPropertyHandle handle, object? value, [NotNullWhen(false)] out Diagnostic? diagnostic)
     {
-        if (!_retained.TrySet(handle.Retained, value, RetainedDirty.Binding | RetainedDirty.Visual, out var message))
+        if (!_retained.TrySet(handle.Retained, ToRetainedValue(value), PropertyInvalidation(handle.Name), out var message))
         {
             diagnostic = new Diagnostic(new DiagnosticCode("XAML_PROPERTY"), DiagnosticSeverity.Error, message ?? "The property write was rejected.", null);
             return false;
@@ -252,13 +252,19 @@ public abstract class UiElement
     public object? GetValue(IUiProperty property)
     {
         ArgumentNullException.ThrowIfNull(property);
-        return _retained.TryGet(property.Name, out var value) ? value.UntypedValue : property.DefaultValue;
+        return _retained.TryGet(property.Name, out var value) ? ToPublicValue(value.UntypedValue) : property.DefaultValue;
     }
 
     public bool TrySetValue(IUiProperty property, object? value, [NotNullWhen(false)] out Diagnostic? diagnostic)
     {
         ArgumentNullException.ThrowIfNull(property);
-        _retained.SetLocal(property.Name, value, RetainedDirty.Binding | RetainedDirty.Visual);
+        if (!IsCompatibleValue(property.ValueType, value))
+        {
+            diagnostic = new Diagnostic(new DiagnosticCode("XAML_PROPERTY"), DiagnosticSeverity.Error, $"Value is not compatible with property '{property.Name}'.", null);
+            return false;
+        }
+
+        _retained.SetLocal(property.Name, ToRetainedValue(value), PropertyInvalidation(property.Name));
         diagnostic = null;
         return true;
     }
@@ -266,14 +272,14 @@ public abstract class UiElement
     public T GetValue<T>(IUiProperty<T> property)
     {
         ArgumentNullException.ThrowIfNull(property);
-        var value = GetValue(property);
+        var value = GetValue((IUiProperty)property);
         return value is T typed ? typed : property.DefaultValue;
     }
 
     public void SetValue<T>(IUiProperty<T> property, T value)
     {
         ArgumentNullException.ThrowIfNull(property);
-        _retained.SetLocal(property.Name, value, RetainedDirty.Binding | RetainedDirty.Visual);
+        _retained.SetLocal(property.Name, ToRetainedValue(value), PropertyInvalidation(property.Name));
     }
 
     /// <summary>Attaches a programmatic binding without exposing retained invalidation flags.</summary>
@@ -485,6 +491,26 @@ public abstract class UiElement
         UiThickness thickness => new Retained.UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
         UiResourceReference reference => new Retained.UiResourceReference(reference.Key),
         _ => value,
+    };
+
+    private static object? ToPublicValue(object? value) => value switch
+    {
+        Retained.UiColor color => new UiColor(color.R, color.G, color.B, color.A),
+        Retained.UiThickness thickness => new UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
+        Retained.UiResourceReference reference => new UiResourceReference(reference.Key),
+        _ => value,
+    };
+
+    private static bool IsCompatibleValue(Type valueType, object? value) =>
+        value is not null
+            ? valueType.IsInstanceOfType(value)
+            : !valueType.IsValueType || Nullable.GetUnderlyingType(valueType) is not null;
+
+    private static RetainedDirty PropertyInvalidation(string propertyName) => propertyName switch
+    {
+        "Text" or "FontKey" or "FontSize" or "Width" or "Height" or "Padding" or
+        "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
+        _ => RetainedDirty.Visual,
     };
 
     private static RetainedDirty StyleInvalidation(string propertyName) => propertyName switch

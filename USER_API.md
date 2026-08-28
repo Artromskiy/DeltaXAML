@@ -108,8 +108,8 @@ custom control does not require choosing a deep framework base class.
 Typed access is the normal application path:
 
 ```csharp
-button.SetValue(UiButtonProperties.Text, "Launch");
-string text = button.GetValue(UiButtonProperties.Text);
+textBlock.SetValue(UiTextBlockProperties.Text, "Launch");
+string text = textBlock.GetValue(UiTextBlockProperties.Text);
 ```
 
 The untyped `IUiProperty` view exists for XAML loading, diagnostics and editor
