@@ -237,6 +237,7 @@ internal static partial class Program
         AnimationSourceTests();
         RejectedTypedSourceTests();
         PropertyInvalidation();
+        EffectiveSourceInvalidation();
         GridSizing();
         TextClipboardUndoAndValidation();
         PointerFocusAndDispatch();
@@ -310,6 +311,25 @@ internal static partial class Program
         Assert.True(button.VisualState.State == UiVisualState.Pressed, "pressed state");
         button.SetFocused(true);
         Assert.True(button.VisualState.IsFocused, "focused state data");
+    }
+
+    private static void EffectiveSourceInvalidation()
+    {
+        var element = new UiElement();
+        element.SetDefault("Value", 7, UiDirtyFlags.Visual);
+        element.DirtyFlags = UiDirtyFlags.None;
+
+        element.SetLocal("Value", 7, UiDirtyFlags.Visual);
+        Assert.True((element.DirtyFlags & UiDirtyFlags.Visual) != 0, "an effective source change invalidates even when the value is equal");
+        Assert.True(element.TryGet("Value", out var local) && local.Source == UiValueSource.Local, "local source becomes effective");
+
+        element.DirtyFlags = UiDirtyFlags.None;
+        element.SetLocal("Value", 7, UiDirtyFlags.Visual);
+        Assert.Equal(UiDirtyFlags.None, element.DirtyFlags, "repeating the same effective source and value does not invalidate");
+
+        element.Clear("Value", UiValueSource.Local);
+        Assert.True((element.DirtyFlags & UiDirtyFlags.Visual) != 0, "clearing an override invalidates when the effective source changes");
+        Assert.True(element.TryGet("Value", out var fallback) && fallback.Source == UiValueSource.Default, "clearing local reveals the default source");
     }
 
     private static void HandlesCompiledBindingsAndCustomTypes()

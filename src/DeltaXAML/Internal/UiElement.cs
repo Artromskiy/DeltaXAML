@@ -219,7 +219,9 @@ internal sealed class UiPropertyStore : IUiPropertyStore
         return null;
     }
     private object? ResolveResource(ResourceBinding binding) => binding.Resources.TryResolve(binding.Reference.Key, out var value, out _) ? value : null;
-    private static bool Same(IUiValue? left, UiValue? right) => Equals(left?.UntypedValue, right?.UntypedValue);
+    private static bool Same(IUiValue? left, UiValue? right) =>
+        left is not null && right is not null &&
+        left.Source == right.Source && Equals(left.UntypedValue, right.UntypedValue);
     private sealed class SourceSlots
     {
         public UiValue? DefaultValue, StyleValue, BindingValue, LocalValue, HandleValue, AnimationValue;

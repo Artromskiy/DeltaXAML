@@ -32,6 +32,7 @@ internal static class StackPanelArchitectureTests
         retained.Arrange(new(0, 0, 200, 100));
         Assert.Equal(fill.Bounds, new UiRect(0, 30, 200, 70), "retained StackPanel dispatches layout through generated mixins");
 
+        retained.Orientation = UiOrientation.Vertical;
         var before = retained.LayoutVersion;
         retained.Orientation = UiOrientation.Vertical;
         Assert.Equal(before, retained.LayoutVersion, "unchanged StackPanel orientation does not invalidate layout");

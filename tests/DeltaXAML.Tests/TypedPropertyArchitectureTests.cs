@@ -20,12 +20,13 @@ internal static partial class Program
         text.SetStyle("Width", 240f, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         Assert.Equal(240f, text.Width, "common typed property reaches element state");
 
+        text.SetLocal("Width", 240f, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         var unchangedVersion = text.LayoutVersion;
         text.SetLocal("Width", 240f, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         Assert.Equal(unchangedVersion, text.LayoutVersion, "equal typed value does not invalidate layout");
-        Assert.True(text.TryGet("Width", out var unchanged) && unchanged.Source == UiValueSource.Local, "equal typed value updates source metadata");
+        Assert.True(text.TryGet("Width", out var unchanged) && unchanged.Source == UiValueSource.Local, "equal typed value keeps source metadata");
         text.Clear("Width", UiValueSource.Local);
-        Assert.Equal(unchangedVersion, text.LayoutVersion, "clearing equal local value does not invalidate layout");
+        Assert.True(text.LayoutVersion > unchangedVersion, "clearing equal local value invalidates the changed effective source");
         Assert.True(text.TryGet("Width", out unchanged) && unchanged.Source == UiValueSource.Style, "clearing equal local restores style metadata");
     }
 }
