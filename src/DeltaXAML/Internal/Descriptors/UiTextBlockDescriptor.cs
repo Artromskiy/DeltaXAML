@@ -169,6 +169,23 @@ internal static class UiDescriptorCatalog
         }
     }
 
+    internal static void ProcessInput(UiElement element, in UiInputPacket input)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        switch (element)
+        {
+            case NumericEditor numeric when input.Kind == UiInputPacketKind.Key:
+                numeric.ApplyKey(input.Key);
+                break;
+            case TextBox text when input.Kind == UiInputPacketKind.Key:
+                text.ApplyKey(input.Key);
+                break;
+            case TextBox text when input.Kind == UiInputPacketKind.Text:
+                text.ApplyText(input.Text);
+                break;
+        }
+    }
+
     internal static bool Arrange(UiElement element, in UiArrangeContext context)
     {
         ArgumentNullException.ThrowIfNull(element);

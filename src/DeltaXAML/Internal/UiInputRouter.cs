@@ -103,7 +103,8 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 
         if (_focused is TextBox text)
         {
-            text.ApplyKey(input);
+            var packet = UiInputPacket.From(input);
+            UiDescriptorCatalog.ProcessInput(text, in packet);
         }
     }
 
@@ -112,7 +113,8 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
         PruneDetachedState();
         if (_focused is TextBox text)
         {
-            text.ApplyText(input);
+            var packet = UiInputPacket.From(input);
+            UiDescriptorCatalog.ProcessInput(text, in packet);
         }
     }
 
