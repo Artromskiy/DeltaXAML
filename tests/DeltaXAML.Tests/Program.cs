@@ -1084,5 +1084,14 @@ internal static partial class Program
         UiArrangeStage.Run(root, new(0, 0, 100, 100), arrangeQueue);
         Assert.Equal(0, measureQueue.Count, "clean measure stage does not rescan the retained tree");
         Assert.Equal(0, arrangeQueue.Count, "clean arrange stage does not rescan the retained tree");
+
+        var leaf = current;
+        for (UiElement? ancestor = leaf; ancestor is not null; ancestor = ancestor.Parent as UiElement)
+        {
+            ancestor.DirtyFlags = UiDirtyFlags.None;
+        }
+
+        leaf.Invalidate(UiDirtyFlags.Visual);
+        Assert.True((root.DirtyFlags & UiDirtyFlags.Visual) != 0, "deep invalidation reaches the root without recursive propagation");
     }
 }

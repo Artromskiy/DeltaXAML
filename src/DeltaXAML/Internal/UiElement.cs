@@ -394,58 +394,68 @@ internal class UiElement : IUiElement, IUiPropertyStore
             return;
         }
 
-        var newFlags = flags & ~DirtyFlags;
-        DirtyFlags |= flags;
-        if (!changed && newFlags == UiDirtyFlags.None)
+        var current = this;
+        var propagatedFlags = flags;
+        while (propagatedFlags != UiDirtyFlags.None)
         {
-            return;
-        }
+            var newFlags = propagatedFlags & ~current.DirtyFlags;
+            current.DirtyFlags |= propagatedFlags;
+            if (!changed && newFlags == UiDirtyFlags.None)
+            {
+                return;
+            }
 
-        var versionFlags = changed ? flags : newFlags;
-        _outputVersion++;
-        if ((versionFlags & UiDirtyFlags.Tree) != 0)
-        {
-            _treeVersion++;
-        }
+            var versionFlags = changed ? propagatedFlags : newFlags;
+            current._outputVersion++;
+            if ((versionFlags & UiDirtyFlags.Tree) != 0)
+            {
+                current._treeVersion++;
+            }
 
-        if ((versionFlags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Style | UiDirtyFlags.Resource)) != 0)
-        {
-            _layoutVersion++;
-        }
+            if ((versionFlags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Style | UiDirtyFlags.Resource)) != 0)
+            {
+                current._layoutVersion++;
+            }
 
-        if ((versionFlags & (UiDirtyFlags.Binding | UiDirtyFlags.Visual)) != 0)
-        {
-            _textVersion++;
-            _layoutVersion++;
-        }
+            if ((versionFlags & (UiDirtyFlags.Binding | UiDirtyFlags.Visual)) != 0)
+            {
+                current._textVersion++;
+                current._layoutVersion++;
+            }
 
-        var parentFlags = UiDirtyFlags.None;
-        if ((versionFlags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Style | UiDirtyFlags.Resource)) != 0)
-        {
-            parentFlags |= UiDirtyFlags.Measure;
-        }
+            var parentFlags = UiDirtyFlags.None;
+            if ((versionFlags & (UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Style | UiDirtyFlags.Resource)) != 0)
+            {
+                parentFlags |= UiDirtyFlags.Measure;
+            }
 
-        if ((versionFlags & UiDirtyFlags.Tree) != 0)
-        {
-            parentFlags |= UiDirtyFlags.Tree;
-        }
+            if ((versionFlags & UiDirtyFlags.Tree) != 0)
+            {
+                parentFlags |= UiDirtyFlags.Tree;
+            }
 
-        if ((versionFlags & UiDirtyFlags.Visual) != 0)
-        {
-            parentFlags |= UiDirtyFlags.Visual;
-        }
+            if ((versionFlags & UiDirtyFlags.Visual) != 0)
+            {
+                parentFlags |= UiDirtyFlags.Visual;
+            }
 
-        if ((versionFlags & UiDirtyFlags.HitTest) != 0)
-        {
-            parentFlags |= UiDirtyFlags.HitTest;
-        }
+            if ((versionFlags & UiDirtyFlags.HitTest) != 0)
+            {
+                parentFlags |= UiDirtyFlags.HitTest;
+            }
 
-        if ((versionFlags & UiDirtyFlags.Style) != 0)
-        {
-            parentFlags |= UiDirtyFlags.Style;
-        }
+            if ((versionFlags & UiDirtyFlags.Style) != 0)
+            {
+                parentFlags |= UiDirtyFlags.Style;
+            }
 
-        (Parent as UiElement)?.InvalidateCore(parentFlags, changed);
+            current = current.Parent as UiElement;
+            propagatedFlags = parentFlags;
+            if (current is null)
+            {
+                return;
+            }
+        }
     }
     public void SetHovered(bool value) { if (IsHovered != value) { IsHovered = value; InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
     public virtual void SetPressed(bool value) { if (IsPressed != value) { InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual); } }
