@@ -156,6 +156,7 @@ internal static class CSharpArtifactEmitter
         {
             var templateNodes = new List<XamlObjectPlan>();
             Flatten(plan.Templates[templateIndex].Root, templateNodes);
+            string? templateBindingSourceType = null;
             for (var nodeIndex = 0; nodeIndex < templateNodes.Count; nodeIndex++)
             {
                 if (!registry.TryResolveType(templateNodes[nodeIndex].Type, out var templateType) ||
@@ -170,8 +171,21 @@ internal static class CSharpArtifactEmitter
                     var member = templateNodes[nodeIndex].Members[memberIndex];
                     if (member.Value.Kind == XamlValueKind.Binding)
                     {
-                        diagnostic = new("DXAMLGEN002", "Compiled template members cannot contain bindings.", member.Range);
-                        return false;
+                        if (!registry.TryResolveBinding(member.Value.Binding.Path, out var bindingDefinition))
+                        {
+                            diagnostic = new("DXAMLGEN002", $"Binding path '{member.Value.Binding.Path}' has no typed compile-time definition.", member.Range);
+                            return false;
+                        }
+
+                        if (templateBindingSourceType is null)
+                        {
+                            templateBindingSourceType = bindingDefinition.SourceTypeName;
+                        }
+                        else if (!string.Equals(templateBindingSourceType, bindingDefinition.SourceTypeName, StringComparison.Ordinal))
+                        {
+                            diagnostic = new("DXAMLGEN002", "One generated template must use one typed binding source context.", member.Range);
+                            return false;
+                        }
                     }
 
                     if (!CanEmitMember(member, registry, out var memberError))
@@ -813,6 +827,42 @@ internal static class CSharpArtifactEmitter
                 }
             }
 
+            var templateBindingSites = new List<TemplateBindingSite>();
+            string? templateBindingSourceType = null;
+            for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
+            {
+                for (var memberIndex = 0; memberIndex < nodes[nodeIndex].Members.Length; memberIndex++)
+                {
+                    var member = nodes[nodeIndex].Members[memberIndex];
+                    if (member.Value.Kind != XamlValueKind.Binding)
+                    {
+                        continue;
+                    }
+
+                    if (!registry.TryResolveBinding(member.Value.Binding.Path, out var definition))
+                    {
+                        throw new InvalidOperationException($"Binding path '{member.Value.Binding.Path}' has no typed compile-time definition.");
+                    }
+
+                    templateBindingSourceType ??= definition.SourceTypeName;
+                    templateBindingSites.Add(new(nodeIndex, member, definition));
+                }
+            }
+
+            if (templateBindingSites.Count != 0)
+            {
+                writer.Append("            if (owner.BindingContext is not ").Append(templateBindingSourceType)
+                    .AppendLine(" templateContext)");
+                writer.AppendLine("            {");
+                writer.Append("                throw new global::System.InvalidOperationException(\"Template '")
+                    .Append(Quote(template.Key)).AppendLine("' requires its declared BindingContext type.\");");
+                writer.AppendLine("            }");
+                for (var bindingIndex = 0; bindingIndex < templateBindingSites.Count; bindingIndex++)
+                {
+                    EmitTemplateBinding(writer, bindingIndex, templateBindingSites[bindingIndex]);
+                }
+            }
+
             for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
             {
                 for (var childIndex = 0; childIndex < nodes[nodeIndex].Children.Length; childIndex++)
@@ -849,6 +899,34 @@ internal static class CSharpArtifactEmitter
             writer.Append("        Theme.RegisterTemplate(").Append(TemplateIdExpression(templates[templateIndex].Id))
                 .Append(", new global::Delta.XAML.UiTemplate(new TemplateFactory").Append(templateIndex).AppendLine("()));");
         }
+    }
+
+    private static void EmitTemplateBinding(StringBuilder writer, int bindingIndex, TemplateBindingSite site)
+    {
+        if (!TryTypedPropertyExpression(site.Member.Name, out var property))
+        {
+            throw new InvalidOperationException($"Property '{site.Member.Name}' has no typed binding target.");
+        }
+
+        writer.Append("            var templateBinding").Append(bindingIndex).Append(" = new global::Delta.XAML.UiCompiledBinding<")
+            .Append(site.Definition.SourceTypeName)
+            .Append(", ")
+            .Append(site.Definition.ValueTypeName)
+            .Append(">(templateContext, static source => ")
+            .Append(site.Definition.ReadExpression)
+            .Append(", ");
+        if (site.Member.Value.Binding.Mode == UiBindingMode.TwoWay)
+        {
+            writer.Append("static (source, value) => ").Append(site.Definition.WriteExpression);
+        }
+        else
+        {
+            writer.Append("null");
+        }
+
+        writer.Append(", global::Delta.XAML.UiBindingMode.").Append(site.Member.Value.Binding.Mode).AppendLine(");");
+        writer.Append("            template").Append(site.NodeIndex).Append(".SetCompiledBinding(")
+            .Append(property).Append(", templateBinding").Append(bindingIndex).AppendLine(");");
     }
 
     private static bool TryFindTemplate(
@@ -1189,6 +1267,11 @@ internal static class CSharpArtifactEmitter
     }
 
     private readonly record struct BindingSite(
+        int NodeIndex,
+        XamlMemberPlan Member,
+        XamlBindingDefinition Definition);
+
+    private readonly record struct TemplateBindingSite(
         int NodeIndex,
         XamlMemberPlan Member,
         XamlBindingDefinition Definition);

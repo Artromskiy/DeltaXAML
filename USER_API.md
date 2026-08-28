@@ -173,7 +173,8 @@ key overloads remain for cold loader/tooling composition.
 Templates receive an `IUiTemplateFactory`; its `Create` method returns the
 template subtree for the existing owner and resource catalog. This keeps
 compiled template construction typed and avoids a per-template delegate in the
-generated artifact.
+generated artifact. A generated template binding reads the owner's typed
+`BindingContext`; an incompatible context is a load-time construction error.
 
 Generated style artifacts use the typed overloads on `UiStyle` with the
 `UiElementProperties`, `UiTextBlockProperties`, `UiNumericEditorProperties`,

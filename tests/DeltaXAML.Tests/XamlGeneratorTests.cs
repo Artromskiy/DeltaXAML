@@ -53,9 +53,15 @@ internal static partial class Program
         Assert.True(!resourceDocumentSource.Contains("Document.Dispose();", StringComparison.Ordinal), "resource-only artifact does not dispose a missing document");
 
         var compositionRegistry = XamlSemanticRegistry.CreateBuiltIns();
+        compositionRegistry.RegisterBinding(new(
+            "Name",
+            "global::Sample.BindingModel",
+            "string",
+            "source.Name",
+            "source.Name = value"));
         var compositionPlan = XamlCompiler.Compile(
             sourceId,
-            "<Panel><TextBlock StyleKey=\"Title\" TemplateKey=\"ButtonTemplate\" /><Style x:Key=\"Title\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><VisualState Name=\"Pressed\"><Setter Property=\"FontSize\" Value=\"18\" /></VisualState></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></Panel>",
+            "<Panel><TextBlock StyleKey=\"Title\" TemplateKey=\"ButtonTemplate\" /><Style x:Key=\"Title\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><VisualState Name=\"Pressed\"><Setter Property=\"FontSize\" Value=\"18\" /></VisualState></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"{Binding Name}\" /></Border></Template></Panel>",
             compositionRegistry);
         Assert.True(compositionPlan.Success, "styles and templates remain in the compiled semantic plan");
         Assert.True(compositionPlan.Styles.Length == 1 && compositionPlan.Styles[0].Id.IsValid, "compiled style has a stable identity");
@@ -70,6 +76,8 @@ internal static partial class Program
         Assert.True(compositionSource.Contains("SetCompiledTemplate(new global::Delta.XAML.UiTemplateId", StringComparison.Ordinal), "compiled template selection uses a stable identity");
         Assert.True(compositionSource.Contains("IUiTemplateFactory", StringComparison.Ordinal), "compiled templates use a typed factory boundary");
         Assert.True(!compositionSource.Contains("UiTemplate(owner =>", StringComparison.Ordinal), "compiled templates do not retain delegate construction");
+        Assert.True(compositionSource.Contains("owner.BindingContext is not global::Sample.BindingModel templateContext", StringComparison.Ordinal), "compiled template bindings use the owner's typed context");
+        Assert.True(compositionSource.Contains("template1.SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text, templateBinding0)", StringComparison.Ordinal), "compiled template bindings attach through the typed target");
         Assert.True(compositionSource.Contains("Theme.Apply(node0);", StringComparison.Ordinal), "compiled style/template state is applied after attachment");
 
         var typedResourceId = new UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D403"));
