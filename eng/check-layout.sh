@@ -17,21 +17,6 @@ required_directories=(
     artifacts
     assets
 )
-allowed_tracked_directories=(
-    .github
-    src
-    tests
-    benchmarks
-    samples
-    probes
-    playground
-    tools
-    adr
-    docs
-    eng
-    artifacts
-    assets
-)
 failed=0
 
 for directory in "${required_directories[@]}"; do
