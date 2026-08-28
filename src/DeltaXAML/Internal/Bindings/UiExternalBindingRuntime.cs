@@ -70,7 +70,10 @@ internal sealed class UiExternalBindingRuntime : IDisposable
             return;
         }
 
-        _binding.TryWrite(value, out _);
+        if (_binding.TryWrite(value, out _))
+        {
+            ApplyValue();
+        }
     }
 
     public void Dispose()
