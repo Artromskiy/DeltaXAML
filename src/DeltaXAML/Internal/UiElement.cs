@@ -249,6 +249,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private uint _dpiVersion;
     private uint _textVersion;
     private uint _treeVersion;
+    private uint _outputVersion;
     public UiElement()
     {
         Id = new(++_nextId);
@@ -333,6 +334,11 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public void Invalidate(UiDirtyFlags flags)
     {
         DirtyFlags |= flags;
+        if (flags != UiDirtyFlags.None)
+        {
+            _outputVersion++;
+        }
+
         if ((flags & UiDirtyFlags.Tree) != 0)
         {
             _treeVersion++;
@@ -470,11 +476,12 @@ internal class UiElement : IUiElement, IUiPropertyStore
     protected virtual string GetTextRunFontKey() => "default";
     public uint TextVersion => _textVersion;
     public uint LayoutVersion => _layoutVersion;
+    internal uint OutputVersion => _outputVersion;
     public float LayoutScale => _layoutScale;
     public float DpiScale => _dpiScale;
     public void SetLayoutScale(float scale)
     {
-        if (Math.Abs(_dpiScale - scale) > float.Epsilon) { _dpiScale = scale; _dpiVersion++; }
+        if (Math.Abs(_dpiScale - scale) > float.Epsilon) { _dpiScale = scale; _dpiVersion++; _outputVersion++; }
         _layoutScale = scale; foreach (var child in _children)
         {
             if (child is UiElement element)

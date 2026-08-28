@@ -820,6 +820,9 @@ public sealed class UiDocument : IDisposable
     private int _visualCount;
     private int _clipCount;
     private int _textCount;
+    private uint _displayListVersion;
+    private float2 _displayListViewport;
+    private bool _hasDisplayList;
 
     public UiDocument(UiElement root, ITextService textService)
         : this(root, textService, EmptyFontResolver.Instance)
@@ -923,64 +926,77 @@ public sealed class UiDocument : IDisposable
 
     public bool TryBuildDisplayList(out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
-        var retained = _retainedFrame.ExtractDrawList(new Retained.UiFrameContext(new(Root.RetainedElement.Bounds.Width, Root.RetainedElement.Bounds.Height), Root.RetainedElement.DpiScale, 0));
-
-        for (var i = 0; i < retained.Commands.Length; i++)
+        var retainedRoot = Root.RetainedElement;
+        var viewport = new float2(retainedRoot.Bounds.Width, retainedRoot.Bounds.Height);
+        if (_hasDisplayList && _displayListVersion == retainedRoot.OutputVersion && _displayListViewport == viewport)
         {
-            var source = retained.Commands.Span[i];
-            if (source.Kind != Retained.UiDrawKind.Rectangle)
-            {
-                displayList = default;
-                diagnostic = new Diagnostic(new DiagnosticCode("XAML_DISPLAY_KIND_UNSUPPORTED"), DiagnosticSeverity.Error, $"The retained visual kind '{source.Kind}' has no canonical adapter mapping.", null);
-                return false;
-            }
-
-            if (source.Resource.Value != 0 || source.Resource.Generation != 0)
-            {
-                displayList = default;
-                diagnostic = new Diagnostic(new DiagnosticCode("XAML_DISPLAY_RESOURCE_UNSUPPORTED"), DiagnosticSeverity.Error, "The retained resource handle has no canonical GUID resource identity mapping.", null);
-                return false;
-            }
-
-            if (source.Text is not null)
-            {
-                displayList = default;
-                diagnostic = new Diagnostic(new DiagnosticCode("XAML_DISPLAY_TEXT_UNSUPPORTED"), DiagnosticSeverity.Error, "The retained visual text payload has no DeltaText shaping mapping.", null);
-                return false;
-            }
+            displayList = new(_visuals.AsSpan(0, _visualCount), _clips.AsSpan(0, _clipCount), _text.AsSpan(0, _textCount));
+            diagnostic = null;
+            return true;
         }
 
-        _visualCount = retained.Commands.Length;
-        _clipCount = retained.Clips.Length;
-        _textCount = retained.TextRuns.Length;
-        EnsureCapacity(ref _visuals, _visualCount);
-        EnsureCapacity(ref _clips, _clipCount);
-        EnsureCapacity(ref _text, _textCount);
-        for (var i = 0; i < _clipCount; i++)
+        _visualCount = 0;
+        _clipCount = 0;
+        _textCount = 0;
+        if (!TryExtractVisuals(retainedRoot, new Retained.UiRect(0, 0, viewport.x, viewport.y), UiClipId.None, out diagnostic))
         {
-            var source = retained.Clips.Span[i];
-            var parent = source.Parent.Value == 0 ? UiClipId.None : new UiClipId((int)source.Parent.Value - 1);
-            _clips[i] = new(ToFloat4(source.Bounds), parent);
+            displayList = default;
+            return false;
         }
 
-        for (var i = 0; i < _visualCount; i++)
-        {
-            var source = retained.Commands.Span[i];
-            var clip = source.ClipId.Value == 0 ? UiClipId.None : new UiClipId((int)source.ClipId.Value - 1);
-            _visuals[i] = new(UiVisualKind.SolidRectangle, default, ToFloat4(source.Bounds), ToColor(source.Color), clip, UiResourceId.Empty);
-        }
-
-        for (var i = 0; i < _textCount; i++)
-        {
-            if (!TryBuildTextDraw(retained.TextRuns.Span[i], out _text[i], out diagnostic))
-            {
-                displayList = default;
-                return false;
-            }
-        }
-
+        _displayListVersion = retainedRoot.OutputVersion;
+        _displayListViewport = viewport;
+        _hasDisplayList = true;
         displayList = new(_visuals.AsSpan(0, _visualCount), _clips.AsSpan(0, _clipCount), _text.AsSpan(0, _textCount));
+        return true;
+    }
+
+    private bool TryExtractVisuals(RetainedElement element, Retained.UiRect clip, UiClipId parentClip, out Diagnostic? diagnostic)
+    {
         diagnostic = null;
+        if (element.Visibility != Retained.UiVisibility.Visible ||
+            (element.Participation & UiParticipation.Layout) == 0)
+        {
+            return true;
+        }
+
+        var effective = Retained.UiRect.Intersect(clip, element.Bounds);
+        EnsureCapacity(ref _clips, _clipCount + 1);
+        var clipId = new UiClipId(_clipCount);
+        _clips[_clipCount++] = new(ToFloat4(effective), parentClip);
+
+        if ((element.Participation & UiParticipation.Rendering) != 0 && element.Background.A > 0)
+        {
+            EnsureCapacity(ref _visuals, _visualCount + 1);
+            _visuals[_visualCount++] = new(
+                UiVisualKind.SolidRectangle,
+                default,
+                ToFloat4(element.Bounds),
+                ToColor(element.Background),
+                clipId,
+                UiResourceId.Empty);
+        }
+
+        if ((element.Participation & UiParticipation.Rendering) != 0 && element.TryGetTextRun(out var run))
+        {
+            EnsureCapacity(ref _text, _textCount + 1);
+            run = run with { Bounds = element.Bounds, Clip = effective, ClipId = new Retained.UiClipId((uint)clipId.Value + 1) };
+            if (!TryBuildTextDraw(run, out _text[_textCount], out diagnostic))
+            {
+                return false;
+            }
+
+            _textCount++;
+        }
+
+        foreach (var child in element.Children)
+        {
+            if (child is RetainedElement retainedChild && !TryExtractVisuals(retainedChild, effective, clipId, out diagnostic))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
