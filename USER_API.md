@@ -157,6 +157,11 @@ over `Guid`. Human-readable XAML keys are source aliases, not runtime identity.
 - compiled selector/state plans;
 - exact invalidation of dependent retained values.
 
+Generated style artifacts use the typed overloads on `UiStyle` with the
+`UiElementProperties`, `UiTextBlockProperties`, `UiNumericEditorProperties`,
+`UiStackPanelProperties` and `UiGridProperties` descriptors. The existing
+string overloads remain a cold loader/tooling compatibility surface.
+
 Resources do not carry Vulkan objects. Images, custom visuals and other GPU
 assets cross the display-list boundary through stable semantic IDs resolved by
 DeltaRender.

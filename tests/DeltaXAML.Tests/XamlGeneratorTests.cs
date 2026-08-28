@@ -3,6 +3,7 @@ using Delta.XAML;
 using Delta.XAML.Contract;
 using DeltaXAML.Compiler;
 using DeltaXAML.Generator;
+using Library = Delta.XAML;
 
 internal static partial class Program
 {
@@ -57,9 +58,23 @@ internal static partial class Program
         Assert.True(compositionPlan.Success, "styles and templates remain in the compiled semantic plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(compositionPlan, compositionRegistry, "Generated", "CompositionArtifact", out var compositionSource, out var compositionDiagnostic), "styles and templates emit through the companion path");
         Assert.True(compositionDiagnostic is null && compositionSource.Contains("new global::Delta.XAML.UiStyle(\"Title\"", StringComparison.Ordinal), "compiled style initialization is direct");
-        Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, \"FontSize\", 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
+        Assert.True(compositionSource.Contains("Set(global::Delta.XAML.UiTextBlockProperties.FontSize, 16f)", StringComparison.Ordinal), "compiled style uses a typed property descriptor");
+        Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, global::Delta.XAML.UiTextBlockProperties.FontSize, 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
+        Assert.True(!compositionSource.Contains("Set(\"FontSize\"", StringComparison.Ordinal), "compiled style does not use string property dispatch");
         Assert.True(compositionSource.Contains("Theme.RegisterTemplate(\"ButtonTemplate\"", StringComparison.Ordinal), "compiled template registration is direct");
         Assert.True(compositionSource.Contains("Theme.Apply(node0);", StringComparison.Ordinal), "compiled style/template state is applied after attachment");
+
+        var typedStyle = new Library.UiStyle("Typed", "TextBlock");
+        typedStyle.Set(Library.UiTextBlockProperties.FontSize, 18f);
+        typedStyle.SetState(Library.UiStyleState.Focused, Library.UiTextBlockProperties.FontSize, 20f);
+        var styledText = new Library.UiTextBlock { StyleKey = "Typed" };
+        var typedTheme = new Library.UiTheme();
+        typedTheme.Add(typedStyle);
+        typedTheme.Apply(styledText);
+        Assert.Equal(18f, styledText.FontSize, "typed style descriptor applies its value");
+        styledText.RetainedElement.SetFocused(true);
+        typedTheme.RefreshStates(styledText);
+        Assert.Equal(20f, styledText.FontSize, "typed visual-state descriptor applies its value");
 
         var bindingRegistry = XamlSemanticRegistry.CreateBuiltIns();
         bindingRegistry.RegisterBinding(new(

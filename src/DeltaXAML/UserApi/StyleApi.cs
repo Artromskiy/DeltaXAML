@@ -124,6 +124,13 @@ public sealed class UiStyle
         SetValue(_values, propertyName, value);
     }
 
+    /// <summary>Sets a style value through its typed property descriptor.</summary>
+    public void Set<T>(UiProperty<T> property, T value)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        SetValue(_values, property.Name, value);
+    }
+
     public void SetResource(string propertyName, string resourceKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
@@ -134,6 +141,19 @@ public sealed class UiStyle
         }
 
         SetValue(_values, propertyName, new UiResourceReference(resourceKey));
+    }
+
+    /// <summary>Sets a dynamic resource through its typed property descriptor.</summary>
+    public void SetResource<T>(UiProperty<T> property, string resourceKey)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+        if (_resources is null)
+        {
+            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
+        }
+
+        SetValue(_values, property.Name, new UiResourceReference(resourceKey));
     }
 
     public void SetStaticResource(string propertyName, string resourceKey)
@@ -148,11 +168,32 @@ public sealed class UiStyle
         SetValue(_values, propertyName, new StaticResourceReference(resourceKey));
     }
 
+    /// <summary>Sets a static resource through its typed property descriptor.</summary>
+    public void SetStaticResource<T>(UiProperty<T> property, string resourceKey)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+        if (_resources is null)
+        {
+            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
+        }
+
+        SetValue(_values, property.Name, new StaticResourceReference(resourceKey));
+    }
+
     public void SetState(UiStyleState state, string propertyName, object? value)
     {
         ValidateState(state);
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         SetValue(GetStateValues(state), propertyName, value);
+    }
+
+    /// <summary>Sets a visual-state value through its typed property descriptor.</summary>
+    public void SetState<T>(UiStyleState state, UiProperty<T> property, T value)
+    {
+        ValidateState(state);
+        ArgumentNullException.ThrowIfNull(property);
+        SetValue(GetStateValues(state), property.Name, value);
     }
 
     public void SetStateResource(UiStyleState state, string propertyName, string resourceKey)
@@ -168,6 +209,20 @@ public sealed class UiStyle
         SetValue(GetStateValues(state), propertyName, new UiResourceReference(resourceKey));
     }
 
+    /// <summary>Sets a dynamic visual-state resource through its typed property descriptor.</summary>
+    public void SetStateResource<T>(UiStyleState state, UiProperty<T> property, string resourceKey)
+    {
+        ValidateState(state);
+        ArgumentNullException.ThrowIfNull(property);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+        if (_resources is null)
+        {
+            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
+        }
+
+        SetValue(GetStateValues(state), property.Name, new UiResourceReference(resourceKey));
+    }
+
     public void SetStateStaticResource(UiStyleState state, string propertyName, string resourceKey)
     {
         ValidateState(state);
@@ -179,6 +234,20 @@ public sealed class UiStyle
         }
 
         SetValue(GetStateValues(state), propertyName, new StaticResourceReference(resourceKey));
+    }
+
+    /// <summary>Sets a static visual-state resource through its typed property descriptor.</summary>
+    public void SetStateStaticResource<T>(UiStyleState state, UiProperty<T> property, string resourceKey)
+    {
+        ValidateState(state);
+        ArgumentNullException.ThrowIfNull(property);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
+        if (_resources is null)
+        {
+            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
+        }
+
+        SetValue(GetStateValues(state), property.Name, new StaticResourceReference(resourceKey));
     }
 
     internal void Apply(UiElement element)

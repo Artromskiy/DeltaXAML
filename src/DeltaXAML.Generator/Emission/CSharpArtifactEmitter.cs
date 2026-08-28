@@ -600,9 +600,14 @@ internal static class CSharpArtifactEmitter
                 var setter = style.Setters[setterIndex];
                 if (setter.Value.Kind == XamlValueKind.ResourceReference)
                 {
+                    if (!TryTypedPropertyExpression(setter.Name, out var resourceProperty))
+                    {
+                        throw new InvalidOperationException($"Property '{setter.Name}' has no typed style descriptor.");
+                    }
+
                     writer.Append("        style").Append(styleIndex).Append('.')
                         .Append(setter.Value.Resource.IsDynamic ? "SetResource" : "SetStaticResource")
-                        .Append('(').Append(Quote(setter.Name)).Append(", ").Append(Quote(setter.Value.Resource.Key)).AppendLine(");");
+                        .Append('(').Append(resourceProperty).Append(", ").Append(Quote(setter.Value.Resource.Key)).AppendLine(");");
                     continue;
                 }
 
@@ -611,7 +616,12 @@ internal static class CSharpArtifactEmitter
                     throw new InvalidOperationException(error);
                 }
 
-                writer.Append("        style").Append(styleIndex).Append(".Set(").Append(Quote(setter.Name)).Append(", ").Append(expression).AppendLine(");");
+                if (!TryTypedPropertyExpression(setter.Name, out var property))
+                {
+                    throw new InvalidOperationException($"Property '{setter.Name}' has no typed style descriptor.");
+                }
+
+                writer.Append("        style").Append(styleIndex).Append(".Set(").Append(property).Append(", ").Append(expression).AppendLine(");");
             }
 
             for (var stateIndex = 0; stateIndex < style.VisualStates.Length; stateIndex++)
@@ -622,9 +632,14 @@ internal static class CSharpArtifactEmitter
                     var setter = state.Setters[setterIndex];
                     if (setter.Value.Kind == XamlValueKind.ResourceReference)
                     {
+                        if (!TryTypedPropertyExpression(setter.Name, out var stateResourceProperty))
+                        {
+                            throw new InvalidOperationException($"Property '{setter.Name}' has no typed style descriptor.");
+                        }
+
                         writer.Append("        style").Append(styleIndex).Append(".SetState").Append(setter.Value.Resource.IsDynamic ? "Resource" : "StaticResource");
                         writer.Append("(global::Delta.XAML.UiStyleState.").Append(state.State).Append(", ")
-                            .Append(Quote(setter.Name)).Append(", ").Append(Quote(setter.Value.Resource.Key)).AppendLine(");");
+                            .Append(stateResourceProperty).Append(", ").Append(Quote(setter.Value.Resource.Key)).AppendLine(");");
                         continue;
                     }
 
@@ -633,8 +648,13 @@ internal static class CSharpArtifactEmitter
                         throw new InvalidOperationException(error);
                     }
 
+                    if (!TryTypedPropertyExpression(setter.Name, out var stateProperty))
+                    {
+                        throw new InvalidOperationException($"Property '{setter.Name}' has no typed style descriptor.");
+                    }
+
                     writer.Append("        style").Append(styleIndex).Append(".SetState(global::Delta.XAML.UiStyleState.")
-                        .Append(state.State).Append(", ").Append(Quote(setter.Name)).Append(", ").Append(expression).AppendLine(");");
+                        .Append(state.State).Append(", ").Append(stateProperty).Append(", ").Append(expression).AppendLine(");");
                 }
             }
 
@@ -772,6 +792,34 @@ internal static class CSharpArtifactEmitter
                 error = $"Literal '{literal}' is not supported for property '{propertyName}'.";
                 return false;
         }
+    }
+
+    private static bool TryTypedPropertyExpression(string propertyName, out string expression)
+    {
+        expression = propertyName switch
+        {
+            "Width" => "global::Delta.XAML.UiElementProperties.Width",
+            "Height" => "global::Delta.XAML.UiElementProperties.Height",
+            "Background" => "global::Delta.XAML.UiElementProperties.Background",
+            "Padding" => "global::Delta.XAML.UiElementProperties.Padding",
+            "Fill" => "global::Delta.XAML.UiElementProperties.Fill",
+            "IsEnabled" => "global::Delta.XAML.UiElementProperties.IsEnabled",
+            "IsSelected" => "global::Delta.XAML.UiElementProperties.IsSelected",
+            "StyleKey" => "global::Delta.XAML.UiElementProperties.StyleKey",
+            "TemplateKey" => "global::Delta.XAML.UiElementProperties.TemplateKey",
+            "Text" => "global::Delta.XAML.UiTextBlockProperties.Text",
+            "FontKey" => "global::Delta.XAML.UiTextBlockProperties.FontKey",
+            "FontSize" => "global::Delta.XAML.UiTextBlockProperties.FontSize",
+            "Foreground" => "global::Delta.XAML.UiTextBlockProperties.Foreground",
+            "Value" => "global::Delta.XAML.UiNumericEditorProperties.Value",
+            "Minimum" => "global::Delta.XAML.UiNumericEditorProperties.Minimum",
+            "Maximum" => "global::Delta.XAML.UiNumericEditorProperties.Maximum",
+            "Orientation" => "global::Delta.XAML.UiStackPanelProperties.Orientation",
+            "Columns" => "global::Delta.XAML.UiGridProperties.Columns",
+            "Rows" => "global::Delta.XAML.UiGridProperties.Rows",
+            _ => string.Empty,
+        };
+        return expression.Length != 0;
     }
 
     private static bool TryColor(string value, out string expression, out string error)

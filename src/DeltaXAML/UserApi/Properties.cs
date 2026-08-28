@@ -37,6 +37,8 @@ public static class UiElementProperties
     public static UiProperty<bool> Fill { get; } = Create("10000000-0000-4000-8000-000000000005", "Fill", false);
     public static UiProperty<bool> IsEnabled { get; } = Create("10000000-0000-4000-8000-000000000006", "IsEnabled", true);
     public static UiProperty<bool> IsSelected { get; } = Create("10000000-0000-4000-8000-000000000007", "IsSelected", false);
+    public static UiProperty<string?> StyleKey { get; } = Create<string?>("10000000-0000-4000-8000-000000000008", "StyleKey", null);
+    public static UiProperty<string?> TemplateKey { get; } = Create<string?>("10000000-0000-4000-8000-000000000009", "TemplateKey", null);
 
     private static UiProperty<T> Create<T>(string id, string name, T defaultValue) =>
         new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);
@@ -60,6 +62,28 @@ public static class UiNumericEditorProperties
     public static UiProperty<double> Value { get; } = Create("30000000-0000-4000-8000-000000000001", "Value", 0d);
     public static UiProperty<double> Minimum { get; } = Create("30000000-0000-4000-8000-000000000002", "Minimum", double.MinValue);
     public static UiProperty<double> Maximum { get; } = Create("30000000-0000-4000-8000-000000000003", "Maximum", double.MaxValue);
+
+    private static UiProperty<T> Create<T>(string id, string name, T defaultValue) =>
+        new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);
+}
+
+/// <summary>Typed orientation property for <see cref="UiStackPanel"/> styles.</summary>
+public static class UiStackPanelProperties
+{
+    public static UiProperty<UiOrientation> Orientation { get; } =
+        Create("40000000-0000-4000-8000-000000000001", "Orientation", UiOrientation.Vertical);
+
+    private static UiProperty<T> Create<T>(string id, string name, T defaultValue) =>
+        new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);
+}
+
+/// <summary>Typed grid definition properties for <see cref="UiGrid"/> styles.</summary>
+public static class UiGridProperties
+{
+    public static UiProperty<UiGridLength[]> Columns { get; } =
+        Create("40000000-0000-4000-8000-000000000002", "Columns", Array.Empty<UiGridLength>());
+    public static UiProperty<UiGridLength[]> Rows { get; } =
+        Create("40000000-0000-4000-8000-000000000003", "Rows", Array.Empty<UiGridLength>());
 
     private static UiProperty<T> Create<T>(string id, string name, T defaultValue) =>
         new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);
