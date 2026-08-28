@@ -158,5 +158,17 @@ internal static partial class Program
         using var directDocument = new Library.UiDocument(directText, directTextService);
         directDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         Assert.Equal("Queued", directText.Text, "typed binding stage applies the queued value");
+
+        var replacementModel = new BindingModel { Name = "Replacement" };
+        using var replacementBinding = new UiCompiledBinding<BindingModel, string>(
+            replacementModel,
+            static model => model.Name,
+            mode: UiBindingMode.OneWay,
+            subscribeToSource: false);
+        directText.SetCompiledBinding(Library.UiTextBlockProperties.Text, replacementBinding);
+        directModel.Name = "Stale";
+        directBinding.NotifyChanged();
+        directDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        Assert.Equal("Replacement", directText.Text, "replacing a typed binding detaches the previous runtime");
     }
 }

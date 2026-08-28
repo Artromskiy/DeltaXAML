@@ -819,6 +819,12 @@ internal class UiElement
 
     internal void AttachBinding(UiBindingRuntime binding)
     {
+        if (_compiledBindingRuntimes.Remove(binding.PropertyName, out var compiledPrevious))
+        {
+            compiledPrevious.Dispose();
+            _properties.Clear(binding.PropertyName, UiValueSource.Binding);
+        }
+
         if (_bindingRuntimes.Remove(binding.PropertyName, out var previous))
         {
             previous.Dispose();
@@ -845,6 +851,12 @@ internal class UiElement
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentNullException.ThrowIfNull(binding);
+        if (_bindingRuntimes.Remove(propertyName, out var compatibilityPrevious))
+        {
+            compatibilityPrevious.Dispose();
+            _properties.Clear(propertyName, UiValueSource.Binding);
+        }
+
         if (_compiledBindingRuntimes.Remove(propertyName, out var previous))
         {
             previous.Dispose();
