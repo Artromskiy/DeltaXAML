@@ -362,6 +362,10 @@ internal static partial class Program
         element.Clear("Value", UiValueSource.Local);
         Assert.True((element.DirtyFlags & UiDirtyFlags.Visual) != 0, "clearing an override invalidates when the effective source changes");
         Assert.True(element.TryGet("Value", out var fallback) && fallback.Source == UiValueSource.Default, "clearing local reveals the default source");
+
+        element.DirtyFlags = UiDirtyFlags.None;
+        element.Clear("Value", UiValueSource.Handle);
+        Assert.Equal(UiDirtyFlags.None, element.DirtyFlags, "clearing an absent source does not invalidate");
     }
 
     private static void HandlesCompiledBindingsAndCustomTypes()
