@@ -133,6 +133,12 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         Compilation compilation,
         out string error)
     {
+        if (!registry.TryResolveType(new XamlQualifiedName(string.Empty, "Panel"), out var commonElement))
+        {
+            error = "The built-in common element property set is unavailable.";
+            return false;
+        }
+
         foreach (var type in EnumerateTypes(compilation.Assembly.GlobalNamespace))
         {
             var typeAttribute = FindAttribute(type.GetAttributes(), "Delta.XAML.UiXamlTypeAttribute");
@@ -141,7 +147,7 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (!TryReadTypeAttribute(type, typeAttribute, out var definition, out error))
+            if (!TryReadTypeAttribute(type, typeAttribute, commonElement.Properties, out var definition, out error))
             {
                 return false;
             }
@@ -164,6 +170,7 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
     private static bool TryReadTypeAttribute(
         INamedTypeSymbol type,
         AttributeData attribute,
+        System.Collections.Immutable.ImmutableArray<XamlPropertyDefinition> commonProperties,
         [NotNullWhen(true)] out XamlTypeDefinition? definition,
         out string error)
     {
@@ -202,6 +209,7 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         }
 
         var properties = System.Collections.Immutable.ImmutableArray.CreateBuilder<XamlPropertyDefinition>();
+        properties.AddRange(commonProperties);
         foreach (var member in type.GetMembers().OfType<IPropertySymbol>())
         {
             var propertyAttribute = FindAttribute(member.GetAttributes(), "Delta.XAML.UiXamlPropertyAttribute");

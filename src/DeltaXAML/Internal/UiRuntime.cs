@@ -11,6 +11,7 @@ namespace DeltaXAML.Internal;
 internal sealed class UiRuntime
 {
     private readonly List<UiMutation> _mutations = new();
+    private readonly List<UiControlMutation> _controlMutations = new();
     private readonly List<UiInputEvent> _inputQueue = new();
     private readonly UiElement _retainedRoot;
     private readonly UiNodeStore _nodes;
@@ -55,6 +56,8 @@ internal sealed class UiRuntime
 
         _disposed = true;
         _inputQueue.Clear();
+        _controlMutations.Clear();
+        _mutations.Clear();
         _inputTextCount = 0;
         _nodes.Detach();
         _retainedRoot.DisposeRuntime();
@@ -84,7 +87,7 @@ internal sealed class UiRuntime
 
     public void ApplyMutations()
     {
-        UiMutationStage.Run(_nodes, _retainedRoot, _mutations, out var applied, out var rejected);
+        UiMutationStage.Run(_nodes, _retainedRoot, _controlMutations, _mutations, out var applied, out var rejected);
         AppliedMutationCount = applied;
         RejectedMutationCount = rejected;
     }
@@ -101,8 +104,8 @@ internal sealed class UiRuntime
         Delta.XAML.UiElement? publicRoot)
     {
         UiInputStage.Run(_input, _inputQueue);
+        UiMutationStage.Run(_nodes, _retainedRoot, _controlMutations, _mutations, out var applied, out var rejected);
         _inputTextCount = 0;
-        UiMutationStage.Run(_nodes, _retainedRoot, _mutations, out var applied, out var rejected);
         AppliedMutationCount = applied;
         RejectedMutationCount = rejected;
         var bindingTreeChanged = _bindingTreeVersion != _retainedRoot.TreeVersion;
@@ -129,6 +132,18 @@ internal sealed class UiRuntime
     {
         _nodes.EnsureCurrent(_retainedRoot);
         return _nodes.TryResolve(handle, out element);
+    }
+
+    internal void EnqueueControlInput(UiElement target, in UiInputEvent input)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        _controlMutations.Add(UiControlMutation.FromInput(new(target.Id.Value, target.Generation), in input));
+    }
+
+    internal void EnqueueRoutedEvent(UiElement target, in UiRoutedEvent routedEvent)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        _controlMutations.Add(UiControlMutation.FromRoutedEvent(new(target.Id.Value, target.Generation), in routedEvent));
     }
 
     internal bool TryResolve(UiElementId id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element)

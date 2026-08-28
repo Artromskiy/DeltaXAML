@@ -70,6 +70,16 @@ public sealed class UiDocument : IDisposable
     public void Layout(float2 viewport, float dpiScale)
     {
         ThrowIfDisposed();
+        if (!float.IsFinite(viewport.x) || !float.IsFinite(viewport.y) || viewport.x < 0 || viewport.y < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(viewport), "Viewport dimensions must be finite and non-negative.");
+        }
+
+        if (!float.IsFinite(dpiScale) || dpiScale <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dpiScale), "DPI scale must be finite and positive.");
+        }
+
         _runtime.Layout(new(viewport.x, viewport.y), dpiScale, _theme, Root);
     }
 

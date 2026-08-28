@@ -47,16 +47,16 @@ internal static class EditingArchitectureTests
         Assert.True(diagnostic is not null, "invalid numeric input has an inline diagnostic");
 
         var committed = new NumericEditorState { Value = 2, Min = 0, Max = 10, CommittedText = "2" };
-        Assert.True(UiNumericEditorGenerated.TryCommit(ref committed, "4.5", 0, 10, out var formatted, out diagnostic), "numeric descriptor commits valid text through typed state");
+        Assert.True(UiNumericEditorGenerated.TryCommit(ref committed, "4.5", 0, 10, out var formatted, out _), "numeric descriptor commits valid text through typed state");
         Assert.Equal(4.5, committed.Value, "numeric commit updates the typed value");
         Assert.Equal(formatted, committed.CommittedText, "numeric commit keeps formatted text in state");
-        Assert.True(!UiNumericEditorGenerated.TryCommit(ref committed, "11", 0, 10, out _, out diagnostic), "numeric descriptor rejects invalid commit text");
+        Assert.True(!UiNumericEditorGenerated.TryCommit(ref committed, "11", 0, 10, out _, out _), "numeric descriptor rejects invalid commit text");
         Assert.Equal(4.5, committed.Value, "invalid numeric commit preserves the prior typed value");
 
         var state = new NumericEditorState { Value = 4, Min = 0, Max = 5 };
-        Assert.True(UiNumericEditorGenerated.TryAdjust(ref state, 1, out diagnostic), "numeric descriptor accepts an in-range increment");
+        Assert.True(UiNumericEditorGenerated.TryAdjust(ref state, 1, out _), "numeric descriptor accepts an in-range increment");
         Assert.Equal(5, state.Value, "numeric increment updates typed state");
-        Assert.True(!UiNumericEditorGenerated.TryAdjust(ref state, 1, out diagnostic), "numeric descriptor rejects an out-of-range increment");
+        Assert.True(!UiNumericEditorGenerated.TryAdjust(ref state, 1, out _), "numeric descriptor rejects an out-of-range increment");
         Assert.Equal(5, state.Value, "failed numeric increment preserves the prior value");
 
         var retained = UiNumericEditorGenerated.Create();

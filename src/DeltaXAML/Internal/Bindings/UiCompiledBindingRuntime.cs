@@ -88,6 +88,7 @@ internal sealed class UiCompiledBindingRuntime<TSource, TValue> : IUiCompiledBin
             return false;
         }
 
+        QueueRefresh();
         diagnostic = null;
         return true;
     }

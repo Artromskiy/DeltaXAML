@@ -466,9 +466,7 @@ internal sealed class XamlSemanticRegistry
             Property("IsEnabled", "10000000-0000-4000-8000-000000000006", XamlValueKind.Boolean),
             Property("IsSelected", "10000000-0000-4000-8000-000000000007", XamlValueKind.Boolean),
             Property("StyleKey", "10000000-0000-4000-8000-000000000008", XamlValueKind.String),
-            Property("TemplateKey", "10000000-0000-4000-8000-000000000009", XamlValueKind.String),
-            Property("AutomationName", "11111111-1111-1111-1111-11111111110A", XamlValueKind.String),
-            Property("AutomationRole", "11111111-1111-1111-1111-11111111110B", XamlValueKind.Enum));
+            Property("TemplateKey", "10000000-0000-4000-8000-000000000009", XamlValueKind.String));
         Register(registry, "Panel", "22222222-2222-2222-2222-222222222201", XamlContentKind.Children, common);
         Register(registry, "Border", "22222222-2222-2222-2222-222222222202", XamlContentKind.SingleContent, common);
         Register(registry, "ContentControl", "22222222-2222-2222-2222-222222222203", XamlContentKind.SingleContent, common);

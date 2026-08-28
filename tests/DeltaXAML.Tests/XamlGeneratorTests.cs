@@ -199,7 +199,7 @@ internal static partial class Program
         Assert.True(bindingSource.Contains("static source => source.Name", StringComparison.Ordinal), "binding read accessor is direct and static");
         Assert.True(bindingSource.Contains("static (source, value) => source.Name = value", StringComparison.Ordinal), "two-way binding write accessor is direct and static");
         Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text", StringComparison.Ordinal), "generated binding uses the typed target attachment");
-        Assert.True(!bindingSource.Contains("SetBinding(\"Text\"", StringComparison.Ordinal), "generated binding bypasses the compatibility bridge");
+        Assert.True(!bindingSource.Contains("SetBinding(\"Text\"", StringComparison.Ordinal), "generated binding bypasses the cold interpreted path");
         Assert.True(bindingSource.Contains("RefreshBindings", StringComparison.Ordinal), "binding artifact exposes one direct refresh batch");
         Assert.True(bindingSource.Contains("_bindingTarget0.QueueCompiledBindingRefresh(global::Delta.XAML.UiTextBlockProperties.Text, _binding0);", StringComparison.Ordinal), "binding batch queues the typed target for the binding stage");
         Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text, _binding0, true);", StringComparison.Ordinal), "generated binding marks source notifications as batch-managed");

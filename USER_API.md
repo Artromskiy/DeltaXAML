@@ -67,25 +67,29 @@ template content and binding paths are validated during the build. Generated
 factories and typed setters construct the retained document without reflection.
 
 ```xml
-<Grid Rows="Auto,*" Columns="240,*">
-    <TextBlock
-        Grid.Row="0"
-        Grid.ColumnSpan="2"
-        Text="{Binding Title}" />
-
-    <ItemsControl
-        Grid.Row="1"
-        Items="{Binding Inventory}" />
-
-    <ContentControl
-        Grid.Row="1"
-        Grid.Column="1"
-        Content="{Binding SelectedItem}" />
-</Grid>
+<StackPanel xmlns:x="urn:delta-xaml"
+            x:DataType="Game.HudModel"
+            Fill="true">
+    <Resource x:Key="Accent" Type="Color" Value="#304860" />
+    <Style x:Key="ActionStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource Accent}" />
+    </Style>
+    <TextBlock Text="{Binding Title}" FontKey="default" FontSize="18" />
+    <Grid Columns="240,*" Rows="*">
+        <ItemsControl>
+            <TextBlock Text="Inventory" />
+        </ItemsControl>
+        <Button StyleKey="ActionStyle">
+            <TextBlock Text="Use" />
+        </Button>
+    </Grid>
+</StackPanel>
 ```
 
-A runtime loader may remain available for designer and hot-reload tooling, but
-shipping code must not silently fall back to reflection-based inflation.
+`IXamlLoader` is the explicit cold source-loading entry point selected by the
+library contract. It constructs the same retained elements, descriptors,
+property store and node store as generated code. Generated production
+artifacts never silently call it and never fall back to reflection.
 
 ## Elements and controls
 
@@ -95,7 +99,7 @@ sealed types over the same retained tree:
 
 - `UiPanel` and layout containers;
 - `UiBorder` and content presenters;
-- `UiButton` and command controls;
+- `UiButton`, `UiToggleButton` and command controls;
 - `UiTextBlock`, `UiTextBox` and numeric editors;
 - `UiScrollViewer` and item presentation controls.
 
@@ -126,9 +130,10 @@ Property metadata determines whether a change affects measure, arrange,
 visual extraction or hit testing.
 
 `UiElement.GetHandle` returns a generation-safe `UiPropertyHandle` for direct
-host writes. Batched handle writes are the preferred integration path for
-frequently changing game/editor state. Handles never expose internal arrays or
-dirty masks.
+host writes through `UiElement.TrySet`. A host may group several writes before
+the next `Layout`; each write still resolves through the one retained property
+store and its typed invalidation metadata. Handles never expose internal arrays
+or dirty masks.
 
 ## Bindings
 
@@ -138,8 +143,9 @@ time.
 
 Generated artifacts attach these bindings with `SetCompiledBinding` and a
 typed property descriptor. Their source notifications are collected at the
-artifact boundary and applied by the document binding stage; the string-based
-`SetBinding` overloads remain only for cold compatibility loading.
+artifact boundary and applied by the document binding stage; string-based
+`SetBinding` is an explicit cold source/tooling API and is not used by generated
+artifacts.
 
 - `OneTime` reads once and registers no notification;
 - `OneWay` updates the target when the source changes;
@@ -179,7 +185,7 @@ generated artifact. A generated template binding reads the owner's typed
 Generated style artifacts use the typed overloads on `UiStyle` with the
 `UiElementProperties`, `UiTextBlockProperties`, `UiNumericEditorProperties`,
 `UiStackPanelProperties` and `UiGridProperties` descriptors. The existing
-string overloads remain a cold loader/tooling compatibility surface. Compiled
+string overloads remain a cold loader/tooling surface. Compiled
 resource setters use the registered `UiResourceId` directly; name-based
 resource keys remain available for cold markup loading.
 
@@ -224,24 +230,52 @@ to their render work before that invalidation point and must not retain spans.
 
 ## Custom controls
 
-A custom control contributes:
+An attributed custom XAML type is a concrete `UiElement` with an accessible
+parameterless constructor. `UiXamlTypeAttribute` supplies its stable type
+identity and content kind; `UiXamlPropertyAttribute` supplies stable typed
+literal setters. The generator emits direct construction, common element
+setters, custom member setters and optional `Add(UiElement)`/`SetContent`
+attachment without requiring the user type to be `partial`.
 
-1. a flat element class containing identity-facing properties and state;
-2. plain state structs;
-3. stateless capability mixins for layout, input and visuals;
-4. compile-time registration consumed by the DeltaXAML generator.
-
-Generated companion code supplies factories, property metadata and runtime
-operation thunks. User controls are not required to be `partial`, do not store
-algorithms in the class, and do not register runtime property dictionaries.
-Custom generated properties use registered direct setter thunks; bindings and
-resources require the corresponding typed `UiProperty<T>` descriptor.
+A custom type receives the common size/background/padding/participation state
+of `UiElement`. It can compose built-in controls and can emit a registered
+semantic visual through `SetCustomVisual`. The current public authoring API
+does not register arbitrary user layout/input/visual mixins into the frame
+pipeline; custom behavior is composed from built-ins and host code. Bindings,
+resources and styles on a custom property require a public typed
+`UiProperty<T>` descriptor and are otherwise rejected at generation time.
 
 `XamlTypeCatalog.Register(name, factory)` assigns a deterministic identity from
 the qualified XAML name for local catalog use. Generated or shared artifacts
 should use `Register(name, UiTypeId, factory)` with a caller-assigned stable ID;
 the catalog indexes both name and identity and rejects one identity registered
 for different names.
+
+## Supported production dialect
+
+Generated XAML supports the built-in elements `Panel`, `StackPanel`, `Grid`,
+`ItemsControl`, `Border`, `ContentControl`, `ScrollViewer`, `Button`,
+`ToggleButton`, `TextBlock`, `TextBox` and `NumericEditor`. The following source
+features compile to typed artifacts:
+
+- common size, background, padding, fill, enabled/selected, style and template
+  properties;
+- text/font/foreground and numeric editor properties;
+- stack orientation and fixed/`Auto`/star grid definitions;
+- `x:Name`, `x:DataType`, `{Binding ...}`, typed converters and
+  `OneTime`/`OneWay`/`TwoWay` modes;
+- scalar/static/dynamic resources, styles, visual states and templates;
+- custom controls and direct custom properties declared with
+  `UiXamlTypeAttribute` and `UiXamlPropertyAttribute`.
+
+Input is attached in code through neutral `UiInputEvent` packets and ordinary
+control events. The compiler intentionally rejects XAML event-handler members,
+attached properties such as `Grid.Row`, `x:Reference`, `RelativeSource`,
+`TemplateBinding`, undeclared binding paths, unsupported markup extensions and
+automation markup. These produce stable compiler/generator diagnostics; there
+is no reflection or alternate-runtime fallback. Collection source generation,
+data templates, triggers beyond the declared visual-state setters and general
+MAUI/WPF/Avalonia syntax are not part of the current dialect.
 
 ## Ownership summary
 
@@ -266,10 +300,10 @@ DeltaRender
 DeltaXAML has no SDL, Vulkan, DeltaEngine or ECS storage dependency. It never
 owns a global delta-time value.
 
-## Current migration status
+## Implementation status
 
-The public library contract is selected, but parts of the repository still use
-the compatibility retained implementation. New features target the compiled
-descriptor architecture from `INTERNAL.md`. Compatibility APIs must either be
-removed during migration or be marked `[Obsolete]` with their replacement and
-removal milestone; new code must not extend them.
+Generated artifacts and the explicit cold loader converge on one retained
+identity, property store, generation-safe node store and fixed stage pipeline.
+Generated construction, bindings, resources, styles, states and templates are
+the production execution path. The cold loader and untyped property access are
+bounded public authoring/tooling entry points, not a second runtime.

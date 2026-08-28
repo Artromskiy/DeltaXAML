@@ -58,7 +58,6 @@ internal sealed class UiInterpretedBinding : IDisposable
     {
         if (ReferenceEquals(_context, context))
         {
-            Refresh();
             return;
         }
 
@@ -74,7 +73,7 @@ internal sealed class UiInterpretedBinding : IDisposable
             _observable.PropertyChanged += OnPropertyChanged;
         }
 
-        Refresh();
+        QueueRefresh();
     }
 
     internal void Refresh()
@@ -121,8 +120,10 @@ internal sealed class UiInterpretedBinding : IDisposable
             return;
         }
 
-        _binding.TryWrite(value, out _);
-        _binding.NotifyChanged();
+        if (_binding.TryWrite(value, out _))
+        {
+            QueueRefresh();
+        }
     }
 
     public void Dispose()

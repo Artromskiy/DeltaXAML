@@ -13,7 +13,7 @@ Authoritative documents:
   display-list contract;
 - [INTERNAL.md](INTERNAL.md) — authoritative typed-state, static-mixin,
   generated-descriptor and compiled-XAML implementation architecture;
-- [TODO.md](TODO.md) — selected migration work;
+- [TODO.md](TODO.md) — selected project work and completed milestones;
 - [WORKFLOW.md](WORKFLOW.md) — bounded local checks.
 
 Ownership is intentionally split: DeltaXAML owns the retained document and

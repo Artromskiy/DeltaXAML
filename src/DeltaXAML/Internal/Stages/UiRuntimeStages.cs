@@ -22,19 +22,43 @@ internal static class UiMutationStage
     internal static void Run(
         UiNodeStore nodes,
         UiElement root,
-        List<UiMutation> queue,
+        List<UiControlMutation> controlQueue,
+        List<UiMutation> propertyQueue,
         out int applied,
         out int rejected)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
-        ArgumentNullException.ThrowIfNull(queue);
+        ArgumentNullException.ThrowIfNull(controlQueue);
+        ArgumentNullException.ThrowIfNull(propertyQueue);
         nodes.EnsureCurrent(root);
         applied = 0;
         rejected = 0;
-        for (var i = 0; i < queue.Count; i++)
+        for (var i = 0; i < controlQueue.Count; i++)
         {
-            var mutation = queue[i];
+            var mutation = controlQueue[i];
+            if (!nodes.TryGetNode(mutation.Target, out var node) || node.Element is not { } element)
+            {
+                continue;
+            }
+
+            switch (mutation.Kind)
+            {
+                case UiControlMutationKind.Input:
+                    var input = mutation.Input;
+                    UiDescriptorCatalog.ProcessInput(element, in input);
+                    break;
+                case UiControlMutationKind.RoutedEvent:
+                    var routedEvent = mutation.RoutedEvent;
+                    UiDescriptorCatalog.ProcessRoutedEvent(element, in routedEvent);
+                    break;
+            }
+        }
+
+        controlQueue.Clear();
+        for (var i = 0; i < propertyQueue.Count; i++)
+        {
+            var mutation = propertyQueue[i];
             if (nodes.TryResolve(mutation.Target, out var element) &&
                 element.TrySet(mutation.Target, mutation.Value, mutation.Invalidation, out _))
             {
@@ -46,7 +70,7 @@ internal static class UiMutationStage
             }
         }
 
-        queue.Clear();
+        propertyQueue.Clear();
     }
 }
 

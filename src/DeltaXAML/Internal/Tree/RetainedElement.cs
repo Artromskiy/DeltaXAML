@@ -844,9 +844,9 @@ internal class UiElement
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentNullException.ThrowIfNull(binding);
-        if (_bindingRuntimes.Remove(propertyName, out var compatibilityPrevious))
+        if (_bindingRuntimes.Remove(propertyName, out var interpretedPrevious))
         {
-            compatibilityPrevious.Dispose();
+            interpretedPrevious.Dispose();
             _properties.Clear(propertyName, UiValueSource.Binding);
         }
 
@@ -892,9 +892,9 @@ internal class UiElement
             _properties.Clear(propertyName, UiValueSource.Binding);
         }
 
-        if (_bindingRuntimes.Remove(propertyName, out var compatibilityPrevious))
+        if (_bindingRuntimes.Remove(propertyName, out var interpretedPrevious))
         {
-            compatibilityPrevious.Dispose();
+            interpretedPrevious.Dispose();
             _properties.Clear(propertyName, UiValueSource.Binding);
         }
 
@@ -1149,6 +1149,32 @@ internal class UiElement
 
     internal void SetBindingContext(object? value, bool explicitValue)
     {
+        if (_nodeStore is { } store)
+        {
+            store.SetBindingContext(this, value, explicitValue);
+            return;
+        }
+
+        var traversal = new List<UiElement> { this };
+        for (var i = 0; i < traversal.Count; i++)
+        {
+            var element = traversal[i];
+            var isOwner = i == 0;
+            if (!isOwner && element._hasExplicitBindingContext)
+            {
+                continue;
+            }
+
+            element.ApplyBindingContext(value, isOwner && explicitValue);
+            for (var childIndex = 0; childIndex < element._detachedChildren.Count; childIndex++)
+            {
+                traversal.Add(element._detachedChildren[childIndex]);
+            }
+        }
+    }
+
+    internal void ApplyBindingContext(object? value, bool explicitValue)
+    {
         _bindingContext = value;
         if (explicitValue)
         {
@@ -1158,14 +1184,6 @@ internal class UiElement
         foreach (var binding in _bindingRuntimes.Values)
         {
             binding.SetContext(value);
-        }
-
-        foreach (var child in Children)
-        {
-            if (!child._hasExplicitBindingContext)
-            {
-                child.SetBindingContext(value, false);
-            }
         }
     }
 }

@@ -108,30 +108,30 @@ internal sealed class UiInputRouter
             return;
         }
 
-        if (_focused is TextBox text)
+        if (_focused is TextBox or NumericEditor)
         {
             var packet = UiInputEvent.FromKey(input);
-            UiDescriptorCatalog.ProcessInput(text, in packet);
+            _runtime.EnqueueControlInput(_focused, in packet);
         }
     }
 
     public void RouteText(in UiTextInput input)
     {
         PruneDetachedState();
-        if (_focused is TextBox text)
+        if (_focused is TextBox or NumericEditor)
         {
             var packet = UiInputEvent.FromText(input);
-            UiDescriptorCatalog.ProcessInput(text, in packet);
+            _runtime.EnqueueControlInput(_focused, in packet);
         }
     }
 
     public void RouteIme(in UiCompositionEvent input)
     {
         PruneDetachedState();
-        if (_focused is TextBox text)
+        if (_focused is TextBox or NumericEditor)
         {
             var packet = UiInputEvent.FromComposition(input);
-            UiDescriptorCatalog.ProcessInput(text, in packet);
+            _runtime.EnqueueControlInput(_focused, in packet);
         }
     }
 
@@ -144,7 +144,15 @@ internal sealed class UiInputRouter
 
         if (_captured is not null && (!_runtime.Contains(_captured) || !_captured.IsEnabled || _captured.Visibility != UiVisibility.Visible))
         {
+            var captured = _captured;
             _captured = null;
+            var captureLost = new UiRoutedEvent(
+                captured.Id,
+                UiRoutedEventPhase.Bubble,
+                UiPointerEventKind.CaptureLost,
+                default,
+                default);
+            UiDescriptorCatalog.ProcessRoutedEvent(captured, in captureLost);
         }
 
         if (_hovered is not null && (!_runtime.Contains(_hovered) || !_hovered.IsEnabled || _hovered.Visibility != UiVisibility.Visible))
@@ -208,14 +216,14 @@ internal sealed class UiInputRouter
         {
             for (var i = _routePath.Count - 1; i >= 0; i--)
             {
-                UiDescriptorCatalog.ProcessRoutedEvent(_routePath[i], in routedEvent);
+                _runtime.EnqueueRoutedEvent(_routePath[i], in routedEvent);
             }
         }
         else
         {
             for (var i = 0; i < _routePath.Count; i++)
             {
-                UiDescriptorCatalog.ProcessRoutedEvent(_routePath[i], in routedEvent);
+                _runtime.EnqueueRoutedEvent(_routePath[i], in routedEvent);
             }
         }
     }

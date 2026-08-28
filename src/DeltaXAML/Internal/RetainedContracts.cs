@@ -91,6 +91,19 @@ internal readonly record struct UiColor(byte R, byte G, byte B, byte A = 255);
 internal readonly record struct UiElementId(uint Value) { public bool IsValid => Value != 0; }
 internal readonly record struct UiPropertyHandle(UiElementId Element, uint Generation, string Name);
 internal readonly record struct UiMutation(UiPropertyHandle Target, object? Value, UiDirtyFlags Invalidation);
+internal enum UiControlMutationKind : byte { None, Unknown, Input, RoutedEvent }
+internal readonly record struct UiControlMutation(
+    UiNodeId Target,
+    UiControlMutationKind Kind,
+    UiInputEvent Input,
+    UiRoutedEvent RoutedEvent)
+{
+    internal static UiControlMutation FromInput(UiNodeId target, in UiInputEvent input) =>
+        new(target, UiControlMutationKind.Input, input, default);
+
+    internal static UiControlMutation FromRoutedEvent(UiNodeId target, in UiRoutedEvent routedEvent) =>
+        new(target, UiControlMutationKind.RoutedEvent, default, routedEvent);
+}
 internal enum UiBindingMode { OneWay, TwoWay, OneTime }
 internal enum UiTextEditAction { None, SelectAll, Copy, Cut, Paste, Undo, Redo, DeleteSelection, Increment, Decrement }
 internal readonly record struct UiResourceReference(string Key, Guid ResourceId = default)

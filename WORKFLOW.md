@@ -47,15 +47,15 @@ The architecture gate in `DeltaXAML.Tests` is mandatory and must reject:
 - object-valued or type-keyed runtime stores;
 - reflection, LINQ or string property lookup in frame stages;
 - per-control behavior delegates/subscriptions;
-- new references to compatibility APIs;
+- new references to superseded APIs;
 - invalid `State`, `Mixins`, `Descriptors` and `Controls` locations.
 
 If the gate cannot express a rule through assembly inspection, add a bounded
 source/project check instead of weakening the rule.
 
 Missing or empty designated folders are reported as `PENDING` and fail the
-headless command. This keeps the gate active before the first migrated type;
-the old retained files are not silently treated as new controls.
+headless command. The canonical retained owner is checked by bounded runtime
+source rules but is not misclassified as a public control surface.
 
 ## Migration completeness (mandatory)
 
@@ -68,15 +68,15 @@ and removal milestone:
 [Obsolete(
     "Use generated UiTypeDescriptor operations; remove during DXAML-MIXIN-4.",
     error: true)]
-internal void LegacyMeasure()
+internal void RetiredMeasure()
 {
 }
 ```
 
 Use `error: true` when no supported caller may remain. A warning is allowed
-only for a bounded compatibility step that must compile while consumers move.
+only for a bounded migration step that must compile while consumers move.
 New production code, tests and benchmarks may not call obsolete paths. Do not
-optimize, extend or document compatibility APIs as alternatives. The migration
+optimize, extend or document superseded APIs as alternatives. The migration
 is not complete while an unmarked old path remains.
 
 Before handing off a migration, report:
@@ -116,6 +116,12 @@ diagnostic: it is emitted when the restore cannot reach the package
 vulnerability feed. A successful restore with feed access should clear it; when
 the feed is unavailable, record the count and keep it separate from analyzer
 warnings. Do not disable package auditing merely to hide a feed outage.
+
+The six frozen `Delta.XAML.Contract` packet/visual enums intentionally retain
+their byte ABI. `CA1028` for those exact declarations is a frozen-contract
+advisory and cannot be changed from an implementation pass; record it
+separately. New non-contract enums must either use `int` or carry a targeted,
+reviewed compact-metadata justification.
 
 For local application run `./eng/format.sh`; for a non-mutating check use
 `FORMAT_CHECK=1 ./eng/format.sh`. The script uses `dotnet format whitespace

@@ -15,6 +15,7 @@ internal sealed class UiNodeStore
     private readonly List<RegistrationVisit> _registrationQueue = new();
     private readonly List<int> _activeIndices = new();
     private readonly List<UiNodeId> _layoutChildIds = new();
+    private readonly List<UiNodeId> _bindingContextQueue = new();
     private readonly List<UiNodeId> _removalQueue = new();
     private readonly NodeChildrenView _layoutChildren;
     private readonly UiElement _root;
@@ -327,6 +328,46 @@ internal sealed class UiNodeStore
         }
 
         return _layoutChildren;
+    }
+
+    internal void SetBindingContext(UiElement owner, object? value, bool explicitValue)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        EnsureCurrent(_root);
+        var ownerId = ToNodeId(owner);
+        if (!TryGetRecord(ownerId, out _))
+        {
+            throw new InvalidOperationException("The binding-context owner is not registered in this node store.");
+        }
+
+        _bindingContextQueue.Clear();
+        _bindingContextQueue.Add(ownerId);
+        for (var i = 0; i < _bindingContextQueue.Count; i++)
+        {
+            if (!TryGetRecord(_bindingContextQueue[i], out var record) || record.Element is not { } element)
+            {
+                throw new InvalidOperationException("The binding-context traversal contains a stale node.");
+            }
+
+            var isOwner = i == 0;
+            if (!isOwner && element.HasExplicitBindingContext)
+            {
+                continue;
+            }
+
+            element.ApplyBindingContext(value, isOwner && explicitValue);
+            var child = record.FirstLogicalChild;
+            while (child.IsValid)
+            {
+                _bindingContextQueue.Add(child);
+                if (!TryGetRecord(child, out var childRecord))
+                {
+                    throw new InvalidOperationException("The binding-context traversal contains a stale child relation.");
+                }
+
+                child = childRecord.NextLogicalSibling;
+            }
+        }
     }
 
     private bool TryGetFirstChild(UiNodeId parent, bool visual, out UiNodeRecord child)

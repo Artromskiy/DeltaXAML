@@ -24,6 +24,21 @@ static class Assert
             throw new InvalidOperationException($"{message}: {expected} != {actual}");
         }
     }
+
+    public static void Throws<TException>(Action action, string message)
+        where TException : Exception
+    {
+        try
+        {
+            action();
+        }
+        catch (TException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(message);
+    }
 }
 
 internal static class RetainedLayoutTest
@@ -34,7 +49,7 @@ internal static class RetainedLayoutTest
         var nodes = new UiNodeStore(root);
         try
         {
-            UiMeasureStage.Run(nodes, root, available, new UiMeasureQueueBuffer(), new List<UiNodeId>());
+            UiMeasureStage.Run(nodes, root, available, new UiMeasureQueueBuffer(), []);
             UiArrangeStage.Run(nodes, root, bounds, new UiArrangeQueueBuffer());
         }
         finally
@@ -49,7 +64,7 @@ internal static class RetainedLayoutTest
         var nodes = new UiNodeStore(root);
         try
         {
-            UiMeasureStage.Run(nodes, root, available, new UiMeasureQueueBuffer(), new List<UiNodeId>());
+            UiMeasureStage.Run(nodes, root, available, new UiMeasureQueueBuffer(), []);
         }
         finally
         {
@@ -239,6 +254,7 @@ internal static partial class Program
     {
         ArchitectureGate.Run();
         XamlSemanticCompilerTests();
+        UnsupportedXamlTests();
         XamlGeneratorTests();
         TextBlockArchitectureTests.Run();
         StackPanelArchitectureTests.Run();
@@ -260,6 +276,8 @@ internal static partial class Program
         PublicInputPreservesKeyModifiers();
         QueuedTextInputOwnsItsSnapshot();
         ImeFocusAndCaptureLifecycle();
+        NestedHitAndDetachedInputCleanup();
+        NumericEditorReceivesCanonicalInput();
         PublicWheelScrollsScrollViewer();
         ScrollAndClips();
         DocumentOwnsReusableDisplayListStorage();
@@ -272,9 +290,11 @@ internal static partial class Program
         PublicDisplayListWarmFrameHasNoAllocations();
         BindingExpressionsAndContexts();
         GeneratedEditorAndGameHostPaths();
+        GeneratedToggleButtonTest();
         HandlesCompiledBindingsAndCustomTypes();
         TypedPropertyCatalog();
         RuntimeStagesAreOrdered();
+        BindingTargetWritesReenterTheStagePipeline();
         BindingStageSkipsCleanSubtrees();
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
@@ -282,7 +302,7 @@ internal static partial class Program
         PublicResourcesStylesTemplatesAndTypes();
         DocumentDisposesBindingSubscriptions();
         TypeCatalogUsesStableIds();
-        LibraryFacadeSmoke();
+        LibraryApiSmoke();
         FrameContractAndBatchedMutations();
         ParticipationBoundary();
         RuntimeLayoutQueuesAreNonRecursive();
@@ -293,7 +313,7 @@ internal static partial class Program
         DisplayExtractionFollowsNodeLinksAfterTreeMutation();
         DescriptorLayoutDispatch();
         DescriptorPropertyDispatchIsNonVirtual();
-        LegacyLayoutEntryPointsAreGone();
+        DescriptorLayoutEntryPointsAreExclusive();
         ControlStateOwnersAreFlat();
     }
 
@@ -489,23 +509,30 @@ internal static partial class Program
         Assert.True(box.IsFocused, "explicit focus updates the focused visual state");
         var typedText = new LibraryContract.UiTextInput("12".AsMemory());
         frame.Input.RouteText(in typedText);
+        Assert.Equal(string.Empty, box.Text, "input routing does not bypass the mutation stage");
+        frame.ApplyMutations();
         Assert.Equal("12", box.Text, "UTF text is separate input");
         var backspace = Key(8);
         frame.Input.RouteKey(in backspace);
+        frame.ApplyMutations();
         Assert.Equal("1", box.Text, "physical backspace");
         var move = Pointer(LibraryContract.UiPointerEventKind.Move, 10, 65);
         frame.Input.RoutePointer(in move);
         Assert.True(button.IsHovered && !box.IsHovered, "pointer move updates only the current hovered visual state");
         var down = Pointer(LibraryContract.UiPointerEventKind.ButtonDown, 10, 65);
         frame.Input.RoutePointer(in down);
+        Assert.True(!button.IsPressed, "pointer routing queues the control transition");
         if (frame.Input.Captured is not { } captured)
         {
             throw new InvalidOperationException("Pointer capture was not set.");
         }
 
         Assert.Equal(button.Id, captured, "pointer capture");
+        frame.ApplyMutations();
+        Assert.True(button.IsPressed, "mutation stage applies the queued pressed transition");
         var up = Pointer(LibraryContract.UiPointerEventKind.ButtonUp, 10, 65);
         frame.Input.RoutePointer(in up);
+        frame.ApplyMutations();
         Assert.True(clicked, "button bubble click");
         Assert.True(!probe.IsHovered && !probe.IsFocused, "route does not include unrelated sibling nodes");
         Assert.True(frame.Input.Focused == button.Id, "pointer focuses control");
@@ -586,6 +613,20 @@ internal static partial class Program
         chars[0] = 'B';
         document.Layout(new Delta.Maths.float2(100, 20), 1);
         Assert.Equal("A", text.Text, "queued text input owns a snapshot until the next layout");
+
+        var retainedText = new TextBox { Width = 100, Height = 20 };
+        var retainedRuntime = new UiRuntime(retainedText);
+        retainedRuntime.Layout(new(100, 20), 1);
+        retainedRuntime.EnqueueInput(LibraryContract.UiInputEvent.FromPointingDevice(Pointer(
+            LibraryContract.UiPointerEventKind.ButtonDown,
+            5,
+            5)));
+        retainedRuntime.EnqueueInput(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("A".AsMemory())));
+        retainedRuntime.ApplyMutations();
+        retainedRuntime.EnqueueInput(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("B".AsMemory())));
+        retainedRuntime.Layout(new(100, 20), 1);
+        Assert.Equal("AB", retainedText.Text, "an explicit property-mutation flush does not release pending input snapshots");
+        retainedRuntime.Dispose();
 
         var keyboardRoot = new Library.UiPanel();
         var keyboardText = new Library.UiTextBox { Width = 100, Height = 20 };
@@ -674,11 +715,62 @@ internal static partial class Program
         runtime.Layout(new(100, 20), 1);
         var buttonDown = Pointer(LibraryContract.UiPointerEventKind.ButtonDown, 5, 5);
         runtime.Input.RoutePointer(in buttonDown);
+        runtime.ApplyMutations();
         Assert.True(runtime.Input.Captured == captureButton.Id && captureButton.IsPressed, "pointer down captures and presses the button");
         var cancel = Pointer(LibraryContract.UiPointerEventKind.Cancel, 5, 5);
         runtime.Input.RoutePointer(in cancel);
+        runtime.ApplyMutations();
         Assert.True(runtime.Input.Captured is null && !captureButton.IsPressed, "pointer cancel releases capture and pressed state");
         runtime.Dispose();
+    }
+
+    private static void NestedHitAndDetachedInputCleanup()
+    {
+        var root = new Panel { Width = 100, Height = 40 };
+        var container = new Border { Width = 100, Height = 40, Padding = new(5, 5, 5, 5) };
+        var button = new Button { Width = 90, Height = 30 };
+        container.Add(button);
+        root.Add(container);
+        var runtime = new UiRuntime(root);
+        runtime.Layout(new(100, 40), 1);
+
+        var clicks = 0;
+        button.Click += (_, _) => clicks++;
+        var down = Pointer(LibraryContract.UiPointerEventKind.ButtonDown, 10, 10);
+        var up = Pointer(LibraryContract.UiPointerEventKind.ButtonUp, 10, 10);
+        runtime.Input.RoutePointer(in down);
+        runtime.Input.RoutePointer(in up);
+        runtime.ApplyMutations();
+        Assert.Equal(1, clicks, "nested hit testing routes input to the deepest visual child");
+
+        runtime.Input.RoutePointer(in down);
+        runtime.ApplyMutations();
+        Assert.True(button.IsPressed && runtime.Input.Captured == button.Id, "nested button owns pointer capture");
+        Assert.True(container.Remove(button), "captured nested button can be detached");
+        runtime.Layout(new(100, 40), 1);
+        Assert.True(runtime.Input.Captured is null && runtime.Input.Focused is null, "focus and capture are repaired after target removal");
+        Assert.True(!button.IsPressed, "capture loss clears the detached button pressed state");
+        runtime.Dispose();
+    }
+
+    private static void NumericEditorReceivesCanonicalInput()
+    {
+        var numeric = new Library.UiNumericEditor { Width = 100, Height = 20 };
+        numeric.Initialize(2);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(numeric, textService);
+        document.Layout(new(100, 20), 1);
+        document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(Pointer(
+            LibraryContract.UiPointerEventKind.ButtonDown,
+            5,
+            5)));
+        document.Dispatch(LibraryContract.UiInputEvent.FromKey(Key(38)));
+        document.Layout(new(100, 20), 1);
+        Assert.Equal(3d, numeric.CurrentValue, "numeric editor receives physical-key increment through UiDocument.Dispatch");
+
+        document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("4".AsMemory())));
+        document.Layout(new(100, 20), 1);
+        Assert.True(numeric.Text.Contains('4', StringComparison.Ordinal), "numeric editor receives UTF text through the canonical input queue");
     }
 
     private static void PublicWheelScrollsScrollViewer()
@@ -773,7 +865,7 @@ internal static partial class Program
 
     }
 
-    private static void LibraryFacadeSmoke()
+    private static void LibraryApiSmoke()
     {
         var loader = new Library.XamlLoader();
         var context = new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
@@ -1012,6 +1104,12 @@ internal static partial class Program
 
     private static void DpiInvalidatesLayoutWithoutCompoundingScale()
     {
+        using var publicTextService = new EmptyTextService();
+        using var publicDocument = new Library.UiDocument(new Library.UiPanel(), publicTextService);
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => publicDocument.Layout(new(100, 40), 0),
+            "public layout rejects a non-positive DPI scale");
+
         var text = new TextBlock { Text = "dpi" };
         var runtime = new UiRuntime(text);
         runtime.Layout(new(100, 40), 1);
@@ -1048,6 +1146,26 @@ internal static partial class Program
         Assert.Equal(stableLayoutVersion, text.LayoutVersion, "unchanged DPI does not repeat layout invalidation");
         Assert.Equal(second.Version, third.Version, "unchanged DPI keeps the text-run version");
         Assert.Equal(second.FontSize, third.FontSize, "unchanged DPI does not compound text scaling");
+
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
+        var fonts = new Library.UiFontCatalog();
+        fonts.Register(
+            "default",
+            new TextContract.FontSourceId(new Guid("2A8B91CD-845B-4F92-8873-E60A0F30323A")),
+            File.ReadAllBytes(fontPath));
+        using var shaping = new CountingTextService();
+        using var dpiDocument = new Library.UiDocument(
+            new Library.UiTextBlock { Text = "dpi", Width = 100, Height = 40 },
+            shaping,
+            fonts);
+        dpiDocument.Layout(new(100, 40), 1);
+        _ = dpiDocument.BuildDisplayList();
+        dpiDocument.Layout(new(100, 40), 2);
+        _ = dpiDocument.BuildDisplayList();
+        Assert.Equal(2, shaping.ShapeCount, "DPI change reshapes the affected text at its new pixel size");
+        dpiDocument.Layout(new(100, 40), 2);
+        _ = dpiDocument.BuildDisplayList();
+        Assert.Equal(2, shaping.ShapeCount, "unchanged DPI preserves the shaped-text cache");
     }
 
     private static void TextVersionTracksTextInputsOnly()
@@ -1212,6 +1330,25 @@ internal static partial class Program
         lateContextRoot.Add(lateContextText);
         Assert.Equal("Mina", lateContextText.Text, "children added after the parent inherit its binding context");
 
+        var deepRoot = new Library.UiPanel();
+        var deepParent = deepRoot;
+        for (var i = 0; i < 2048; i++)
+        {
+            var child = new Library.UiPanel();
+            deepParent.Add(child);
+            deepParent = child;
+        }
+
+        var deepText = new Library.UiTextBlock();
+        deepText.SetBinding("Text", new Library.UiBindingExpression("Name"));
+        deepParent.Add(deepText);
+        using var deepTextService = new EmptyTextService();
+        using var deepDocument = new Library.UiDocument(deepRoot, deepTextService);
+        deepRoot.BindingContext = model;
+        Assert.Equal(string.Empty, deepText.Text, "attached binding context queues the affected binding instead of executing a nested stage");
+        deepDocument.Layout(new(100, 20), 1);
+        Assert.Equal("Mina", deepText.Text, "attached binding context propagates through the node-store queue without recursive traversal");
+
         var twoWay = loader.Load("<Panel><TextBox Text=\"{Binding Name, Mode=TwoWay}\" /></Panel>", in context);
         Assert.True(twoWay.Success && twoWay.Root is not null, "two-way binding expression loads");
         if (twoWay.Root is not { } twoWayRoot) { throw new InvalidOperationException("two-way root missing"); }
@@ -1256,6 +1393,27 @@ internal static partial class Program
         Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Binding) == 0, "binding stage clears its transient dirty flag");
     }
 
+    private static void BindingTargetWritesReenterTheStagePipeline()
+    {
+        var model = new BindingModel { Name = "before" };
+        var text = new Library.UiTextBox { Width = 100, Height = 20 };
+        using var binding = new Library.UiCompiledBinding<BindingModel, string>(
+            model,
+            static source => source.Name,
+            static (source, value) => source.Name = value.ToUpperInvariant(),
+            Library.UiBindingMode.TwoWay);
+        text.SetBinding("Text", binding);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(text, textService);
+        document.Layout(new(100, 20), 1);
+
+        text.SetText("mixed");
+        Assert.Equal("MIXED", model.Name, "two-way write updates the typed source immediately");
+        Assert.Equal("mixed", text.Text, "two-way source normalization does not bypass the binding stage");
+        document.Layout(new(100, 20), 1);
+        Assert.Equal("MIXED", text.Text, "the next binding stage reveals the normalized source value");
+    }
+
     private static void BindingStageSkipsCleanSubtrees()
     {
         var oneTimeModel = new BindingModel { Name = "one-time" };
@@ -1267,7 +1425,7 @@ internal static partial class Program
         oneTimeText.SetBinding("Text", oneTimeBinding);
         oneTimeModel.Name = "changed";
         oneTimeBinding.NotifyChanged();
-        Assert.Equal("one-time", oneTimeText.Text, "external one-time binding does not subscribe through the compatibility runtime");
+        Assert.Equal("one-time", oneTimeText.Text, "external one-time binding does not subscribe through the interpreted runtime");
 
         var firstModel = new BindingModel { Name = "first" };
         var secondModel = new BindingModel { Name = "second" };
@@ -1336,6 +1494,9 @@ internal static partial class Program
         using var customText = new EmptyTextService();
         using var custom = new DeltaXaml.Generated.CustomBadgeArtifact(customText);
         Assert.True(custom.Document.Root is LibraryCustomBadge { Label: "generated" }, "attributed custom type and property use direct generated construction");
+        custom.Document.Layout(new(120, 32), 1);
+        var customDisplay = custom.Document.BuildDisplayList();
+        Assert.True(customDisplay.Visuals.Length == 1, "attributed custom type inherits typed common properties and canonical visual extraction");
 
         var model = new BindingModel { Name = "generated binding" };
         using var bindingText = new CountingTextService();
@@ -1349,8 +1510,8 @@ internal static partial class Program
             throw new InvalidOperationException("Generated bound text editor missing.");
         }
 
-        boundEditor.SetText("Round Trip");
-        Assert.Equal("round trip", model.Name, "generated two-way binding calls its typed backward converter");
+        boundEditor.SetText(" Round Trip ");
+        Assert.Equal("Round Trip", model.Name, "generated two-way binding calls its typed backward converter");
 
         using var compositionText = new CountingTextService();
         using var composition = new DeltaXaml.Generated.CompositionArtifact(compositionText, fonts);
@@ -1364,6 +1525,7 @@ internal static partial class Program
         composition.Document.Layout(new(320, 120), 1);
         var changedComposition = composition.Document.BuildDisplayList();
         Assert.True(!initialButtonVisual.Equals(changedComposition.Visuals[1]), "dynamic resource update invalidates the dependent style output");
+
     }
 
     private static void ExerciseGeneratedDocument(
@@ -2002,7 +2164,7 @@ internal static partial class Program
         Assert.True(text.DesiredSize.Width > 0 && text.DesiredSize.Height > 0, "text descriptor dispatch produces desired size");
     }
 
-    private static void LegacyLayoutEntryPointsAreGone()
+    private static void DescriptorLayoutEntryPointsAreExclusive()
     {
         var flags = System.Reflection.BindingFlags.Instance |
             System.Reflection.BindingFlags.Public |
@@ -2044,7 +2206,7 @@ internal static partial class Program
         {
             typeof(Library.UiPanel), typeof(Library.UiStackPanel), typeof(Library.UiItemsControl),
             typeof(Library.UiBorder), typeof(Library.UiGrid), typeof(Library.UiContentControl),
-            typeof(Library.UiButton), typeof(Library.UiTextBlock), typeof(Library.UiTextBox),
+            typeof(Library.UiButton), typeof(Library.UiToggleButton), typeof(Library.UiTextBlock), typeof(Library.UiTextBox),
             typeof(Library.UiNumericEditor), typeof(Library.UiScrollViewer),
         };
         for (var i = 0; i < publicControls.Length; i++)

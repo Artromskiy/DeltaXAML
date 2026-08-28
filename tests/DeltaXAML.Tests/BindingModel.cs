@@ -37,6 +37,6 @@ public static class GeneratedBindingConverters
     public static string ToSource(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        return value.ToLowerInvariant();
+        return value.Trim();
     }
 }

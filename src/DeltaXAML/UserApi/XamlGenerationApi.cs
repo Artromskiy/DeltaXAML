@@ -1,6 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Delta.XAML;
 
 /// <summary>Declares how an attributed custom XAML type accepts nested content.</summary>
+[SuppressMessage("Design", "CA1028:Enum Storage should be Int32", Justification = "Generator attribute metadata uses the established compact byte representation.")]
 public enum UiXamlContentKind : byte
 {
     None,
@@ -9,6 +12,7 @@ public enum UiXamlContentKind : byte
 }
 
 /// <summary>Closed literal vocabulary understood by the DeltaXAML compiler.</summary>
+[SuppressMessage("Design", "CA1028:Enum Storage should be Int32", Justification = "Generator attribute metadata uses the established compact byte representation.")]
 public enum UiXamlValueKind : byte
 {
     Text,
@@ -72,6 +76,7 @@ public sealed class UiXamlPropertyAttribute : Attribute
 }
 
 /// <summary>Direction of one compile-time converter method.</summary>
+[SuppressMessage("Design", "CA1028:Enum Storage should be Int32", Justification = "Generator attribute metadata uses the established compact byte representation.")]
 public enum UiXamlConverterDirection : byte
 {
     Forward,

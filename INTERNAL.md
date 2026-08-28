@@ -8,7 +8,7 @@ It is explicitly internal: it does not replace the consumer-facing
 The selected target is a retained UI library with compiled XAML, typed state,
 static generic mixins, generated descriptors and a renderer-neutral borrowed
 display list. Migration work converges on this architecture without creating a
-second retained tree or extending compatibility APIs.
+second retained tree or extending superseded APIs.
 
 ## Design objective
 
@@ -262,7 +262,7 @@ The first migrated container uses the same capability path in
 `Internal/Descriptors/UiStackPanelDescriptor.cs`. Its state owns orientation
 and layout results; the stateless mixins perform child measure/arrange through
 the one retained child list, and the generated companion supplies the typed
-dispatch. `StackPanel` no longer inherits the legacy `Panel` algorithm. The
+dispatch. `StackPanel` does not inherit the `Panel` algorithm. The
 remaining built-in controls use the same descriptor path in the subsequent
 content, layout, input/editing and items/scroll slices below.
 
@@ -270,8 +270,7 @@ The content/layout slice adds `BorderState` and `ContentControlState` with
 their stateless measure/arrange mixins and typed companions. `Border` owns no
 second child model: the mixins receive the existing retained child view, apply
 padding and write the composite layout result. `ContentControl` uses the same
-single-child view and its migrated layout path is inherited by the button
-compatibility shell. Button input is dispatched through its generated
+single-child view. Button input is dispatched through its generated
 companion while Click remains the existing event boundary.
 
 The panel/layout slice adds `PanelState` and `GridState` with the same typed
@@ -490,7 +489,7 @@ does not allocate a closure and does not resolve a dotted string path per
 update. `OneTime` creates no subscription. `OneWay` and `TwoWay` register only
 the source notifications required by their generated plan.
 
-`INotifyPropertyChanged` remains a compatibility source mechanism. Engine and
+`INotifyPropertyChanged` remains an optional source-notification mechanism. Engine and
 editor hot paths should prefer generation-safe `UiPropertyHandle` writes and
 batched mutations. Binding notifications are collected, deduplicated and
 applied before layout; a callback must not recursively run layout.
@@ -750,62 +749,38 @@ The executable DeltaXAML architecture gate must reject:
 - reflection, LINQ and string property lookup in layout/input/visual paths;
 - per-instance behavior delegates or event subscriptions inside controls;
 - generated companions that require user controls to be `partial`;
-- new implementation references to compatibility APIs.
+- new implementation references to superseded APIs.
 
-The gate applies to new and migrated types. Existing migration files are
-tracked explicitly and may not receive new behavior.
+The gate applies to every designated state, mixin, descriptor and public
+control type, plus bounded source checks over runtime hot paths.
 
-## Current migration classification
+## Final implementation classification
 
-The designated folders are populated by the migrated state, mixin and
-descriptor types. The executable gate still reports any missing or empty
-designated folder as `PENDING` and fails the headless command; an empty folder
-is not an accepted architecture pass.
+The executable gate requires every designated folder to be populated and
+reports an empty folder as `PENDING`. The final path is classified by ownership,
+not by a second facade or tree:
 
 | Path | Classification | Boundary rule |
 |---|---|---|
-| `Internal/UiElement.cs` | migration compatibility implementation | Existing retained owner/traversal shell plus the single cold source resolver; typed effective values now enter composite state through `ApplyTypedProperty`; remove the virtual compatibility shell during the retained-stage split. |
-| `Internal/Compatibility/UiBindingRuntime.cs` | migration-only cold compatibility implementation | Public `UiBindingExpression` bridge used by the explicit tooling/compatibility loader; generated typed binding artifacts do not call it. Remove after the loader has a generated construction mode. |
-| `UserApi/XamlLoader.cs` | migration-only cold compatibility implementation | Public XML inflation entry point; generated companions bypass it and use direct construction. Keep it bounded to the explicit loader contract until a generated loader mode replaces it. |
-| `Internal/RetainedContracts.cs` | retained runtime vocabulary | Concrete records and the typed item source/factory and clipboard adapter boundaries still used by the retained compatibility shell; do not add new runtime algorithms here. |
-| `UserApi/LibraryFacade.cs` | active public compatibility facade | Existing public callers remain supported; new controls and generated descriptors must live in the designated locations, not in this file. |
-| `Internal/State/TextBlockState.cs` | migrated exemplar state | Composite text/layout state only; no algorithms, services or ownership. |
-| `Internal/Mixins/TextBlockMixin.cs` | migrated exemplar capabilities | Static generic measure/arrange/input/visual capability shapes and stateless readonly algorithms. |
-| `Internal/Descriptors/UiTextBlockDescriptor.cs` | migrated exemplar descriptor | Compact type index plus typed factory/measure/arrange/input/visual thunks and property setters for `TextBlock`; the catalog now covers all built-in control groups. |
-| `Internal/State/StackPanelState.cs` | migrated layout state | Composite orientation/layout state only; child relations remain owned by the single retained element tree. |
-| `Internal/Mixins/StackPanelMixin.cs` | migrated layout capabilities | Stateless child measure/arrange algorithms using the generic capability interfaces and an explicit child view. |
-| `Internal/Descriptors/UiStackPanelDescriptor.cs` | migrated layout descriptor | Compact typed factory/measure/arrange/property dispatch for `StackPanel`; it does not create another tree or store. |
-| `Internal/State/BorderState.cs` | migrated content state | Padding and geometry fields only; the retained child relation stays on `UiElement`. |
-| `Internal/State/ContentControlState.cs` | migrated content state | Single-child geometry fields only; content remains the retained tree's first child. |
-| `Internal/Mixins/ContentLayoutMixin.cs` | migrated content capabilities | Stateless padding/content measure and arrange algorithms over the existing child view. |
-| `Internal/Descriptors/UiContentLayoutDescriptors.cs` | migrated content descriptors | Compact typed factories and layout dispatch for `Border` and `ContentControl`. |
-| `Internal/State/PanelState.cs` | migrated container state | Panel geometry only; the retained child relation remains on `UiElement`. |
-| `Internal/State/GridState.cs` | migrated grid state | Grid definitions and reusable measure/arrange buffers; no child ownership. |
-| `Internal/Mixins/PanelLayoutMixin.cs` | migrated container capabilities | Stateless panel and fixed/auto/star grid measure/arrange algorithms. |
-| `Internal/Descriptors/UiPanelGridDescriptors.cs` | migrated container descriptors | Compact typed factories, layout dispatch and grid definition setters. |
-| `Internal/State/ButtonState.cs` | migrated input state | Pressed state only; event ownership remains on the existing retained button. |
-| `Internal/State/ToggleButtonState.cs` | migrated input state | Checked state only; it composes with the button state through the existing class hierarchy. |
-| `Internal/Mixins/ButtonInputMixin.cs` | migrated input capabilities | Stateless routed pointer transitions for Button and ToggleButton. |
-| `Internal/Descriptors/UiButtonDescriptors.cs` | migrated input descriptors | Compact typed factories and routed-input dispatch for Button and ToggleButton. |
-| `Internal/State/TextBoxState.cs` | migrated editing state | Caret and selection fields only; text storage remains the existing TextBlock state. |
-| `Internal/State/NumericEditorState.cs` | migrated numeric state | Numeric value, bounds and committed text; validation has no external service dependency. |
-| `Internal/Mixins/TextBoxEditingMixin.cs` | migrated editing capabilities | Stateless physical-key mapping, numeric parsing and numeric adjustment algorithms. |
-| `Internal/Descriptors/UiEditingDescriptors.cs` | migrated editing descriptors | Compact typed factories, editing input dispatch and numeric validation thunks. |
-| `Internal/State/ItemsControlState.cs` | migrated items state | Item count only; source and realized row collections remain on the retained owner. |
-| `Internal/State/ScrollViewerState.cs` | migrated scrolling state | Offset and viewport/content geometry only. |
-| `Internal/Mixins/ItemsControlMixin.cs` | migrated items capabilities | Stateless incremental row reuse algorithm over typed source/factory boundaries. |
-| `Internal/Mixins/ScrollViewerMixin.cs` | migrated scrolling capabilities | Stateless content measure and offset arrange algorithms. |
-| `Internal/Descriptors/UiItemsScrollDescriptors.cs` | migrated items/scroll descriptors | Compact typed factories, scroll layout/offset dispatch and items mutation dispatch. |
-| `Internal/State/UiElementState.cs` | migrated common property state | Common width, height, visual, enabled/selected and padding fields only; no behavior or ownership. |
-| `Internal/Descriptors/UiElementPropertyDescriptors.cs` | migrated common property descriptor | Stateless typed setters for common element state; source resolution remains outside the frame stages. |
-| `UserApi/Controls/UiTextBlock.cs` | migrated exemplar user control | Thin public composition/accessor surface over the existing retained `TextBlock`; no second tree or property store. |
-| `Internal/State`, `Internal/Mixins`, `Internal/Descriptors`, `UserApi/Controls` | migration targets | New state, capability, descriptor and control code is accepted only here and is checked by the architecture gate. |
+| `Internal/Tree/RetainedElement.cs` | canonical retained owner | Owns one element identity, composite state and property-source slots; it does not own traversal or frame scheduling. |
+| `Internal/UiNodeStore.cs` | canonical relation/index owner | Owns logical and visual links for the same generation-safe `UiNodeId` and resolves handles in O(1). |
+| `Internal/State/**` | canonical state | State-only value types; no algorithms, services or relation ownership. |
+| `Internal/Mixins/**` | canonical algorithms | Stateless readonly algorithms behind static generic capability shapes. |
+| `Internal/Descriptors/**` | canonical dispatch | Compact runtime type indices, typed factories and typed state/property thunks. |
+| `Internal/Stages/UiRuntimeStages.cs` | canonical pipeline | Runs input, mutation, binding, style, measure, arrange and focus work over reusable queues. |
+| `Internal/Visuals/**` | canonical extraction | Writes frozen contract commands directly into reusable document-owned storage and owns shaped-text cache entries. |
+| `Internal/Compilation/InterpretedXamlReader.cs` | explicit cold source reader | Used only when a caller chooses `IXamlLoader`; construction converges on the canonical retained owner and descriptors. |
+| `Internal/Bindings/UiInterpretedBinding.cs` | explicit cold string binding | Used only by the public string binding/source-loading entry point; generated production artifacts use typed compiled bindings. |
+| `UserApi/UiElement.cs` and `UserApi/Controls/**` | public identity/accessors | Thin shells over the canonical retained owner; no parallel relation or property storage. |
+| `UserApi/XamlLoader.cs` | public cold loader | Required by the frozen library contract; it is not a shipping fallback selected by generated artifacts. |
+| `Internal/RetainedContracts.cs` | internal runtime vocabulary | Typed stage records and platform-neutral adapters only; no cross-project contract duplication. |
 
-The current retained files are not scanned as migrated controls by the gate.
-This prevents a legacy implementation from making the new architecture appear
-complete while keeping one retained tree/property model during migration.
+There are no remaining superseded files, obsolete production symbols or
+production callers of a replaced execution path. The architecture gate scans
+the designated state/mixin/descriptor/control folders and separately rejects
+forbidden operations in runtime hot paths.
 
-## Migration and compatibility policy
+## Migration and removal policy
 
 Migration is complete only when the new path is the sole active path. If an
 old API, benchmark, test or implementation cannot be removed in the same
@@ -819,38 +794,28 @@ change, it must be marked `[Obsolete]` with:
 [Obsolete(
     "Use UiTypeDescriptor generated operations; remove during DXAML-MIXIN-4.",
     error: true)]
-internal void LegacyMeasure()
+internal void RetiredMeasure()
 {
 }
 ```
 
-An unmarked compatibility surface is considered an accidentally supported API.
-New code, tests and benchmarks must not call an obsolete path. Compatibility
-adapters must not be optimized or extended; they exist only to keep a bounded
-migration compiling until their removal milestone.
+An unmarked superseded surface is considered an accidentally supported API.
+New code, tests and benchmarks must not call an obsolete path. A temporary
+adapter must not be optimized or extended and must be deleted at its recorded
+milestone.
 
-## Current migration blockers
+## Final migration state
 
-The current retained implementation remains a migration surface. In
-particular:
-
-- the common `UiElement` owner and traversal shell still contains the
-  compatibility operations that the final node-store stage must retire;
-- the public XML loader and `Internal/Compatibility/UiBindingRuntime.cs` are
-  intentionally cold compatibility paths; generated construction and typed
-  binding artifacts bypass both;
-- the canonical display-list producer is now `UiVisualStage` writing the
-  document-owned `UiDisplayListStorage`; the returned view is borrowed, while
-  final editor/game consumer integration remains outside this repository;
-- style/resource application still uses the public cold store and string keys;
-  the compiler plan has stable resource slots, but generated typed style plans
-  are not yet the sole runtime path;
-- generated templates now use the stateless `IUiTemplateFactory` boundary;
-- source slots and loader/editor discovery still use the retained compatibility
-  store, while effective values reach composite state through typed property
-  descriptors.
-
-These are migration tasks, not alternate architectures.
+- Generated companions are the production path for construction, bindings,
+  resources, styles, states and templates.
+- The explicit cold loader and cold string binding APIs converge on the same
+  descriptors, retained owner, property store, node store and stages.
+- `UiVisualStage` writes directly to document-owned `UiDisplayListStorage`;
+  editor and game fixtures consume the same borrowed frozen-contract view.
+- Stable resource slots feed the existing property precedence resolver and
+  queue only dependent style/resource work.
+- No superseded production symbol remains and no `[Obsolete]` symbol has an
+  active caller.
 
 ## Remaining implementation specification
 
@@ -871,8 +836,8 @@ XAML source
   -> canonical borrowed UiDisplayList
 ```
 
-There must not be a second object tree, a translated legacy draw list, a
-reflection fallback selected in shipping code or a compatibility facade around
+There must not be a second object tree, a translated prior draw list, a
+reflection fallback selected in shipping code or a facade around
 the old runtime.
 
 ### Delivery order
@@ -1014,21 +979,24 @@ variables. Bindings and resource references remain restricted to properties
 with a generated `UiProperty<T>` descriptor, so a custom literal cannot
 silently fall back to string dispatch.
 
-The compiler registry validates and indexes the immutable descriptor metadata
-once per compilation. Existing built-in runtime descriptor companions remain
-the only runtime operation catalog; this slice does not invent a second
-descriptor/property store. Generated code calls direct typed companion
+The compiler registry validates and indexes immutable custom type/property
+metadata once per compilation. Built-in runtime descriptor companions remain
+the only frame-operation catalog; an attributed custom type uses canonical
+common element state and composes built-in controls or a semantic custom
+visual. The public authoring contract does not expose arbitrary custom
+frame-stage mixin registration. Generated code calls direct typed companion
 operations and must not call
 `Activator.CreateInstance`, set properties by name, use `dynamic`, enumerate
 assemblies or create a dictionary per element. A namescope uses one generated
 compact table per scope; source names are retained only because name lookup is
 a user feature, not as runtime identities.
 
-For this slice, descriptor registration is the compiler-side
-`XamlSemanticRegistry` validation and stable-ID index. Built-in runtime
-operation descriptors remain registered by the existing static catalog; a
-generated custom runtime descriptor table is not emitted until the later
-runtime descriptor slice.
+Custom descriptor registration is the compiler-side `XamlSemanticRegistry`
+validation and stable-ID index plus direct generated factory/setter/attachment
+thunks. Custom types inherit the common typed XAML properties. A custom
+property without a direct setter, or a binding/resource/style target without a
+public `UiProperty<T>` descriptor, is a build diagnostic rather than runtime
+string dispatch.
 
 `IXamlLoader.Load(string, ...)` remains an explicit cold/tooling path. Shipping
 generated construction never silently calls it. If the build cannot generate
@@ -1065,8 +1033,8 @@ overload, and exposes typed `RefreshBindings`/`Dispose` calls over the binding
 fields. The artifact installs one source notification boundary; it only queues
 the affected target runtimes, and the next binding stage reads them. Generated
 bindings do not subscribe per property. `OneTime` still registers no
-notification. The legacy string-path `UiBindingRuntime` remains
-tooling/compatibility-only until the runtime stage migration.
+notification. Explicit string-path `UiInterpretedBinding` exists only for the
+caller-selected cold loader/binding API; generated artifacts never select it.
 
 Binding attachment may allocate notification infrastructure once. A changed
 notification only records a compact binding slot. The binding stage later
@@ -1079,7 +1047,7 @@ Production binding rules:
 - no reflection, `dynamic`, boxing or captured lambda in an update;
 - nullable segments are validated and generate explicit propagation behavior;
 - source conversion and validation are generated typed calls;
-- `INotifyPropertyChanged` is a compatibility notification source, not the
+- `INotifyPropertyChanged` is an optional notification source, not the
   binding execution engine;
 - an unsupported source shape is a compile diagnostic, not a runtime fallback.
 
@@ -1109,7 +1077,7 @@ of a runtime template-key lookup. A template creates visual nodes in the same
 `UiDocumentState`, assigns their visual parent and templated owner, and does
 not create another `UiDocument`. Replacing a template destroys only that
 visual subtree and invalidates the affected layout/visual queues. The string
-registration/selection overloads remain cold loader/tooling compatibility.
+registration/selection overloads remain cold loader/tooling forms.
 
 ### `DXAML-RUNTIME-1`: one node store
 
@@ -1221,26 +1189,25 @@ or Vulkan handles.
 
 ### `DXAML-RUNTIME-4`: removal and final integration
 
-Remove or split the following compatibility implementation as its replacement
-lands; do not wrap it in a new facade:
+The final implementation keeps the frozen cold library inputs but gives them no
+parallel execution model:
 
-- `Internal/UiElement.cs`: compatibility owner/relation fields and remaining
-  cold property/source operations; the public retained `Measure`/`Arrange`
-  operation path has been removed, and runtime layout now enters through the
-  queued stage methods;
-- `UserApi/XamlLoader.cs`: runtime parsing and string
-  property application;
-- `Internal/Compatibility/UiBindingRuntime.cs`: reflection path walking and
-  per-binding closure execution;
-- `UserApi/StyleApi.cs`: the obsolete delegate template constructor and
-  string-key style application;
-- obsolete interfaces and packet types in `Internal/RetainedContracts.cs`;
-- retained compatibility accessors that still live in `UserApi/LibraryFacade.cs`.
+- `Internal/Tree/RetainedElement.cs` is the sole retained identity, composite
+  state and property-source owner;
+- `UiNodeStore` is the sole logical/visual relation and generation-safe handle
+  index;
+- `UiRuntimeStages` is the sole input/mutation/binding/style/layout/focus
+  pipeline;
+- `UiVisualStage` writes canonical contract records directly into reusable
+  document-owned storage;
+- `UserApi/XamlLoader.cs` and `UiInterpretedBinding` are explicit cold source
+  front doors into those same owners and are never generated fallbacks;
+- focused user API files expose only the frozen loader/document/element,
+  property, binding, style and control surfaces.
 
-Keep the public library contract while moving its implementation into focused
-files. If a compatibility symbol cannot be removed in the same slice, mark it
-`[Obsolete(..., error: true)]` with the exact replacement and the next slice;
-no new caller may use it.
+The former facade, translated draw-list, recursive public layout entry points,
+parallel relation lookup and separate input packet path have been removed.
+There are no remaining obsolete production callers.
 
 Final integration acceptance is one path for both editor and game:
 
@@ -1269,11 +1236,18 @@ The remaining implementation is complete only when all of these are true:
 - public `UiElement` shells contain accessors/state composition, not algorithms;
 - canonical contract commands are emitted directly into reused storage;
 - unchanged text is not reshaped and unchanged subtrees are not remeasured;
-- the compatibility files listed above have been removed or are compile-error
-  obsolete with no active caller;
+- superseded implementation files have been removed and no obsolete symbol has
+  an active caller;
 - editor and game HUD paths consume the same `UiDisplayList` boundary;
 - Vulkan, SDL, ECS, application clocks and renderer pipelines remain outside
   DeltaXAML.
+
+Completion evidence is executable in the ordinary headless harness: generated
+editor and game HUD artifacts use `Dispatch -> Layout -> BuildDisplayList`,
+mutation/binding/style/layout stages are ordered and non-recursive, detached
+focus/capture is repaired, UTF/IME/scroll/clipping/nested hit testing are
+covered, unchanged display extraction reuses storage and shaped text, and the
+architecture gate rejects a second runtime path.
 
 ## Non-goals
 

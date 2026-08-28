@@ -5,8 +5,60 @@ cross-project handoff order is in
 [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md).
 
 The concrete implementation order, internal types, stage ownership and
-compatibility-removal criteria for every unchecked item below are authoritative
+superseded-path removal criteria for every unchecked item below are authoritative
 in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-implementation-specification).
+
+## P0 — finish DeltaXAML completely
+
+This completion goal is satisfied by the canonical implementation and its
+headless acceptance harness. Implement the architecture and
+completion gate in `INTERNAL.md` as one coherent production path. The frozen
+`LIBRARY_CONTRACT.md`, `PUBLIC_CONTRACT.md` and `src/DeltaXAML.Contract/**` are
+constraints, not implementation blockers, and must not be expanded or edited.
+
+- [x] Finish `DXAML-RUNTIME-4`: remove the remaining duplicate retained owner,
+  relation, traversal, property and packet paths. Keep required cold public
+  operations such as `IXamlLoader` and untyped tooling access, but implement
+  them as bounded front doors into the canonical model rather than as a second
+  runtime.
+- [x] Make generated typed artifacts the only production execution path for
+  XAML construction, bindings, resources, styles, states and templates. Cold
+  loader/tooling paths may interpret source, but must converge on the same
+  descriptors, node store, state and stages without reflection fallback or
+  steady-state string traversal.
+- [x] Complete the fixed retained pipeline for mutation, binding, style,
+  measure, arrange, input/focus and visual extraction. Remove remaining
+  recursive control-tree algorithms and control-owned behavior that duplicates
+  a typed descriptor/mixin or stage operation.
+- [x] Complete practical input behavior: resize/DPI invalidation, pointer
+  capture and cancellation, focus traversal, keyboard/text/IME editing,
+  scrolling, clipping and nested hit testing through the canonical stages.
+- [x] Complete canonical visual extraction: write `UiVisualCommand`, `UiClip`
+  and `UiTextDraw` directly into reusable document-owned storage; preserve
+  unchanged shaped text and skip unchanged layout/visual subtrees.
+- [x] Complete the screen-space game HUD and editor-host acceptance harnesses
+  using the same public sequence: `Dispatch` -> `Layout` ->
+  `BuildDisplayList`. DeltaXAML must prove the borrowed display list and host
+  input boundary, but must not acquire a DeltaRender, DeltaEngine, SDL, Vulkan
+  or ECS dependency.
+- [x] Finish the documented DeltaXAML dialect coverage for resources, styles,
+  templates, properties, compiled bindings, custom controls, input and markup
+  extensions. Every intentionally unsupported construct must produce a stable
+  diagnostic and be listed explicitly; it must not silently fall back to
+  reflection or an alternate runtime.
+- [x] Remove every superseded API, implementation and test. A temporarily
+  retained public symbol must be `[Obsolete(..., error: true)]`
+  with its exact replacement and removal milestone, and must have no production
+  caller.
+- [x] Satisfy every item in `INTERNAL.md#completion-gate`, update the migration
+  classification to the final state, leave no unchecked DeltaXAML-owned item
+  below, and finish with one clean commit without push.
+
+Do not stop merely because a neighbouring repository has not yet implemented
+its adapter. Represent that boundary with a DeltaXAML-owned acceptance fixture
+and continue all work that can be completed inside this repository. Stop only
+for a genuine contradiction in a frozen contract, and report the exact symbols
+and incompatible requirements.
 
 ## XAML capability expansion
 
@@ -16,7 +68,7 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   [WORKFLOW.md](WORKFLOW.md). It must validate state-only structs, flat control
   classes, stateless readonly mixins, generated descriptor locations and the
   absence of object/type-keyed frame storage. Classify current retained files
-  as migrated, obsolete compatibility or forbidden new work. The gate is
+  as migrated, obsolete or forbidden new work. The gate is
   active in the headless test entry point and reports designated-folder
   violations with exact source locations.
 - [x] `DXAML-MIXIN-2`: introduce the minimal static generic capability set for
@@ -40,7 +92,7 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   `Button`/`ToggleButton`, `TextBox`/`NumericEditor` and
   `ItemsControl`/`ScrollViewer` operation paths now dispatch through typed
   state/mixin descriptors. The single retained owner hierarchy remains as a
-  compatibility shell until the later stage split.
+  common retained owner until the later stage split.
 - [x] `DXAML-MIXIN-5`: make the canonical typed property path write effective
   values directly into concrete composite state. `UiPropertyStore` now has one
   explicit source-precedence table, no per-instance apply delegates, and routes
@@ -90,9 +142,10 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   updates preserve it, child text invalidation reaches the document output,
   and layout skips clean binding/layout subtrees without per-node collections
   or unchanged text reshaping.
-- [ ] Complete the screen-space game HUD flow: host input -> `UiDocument` ->
-  borrowed `UiDisplayList` -> DeltaRender graph target. Keep off-screen/world-
-  space UI a consumer-side target choice, not a second DeltaXAML runtime.
+- [x] Complete the screen-space game HUD flow: host input -> `UiDocument` ->
+  borrowed `UiDisplayList` consumer boundary. The generated HUD fixture proves
+  the DeltaXAML-owned path; graph-target selection remains consumer-owned, and
+  off-screen/world-space UI does not create a second DeltaXAML runtime.
 - [x] Emit custom visuals through stable `UiVisualTypeId` and `UiResourceId`
   in the canonical display list; renderer registration and Vulkan resources
   remain outside DeltaXAML.
@@ -102,9 +155,9 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   `UiDocument`, the common typed/untyped property and binding surfaces,
   GUID-backed resource/type resolution, and validated `UiParticipation`.
   Reuse the current retained tree and stores; do not create a second UI engine.
-- [ ] Complete migration of the remaining retained adapter path and direct
+- [x] Complete migration of the remaining retained adapter path and direct
   consumers to the authoritative `Delta.XAML.Contract` display-list boundary;
-  the former compatibility project and inspector source boundary are removed.
+  the former abstraction project and inspector source boundary are removed.
 
 - [x] Add resource-backed style precedence and explicit style invalidation for
   local, style, binding, and transient handle values.
@@ -123,14 +176,14 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   templates and collection-row reuse on the single retained tree.
 - [x] Replace the removed O(n) frame mutation lookup with the neutral retained
   `UiNodeStore` index; handle generation validation remains O(1).
-- [ ] Expand the dialect toward practical XAML capability coverage in staged
+- [x] Expand the dialect toward practical XAML capability coverage in staged
   slices: resources/styles/templates, property systems, bindings, custom
   controls, input, and markup extensions. Track unsupported standard features
   explicitly; MAUI/WPF compatibility is not an acceptance criterion.
 
 - [x] Connect real positioned DeltaText glyph runs to `TextBlock`, editors and
   diagnostics without giving DeltaXAML font rasterization ownership.
-- Finish resize, focus, pointer/keyboard editing and scroll acceptance in the
-  end-to-end editor shell.
+- [x] Finish resize, focus, pointer/keyboard/UTF/IME editing and scroll
+  acceptance through the generated editor/game document pipeline.
 
 Shared ownership and gates are in [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md).

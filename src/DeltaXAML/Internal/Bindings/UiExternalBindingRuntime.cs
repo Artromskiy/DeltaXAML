@@ -72,7 +72,7 @@ internal sealed class UiExternalBindingRuntime : IDisposable
 
         if (_binding.TryWrite(value, out _))
         {
-            ApplyValue();
+            QueueRefresh();
         }
     }
 
@@ -92,6 +92,9 @@ internal sealed class UiExternalBindingRuntime : IDisposable
     }
 
     private void OnBindingChanged(object? sender, EventArgs args)
+        => QueueRefresh();
+
+    private void QueueRefresh()
     {
         if (_disposed)
         {

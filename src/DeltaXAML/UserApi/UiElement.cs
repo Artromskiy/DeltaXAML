@@ -337,7 +337,7 @@ public abstract class UiElement
         _retained.AttachBinding(new Retained.UiInterpretedBinding(propertyName, expression));
     }
 
-    /// <summary>Attaches a generated typed binding without the reflection-based compatibility bridge.</summary>
+    /// <summary>Attaches a generated typed binding without entering the cold interpreted binding path.</summary>
     public void SetCompiledBinding<TSource, TValue>(
         UiProperty<TValue> property,
         UiCompiledBinding<TSource, TValue> binding,
@@ -398,6 +398,7 @@ public abstract class UiElement
             Retained.Panel panel => new UiPanel(panel),
             Retained.Border border => new UiBorder(border),
             Retained.Grid grid => new UiGrid(grid),
+            Retained.ToggleButton toggleButton => new UiToggleButton(toggleButton),
             Retained.Button button => new UiButton(button),
             Retained.ScrollViewer scrollViewer => new UiScrollViewer(scrollViewer),
             Retained.ContentControl contentControl => new UiContentControl(contentControl),
