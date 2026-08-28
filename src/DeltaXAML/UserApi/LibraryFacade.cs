@@ -975,10 +975,12 @@ public sealed class UiDocument : IDisposable
 {
     private readonly Retained.UiRuntime _runtime;
     private readonly UiTheme? _theme;
+    private readonly UiDisplayListStorage _displayListStorage;
     private readonly UiVisualStage _visuals;
     private bool _disposed;
 
     internal int TextCacheCount => _visuals.TextCacheCount;
+    internal UiDisplayListStorage DisplayListStorage => _displayListStorage;
 
     public UiDocument(UiElement root, ITextService textService)
         : this(root, textService, EmptyFontResolver.Instance)
@@ -998,7 +1000,8 @@ public sealed class UiDocument : IDisposable
         var resolvedFontResolver = fontResolver ?? EmptyFontResolver.Instance;
         _theme = theme;
         _runtime = new Retained.UiRuntime(root.RetainedElement);
-        _visuals = new UiVisualStage(_runtime, textService, resolvedFontResolver);
+        _displayListStorage = new UiDisplayListStorage();
+        _visuals = new UiVisualStage(_runtime, textService, resolvedFontResolver, _displayListStorage);
     }
 
     public UiElement Root { get; }

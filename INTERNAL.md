@@ -839,9 +839,9 @@ particular:
 - the public XML loader and `Internal/Compatibility/UiBindingRuntime.cs` are
   intentionally cold compatibility paths; generated construction and typed
   binding artifacts bypass both;
-- the canonical display-list producer is now the borrowed `UiVisualStage`
-  storage, while final editor/game consumer integration remains outside this
-  repository;
+- the canonical display-list producer is now `UiVisualStage` writing the
+  document-owned `UiDisplayListStorage`; the returned view is borrowed, while
+  final editor/game consumer integration remains outside this repository;
 - style/resource application still uses the public cold store and string keys;
   the compiler plan has stable resource slots, but generated typed style plans
   are not yet the sole runtime path;

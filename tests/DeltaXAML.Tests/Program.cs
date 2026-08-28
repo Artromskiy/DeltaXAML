@@ -274,6 +274,7 @@ internal static partial class Program
         QueuedTextInputOwnsItsSnapshot();
         PublicWheelScrollsScrollViewer();
         ScrollAndClips();
+        DocumentOwnsReusableDisplayListStorage();
         TextDisplayListUsesDeltaText();
         DisplayListDirtySubtreeReusesStableText();
         TextCacheDropsRemovedNodes();
@@ -1009,6 +1010,26 @@ internal static partial class Program
 
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.Equal(0L, allocated, "unchanged public frame has no allocations");
+    }
+
+    private static void DocumentOwnsReusableDisplayListStorage()
+    {
+        var root = new Library.UiPanel { Width = 80, Height = 40, Background = new(1, 2, 3) };
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(root, textService);
+        document.Layout(new Delta.Maths.float2(80, 40), 1);
+        _ = document.BuildDisplayList();
+
+        var storage = document.DisplayListStorage;
+        var visuals = storage.Visuals;
+        var clips = storage.Clips;
+        var text = storage.Text;
+        _ = document.BuildDisplayList();
+
+        Assert.True(ReferenceEquals(storage, document.DisplayListStorage), "document keeps one display-list owner");
+        Assert.True(ReferenceEquals(visuals, storage.Visuals), "unchanged visual output keeps its backing storage");
+        Assert.True(ReferenceEquals(clips, storage.Clips), "unchanged clip output keeps its backing storage");
+        Assert.True(ReferenceEquals(text, storage.Text), "unchanged text output keeps its backing storage");
     }
 
     private static void CustomVisualsRemainNeutral()

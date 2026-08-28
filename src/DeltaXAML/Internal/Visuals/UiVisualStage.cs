@@ -9,41 +9,43 @@ namespace Delta.XAML;
 
 /// <summary>Extracts the retained tree into one reusable canonical display-list storage.</summary>
 /// <remarks>
-/// The stage owns only visual output buffers and shaped-text cache entries. The retained tree,
-/// property store and runtime node index remain owned by the document/runtime. Returned spans are
-/// borrowed until the next mutation or extraction, as defined by <see cref="UiDisplayList"/>.
+/// The stage owns only traversal and shaped-text cache entries. The document owns the canonical
+/// output buffers, while the retained tree, property store and runtime node index remain owned by
+/// the document/runtime. Returned spans are borrowed until the next mutation or extraction, as
+/// defined by <see cref="UiDisplayList"/>.
 /// </remarks>
 internal sealed class UiVisualStage : IDisposable
 {
     private readonly Retained.UiRuntime _runtime;
     private readonly ITextService _textService;
     private readonly IUiFontResolver _fontResolver;
+    private readonly UiDisplayListStorage _storage;
     private readonly Dictionary<string, FontInstanceId> _fontInstances = new(StringComparer.Ordinal);
     private readonly Dictionary<UiTextCacheKey, UiTextCacheEntry> _textCache = new();
     private readonly List<UiTextCacheKey> _staleTextCacheKeys = new();
     private readonly FontInstanceId[] _singleFontFallback = new FontInstanceId[1];
-    private UiVisualCommand[] _visuals = Array.Empty<UiVisualCommand>();
-    private UiClip[] _clips = Array.Empty<UiClip>();
-    private UiTextDraw[] _text = Array.Empty<UiTextDraw>();
     private readonly List<VisualVisit> _visualTraversal = new();
     private readonly List<Retained.UiNodeId> _visualChildOrder = new();
-    private int _visualCount;
-    private int _clipCount;
-    private int _textCount;
     private uint _displayListVersion;
     private uint _displayListTreeVersion;
     private float2 _displayListViewport;
     private bool _hasDisplayList;
     private bool _disposed;
 
-    internal UiVisualStage(Retained.UiRuntime runtime, ITextService textService, IUiFontResolver fontResolver)
+    internal UiVisualStage(
+        Retained.UiRuntime runtime,
+        ITextService textService,
+        IUiFontResolver fontResolver,
+        UiDisplayListStorage storage)
     {
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(textService);
         ArgumentNullException.ThrowIfNull(fontResolver);
+        ArgumentNullException.ThrowIfNull(storage);
         _runtime = runtime;
         _textService = textService;
         _fontResolver = fontResolver;
+        _storage = storage;
     }
 
     internal int TextCacheCount => _textCache.Count;
@@ -78,9 +80,7 @@ internal sealed class UiVisualStage : IDisposable
             return false;
         }
 
-        _visualCount = 0;
-        _clipCount = 0;
-        _textCount = 0;
+        _storage.ClearCounts();
         if (!TryExtractVisuals(rootId, new Retained.UiRect(0, 0, viewport.x, viewport.y), UiClipId.None, out diagnostic))
         {
             displayList = default;
@@ -115,7 +115,7 @@ internal sealed class UiVisualStage : IDisposable
     }
 
     private UiDisplayList CurrentDisplayList() =>
-        new(_visuals.AsSpan(0, _visualCount), _clips.AsSpan(0, _clipCount), _text.AsSpan(0, _textCount));
+        _storage.BorrowedView();
 
     private void PruneTextCache()
     {
@@ -177,14 +177,14 @@ internal sealed class UiVisualStage : IDisposable
                 continue;
             }
 
-            if (current.DisplayClipIndex < 0 || current.DisplayClipIndex >= _clipCount)
+            if (current.DisplayClipIndex < 0 || current.DisplayClipIndex >= _storage.ClipCount)
             {
                 return true;
             }
 
             var effective = Retained.UiRect.Intersect(visit.Clip, current.Bounds);
             var expectedClip = new UiClip(ToFloat4(effective), new UiClipId(visit.ParentClip.Value));
-            if (!current.NeedsVisualExtraction && expectedClip.Equals(_clips[current.DisplayClipIndex]))
+            if (!current.NeedsVisualExtraction && expectedClip.Equals(_storage.Clips[current.DisplayClipIndex]))
             {
                 clipCount += current.DisplayClipCount;
                 visualCount += current.DisplayVisualCount;
@@ -197,9 +197,9 @@ internal sealed class UiVisualStage : IDisposable
                 return true;
             }
 
-            if (!expectedClip.Equals(_clips[current.DisplayClipIndex]))
+            if (!expectedClip.Equals(_storage.Clips[current.DisplayClipIndex]))
             {
-                _clips[current.DisplayClipIndex] = expectedClip;
+                _storage.Clips[current.DisplayClipIndex] = expectedClip;
             }
 
             clipCount++;
@@ -212,9 +212,9 @@ internal sealed class UiVisualStage : IDisposable
 
             if (hasVisual)
             {
-                if (!visual.Equals(_visuals[current.DisplayVisualIndex]))
+                if (!visual.Equals(_storage.Visuals[current.DisplayVisualIndex]))
                 {
-                    _visuals[current.DisplayVisualIndex] = visual;
+                    _storage.Visuals[current.DisplayVisualIndex] = visual;
                 }
 
                 visualCount++;
@@ -246,9 +246,9 @@ internal sealed class UiVisualStage : IDisposable
                     return false;
                 }
 
-                if (!draw.Equals(_text[current.DisplayTextIndex]))
+                if (!draw.Equals(_storage.Text[current.DisplayTextIndex]))
                 {
-                    _text[current.DisplayTextIndex] = draw;
+                    _storage.Text[current.DisplayTextIndex] = draw;
                 }
 
                 textCount++;
@@ -266,7 +266,7 @@ internal sealed class UiVisualStage : IDisposable
             }
         }
 
-        if (clipCount != _clipCount || visualCount != _visualCount || textCount != _textCount)
+        if (clipCount != _storage.ClipCount || visualCount != _storage.VisualCount || textCount != _storage.TextCount)
         {
             return true;
         }
@@ -328,17 +328,17 @@ internal sealed class UiVisualStage : IDisposable
             }
 
             var effective = Retained.UiRect.Intersect(visit.Clip, current.Bounds);
-            EnsureCapacity(ref _clips, _clipCount + 1);
-            var clipId = new UiClipId(_clipCount);
-            _clips[_clipCount++] = new(ToFloat4(effective), visit.ParentClip);
+            EnsureCapacity(ref _storage.Clips, _storage.ClipCount + 1);
+            var clipId = new UiClipId(_storage.ClipCount);
+            _storage.Clips[_storage.ClipCount++] = new(ToFloat4(effective), visit.ParentClip);
             var visualIndex = -1;
             var textIndex = -1;
 
             if (TryGetVisualCommand(current, clipId, out var visual))
             {
-                EnsureCapacity(ref _visuals, _visualCount + 1);
-                visualIndex = _visualCount;
-                _visuals[_visualCount++] = visual;
+                EnsureCapacity(ref _storage.Visuals, _storage.VisualCount + 1);
+                visualIndex = _storage.VisualCount;
+                _storage.Visuals[_storage.VisualCount++] = visual;
             }
 
             if ((current.Participation & UiParticipation.Rendering) != 0 &&
@@ -348,15 +348,15 @@ internal sealed class UiVisualStage : IDisposable
                     new(current.Id, current.Generation, current.LayoutScale, current.TextRunVersion),
                     out var run))
             {
-                EnsureCapacity(ref _text, _textCount + 1);
-                textIndex = _textCount;
+                EnsureCapacity(ref _storage.Text, _storage.TextCount + 1);
+                textIndex = _storage.TextCount;
                 run = run with { Bounds = current.Bounds, Clip = effective, ClipId = new Retained.UiClipId((uint)clipId.Value + 1) };
-                if (!TryBuildTextDraw(run, out _text[_textCount], out diagnostic))
+                if (!TryBuildTextDraw(run, out _storage.Text[_storage.TextCount], out diagnostic))
                 {
                     return false;
                 }
 
-                _textCount++;
+                _storage.TextCount++;
             }
 
             current.SetDisplayRange(clipId.Value, visualIndex, textIndex);
