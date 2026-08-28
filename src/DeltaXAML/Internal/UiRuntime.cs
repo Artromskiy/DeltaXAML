@@ -1,3 +1,5 @@
+using Delta.XAML.Contract;
+
 namespace DeltaXAML.Internal;
 
 /// <summary>Owns the retained document stages used by the library path.</summary>
@@ -9,7 +11,7 @@ namespace DeltaXAML.Internal;
 internal sealed class UiRuntime
 {
     private readonly List<UiMutation> _mutations = new();
-    private readonly List<UiInputPacket> _inputQueue = new();
+    private readonly List<UiInputEvent> _inputQueue = new();
     private readonly UiElement _retainedRoot;
     private readonly UiNodeStore _nodes;
     private readonly UiInputRouter _input;
@@ -60,20 +62,19 @@ internal sealed class UiRuntime
 
     public void Enqueue(in UiMutation mutation) => _mutations.Add(mutation);
 
-    internal void EnqueueInput(in UiInputPacket packet)
+    internal void EnqueueInput(in UiInputEvent packet)
     {
         switch (packet.Kind)
         {
-            case UiInputPacketKind.Text:
-                _inputQueue.Add(UiInputPacket.From(new UiTextInput(CopyInputText(packet.Text.Text.Span))));
+            case UiInputEventKind.Text:
+                _inputQueue.Add(UiInputEvent.FromText(new UiTextInput(CopyInputText(packet.Text.Text.Span))));
                 break;
-            case UiInputPacketKind.Ime:
-                var ime = packet.Ime;
-                _inputQueue.Add(UiInputPacket.From(new UiImeComposition(
-                    CopyInputText(ime.Text.Span),
-                    ime.SelectionStart,
-                    ime.SelectionLength,
-                    ime.IsCommitted)));
+            case UiInputEventKind.Composition:
+                var composition = packet.Composition;
+                _inputQueue.Add(UiInputEvent.FromComposition(new UiCompositionEvent(
+                    composition.Stage,
+                    CopyInputText(composition.Preedit.Span),
+                    composition.Selection)));
                 break;
             default:
                 _inputQueue.Add(packet);

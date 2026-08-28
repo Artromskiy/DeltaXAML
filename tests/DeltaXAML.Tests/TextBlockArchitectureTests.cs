@@ -1,4 +1,5 @@
 using DeltaXAML.Internal;
+using Delta.XAML.Contract;
 
 internal static class TextBlockArchitectureTests
 {
@@ -28,7 +29,7 @@ internal static class TextBlockArchitectureTests
         Assert.Equal((uint)3, run.OwnerGeneration, "typed visual thunk preserves owner generation");
         Assert.Equal((uint)11, run.Version, "typed visual thunk preserves text version");
         Assert.Equal(state.Text, run.Text, "typed visual thunk emits state text");
-        var noInput = new UiInputPacket();
+        var noInput = new UiInputEvent();
         Assert.True(!UiTextBlockGenerated.ProcessInput(ref state, in noInput), "text block input capability is a stateless no-op");
         Assert.True(UiTextBlockGenerated.Descriptor.IsValid, "TextBlock descriptor has a valid compact identity");
         Assert.True(UiTextBlockGenerated.Descriptor.Supports(UiDescriptorCapabilities.Measure | UiDescriptorCapabilities.Arrange | UiDescriptorCapabilities.Input | UiDescriptorCapabilities.Visual), "TextBlock descriptor advertises all leaf capabilities");

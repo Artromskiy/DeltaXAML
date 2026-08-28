@@ -1,8 +1,10 @@
+using Delta.XAML.Contract;
+
 namespace DeltaXAML.Internal;
 
 internal static class UiInputStage
 {
-    internal static void Run(UiInputRouter router, List<UiInputPacket> queue)
+    internal static void Run(UiInputRouter router, List<UiInputEvent> queue)
     {
         ArgumentNullException.ThrowIfNull(router);
         ArgumentNullException.ThrowIfNull(queue);

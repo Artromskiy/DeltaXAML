@@ -1,3 +1,5 @@
+using Delta.XAML.Contract;
+
 namespace DeltaXAML.Internal;
 
 internal sealed class UiInputRouter
@@ -18,24 +20,24 @@ internal sealed class UiInputRouter
     public UiElementId? Focused => _focused?.Id;
     public UiElementId? Captured => _captured?.Id;
 
-    internal void Dispatch(in UiInputPacket packet)
+    internal void Dispatch(in UiInputEvent packet)
     {
         switch (packet.Kind)
         {
-            case UiInputPacketKind.Spatial:
-                var pointer = packet.Spatial;
+            case UiInputEventKind.PointingDevice:
+                var pointer = packet.PointingDevice;
                 RoutePointer(in pointer);
                 break;
-            case UiInputPacketKind.Key:
+            case UiInputEventKind.Key:
                 var key = packet.Key;
                 RouteKey(in key);
                 break;
-            case UiInputPacketKind.Text:
+            case UiInputEventKind.Text:
                 var text = packet.Text;
                 RouteText(in text);
                 break;
-            case UiInputPacketKind.Ime:
-                var ime = packet.Ime;
+            case UiInputEventKind.Composition:
+                var ime = packet.Composition;
                 RouteIme(in ime);
                 break;
         }
@@ -56,9 +58,10 @@ internal sealed class UiInputRouter
     public void RoutePointer(in UiPointerEvent input)
     {
         PruneDetachedState();
+        var point = new UiPoint(input.Position.x, input.Position.y);
         var target = _captured ?? (input.Kind is UiPointerEventKind.Leave or UiPointerEventKind.CaptureLost
             ? _hovered
-            : _runtime.FindHit(input.Position));
+            : _runtime.FindHit(point));
         switch (input.Kind)
         {
             case UiPointerEventKind.Enter:
@@ -68,7 +71,7 @@ internal sealed class UiInputRouter
             case UiPointerEventKind.Leave:
                 SetHovered(null);
                 break;
-            case UiPointerEventKind.Down:
+            case UiPointerEventKind.ButtonDown:
                 _captured = target;
                 SetFocused(target is not null && CanReceiveFocus(target) ? target : null);
                 break;
@@ -85,7 +88,7 @@ internal sealed class UiInputRouter
             Raise(target, new UiRoutedEvent(target.Id, UiRoutedEventPhase.Bubble, input.Kind, input.Position, input.WheelDelta));
         }
 
-        if (input.Kind == UiPointerEventKind.Up)
+        if (input.Kind == UiPointerEventKind.ButtonUp)
         {
             _captured = null;
         }
@@ -94,20 +97,20 @@ internal sealed class UiInputRouter
     public void RouteKey(in UiKeyEvent input)
     {
         PruneDetachedState();
-        if (!input.IsDown)
+        if (input.Kind != UiKeyEventKind.Down)
         {
             return;
         }
 
-        if (input.PhysicalKey == 9)
+        if (input.PhysicalKey.Value == 9)
         {
-            FocusNext();
+            FocusNext(input.Modifiers.Contains(UiModifierBits.Shift));
             return;
         }
 
         if (_focused is TextBox text)
         {
-            var packet = UiInputPacket.From(input);
+            var packet = UiInputEvent.FromKey(input);
             UiDescriptorCatalog.ProcessInput(text, in packet);
         }
     }
@@ -117,17 +120,18 @@ internal sealed class UiInputRouter
         PruneDetachedState();
         if (_focused is TextBox text)
         {
-            var packet = UiInputPacket.From(input);
+            var packet = UiInputEvent.FromText(input);
             UiDescriptorCatalog.ProcessInput(text, in packet);
         }
     }
 
-    public void RouteIme(in UiImeComposition input)
+    public void RouteIme(in UiCompositionEvent input)
     {
         PruneDetachedState();
-        if (input.IsCommitted)
+        if (_focused is TextBox text)
         {
-            RouteText(new UiTextInput(input.Text));
+            var packet = UiInputEvent.FromComposition(input);
+            UiDescriptorCatalog.ProcessInput(text, in packet);
         }
     }
 
@@ -149,12 +153,21 @@ internal sealed class UiInputRouter
         }
     }
 
-    private void FocusNext()
+    private void FocusNext(bool reverse)
     {
         _focusable.Clear();
         _runtime.CollectFocusable(_focusable);
         var index = _focused is null ? -1 : _focusable.IndexOf(_focused);
-        SetFocused(_focusable.Count == 0 ? null : _focusable[(index + 1) % _focusable.Count]);
+        if (_focusable.Count == 0)
+        {
+            SetFocused(null);
+            return;
+        }
+
+        var next = reverse
+            ? index <= 0 ? _focusable.Count - 1 : index - 1
+            : (index + 1) % _focusable.Count;
+        SetFocused(_focusable[next]);
     }
 
     private void SetFocused(UiElement? next)

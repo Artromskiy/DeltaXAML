@@ -259,6 +259,28 @@ sealed class CountingFontResolver(Library.UiFontCatalog catalog) : Library.IUiFo
 
 internal static partial class Program
 {
+    private static LibraryContract.UiPointerEvent Pointer(
+        LibraryContract.UiPointerEventKind kind,
+        float x,
+        float y,
+        float wheelY = 0) =>
+        new(
+            kind,
+            LibraryContract.UiPointerDeviceKind.Mouse,
+            1,
+            new(x, y),
+            default,
+            new(0, wheelY),
+            kind is LibraryContract.UiPointerEventKind.ButtonDown or LibraryContract.UiPointerEventKind.ButtonUp
+                ? LibraryContract.UiPointerButton.Primary
+                : LibraryContract.UiPointerButton.None,
+            default,
+            0,
+            default);
+
+    private static LibraryContract.UiKeyEvent Key(uint physicalKey, ulong modifiers = 0) =>
+        new(LibraryContract.UiKeyEventKind.Down, new(physicalKey), default, new(modifiers), false);
+
     public static void Main()
     {
         ArchitectureGate.Run();
@@ -283,6 +305,7 @@ internal static partial class Program
         PointerFocusAndDispatch();
         PublicInputPreservesKeyModifiers();
         QueuedTextInputOwnsItsSnapshot();
+        ImeFocusAndCaptureLifecycle();
         PublicWheelScrollsScrollViewer();
         ScrollAndClips();
         DocumentOwnsReusableDisplayListStorage();
@@ -492,7 +515,8 @@ internal static partial class Program
         nonFocusableRuntime.Layout(new(40, 20), 1);
         nonFocusableRuntime.Input.Focus(nonFocusableRoot.Id);
         Assert.True(nonFocusableRuntime.Input.Focused is null, "explicit focus ignores non-focusable elements");
-        nonFocusableRuntime.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Down, new(5, 5), 1));
+        var nonFocusableDown = Pointer(LibraryContract.UiPointerEventKind.ButtonDown, 5, 5);
+        nonFocusableRuntime.Input.RoutePointer(in nonFocusableDown);
         Assert.True(nonFocusableRuntime.Input.Focused is null, "pointer focus ignores non-focusable elements");
 
         var root = new Panel();
@@ -508,25 +532,31 @@ internal static partial class Program
         button.Click += (_, _) => clicked = true;
         frame.Input.Focus(box.Id);
         Assert.True(box.IsFocused, "explicit focus updates the focused visual state");
-        frame.Input.RouteText(new UiTextInput("12".AsMemory()));
+        var typedText = new LibraryContract.UiTextInput("12".AsMemory());
+        frame.Input.RouteText(in typedText);
         Assert.Equal("12", box.Text, "UTF text is separate input");
-        frame.Input.RouteKey(new UiKeyEvent(8, true));
+        var backspace = Key(8);
+        frame.Input.RouteKey(in backspace);
         Assert.Equal("1", box.Text, "physical backspace");
-        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Move, new(10, 65)));
+        var move = Pointer(LibraryContract.UiPointerEventKind.Move, 10, 65);
+        frame.Input.RoutePointer(in move);
         Assert.True(button.IsHovered && !box.IsHovered, "pointer move updates only the current hovered visual state");
-        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Down, new(10, 65), 1));
+        var down = Pointer(LibraryContract.UiPointerEventKind.ButtonDown, 10, 65);
+        frame.Input.RoutePointer(in down);
         if (frame.Input.Captured is not { } captured)
         {
             throw new InvalidOperationException("Pointer capture was not set.");
         }
 
         Assert.Equal(button.Id, captured, "pointer capture");
-        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Up, new(10, 65), 1));
+        var up = Pointer(LibraryContract.UiPointerEventKind.ButtonUp, 10, 65);
+        frame.Input.RoutePointer(in up);
         Assert.True(clicked, "button bubble click");
         Assert.True(!probe.IsHovered && !probe.IsFocused, "route does not include unrelated sibling nodes");
         Assert.True(frame.Input.Focused == button.Id, "pointer focuses control");
         Assert.True(button.IsFocused && !box.IsFocused, "pointer focus clears the previous focused visual state");
-        frame.Input.RouteKey(new UiKeyEvent(9, true));
+        var tab = Key(9);
+        frame.Input.RouteKey(in tab);
         Assert.True(frame.Input.Focused == probe.Id || frame.Input.Focused == box.Id, "tab focus traversal");
         Assert.True(!button.IsFocused, "tab focus clears the previous focused visual state");
 
@@ -539,13 +569,13 @@ internal static partial class Program
         traversalRoot.Add(eligible);
         var traversalRuntime = new UiRuntime(traversalRoot);
         traversalRuntime.Layout(new(100, 90), 1);
-        traversalRuntime.Input.RouteKey(new UiKeyEvent(9, true));
+        traversalRuntime.Input.RouteKey(in tab);
         Assert.Equal(eligible.Id, traversalRuntime.Input.Focused, "tab traversal skips disabled and hidden controls");
     }
 
     private static void PublicInputPreservesKeyModifiers()
     {
-        var root = new Library.UiPanel();
+        var root = new Library.UiStackPanel();
         var text = new Library.UiTextBox { Width = 100, Height = 20 };
         text.SetText("abc");
         root.Add(text);
@@ -619,6 +649,81 @@ internal static partial class Program
         keyboardDocument.Layout(new Delta.Maths.float2(100, 40), 1);
         Assert.Equal("T", keyboardText.Text, "text boxes participate in keyboard focus traversal");
         Assert.Equal(UiAutomationRole.TextBox, keyboardText.RetainedElement.Automation.Role, "text box exposes text-box automation metadata");
+    }
+
+    private static void ImeFocusAndCaptureLifecycle()
+    {
+        var root = new Library.UiStackPanel();
+        var first = new Library.UiTextBox { Width = 100, Height = 20 };
+        var second = new Library.UiTextBox { Width = 100, Height = 20 };
+        var button = new Library.UiButton { Width = 100, Height = 20 };
+        root.Add(first);
+        root.Add(second);
+        root.Add(button);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(root, textService);
+        document.Layout(new(100, 60), 1);
+
+        document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(Pointer(
+            LibraryContract.UiPointerEventKind.ButtonDown,
+            5,
+            5)));
+        var preedit = new[] { '\u5019' };
+        document.Dispatch(LibraryContract.UiInputEvent.FromComposition(new LibraryContract.UiCompositionEvent(
+            LibraryContract.UiCompositionStage.Started,
+            preedit.AsMemory(),
+            new TextContract.TextRange(0, 1))));
+        preedit[0] = '\u5909';
+        document.Layout(new(100, 60), 1);
+
+        var retainedFirst = (TextBox)first.RetainedElement;
+        Assert.True(retainedFirst.IsComposing, "IME start creates retained preedit state");
+        Assert.Equal("\u5019", retainedFirst.CompositionText, "queued IME input owns its preedit snapshot");
+        Assert.Equal(string.Empty, first.Text, "IME preedit does not commit the bound text value");
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                new UiRuntimeTypeIndex(9),
+                retainedFirst,
+                new(retainedFirst.Id, retainedFirst.Generation, retainedFirst.LayoutScale, retainedFirst.TextRunVersion),
+                out var preeditRun) && preeditRun.Text == "\u5019",
+            "text extraction renders the retained IME preedit without changing committed text");
+
+        document.Dispatch(LibraryContract.UiInputEvent.FromComposition(new LibraryContract.UiCompositionEvent(
+            LibraryContract.UiCompositionStage.Cancelled,
+            ReadOnlyMemory<char>.Empty,
+            default)));
+        document.Layout(new(100, 60), 1);
+        Assert.True(!retainedFirst.IsComposing && first.Text.Length == 0, "IME cancel clears preedit without committing text");
+
+        document.Dispatch(LibraryContract.UiInputEvent.FromComposition(new LibraryContract.UiCompositionEvent(
+            LibraryContract.UiCompositionStage.Updated,
+            "\u5019".AsMemory(),
+            new TextContract.TextRange(0, 1))));
+        document.Dispatch(LibraryContract.UiInputEvent.FromComposition(new LibraryContract.UiCompositionEvent(
+            LibraryContract.UiCompositionStage.Finished,
+            ReadOnlyMemory<char>.Empty,
+            default)));
+        document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("\u5019".AsMemory())));
+        document.Layout(new(100, 60), 1);
+        Assert.Equal("\u5019", first.Text, "finished composition commits only through the separate UTF text packet");
+
+        var shiftTab = Key(9, LibraryContract.UiModifierBits.Shift);
+        document.Dispatch(LibraryContract.UiInputEvent.FromKey(shiftTab));
+        document.Layout(new(100, 60), 1);
+        Assert.True(((Button)button.RetainedElement).IsFocused, "Shift+Tab traverses focus in reverse order");
+
+        var captureRoot = new Panel();
+        var captureButton = new Button { Width = 100, Height = 20 };
+        captureRoot.Add(captureButton);
+        var runtime = new UiRuntime(captureRoot);
+        runtime.Layout(new(100, 20), 1);
+        var buttonDown = Pointer(LibraryContract.UiPointerEventKind.ButtonDown, 5, 5);
+        runtime.Input.RoutePointer(in buttonDown);
+        Assert.True(runtime.Input.Captured == captureButton.Id && captureButton.IsPressed, "pointer down captures and presses the button");
+        var cancel = Pointer(LibraryContract.UiPointerEventKind.Cancel, 5, 5);
+        runtime.Input.RoutePointer(in cancel);
+        Assert.True(runtime.Input.Captured is null && !captureButton.IsPressed, "pointer cancel releases capture and pressed state");
+        runtime.Dispose();
     }
 
     private static void PublicWheelScrollsScrollViewer()
@@ -1525,7 +1630,8 @@ internal static partial class Program
         Assert.Equal(2, frame.NodeCount, "node store clears only the removed element slot through incremental removal");
         frame.Layout(new(100, 20), 1);
         Assert.Equal(new UiRect(0, 0, 100, 20), text.Bounds, "frame layout boundary");
-        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Down, new(10, 10), 1));
+        var down = Pointer(LibraryContract.UiPointerEventKind.ButtonDown, 10, 10);
+        frame.Input.RoutePointer(in down);
         if (frame.Input.Focused is not { } focused || frame.Input.Captured is not { } captured)
         {
             throw new InvalidOperationException("Frame input did not focus and capture element.");
@@ -1533,7 +1639,8 @@ internal static partial class Program
 
         Assert.Equal(text.Id, focused, "frame input focuses element");
         Assert.Equal(text.Id, captured, "frame input captures pointer");
-        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Up, new(10, 10), 1));
+        var up = Pointer(LibraryContract.UiPointerEventKind.ButtonUp, 10, 10);
+        frame.Input.RoutePointer(in up);
         Assert.True(frame.Input.Captured is null, "frame input releases capture");
         frame.Input.Focus(text.Id);
         text.IsEnabled = false;

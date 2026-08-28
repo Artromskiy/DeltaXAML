@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using Delta.Maths;
+using Delta.XAML.Contract;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 namespace DeltaXAML.Internal;
@@ -107,26 +109,13 @@ internal readonly record struct UiArrangeRequest(UiNodeId Element, UiRect Bounds
 internal readonly record struct UiTextVisualContext(UiElementId Owner, uint OwnerGeneration, float LayoutScale, uint Version);
 internal readonly record struct UiBindingSpec(string Property, string Path, UiBindingMode Mode, string? ConverterKey, string? StringFormat);
 
-internal enum UiPointerEventKind { Enter, Leave, Move, Down, Up, Wheel, Cancel, CaptureLost }
-internal readonly record struct UiPointerEvent(UiPointerEventKind Kind, UiPoint Position, int Button = 0, float WheelDelta = 0);
-internal readonly record struct UiKeyEvent(int PhysicalKey, bool IsDown, bool IsRepeat = false, bool Shift = false, bool Control = false, bool Alt = false, bool Meta = false);
-internal readonly record struct UiTextInput(ReadOnlyMemory<char> Text);
-internal readonly record struct UiImeComposition(ReadOnlyMemory<char> Text, int SelectionStart, int SelectionLength, bool IsCommitted);
-internal enum UiInputPacketKind { Spatial, Key, Text, Ime }
-internal readonly record struct UiInputPacket(UiPointerEvent Spatial, UiKeyEvent Key, UiTextInput Text, UiImeComposition Ime, UiInputPacketKind Kind)
-{
-    public static UiInputPacket From(UiPointerEvent input) => new(input, default, default, default, UiInputPacketKind.Spatial);
-    public static UiInputPacket From(UiKeyEvent input) => new(default, input, default, default, UiInputPacketKind.Key);
-    public static UiInputPacket From(UiTextInput input) => new(default, default, input, default, UiInputPacketKind.Text);
-    public static UiInputPacket From(UiImeComposition input) => new(default, default, default, input, UiInputPacketKind.Ime);
-}
 internal enum UiRoutedEventPhase { Preview, Bubble }
 internal readonly record struct UiRoutedEvent(
     UiElementId Target,
     UiRoutedEventPhase Phase,
     UiPointerEventKind Kind,
-    UiPoint Position,
-    float WheelDelta = 0);
+    float2 Position,
+    float2 WheelDelta);
 internal interface IUiClipboard
 {
     string? ReadText();

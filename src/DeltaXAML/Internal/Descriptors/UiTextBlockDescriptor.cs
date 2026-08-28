@@ -1,3 +1,5 @@
+using Delta.XAML.Contract;
+
 namespace DeltaXAML.Internal;
 
 /// <summary>Compact generated type identity used by the retained descriptor path.</summary>
@@ -282,6 +284,14 @@ internal static class UiDescriptorCatalog
         ArgumentNullException.ThrowIfNull(element);
         if (type.Value is 1 or 9 or 10 && element is TextBlock text)
         {
+            if (text is TextBox editor && editor.IsComposing)
+            {
+                var displayState = text.State;
+                displayState.Text = editor.VisualText;
+                run = UiTextBlockGenerated.EmitVisual(ref displayState, in context);
+                return true;
+            }
+
             run = UiTextBlockGenerated.EmitVisual(ref text.State, in context);
             return true;
         }
@@ -307,7 +317,7 @@ internal static class UiDescriptorCatalog
                 ApplyButtonInputResult(button, buttonWasPressed, buttonClicked, false);
                 break;
             case ScrollViewer scroll when routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Wheel:
-                if (UiScrollViewerGenerated.TryScrollBy(ref scroll.State, 0, -routedEvent.WheelDelta))
+                if (UiScrollViewerGenerated.TryScrollBy(ref scroll.State, 0, -routedEvent.WheelDelta.y))
                 {
                     scroll.InvalidateChanged(UiDirtyMask.Arrange | UiDirtyMask.Visual);
                 }
@@ -329,19 +339,22 @@ internal static class UiDescriptorCatalog
         }
     }
 
-    internal static void ProcessInput(UiElement element, in UiInputPacket input)
+    internal static void ProcessInput(UiElement element, in UiInputEvent input)
     {
         ArgumentNullException.ThrowIfNull(element);
         switch (element)
         {
-            case NumericEditor numeric when input.Kind == UiInputPacketKind.Key:
+            case NumericEditor numeric when input.Kind == UiInputEventKind.Key:
                 numeric.ApplyKey(input.Key);
                 break;
-            case TextBox text when input.Kind == UiInputPacketKind.Key:
+            case TextBox text when input.Kind == UiInputEventKind.Key:
                 text.ApplyKey(input.Key);
                 break;
-            case TextBox text when input.Kind == UiInputPacketKind.Text:
+            case TextBox text when input.Kind == UiInputEventKind.Text:
                 text.ApplyText(input.Text);
+                break;
+            case TextBox text when input.Kind == UiInputEventKind.Composition:
+                text.ApplyComposition(input.Composition);
                 break;
         }
     }
@@ -400,7 +413,7 @@ internal static class UiTextBlockGenerated
     internal static void Arrange(ref TextBlockState state, in UiArrangeContext context) =>
         TextBlockArrangeMixin.Arrange(ref state, in context);
 
-    internal static bool ProcessInput(ref TextBlockState state, in UiInputPacket input) =>
+    internal static bool ProcessInput(ref TextBlockState state, in UiInputEvent input) =>
         TextBlockInputMixin.ProcessInput(ref state, in input);
 
     internal static UiTextRun EmitVisual(ref TextBlockState state, in UiTextVisualContext context) =>

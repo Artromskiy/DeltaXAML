@@ -1,4 +1,5 @@
 using DeltaXAML.Internal;
+using Delta.XAML.Contract;
 
 internal static class ButtonArchitectureTests
 {
@@ -6,8 +7,8 @@ internal static class ButtonArchitectureTests
     {
         var state = new ButtonState();
         var target = new UiElementId(10);
-        var down = new UiRoutedEvent(target, UiRoutedEventPhase.Bubble, UiPointerEventKind.Down, default);
-        var up = new UiRoutedEvent(target, UiRoutedEventPhase.Bubble, UiPointerEventKind.Up, default);
+        var down = new UiRoutedEvent(target, UiRoutedEventPhase.Bubble, UiPointerEventKind.ButtonDown, default, default);
+        var up = new UiRoutedEvent(target, UiRoutedEventPhase.Bubble, UiPointerEventKind.ButtonUp, default, default);
 
         Assert.True(!UiButtonGenerated.Process(ref state, in down), "button down does not raise click");
         Assert.True(state.IsPressed, "button input mixin enters pressed state");

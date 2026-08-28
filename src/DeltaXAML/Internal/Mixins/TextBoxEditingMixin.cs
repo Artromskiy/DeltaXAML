@@ -1,3 +1,5 @@
+using Delta.XAML.Contract;
+
 namespace DeltaXAML.Internal;
 
 internal interface ITextBoxInputMixin<TState>
@@ -10,14 +12,14 @@ internal readonly struct TextBoxEditingMixin : ITextBoxInputMixin<TextBoxState>
 {
     public static UiTextEditAction ProcessKey(ref TextBoxState state, in UiKeyEvent input, int textLength)
     {
-        if (!input.IsDown)
+        if (input.Kind != UiKeyEventKind.Down)
         {
             return UiTextEditAction.None;
         }
 
-        if (input.Control)
+        if (input.Modifiers.Contains(UiModifierBits.Control))
         {
-            return input.PhysicalKey switch
+            return input.PhysicalKey.Value switch
             {
                 65 => SelectAllAndReturn(ref state, textLength),
                 67 => UiTextEditAction.Copy,
@@ -29,7 +31,7 @@ internal readonly struct TextBoxEditingMixin : ITextBoxInputMixin<TextBoxState>
             };
         }
 
-        if (input.PhysicalKey == 8)
+        if (input.PhysicalKey.Value == 8)
         {
             if (state.SelectionLength > 0)
             {
@@ -44,14 +46,14 @@ internal readonly struct TextBoxEditingMixin : ITextBoxInputMixin<TextBoxState>
             }
         }
 
-        if (input.PhysicalKey == 46 && state.CaretIndex < textLength)
+        if (input.PhysicalKey.Value == 46 && state.CaretIndex < textLength)
         {
             state.SelectionStart = state.CaretIndex;
             state.SelectionLength = 1;
             return UiTextEditAction.DeleteSelection;
         }
 
-        if (input.PhysicalKey == 37 && state.CaretIndex > 0)
+        if (input.PhysicalKey.Value == 37 && state.CaretIndex > 0)
         {
             state.CaretIndex--;
             state.SelectionStart = state.CaretIndex;
@@ -59,7 +61,7 @@ internal readonly struct TextBoxEditingMixin : ITextBoxInputMixin<TextBoxState>
             return UiTextEditAction.None;
         }
 
-        if (input.PhysicalKey == 39 && state.CaretIndex < textLength)
+        if (input.PhysicalKey.Value == 39 && state.CaretIndex < textLength)
         {
             state.CaretIndex++;
             state.SelectionStart = state.CaretIndex;
@@ -83,6 +85,56 @@ internal readonly struct TextBoxEditingMixin : ITextBoxInputMixin<TextBoxState>
     }
 
     internal static bool HasSelection(in TextBoxState state) => state.SelectionLength > 0;
+
+    internal static bool ApplyComposition(
+        ref TextBoxState state,
+        string current,
+        in UiCompositionEvent input)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        if (input.Stage is UiCompositionStage.Finished or UiCompositionStage.Cancelled)
+        {
+            return ClearComposition(ref state);
+        }
+
+        var start = state.CompositionDisplayText is null
+            ? state.SelectionLength > 0 ? state.SelectionStart : state.CaretIndex
+            : state.CompositionStart;
+        var replacedLength = state.CompositionDisplayText is null ? state.SelectionLength : state.SelectionLength;
+        if ((uint)start > (uint)current.Length || replacedLength < 0 || start + replacedLength > current.Length)
+        {
+            return false;
+        }
+
+        var preedit = input.Preedit.Span;
+        var display = string.Concat(current.AsSpan(0, start), preedit, current.AsSpan(start + replacedLength));
+        var selectionStart = Math.Clamp(input.Selection.StartUtf16, 0, preedit.Length);
+        var selectionLength = Math.Clamp(input.Selection.LengthUtf16, 0, preedit.Length - selectionStart);
+        var changed = !string.Equals(state.CompositionDisplayText, display, StringComparison.Ordinal) ||
+                      state.CompositionSelectionStart != selectionStart ||
+                      state.CompositionSelectionLength != selectionLength;
+        state.CompositionStart = start;
+        state.CompositionText = input.Preedit.ToString();
+        state.CompositionDisplayText = display;
+        state.CompositionSelectionStart = selectionStart;
+        state.CompositionSelectionLength = selectionLength;
+        return changed;
+    }
+
+    internal static bool ClearComposition(ref TextBoxState state)
+    {
+        if (state.CompositionDisplayText is null)
+        {
+            return false;
+        }
+
+        state.CompositionStart = 0;
+        state.CompositionSelectionStart = 0;
+        state.CompositionSelectionLength = 0;
+        state.CompositionText = null;
+        state.CompositionDisplayText = null;
+        return true;
+    }
 
     internal static string GetSelection(string text, in TextBoxState state) =>
         text.Substring(state.SelectionStart, state.SelectionLength);
@@ -193,12 +245,12 @@ internal readonly struct NumericEditorInputMixin : ITextBoxInputMixin<NumericEdi
 {
     public static UiTextEditAction ProcessKey(ref NumericEditorState state, in UiKeyEvent input, int textLength)
     {
-        if (input.IsDown && input.PhysicalKey == 38)
+        if (input.Kind == UiKeyEventKind.Down && input.PhysicalKey.Value == 38)
         {
             return UiTextEditAction.Increment;
         }
 
-        if (input.IsDown && input.PhysicalKey == 40)
+        if (input.Kind == UiKeyEventKind.Down && input.PhysicalKey.Value == 40)
         {
             return UiTextEditAction.Decrement;
         }

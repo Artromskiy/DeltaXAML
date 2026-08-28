@@ -56,51 +56,7 @@ public sealed class UiDocument : IDisposable
     public void Dispatch(in UiInputEvent input)
     {
         ThrowIfDisposed();
-        switch (input.Kind)
-        {
-            case UiInputEventKind.PointingDevice:
-                {
-                    var packet = Retained.UiInputPacket.From(new Retained.UiPointerEvent(
-                        ToRetainedPointerKind(input.PointingDevice.Kind),
-                        new(input.PointingDevice.Position.x, input.PointingDevice.Position.y),
-                        (int)input.PointingDevice.ChangedButton.Value,
-                        input.PointingDevice.WheelDelta.y));
-                    _runtime.EnqueueInput(in packet);
-                    break;
-                }
-            case UiInputEventKind.Key:
-                {
-                    var packet = Retained.UiInputPacket.From(new Retained.UiKeyEvent(
-                        checked((int)input.Key.PhysicalKey.Value),
-                        input.Key.Kind == UiKeyEventKind.Down,
-                        input.Key.IsRepeat,
-                        input.Key.Modifiers.Contains(UiModifierBits.Shift),
-                        input.Key.Modifiers.Contains(UiModifierBits.Control),
-                        input.Key.Modifiers.Contains(UiModifierBits.Alt),
-                        input.Key.Modifiers.Contains(UiModifierBits.Super)));
-                    _runtime.EnqueueInput(in packet);
-                    break;
-                }
-            case UiInputEventKind.Text:
-                {
-                    var packet = Retained.UiInputPacket.From(new Retained.UiTextInput(input.Text.Text));
-                    _runtime.EnqueueInput(in packet);
-                    break;
-                }
-            case UiInputEventKind.Composition:
-                {
-                    var composition = input.Composition;
-                    var packet = Retained.UiInputPacket.From(new Retained.UiImeComposition(
-                        composition.Preedit,
-                        composition.Selection.StartUtf16,
-                        composition.Selection.LengthUtf16,
-                        composition.Stage == UiCompositionStage.Finished));
-                    _runtime.EnqueueInput(in packet);
-                    break;
-                }
-            default:
-                throw new ArgumentOutOfRangeException(nameof(input));
-        }
+        _runtime.EnqueueInput(input);
     }
 
     public void Dispatch(ReadOnlySpan<UiInputEvent> input)
@@ -149,19 +105,6 @@ public sealed class UiDocument : IDisposable
             return false;
         }
     }
-
-    private static Retained.UiPointerEventKind ToRetainedPointerKind(UiPointerEventKind kind) => kind switch
-    {
-        UiPointerEventKind.Enter => Retained.UiPointerEventKind.Enter,
-        UiPointerEventKind.Leave => Retained.UiPointerEventKind.Leave,
-        UiPointerEventKind.Move => Retained.UiPointerEventKind.Move,
-        UiPointerEventKind.ButtonDown => Retained.UiPointerEventKind.Down,
-        UiPointerEventKind.ButtonUp => Retained.UiPointerEventKind.Up,
-        UiPointerEventKind.Wheel => Retained.UiPointerEventKind.Wheel,
-        UiPointerEventKind.Cancel => Retained.UiPointerEventKind.Cancel,
-        UiPointerEventKind.CaptureLost => Retained.UiPointerEventKind.CaptureLost,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported pointer event kind."),
-    };
 
     private void ThrowIfDisposed()
     {

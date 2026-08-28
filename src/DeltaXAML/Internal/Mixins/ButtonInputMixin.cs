@@ -1,3 +1,5 @@
+using Delta.XAML.Contract;
+
 namespace DeltaXAML.Internal;
 
 internal interface IButtonInputMixin<TState>
@@ -15,16 +17,21 @@ internal readonly struct ButtonInputMixin : IButtonInputMixin<ButtonState>
             return false;
         }
 
-        if (routedEvent.Kind == UiPointerEventKind.Down)
+        if (routedEvent.Kind == UiPointerEventKind.ButtonDown)
         {
             state.IsPressed = true;
             return false;
         }
 
-        if (routedEvent.Kind == UiPointerEventKind.Up)
+        if (routedEvent.Kind == UiPointerEventKind.ButtonUp)
         {
             state.IsPressed = false;
             return true;
+        }
+
+        if (routedEvent.Kind is UiPointerEventKind.Cancel or UiPointerEventKind.CaptureLost)
+        {
+            state.IsPressed = false;
         }
 
         return false;
@@ -35,7 +42,7 @@ internal readonly struct ToggleButtonInputMixin : IButtonInputMixin<ToggleButton
 {
     public static bool Process(ref ToggleButtonState state, in UiRoutedEvent routedEvent)
     {
-        if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Up)
+        if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.ButtonUp)
         {
             state.IsChecked = !state.IsChecked;
             return true;

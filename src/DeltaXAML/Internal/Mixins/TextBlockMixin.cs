@@ -1,3 +1,5 @@
+using Delta.XAML.Contract;
+
 namespace DeltaXAML.Internal;
 
 internal interface IMeasureMixin<TState>
@@ -15,7 +17,7 @@ internal interface IArrangeMixin<TState>
 internal interface IInputMixin<TState>
     where TState : struct
 {
-    static abstract bool ProcessInput(ref TState state, in UiInputPacket input);
+    static abstract bool ProcessInput(ref TState state, in UiInputEvent input);
 }
 
 internal interface IVisualMixin<TState>
@@ -44,7 +46,7 @@ internal readonly struct TextBlockArrangeMixin : IArrangeMixin<TextBlockState>
 
 internal readonly struct TextBlockInputMixin : IInputMixin<TextBlockState>
 {
-    public static bool ProcessInput(ref TextBlockState state, in UiInputPacket input) => false;
+    public static bool ProcessInput(ref TextBlockState state, in UiInputEvent input) => false;
 }
 
 internal readonly struct TextBlockVisualMixin : IVisualMixin<TextBlockState>

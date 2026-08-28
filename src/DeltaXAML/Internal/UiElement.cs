@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Delta.XAML.Contract;
 
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
@@ -1358,11 +1359,17 @@ internal class TextBox : TextBlock
     public int SelectionStart => _state.SelectionStart;
     public int SelectionLength => _state.SelectionLength;
     public string? Diagnostic { get; protected set; }
+    internal string VisualText => _state.CompositionDisplayText ?? Text;
+    internal bool IsComposing => _state.CompositionDisplayText is not null;
+    internal string? CompositionText => _state.CompositionText;
+    internal int CompositionSelectionStart => _state.CompositionSelectionStart;
+    internal int CompositionSelectionLength => _state.CompositionSelectionLength;
     public IUiClipboard? Clipboard { get; set; }
     public event EventHandler<TextChangedEventArgs>? TextChanged;
     public void SetText(string text, bool recordUndo = true)
     {
         ArgumentNullException.ThrowIfNull(text);
+        TextBoxEditingMixin.ClearComposition(ref _state);
         if (recordUndo)
         {
             TextBoxEditingMixin.RecordUndo(_undo, _redo, Text);
@@ -1383,7 +1390,24 @@ internal class TextBox : TextBlock
         NotifyBindingTargetChanged("Text", Text);
         TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
     }
-    public bool ApplyText(in UiTextInput input) { ReplaceSelection(input.Text.Span); return true; }
+    public bool ApplyText(in UiTextInput input)
+    {
+        TextBoxEditingMixin.ClearComposition(ref _state);
+        ReplaceSelection(input.Text.Span);
+        return true;
+    }
+
+    public bool ApplyComposition(in UiCompositionEvent input)
+    {
+        if (!TextBoxEditingMixin.ApplyComposition(ref _state, Text, in input))
+        {
+            return false;
+        }
+
+        InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        return true;
+    }
+
     public virtual bool ApplyKey(in UiKeyEvent input)
     {
         return UiTextBoxGenerated.ProcessKey(ref _state, in input, Text.Length) switch

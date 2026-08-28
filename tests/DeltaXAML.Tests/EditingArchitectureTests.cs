@@ -1,4 +1,5 @@
 using DeltaXAML.Internal;
+using Delta.XAML.Contract;
 
 internal static class EditingArchitectureTests
 {
@@ -11,13 +12,13 @@ internal static class EditingArchitectureTests
     private static void TextBoxEditingUsesTypedState()
     {
         var state = new TextBoxState { CaretIndex = 3, SelectionStart = 3 };
-        var selectAll = new UiKeyEvent(65, true, Control: true);
+        var selectAll = Key(65, UiModifierBits.Control);
         var action = UiTextBoxGenerated.ProcessKey(ref state, in selectAll, 3);
         Assert.Equal(UiTextEditAction.SelectAll, action, "TextBox descriptor dispatches select-all to the typed editing mixin");
         Assert.Equal(0, state.SelectionStart, "select-all starts at the first character");
         Assert.Equal(3, state.SelectionLength, "select-all covers the text");
 
-        var backspace = new UiKeyEvent(8, true);
+        var backspace = Key(8);
         action = UiTextBoxGenerated.ProcessKey(ref state, in backspace, 3);
         Assert.Equal(UiTextEditAction.DeleteSelection, action, "TextBox editing reports a typed delete operation");
         Assert.Equal(0, state.SelectionStart, "delete operation keeps the selected range start");
@@ -65,7 +66,8 @@ internal static class EditingArchitectureTests
         Assert.True(!retained.TryCommitText("8"), "retained NumericEditor rejects invalid text");
         Assert.Equal(2, retained.Value, "invalid NumericEditor text preserves the committed value");
         Assert.True(retained.HasValidationError, "invalid NumericEditor text exposes validation state");
-        Assert.True(retained.ApplyKey(new UiKeyEvent(38, true)), "retained NumericEditor handles keyboard increment");
+        var increment = Key(38);
+        Assert.True(retained.ApplyKey(in increment), "retained NumericEditor handles keyboard increment");
         Assert.Equal(3, retained.Value, "keyboard increment uses the generated numeric path");
 
         Assert.True(UiNumericEditorGenerated.Descriptor.IsValid, "NumericEditor descriptor has a valid compact identity");
@@ -73,4 +75,7 @@ internal static class EditingArchitectureTests
         Assert.Equal(UiNumericEditorGenerated.Descriptor, descriptor, "NumericEditor catalog preserves generated metadata");
         Assert.Equal((ushort)10, UiNumericEditorGenerated.Descriptor.Index.Value, "NumericEditor has the tenth compact descriptor index");
     }
+
+    private static UiKeyEvent Key(uint physicalKey, ulong modifiers = 0) =>
+        new(UiKeyEventKind.Down, new(physicalKey), default, new(modifiers), false);
 }
