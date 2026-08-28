@@ -1123,11 +1123,11 @@ internal static partial class Program
         Assert.Equal(depth + 1, measureQueue.Count, "measure stage visits the deep tree without recursive calls");
 
         var arrangeQueue = new List<UiArrangeRequest>();
-        UiArrangeStage.Run(root, new(0, 0, 100, 100), arrangeQueue);
+        UiArrangeStage.Run(nodes, root, new(0, 0, 100, 100), arrangeQueue);
         Assert.Equal(depth + 1, arrangeQueue.Count, "arrange stage visits the deep tree without recursive calls");
 
         UiMeasureStage.Run(nodes, root, new(100, 100), measureQueue, childOrder);
-        UiArrangeStage.Run(root, new(0, 0, 100, 100), arrangeQueue);
+        UiArrangeStage.Run(nodes, root, new(0, 0, 100, 100), arrangeQueue);
         Assert.Equal(0, measureQueue.Count, "clean measure stage does not rescan the retained tree");
         Assert.Equal(0, arrangeQueue.Count, "clean arrange stage does not rescan the retained tree");
 
@@ -1150,13 +1150,13 @@ internal static partial class Program
         var preciseNodes = new UiNodeStore(preciseRoot);
         var preciseChildOrder = new List<UiNodeId>();
         UiMeasureStage.Run(preciseNodes, preciseRoot, new(100, 100), preciseMeasure, preciseChildOrder);
-        UiArrangeStage.Run(preciseRoot, new(0, 0, 100, 100), preciseArrange);
+        UiArrangeStage.Run(preciseNodes, preciseRoot, new(0, 0, 100, 100), preciseArrange);
         UiMeasureStage.Run(preciseNodes, preciseRoot, new(100, 100), preciseMeasure, preciseChildOrder);
-        UiArrangeStage.Run(preciseRoot, new(0, 0, 100, 100), preciseArrange);
+        UiArrangeStage.Run(preciseNodes, preciseRoot, new(0, 0, 100, 100), preciseArrange);
         dirtyChild.Width = 20;
         UiMeasureStage.Run(preciseNodes, preciseRoot, new(100, 100), preciseMeasure, preciseChildOrder);
         Assert.Equal(2, preciseMeasure.Count, "measure queue contains the root and only the dirty child");
-        UiArrangeStage.Run(preciseRoot, new(0, 0, 100, 100), preciseArrange);
+        UiArrangeStage.Run(preciseNodes, preciseRoot, new(0, 0, 100, 100), preciseArrange);
         Assert.Equal(2, preciseArrange.Count, "arrange queue contains the root and only the dirty child");
         UiMeasureStage.Run(preciseNodes, preciseRoot, new(200, 100), preciseMeasure, preciseChildOrder);
         Assert.True(preciseMeasure.Count > 0, "viewport resize invalidates measure even when no dirty flag was pending");

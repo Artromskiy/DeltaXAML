@@ -187,21 +187,26 @@ internal static class UiMeasureStage
 
 internal static class UiArrangeStage
 {
-    internal static void Run(UiElement root, UiRect bounds, List<UiArrangeRequest> queue)
+    internal static void Run(UiNodeStore nodes, UiElement root, UiRect bounds, List<UiArrangeRequest> queue)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(queue);
+        nodes.EnsureCurrent(root);
         queue.Clear();
         if (!root.NeedsArrange(bounds))
         {
             return;
         }
 
-        queue.Add(new(root, bounds));
+        queue.Add(new(new(root.Id.Value, root.Generation), bounds));
         for (var i = 0; i < queue.Count; i++)
         {
             var request = queue[i];
-            request.Element.ArrangeStage(request.Bounds, queue);
+            if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
+            {
+                element.ArrangeStage(request.Bounds, queue, nodes);
+            }
         }
     }
 }
@@ -213,9 +218,17 @@ internal static class UiArrangeQueue
         ArgumentNullException.ThrowIfNull(child);
         if (context.Requests is not null && child is UiElement element)
         {
-            if (element.NeedsArrange(bounds))
+            if (context.Nodes is null)
             {
-                context.Requests.Add(new(element, bounds));
+                if (element.NeedsArrange(bounds))
+                {
+                    context.Requests.Add(new(new(element.Id.Value, element.Generation), bounds));
+                }
+            }
+            else if (context.Nodes.TryGetNode(new(element.Id.Value, element.Generation), out var node) &&
+                     element.NeedsArrange(bounds))
+            {
+                context.Requests.Add(new(node.Id, bounds));
             }
 
             return;

@@ -553,9 +553,9 @@ internal class UiElement : IUiElement, IUiPropertyStore
         CompleteMeasure(available);
     }
 
-    public virtual void Arrange(UiRect bounds) => ArrangeStage(bounds, null);
+    public virtual void Arrange(UiRect bounds) => ArrangeStage(bounds, null, null);
 
-    internal void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
+    internal void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests, UiNodeStore? nodes)
     {
         if (CanSkipArrange(bounds))
         {
@@ -572,7 +572,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
 
         Bounds = bounds;
         Clip = bounds;
-        if (UiDescriptorCatalog.Arrange(this, new(bounds, bounds, Children, requests)))
+        if (UiDescriptorCatalog.Arrange(this, new(bounds, bounds, Children, requests, nodes)))
         {
             CompleteArrange(bounds);
             return;
@@ -583,9 +583,17 @@ internal class UiElement : IUiElement, IUiPropertyStore
             var child = _children[i];
             if (requests is not null && child is UiElement element)
             {
-                if (element.NeedsArrange(bounds))
+                if (nodes is null)
                 {
-                    requests.Add(new(element, bounds));
+                    if (element.NeedsArrange(bounds))
+                    {
+                        requests.Add(new(new(element.Id.Value, element.Generation), bounds));
+                    }
+                }
+                else if (nodes.TryGetNode(new(element.Id.Value, element.Generation), out var node) &&
+                         element.NeedsArrange(bounds))
+                {
+                    requests.Add(new(node.Id, bounds));
                 }
             }
             else
