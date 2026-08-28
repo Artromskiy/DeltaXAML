@@ -837,6 +837,7 @@ public sealed class UiDocument : IDisposable
     private UiVisualCommand[] _visuals = Array.Empty<UiVisualCommand>();
     private UiClip[] _clips = Array.Empty<UiClip>();
     private UiTextDraw[] _text = Array.Empty<UiTextDraw>();
+    private readonly List<VisualVisit> _visualTraversal = new();
     private int _visualCount;
     private int _clipCount;
     private int _textCount;
@@ -974,46 +975,55 @@ public sealed class UiDocument : IDisposable
     private bool TryExtractVisuals(RetainedElement element, Retained.UiRect clip, UiClipId parentClip, out Diagnostic? diagnostic)
     {
         diagnostic = null;
-        if (element.Visibility != Retained.UiVisibility.Visible ||
-            (element.Participation & UiParticipation.Layout) == 0)
+        _visualTraversal.Clear();
+        _visualTraversal.Add(new(element, clip, parentClip));
+        while (_visualTraversal.Count != 0)
         {
-            return true;
-        }
-
-        var effective = Retained.UiRect.Intersect(clip, element.Bounds);
-        EnsureCapacity(ref _clips, _clipCount + 1);
-        var clipId = new UiClipId(_clipCount);
-        _clips[_clipCount++] = new(ToFloat4(effective), parentClip);
-
-        if ((element.Participation & UiParticipation.Rendering) != 0 && element.Background.A > 0)
-        {
-            EnsureCapacity(ref _visuals, _visualCount + 1);
-            _visuals[_visualCount++] = new(
-                UiVisualKind.SolidRectangle,
-                default,
-                ToFloat4(element.Bounds),
-                ToColor(element.Background),
-                clipId,
-                UiResourceId.Empty);
-        }
-
-        if ((element.Participation & UiParticipation.Rendering) != 0 && element.TryGetTextRun(out var run))
-        {
-            EnsureCapacity(ref _text, _textCount + 1);
-            run = run with { Bounds = element.Bounds, Clip = effective, ClipId = new Retained.UiClipId((uint)clipId.Value + 1) };
-            if (!TryBuildTextDraw(run, out _text[_textCount], out diagnostic))
+            var last = _visualTraversal.Count - 1;
+            var visit = _visualTraversal[last];
+            _visualTraversal.RemoveAt(last);
+            var current = visit.Element;
+            if (current.Visibility != Retained.UiVisibility.Visible ||
+                (current.Participation & UiParticipation.Layout) == 0)
             {
-                return false;
+                continue;
             }
 
-            _textCount++;
-        }
+            var effective = Retained.UiRect.Intersect(visit.Clip, current.Bounds);
+            EnsureCapacity(ref _clips, _clipCount + 1);
+            var clipId = new UiClipId(_clipCount);
+            _clips[_clipCount++] = new(ToFloat4(effective), visit.ParentClip);
 
-        foreach (var child in element.Children)
-        {
-            if (child is RetainedElement retainedChild && !TryExtractVisuals(retainedChild, effective, clipId, out diagnostic))
+            if ((current.Participation & UiParticipation.Rendering) != 0 && current.Background.A > 0)
             {
-                return false;
+                EnsureCapacity(ref _visuals, _visualCount + 1);
+                _visuals[_visualCount++] = new(
+                    UiVisualKind.SolidRectangle,
+                    default,
+                    ToFloat4(current.Bounds),
+                    ToColor(current.Background),
+                    clipId,
+                    UiResourceId.Empty);
+            }
+
+            if ((current.Participation & UiParticipation.Rendering) != 0 && current.TryGetTextRun(out var run))
+            {
+                EnsureCapacity(ref _text, _textCount + 1);
+                run = run with { Bounds = current.Bounds, Clip = effective, ClipId = new Retained.UiClipId((uint)clipId.Value + 1) };
+                if (!TryBuildTextDraw(run, out _text[_textCount], out diagnostic))
+                {
+                    return false;
+                }
+
+                _textCount++;
+            }
+
+            for (var i = current.Children.Count - 1; i >= 0; i--)
+            {
+                if (current.Children[i] is RetainedElement child)
+                {
+                    _visualTraversal.Add(new(child, effective, clipId));
+                }
             }
         }
 
@@ -1122,6 +1132,20 @@ public sealed class UiDocument : IDisposable
     private readonly record struct UiTextCacheKey(Retained.UiElementId Owner, uint Generation, string GlyphRunKey);
 
     private sealed record UiTextCacheEntry(string FontKey, string Text, float FontSize, ShapedText Shaped);
+
+    private readonly struct VisualVisit
+    {
+        public VisualVisit(RetainedElement element, Retained.UiRect clip, UiClipId parentClip)
+        {
+            Element = element;
+            Clip = clip;
+            ParentClip = parentClip;
+        }
+
+        public RetainedElement Element { get; }
+        public Retained.UiRect Clip { get; }
+        public UiClipId ParentClip { get; }
+    }
 
     private sealed class EmptyFontResolver : IUiFontResolver
     {
