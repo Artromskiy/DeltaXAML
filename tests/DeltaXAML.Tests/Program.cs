@@ -794,6 +794,9 @@ internal static partial class Program
         var custom = loader.Load("<CustomBadge />", in customContext);
         Assert.True(custom.Success && custom.Root is LibraryCustomBadge, "library type resolver creates custom element");
 
+        var nested = loader.Load("<StackPanel Width=\"80\" Height=\"20\"><TextBlock Text=\"child\" /></StackPanel>", in context);
+        Assert.True(nested.Success && nested.Root is { Children.Count: 1 }, "cold loader attaches nested StackPanel children to the canonical tree");
+
         var resourceId = new LibraryContract.UiResourceId(new Guid("F25871B4-23F7-4DA5-ADED-AF3F38C4E55F"));
         var resourceContext = new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), new FixedLibraryResourceResolver(resourceId, new UiColor(7, 8, 9)));
         var resource = loader.Load($"<TextBlock ForegroundResource=\"{resourceId.Value:D}\" />", in resourceContext);

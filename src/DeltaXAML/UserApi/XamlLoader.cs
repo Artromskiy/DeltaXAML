@@ -47,7 +47,7 @@ public sealed class XamlLoader : IXamlLoader
             return new(null, contextDiagnostics.ToArray());
         }
 
-        var retained = Retained.XamlDialectParser.ParseForAdapter(
+        var retained = Retained.InterpretedXamlReader.Read(
             source,
             (namespaceUri, localName) => CreateCustomElement(namespaceUri, localName, typeResolver, views),
             resources);
@@ -143,7 +143,7 @@ public sealed class XamlLoader : IXamlLoader
                         continue;
                     }
 
-                    if (!Retained.XamlDialectParser.TryParseResourceReference(reader.Value, out var resourceKey, out _))
+                    if (!Retained.InterpretedXamlReader.TryParseResourceReference(reader.Value, out var resourceKey, out _))
                     {
                         continue;
                     }
@@ -169,7 +169,7 @@ public sealed class XamlLoader : IXamlLoader
         return resources;
     }
 
-    private static Diagnostic[] ConvertDiagnostics(IReadOnlyList<Retained.XamlDiagnostic> diagnostics)
+    private static Diagnostic[] ConvertDiagnostics(IReadOnlyList<Retained.InterpretedXamlDiagnostic> diagnostics)
     {
         if (diagnostics.Count == 0)
         {

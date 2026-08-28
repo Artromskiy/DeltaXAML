@@ -113,6 +113,7 @@ public readonly record struct XamlLoadContext(
     IUiResourceResolver Resources,
     IUiBindingResolver? Bindings = null);
 
+/// <summary>Stable user-facing identity and accessor shell for one retained node.</summary>
 public abstract class UiElement
 {
     private readonly RetainedElement _retained;

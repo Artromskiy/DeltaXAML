@@ -330,6 +330,7 @@ internal sealed class UiPropertyStore
     }
 }
 
+/// <summary>Canonical retained state owner addressed by the document node store.</summary>
 internal class UiElement
 {
     private static uint _nextId;

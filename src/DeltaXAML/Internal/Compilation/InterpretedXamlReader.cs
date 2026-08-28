@@ -3,16 +3,16 @@ using System.Xml;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 namespace DeltaXAML.Internal;
 
-internal readonly record struct XamlDiagnostic(string Code, string Message, int Line, int Column);
-internal sealed record XamlLoadResult(UiElement? Root, IReadOnlyList<XamlDiagnostic> Diagnostics) { public bool Success => Root is not null && Diagnostics.Count == 0; }
-/// <summary>Cold dialect parser used by the explicit tooling/library loader.</summary>
-/// <remarks>Generated artifacts bypass this parser and construct the same retained tree directly.</remarks>
-internal static class XamlDialectParser
+internal readonly record struct InterpretedXamlDiagnostic(string Code, string Message, int Line, int Column);
+internal sealed record InterpretedXamlResult(UiElement? Root, IReadOnlyList<InterpretedXamlDiagnostic> Diagnostics);
+/// <summary>Cold source reader selected only by the explicit <c>IXamlLoader</c> API.</summary>
+/// <remarks>It constructs canonical descriptor-backed elements; generated production artifacts bypass XML inflation.</remarks>
+internal static class InterpretedXamlReader
 {
-    internal static XamlLoadResult ParseForAdapter(string source, Func<string, string, UiElement?>? factory, UiResourceStore? resources)
+    internal static InterpretedXamlResult Read(string source, Func<string, string, UiElement?>? factory, UiResourceStore? resources)
     {
         ArgumentNullException.ThrowIfNull(source);
-        var diagnostics = new List<XamlDiagnostic>();
+        var diagnostics = new List<InterpretedXamlDiagnostic>();
         try
         {
             using var reader = XmlReader.Create(new StringReader(source), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, IgnoreComments = true });
@@ -26,7 +26,7 @@ internal static class XamlDialectParser
         }
     }
 
-    private static UiElement? Read(XmlReader r, List<XamlDiagnostic> d, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
+    private static UiElement? Read(XmlReader r, List<InterpretedXamlDiagnostic> d, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
     {
         var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => UiPanelGenerated.Create(), "StackPanel" => UiStackPanelGenerated.Create(), "ItemsControl" => UiItemsControlGenerated.Create(), "Border" => UiBorderGenerated.Create(), "Grid" => UiGridGenerated.Create(), "ContentControl" => UiContentControlGenerated.Create(), "Button" => UiButtonGenerated.Create(), "ToggleButton" => UiToggleButtonGenerated.Create(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => UiTextBoxGenerated.Create(), "NumericEditor" => UiNumericEditorGenerated.Create(), "ScrollViewer" => UiScrollViewerGenerated.Create(), _ => null };
         if (e is null && factory is not null)
@@ -47,7 +47,7 @@ internal static class XamlDialectParser
         {
             if (r.NodeType == XmlNodeType.Element)
             {
-                var child = Read(r, d, resources, factory); if (child is not null && (e is Panel or Border or Grid))
+                var child = Read(r, d, resources, factory); if (child is not null && e is Panel or StackPanel or Border or Grid)
                 {
                     e.Add(child);
                 }
@@ -67,7 +67,7 @@ internal static class XamlDialectParser
         }
         return e;
     }
-    private static void Apply(UiElement e, string name, string value, int line, List<XamlDiagnostic> d, UiResourceStore? resources)
+    private static void Apply(UiElement e, string name, string value, int line, List<InterpretedXamlDiagnostic> d, UiResourceStore? resources)
     {
         if (XamlBindingParser.TryParse(value, out var binding, out var bindingError))
         {
