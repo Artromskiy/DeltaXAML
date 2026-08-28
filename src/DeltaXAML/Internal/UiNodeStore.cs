@@ -25,8 +25,16 @@ internal sealed class UiNodeStore
         ArgumentNullException.ThrowIfNull(root);
         _root = root;
         _layoutChildren = new(this, _layoutChildIds);
-        Refresh(root);
         root.AttachNodeStore(this);
+        try
+        {
+            Refresh(root);
+        }
+        catch
+        {
+            root.DetachNodeStore(this);
+            throw;
+        }
     }
 
     internal void EnsureCurrent(UiElement root)
