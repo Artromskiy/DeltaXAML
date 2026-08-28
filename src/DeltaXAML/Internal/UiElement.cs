@@ -632,7 +632,7 @@ internal class UiElement
         Participation = value;
         InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
     }
-    internal void MeasureStage(UiSize available, UiNodeStore? nodes = null, List<UiMeasureRequest>? requests = null)
+    internal void MeasureStage(UiSize available, UiNodeStore? nodes = null, UiMeasureQueueBuffer? requests = null)
     {
         if (CanSkipMeasure(available))
         {
@@ -653,7 +653,7 @@ internal class UiElement
         CompleteMeasure(available);
     }
 
-    internal void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests, UiNodeStore? nodes)
+    internal void ArrangeStage(UiRect bounds, UiArrangeQueueBuffer? requests, UiNodeStore? nodes)
     {
         if (CanSkipArrange(bounds))
         {

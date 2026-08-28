@@ -83,13 +83,13 @@ internal readonly record struct UiMeasureContext(
     float DpiScale,
     IReadOnlyList<UiElement>? Children = null,
     bool MeasureChildren = true,
-    List<UiMeasureRequest>? Requests = null,
+    UiMeasureQueueBuffer? Requests = null,
     UiNodeStore? Nodes = null);
 internal readonly record struct UiArrangeContext(
     UiRect Bounds,
     UiRect Clip,
     IReadOnlyList<UiElement>? Children = null,
-    List<UiArrangeRequest>? Requests = null,
+    UiArrangeQueueBuffer? Requests = null,
     UiNodeStore? Nodes = null);
 internal readonly record struct UiMeasureRequest(UiNodeId Element, UiSize Available);
 internal readonly record struct UiArrangeRequest(UiNodeId Element, UiRect Bounds);

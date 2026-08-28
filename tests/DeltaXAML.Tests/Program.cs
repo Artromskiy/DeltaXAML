@@ -1506,6 +1506,19 @@ internal static partial class Program
 
     private static void RuntimeLayoutQueuesAreNonRecursive()
     {
+        var queueNode = new UiNodeId(17, 3);
+        var deduplicatedMeasure = new UiMeasureQueueBuffer();
+        deduplicatedMeasure.Add(new(queueNode, new(10, 10)));
+        deduplicatedMeasure.Add(new(queueNode, new(20, 30)));
+        Assert.Equal(1, deduplicatedMeasure.Count, "measure queue deduplicates a node within one stage pass");
+        Assert.Equal(new UiSize(20, 30), deduplicatedMeasure[0].Available, "measure queue keeps the latest constraint for a node");
+
+        var deduplicatedArrange = new UiArrangeQueueBuffer();
+        deduplicatedArrange.Add(new(queueNode, new(1, 2, 3, 4)));
+        deduplicatedArrange.Add(new(queueNode, new(5, 6, 7, 8)));
+        Assert.Equal(1, deduplicatedArrange.Count, "arrange queue deduplicates a node within one stage pass");
+        Assert.Equal(new UiRect(5, 6, 7, 8), deduplicatedArrange[0].Bounds, "arrange queue keeps the latest bounds for a node");
+
         var root = new Panel();
         var current = root;
         const int depth = 2048;
@@ -1516,14 +1529,14 @@ internal static partial class Program
             current = child;
         }
 
-        var measureQueue = new List<UiMeasureRequest>();
+        var measureQueue = new UiMeasureQueueBuffer();
         var nodes = new UiNodeStore(root);
         var childOrder = new List<UiNodeId>();
         UiMeasureStage.Run(nodes, root, new(100, 100), measureQueue, childOrder);
         Assert.Equal(depth + 1, measureQueue.Count, "measure stage visits the deep tree without recursive calls");
         Assert.Equal(new UiNodeId(root.Id.Value, root.Generation), measureQueue[0].Element, "measure queue is keyed by the root node identity");
 
-        var arrangeQueue = new List<UiArrangeRequest>();
+        var arrangeQueue = new UiArrangeQueueBuffer();
         UiArrangeStage.Run(nodes, root, new(0, 0, 100, 100), arrangeQueue);
         Assert.Equal(depth + 1, arrangeQueue.Count, "arrange stage visits the deep tree without recursive calls");
 
@@ -1546,8 +1559,8 @@ internal static partial class Program
         var dirtyChild = new TextBlock { Width = 10, Height = 10 };
         preciseRoot.Add(cleanChild);
         preciseRoot.Add(dirtyChild);
-        var preciseMeasure = new List<UiMeasureRequest>();
-        var preciseArrange = new List<UiArrangeRequest>();
+        var preciseMeasure = new UiMeasureQueueBuffer();
+        var preciseArrange = new UiArrangeQueueBuffer();
         var preciseNodes = new UiNodeStore(preciseRoot);
         var preciseChildOrder = new List<UiNodeId>();
         UiMeasureStage.Run(preciseNodes, preciseRoot, new(100, 100), preciseMeasure, preciseChildOrder);

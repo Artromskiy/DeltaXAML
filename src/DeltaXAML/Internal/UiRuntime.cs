@@ -16,8 +16,8 @@ internal sealed class UiRuntime
     private readonly List<UiTraversalEntry> _traversal = new();
     private readonly List<UiNodeId> _childOrder = new();
     private readonly List<UiNodeId> _stageTraversal = new();
-    private readonly List<UiMeasureRequest> _measureQueue = new();
-    private readonly List<UiArrangeRequest> _arrangeQueue = new();
+    private readonly UiMeasureQueueBuffer _measureQueue = new();
+    private readonly UiArrangeQueueBuffer _arrangeQueue = new();
     private char[] _inputTextStorage = Array.Empty<char>();
     private int _inputTextCount;
     private float _appliedScale = float.NaN;

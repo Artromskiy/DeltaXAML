@@ -175,7 +175,7 @@ internal static class UiMeasureStage
         UiNodeStore nodes,
         UiElement root,
         UiSize available,
-        List<UiMeasureRequest> queue,
+        UiMeasureQueueBuffer queue,
         List<UiNodeId> childOrder)
     {
         ArgumentNullException.ThrowIfNull(nodes);
@@ -237,7 +237,7 @@ internal static class UiMeasureStage
 
 internal static class UiArrangeStage
 {
-    internal static void Run(UiNodeStore nodes, UiElement root, UiRect bounds, List<UiArrangeRequest> queue)
+    internal static void Run(UiNodeStore nodes, UiElement root, UiRect bounds, UiArrangeQueueBuffer queue)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
