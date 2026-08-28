@@ -43,8 +43,7 @@ internal static class TextBlockArchitectureTests
         Assert.True(!UiTextBlockGenerated.TrySetText(ref state, "Updated"), "typed text setter skips unchanged state");
 
         var retained = new TextBlock { Text = "Retained" };
-        retained.Measure(new(320, 100));
-        retained.Arrange(new(4, 5, 120, 24));
+        RetainedLayoutTest.Layout(retained, new(320, 100), new(4, 5, 120, 24));
         Assert.Equal(new UiRect(4, 5, 120, 24), retained.Bounds, "retained TextBlock uses the typed arrange thunk");
         Assert.True(
             UiDescriptorCatalog.TryGetTextRun(

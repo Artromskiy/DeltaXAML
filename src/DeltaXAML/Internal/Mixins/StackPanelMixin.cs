@@ -14,7 +14,7 @@ internal readonly struct StackPanelMeasureMixin : IMeasureMixin<StackPanelState>
                 var child = children[i];
                 if (context.MeasureChildren)
                 {
-                    child.Measure(context.Available);
+                    UiMeasureQueue.Add(in context, child, context.Available);
                 }
 
                 if (state.Orientation == UiOrientation.Horizontal)

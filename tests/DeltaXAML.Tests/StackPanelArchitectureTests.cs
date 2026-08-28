@@ -28,8 +28,7 @@ internal static class StackPanelArchitectureTests
         retained.Add(first);
         retained.Add(second);
         retained.Add(fill);
-        retained.Measure(new(200, 100));
-        retained.Arrange(new(0, 0, 200, 100));
+        RetainedLayoutTest.Layout(retained, new(200, 100), new(0, 0, 200, 100));
         Assert.Equal(fill.Bounds, new UiRect(0, 30, 200, 70), "retained StackPanel dispatches layout through generated mixins");
 
         retained.Orientation = UiOrientation.Vertical;
@@ -38,8 +37,7 @@ internal static class StackPanelArchitectureTests
         Assert.Equal(before, retained.LayoutVersion, "unchanged StackPanel orientation does not invalidate layout");
         retained.Orientation = UiOrientation.Horizontal;
         Assert.True(retained.LayoutVersion > before, "StackPanel orientation invalidates layout");
-        retained.Measure(new(200, 100));
-        retained.Arrange(new(0, 0, 200, 100));
+        RetainedLayoutTest.Layout(retained, new(200, 100), new(0, 0, 200, 100));
         Assert.Equal(new UiRect(0, 0, 40, 100), first.Bounds, "horizontal StackPanel preserves the first child width");
         Assert.Equal(new UiRect(40, 0, 60, 100), second.Bounds, "horizontal StackPanel advances by child width");
         Assert.Equal(new UiRect(100, 0, 100, 100), fill.Bounds, "horizontal StackPanel distributes remaining width");

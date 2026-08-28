@@ -13,7 +13,7 @@ internal readonly struct ScrollViewerMeasureMixin : IMeasureMixin<ScrollViewerSt
 
         if (context.MeasureChildren)
         {
-            children[0].Measure(context.Available);
+            UiMeasureQueue.Add(in context, children[0], context.Available);
         }
 
         state.DesiredSize = children[0].DesiredSize;

@@ -26,6 +26,27 @@ static class Assert
     }
 }
 
+internal static class RetainedLayoutTest
+{
+    internal static void Layout(UiElement root, UiSize available, UiRect bounds)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        Measure(root, available);
+        root.ArrangeStage(bounds, null, null);
+    }
+
+    private static void Measure(UiElement element, UiSize available)
+    {
+        var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(element, available);
+        for (var i = 0; i < element.Children.Count; i++)
+        {
+            Measure(element.Children[i], childAvailable);
+        }
+
+        element.MeasureStage(available);
+    }
+}
+
 sealed class FakeClipboard : IUiClipboard
 {
     public string? Text { get; private set; }
@@ -296,11 +317,9 @@ internal static partial class Program
         element.Invalidate(UiDirtyFlags.Visual);
         Assert.Equal(coalescedDirtyVersion, element.OutputVersion, "repeated visual invalidation coalesces before extraction");
         Assert.True(coalescedDirtyVersion > firstDirtyVersion, "first visual invalidation advances the output version");
-        element.Measure(new(100, 100));
-        element.Arrange(new(0, 0, 100, 100));
+        RetainedLayoutTest.Layout(element, new(100, 100), new(0, 0, 100, 100));
         element.SetLocal("Width", 42, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
-        element.Measure(new(100, 100));
-        element.Arrange(new(0, 0, 100, 100));
+        RetainedLayoutTest.Layout(element, new(100, 100), new(0, 0, 100, 100));
         element.SetStyle("Color", new UiColor(1, 2, 3), UiDirtyFlags.Visual);
         element.SetDefault("Priority", "default", UiDirtyFlags.Visual);
         element.SetStyle("Priority", "style", UiDirtyFlags.Visual);
@@ -311,8 +330,7 @@ internal static partial class Program
         Assert.True(element.TryGet("Priority", out priority) && Equals(priority.UntypedValue, "transient"), "transient handle wins precedence");
         var binding = new UiBindingValue(() => 17, _ => (true, null));
         element.SetBinding("Value", binding, UiDirtyFlags.Visual);
-        element.Measure(new(100, 100));
-        element.Arrange(new(0, 0, 100, 100));
+        RetainedLayoutTest.Layout(element, new(100, 100), new(0, 0, 100, 100));
         binding.NotifyChanged();
         Assert.True(element.TryGet("Value", out var value) && Equals(value.UntypedValue, 17), "binding refreshes the retained value");
         var button = new Button();
@@ -406,8 +424,7 @@ internal static partial class Program
         grid.Add(a);
         grid.Add(b);
         grid.Add(c);
-        grid.Measure(new(200, 20));
-        grid.Arrange(new(0, 0, 200, 20));
+        RetainedLayoutTest.Layout(grid, new(200, 20), new(0, 0, 200, 20));
         Assert.Equal(new UiRect(0, 0, 40, 20), a.Bounds, "grid fixed");
         Assert.Equal(new UiRect(40, 0, 50, 20), b.Bounds, "grid auto");
         Assert.Equal(new UiRect(90, 0, 110, 20), c.Bounds, "grid star");

@@ -1215,8 +1215,10 @@ or Vulkan handles.
 Remove or split the following compatibility implementation as its replacement
 lands; do not wrap it in a new facade:
 
-- `Internal/UiElement.cs`: compatibility owner/traversal operations and the
-  retained relation fields;
+- `Internal/UiElement.cs`: compatibility owner/relation fields and remaining
+  cold property/source operations; the public retained `Measure`/`Arrange`
+  operation path has been removed, and runtime layout now enters through the
+  queued stage methods;
 - `UserApi/LibraryFacade.cs` (`XamlLoader`): runtime parsing and string
   property application;
 - `Internal/Compatibility/UiBindingRuntime.cs`: reflection path walking and

@@ -30,8 +30,7 @@ internal static class PanelGridArchitectureTests
         var retained = UiPanelGenerated.Create();
         retained.Add(first);
         retained.Add(second);
-        retained.Measure(new(200, 100));
-        retained.Arrange(new(3, 4, 200, 100));
+        RetainedLayoutTest.Layout(retained, new(200, 100), new(3, 4, 200, 100));
         Assert.Equal(new UiRect(3, 4, 200, 100), first.Bounds, "retained Panel dispatches layout through generated mixins");
     }
 

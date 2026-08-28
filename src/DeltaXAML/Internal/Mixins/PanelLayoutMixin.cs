@@ -14,7 +14,7 @@ internal readonly struct PanelMeasureMixin : IMeasureMixin<PanelState>
                 var child = children[i];
                 if (context.MeasureChildren)
                 {
-                    child.Measure(context.Available);
+                    UiMeasureQueue.Add(in context, child, context.Available);
                 }
 
                 width = MathF.Max(width, child.DesiredSize.Width);
@@ -56,7 +56,7 @@ internal readonly struct GridMeasureMixin : IMeasureMixin<GridState>
             {
                 for (var i = 0; i < children.Count; i++)
                 {
-                    children[i].Measure(context.Available);
+                    UiMeasureQueue.Add(in context, children[i], context.Available);
                 }
             }
 

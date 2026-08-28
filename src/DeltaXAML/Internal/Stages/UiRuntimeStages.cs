@@ -48,6 +48,30 @@ internal static class UiMutationStage
     }
 }
 
+internal static class UiMeasureQueue
+{
+    internal static void Add(in UiMeasureContext context, UiElement child, UiSize available)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        if (context.Requests is null)
+        {
+            child.MeasureStage(available, context.Nodes);
+            return;
+        }
+
+        if (!child.NeedsMeasure(available))
+        {
+            return;
+        }
+
+        var id = new UiNodeId(child.Id.Value, child.Generation);
+        if (context.Nodes is null || context.Nodes.TryGetNode(id, out _))
+        {
+            context.Requests.Add(new(id, available));
+        }
+    }
+}
+
 internal static class UiBindingStage
 {
     internal static void Run(
@@ -205,7 +229,7 @@ internal static class UiMeasureStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.MeasureStage(request.Available, nodes);
+                element.MeasureStage(request.Available, nodes, queue);
             }
         }
     }
@@ -259,7 +283,7 @@ internal static class UiArrangeQueue
 
             return;
         }
-        child.Arrange(bounds);
+        child.ArrangeStage(bounds, null, null);
     }
 }
 

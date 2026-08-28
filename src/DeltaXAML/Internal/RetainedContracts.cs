@@ -82,7 +82,9 @@ internal readonly record struct UiMeasureContext(
     UiSize Available,
     float DpiScale,
     IReadOnlyList<UiElement>? Children = null,
-    bool MeasureChildren = true);
+    bool MeasureChildren = true,
+    List<UiMeasureRequest>? Requests = null,
+    UiNodeStore? Nodes = null);
 internal readonly record struct UiArrangeContext(
     UiRect Bounds,
     UiRect Clip,

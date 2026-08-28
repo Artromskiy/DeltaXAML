@@ -13,7 +13,7 @@ internal readonly struct BorderMeasureMixin : IMeasureMixin<BorderState>
 
         if (context.MeasureChildren)
         {
-            child.Measure(new(
+            UiMeasureQueue.Add(in context, child, new(
                 MathF.Max(0, context.Available.Width - state.Padding.Horizontal),
                 MathF.Max(0, context.Available.Height - state.Padding.Vertical)));
         }
@@ -68,7 +68,7 @@ internal readonly struct ContentControlMeasureMixin : IMeasureMixin<ContentContr
         var child = children[0];
         if (context.MeasureChildren)
         {
-            child.Measure(context.Available);
+            UiMeasureQueue.Add(in context, child, context.Available);
         }
 
         state.DesiredSize = child.DesiredSize;

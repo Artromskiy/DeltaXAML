@@ -39,10 +39,9 @@ internal static class ItemsScrollArchitectureTests
 
         var retained = UiScrollViewerGenerated.Create();
         retained.Content = child;
-        retained.Measure(new(100, 50));
-        retained.Arrange(new(0, 0, 100, 50));
+        RetainedLayoutTest.Layout(retained, new(100, 50), new(0, 0, 100, 50));
         retained.ScrollBy(10, 5);
-        retained.Arrange(new(0, 0, 100, 50));
+        RetainedLayoutTest.Layout(retained, new(100, 50), new(0, 0, 100, 50));
         Assert.Equal(new UiPoint(10, 5), retained.Offset, "retained ScrollViewer updates offset through a generated setter");
         Assert.Equal(new UiRect(-10, -5, 200, 80), child.Bounds, "retained ScrollViewer dispatches offset layout through the generated path");
         Assert.True(UiScrollViewerGenerated.Descriptor.IsValid, "ScrollViewer descriptor has a valid compact identity");

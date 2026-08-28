@@ -614,30 +614,7 @@ internal class UiElement
         Participation = value;
         InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
     }
-    public virtual void Measure(UiSize available)
-    {
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if ((Participation & Delta.XAML.UiParticipation.Layout) == 0)
-        {
-            DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(this, available);
-        foreach (var child in _children)
-        {
-            child.Measure(childAvailable);
-        }
-
-        MeasureStage(available);
-    }
-
-    internal void MeasureStage(UiSize available, UiNodeStore? nodes = null)
+    internal void MeasureStage(UiSize available, UiNodeStore? nodes = null, List<UiMeasureRequest>? requests = null)
     {
         if (CanSkipMeasure(available))
         {
@@ -654,11 +631,9 @@ internal class UiElement
         var children = nodes is null
             ? Children
             : nodes.GetLogicalChildren(new(Id.Value, Generation));
-        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(this, new(available, LayoutScale, children, false)));
+        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(this, new(available, LayoutScale, children, requests is null, requests, nodes)));
         CompleteMeasure(available);
     }
-
-    public virtual void Arrange(UiRect bounds) => ArrangeStage(bounds, null, null);
 
     internal void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests, UiNodeStore? nodes)
     {
@@ -706,7 +681,7 @@ internal class UiElement
             }
             else
             {
-                child.Arrange(bounds);
+                child.ArrangeStage(bounds, null, null);
             }
         }
 

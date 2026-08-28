@@ -42,14 +42,12 @@ internal static class ContentLayoutArchitectureTests
         var retainedBorder = UiBorderGenerated.Create();
         retainedBorder.Padding = new UiThickness(4, 5, 6, 7);
         retainedBorder.Add(child);
-        retainedBorder.Measure(new(100, 50));
-        retainedBorder.Arrange(new(0, 0, 100, 50));
+        RetainedLayoutTest.Layout(retainedBorder, new(100, 50), new(0, 0, 100, 50));
         Assert.Equal(new UiRect(4, 5, 90, 38), child.Bounds, "retained Border dispatches through generated layout");
 
         var retainedContent = UiContentControlGenerated.Create();
         retainedContent.Add(child);
-        retainedContent.Measure(new(100, 50));
-        retainedContent.Arrange(new(1, 2, 30, 40));
+        RetainedLayoutTest.Layout(retainedContent, new(100, 50), new(1, 2, 30, 40));
         Assert.Equal(new UiRect(1, 2, 30, 40), child.Bounds, "retained ContentControl dispatches through generated layout");
     }
 }
