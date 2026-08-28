@@ -107,6 +107,25 @@ internal sealed class UiRuntime
         return _nodes.TryCopyVisualChildren(parent, destination);
     }
 
+    internal void CollectRoute(UiElement target, List<UiElement> destination)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(destination);
+        _nodes.EnsureCurrent(_retainedRoot);
+        destination.Clear();
+        var id = new UiNodeId(target.Id.Value, target.Generation);
+        while (_nodes.TryGetNode(id, out var node) && node.Element is { } element)
+        {
+            destination.Add(element);
+            if (!node.LogicalParent.IsValid)
+            {
+                return;
+            }
+
+            id = node.LogicalParent;
+        }
+    }
+
     internal bool Contains(UiElement element)
     {
         ArgumentNullException.ThrowIfNull(element);

@@ -166,11 +166,7 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 
     private void Raise(UiElement target, in UiRoutedEvent routedEvent)
     {
-        _routePath.Clear();
-        for (UiElement? node = target; node is not null; node = node.Parent as UiElement)
-        {
-            _routePath.Add(node);
-        }
+        _runtime.CollectRoute(target, _routePath);
 
         if (routedEvent.Phase == UiRoutedEventPhase.Preview)
         {
