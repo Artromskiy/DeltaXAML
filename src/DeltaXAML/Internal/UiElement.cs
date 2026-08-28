@@ -333,7 +333,8 @@ internal class UiElement
 {
     private static uint _nextId;
     private static uint _nextGeneration;
-    private readonly List<UiElement> _children = new();
+    private readonly List<UiElement> _detachedChildren = new();
+    private readonly UiElementChildrenView _children;
     private readonly List<UiBindingSpec> _bindingSpecs = new();
     private readonly Dictionary<string, UiBindingRuntime> _bindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiExternalBindingRuntime> _externalBindingRuntimes = new(StringComparer.Ordinal);
@@ -375,6 +376,7 @@ internal class UiElement
     {
         Id = new(++_nextId);
         Generation = ++_nextGeneration;
+        _children = new(this);
         _properties = new(this);
         _properties.InitializeDefault("Width", _state.Width, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         _properties.InitializeDefault("Height", _state.Height, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
@@ -387,8 +389,12 @@ internal class UiElement
     public UiElementId Id { get; }
     public uint Generation { get; }
     internal uint TreeVersion => _treeVersion;
-    public virtual string TypeName => "Element"; public UiElement? Parent { get; private set; }
+    public virtual string TypeName => "Element";
+    public UiElement? Parent => _nodeStore is { } store ? store.GetLogicalParent(this) : _detachedParent;
     public IReadOnlyList<UiElement> Children => _children;
+    private UiElement? _detachedParent;
+    internal UiNodeStore? NodeStore => _nodeStore;
+    internal List<UiElement> DetachedChildren => _detachedChildren;
     public UiVisibility Visibility { get; set; } = UiVisibility.Visible; public bool Focusable { get; set; }
     public Delta.XAML.UiParticipation Participation { get; private set; } = Delta.XAML.UiParticipation.All;
     internal bool ParticipatesIn(Delta.XAML.UiParticipation participation) => (Participation & participation) == participation;
@@ -457,16 +463,14 @@ internal class UiElement
             }
         }
 
-        if (child._nodeStore is not null)
-        {
-            throw new InvalidOperationException("A retained document root cannot be reparented while its node store is attached.");
-        }
-
-        if (child.Parent is { } currentParent &&
-            !ReferenceEquals(currentParent.RootElement, RootElement) &&
-            currentParent.RootElement._nodeStore is not null)
+        if (child._nodeStore is not null && !ReferenceEquals(child._nodeStore, _nodeStore))
         {
             throw new InvalidOperationException("An element cannot move between attached documents without being detached first.");
+        }
+
+        if (_nodeStore is null && child._nodeStore is not null)
+        {
+            throw new InvalidOperationException("A retained document root cannot be reparented while its node store is attached.");
         }
 
         if (child.Parent is { } parent)
@@ -474,13 +478,21 @@ internal class UiElement
             parent.Remove(child);
         }
 
-        child.Parent = this;
         if (_hasExplicitBindingContext && !child._hasExplicitBindingContext)
         {
             child.SetBindingContext(_bindingContext, false);
         }
 
-        _children.Add(child);
+        if (_nodeStore is { } store)
+        {
+            store.AddLogicalChild(this, child);
+        }
+        else
+        {
+            child._detachedParent = this;
+            _detachedChildren.Add(child);
+        }
+
         var invalidation = UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual;
         if (child.IsStyleDirty)
         {
@@ -488,27 +500,39 @@ internal class UiElement
         }
 
         InvalidateChanged(invalidation);
-        RootElement.NotifyNodeStoreChildAdded(this, child);
+        _nodeStore?.CommitTreeVersion();
     }
     public bool Remove(UiElement child)
     {
-        var index = _children.IndexOf(child);
+        ArgumentNullException.ThrowIfNull(child);
+        if (_nodeStore is { } store)
+        {
+            if (!store.RemoveLogicalChild(this, child))
+            {
+                return false;
+            }
+
+            InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+            store.CommitTreeVersion();
+            return true;
+        }
+
+        var index = _detachedChildren.IndexOf(child);
         if (index < 0)
         {
             return false;
         }
 
-        _children.RemoveAt(index);
-        child.Parent = null;
+        _detachedChildren.RemoveAt(index);
+        child._detachedParent = null;
         InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
-        RootElement.NotifyNodeStoreChildRemoved(this, child, index);
         return true;
     }
     public void ClearChildren()
     {
-        for (var i = _children.Count - 1; i >= 0; i--)
+        for (var i = Children.Count - 1; i >= 0; i--)
         {
-            Remove(_children[i]);
+            Remove(Children[i]);
         }
     }
     public void Invalidate(UiDirtyFlags flags)
@@ -912,34 +936,34 @@ internal class UiElement
         }
 
         _nodeStore = store;
+        _detachedParent = null;
+        _detachedChildren.Clear();
     }
 
-    internal void DetachNodeStore(UiNodeStore store)
+    internal void PrepareNodeStoreDetachment(UiNodeStore store)
+    {
+        if (!ReferenceEquals(_nodeStore, store))
+        {
+            throw new InvalidOperationException("The element is not owned by this node store.");
+        }
+
+        _detachedParent = null;
+        _detachedChildren.Clear();
+    }
+
+    internal void AddDetachedChild(UiElement child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        _detachedChildren.Add(child);
+        child._detachedParent = this;
+    }
+
+    internal void CompleteNodeStoreDetachment(UiNodeStore store)
     {
         if (ReferenceEquals(_nodeStore, store))
         {
             _nodeStore = null;
         }
-    }
-
-    private void NotifyNodeStoreChildAdded(UiElement parent, UiElement child)
-    {
-        if (_nodeStore is not { } store)
-        {
-            return;
-        }
-
-        store.ApplyChildAdded(parent, child);
-    }
-
-    private void NotifyNodeStoreChildRemoved(UiElement parent, UiElement child, int index)
-    {
-        if (_nodeStore is not { } store)
-        {
-            return;
-        }
-
-        store.ApplyChildRemoved(parent, child, index);
     }
 
     internal void ApplyBindingStage()
@@ -1078,12 +1102,9 @@ internal class UiElement
             element._bindingRuntimes.Clear();
             element._externalBindingRuntimes.Clear();
             element._compiledBindingRuntimes.Clear();
-            for (var childIndex = 0; childIndex < element._children.Count; childIndex++)
+            for (var childIndex = 0; childIndex < element.Children.Count; childIndex++)
             {
-                if (element._children[childIndex] is UiElement child)
-                {
-                    traversal.Add(child);
-                }
+                traversal.Add(element.Children[childIndex]);
             }
         }
     }
@@ -1109,11 +1130,11 @@ internal class UiElement
             binding.SetContext(value);
         }
 
-        foreach (var child in _children)
+        foreach (var child in Children)
         {
-            if (child is UiElement element && !element._hasExplicitBindingContext)
+            if (!child._hasExplicitBindingContext)
             {
-                element.SetBindingContext(value, false);
+                child.SetBindingContext(value, false);
             }
         }
     }

@@ -1665,9 +1665,17 @@ internal static partial class Program
     private static void NodeStoreHasSingleOwner()
     {
         var root = new Panel();
+        var initialChild = new Panel();
+        var initialGrandchild = new TextBlock { Text = "nested" };
+        initialChild.Add(initialGrandchild);
+        root.Add(initialChild);
         var first = new UiNodeStore(root);
         try
         {
+            Assert.Equal(0, root.DetachedChildren.Count, "attached root releases its composition child storage");
+            Assert.Equal(0, initialChild.DetachedChildren.Count, "attached descendants release their composition child storage");
+            Assert.True(ReferenceEquals(initialChild, root.Children[0]) && ReferenceEquals(root, initialChild.Parent), "public relations read the authoritative node store");
+            Assert.True(ReferenceEquals(initialGrandchild, initialChild.Children[0]), "nested public relations read the authoritative node store");
             var rejected = false;
             try
             {
@@ -1680,7 +1688,12 @@ internal static partial class Program
 
             Assert.True(rejected, "a retained root rejects a second authoritative node store");
             root.Add(new TextBlock { Text = "owned" });
-            Assert.Equal(2, first.Count, "the original node store remains authoritative after a rejected attach");
+            Assert.Equal(4, first.Count, "the original node store remains authoritative after a rejected attach");
+
+            Assert.True(root.Remove(initialChild), "attached subtree can be detached through the authoritative store");
+            Assert.True(initialChild.NodeStore is null && initialGrandchild.NodeStore is null, "detached subtree releases the document node store");
+            Assert.True(ReferenceEquals(initialGrandchild, initialChild.Children[0]) && ReferenceEquals(initialChild, initialGrandchild.Parent), "detached subtree reconstructs its cold composition relations");
+            Assert.Equal(2, first.Count, "detaching a subtree removes its complete node range");
         }
         finally
         {

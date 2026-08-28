@@ -28,18 +28,15 @@ internal sealed class UiNodeStore
             throw new InvalidOperationException("A node store requires a detached retained document root.");
         }
 
+        if (root.NodeStore is not null)
+        {
+            throw new InvalidOperationException("A retained root already has an authoritative node store.");
+        }
+
         _root = root;
         _layoutChildren = new(this, _layoutChildIds);
-        root.AttachNodeStore(this);
-        try
-        {
-            Refresh(root);
-        }
-        catch
-        {
-            root.DetachNodeStore(this);
-            throw;
-        }
+        Refresh(root);
+        AttachActiveElements();
     }
 
     internal void EnsureCurrent(UiElement root)
@@ -58,17 +55,18 @@ internal sealed class UiNodeStore
 
     internal void Detach()
     {
-        _root.DetachNodeStore(this);
+        RebuildDetachedRelations(default, detachWholeStore: true);
     }
 
-    internal void ApplyChildAdded(UiElement parent, UiElement child)
+    internal void AddLogicalChild(UiElement parent, UiElement child)
     {
         ArgumentNullException.ThrowIfNull(parent);
         ArgumentNullException.ThrowIfNull(child);
-        EnsureCurrentVersionBeforeMutation(parent);
-        if (!ReferenceEquals(child.Parent, parent) || !TryGetRecord(ToNodeId(parent), out var parentRecord))
+        EnsureCurrent(_root);
+        if (!ReferenceEquals(parent.NodeStore, this) || child.NodeStore is not null || child.Parent is not null ||
+            !TryGetRecord(ToNodeId(parent), out var parentRecord))
         {
-            throw new InvalidOperationException("The added element does not belong to the indexed parent.");
+            throw new InvalidOperationException("The added element must be detached and the parent must belong to this node store.");
         }
 
         var childId = ToNodeId(child);
@@ -77,9 +75,19 @@ internal sealed class UiNodeStore
             throw new InvalidOperationException("The added element is already registered in the node store.");
         }
 
-        var previous = parent.Children.Count > 1 && parent.Children[parent.Children.Count - 2] is UiElement previousChild
-            ? previousChild
-            : null;
+        UiNodeRecord? previous = null;
+        var siblingId = parentRecord.FirstLogicalChild;
+        while (siblingId.IsValid)
+        {
+            if (!TryGetRecord(siblingId, out var sibling))
+            {
+                throw new InvalidOperationException("The indexed parent contains a stale child relation.");
+            }
+
+            previous = sibling;
+            siblingId = sibling.NextLogicalSibling;
+        }
+
         if (!parentRecord.FirstLogicalChild.IsValid)
         {
             parentRecord.FirstLogicalChild = childId;
@@ -87,43 +95,126 @@ internal sealed class UiNodeStore
             _records[(int)parentRecord.Id.Index] = parentRecord;
         }
 
-        RegisterSubtree(child, parent, previous);
-        _treeVersion = _root.TreeVersion;
+        RegisterSubtree(child, parent, previous?.Element);
+        AttachSubtree(childId);
     }
 
-    internal void ApplyChildRemoved(UiElement parent, UiElement child, int index)
+    internal bool RemoveLogicalChild(UiElement parent, UiElement child)
     {
         ArgumentNullException.ThrowIfNull(parent);
         ArgumentNullException.ThrowIfNull(child);
-        EnsureCurrentVersionBeforeMutation(parent);
+        EnsureCurrent(_root);
         var parentId = ToNodeId(parent);
         var childId = ToNodeId(child);
         if (!TryGetRecord(parentId, out var parentRecord) || !TryGetRecord(childId, out var childRecord))
         {
-            throw new InvalidOperationException("The removed element is not registered in the node store.");
+            return false;
+        }
+
+        if (childRecord.LogicalParent != parentId)
+        {
+            return false;
         }
 
         var next = childRecord.NextLogicalSibling;
-        if (index == 0)
+        if (parentRecord.FirstLogicalChild == childId)
         {
             parentRecord.FirstLogicalChild = next;
-            parentRecord.FirstVisualChild = next;
-        }
-        else if (parent.Children[index - 1] is UiElement previous &&
-                 TryGetRecord(ToNodeId(previous), out var previousRecord))
-        {
-            previousRecord.NextLogicalSibling = next;
-            previousRecord.NextVisualSibling = childRecord.NextVisualSibling;
-            _records[(int)previousRecord.Id.Index] = previousRecord;
+            parentRecord.FirstVisualChild = childRecord.NextVisualSibling;
         }
         else
         {
-            throw new InvalidOperationException("The removed element has no indexed preceding sibling.");
+            var previousId = parentRecord.FirstLogicalChild;
+            var found = false;
+            while (previousId.IsValid && TryGetRecord(previousId, out var previousRecord))
+            {
+                if (previousRecord.NextLogicalSibling == childId)
+                {
+                    previousRecord.NextLogicalSibling = next;
+                    previousRecord.NextVisualSibling = childRecord.NextVisualSibling;
+                    _records[(int)previousRecord.Id.Index] = previousRecord;
+                    found = true;
+                    break;
+                }
+
+                previousId = previousRecord.NextLogicalSibling;
+            }
+
+            if (!found)
+            {
+                throw new InvalidOperationException("The removed element has no indexed preceding sibling.");
+            }
         }
 
         _records[(int)parentRecord.Id.Index] = parentRecord;
+        RebuildDetachedRelations(childId, detachWholeStore: false);
         RemoveSubtree(childId);
-        _treeVersion = _root.TreeVersion;
+        return true;
+    }
+
+    internal void CommitTreeVersion() => _treeVersion = _root.TreeVersion;
+
+    internal UiElement? GetLogicalParent(UiElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        if (!TryGetRecord(ToNodeId(element), out var record) || !record.LogicalParent.IsValid)
+        {
+            return null;
+        }
+
+        return TryGetRecord(record.LogicalParent, out var parent) ? parent.Element : null;
+    }
+
+    internal int GetLogicalChildCount(UiElement parent)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        if (!TryGetRecord(ToNodeId(parent), out var record))
+        {
+            throw new InvalidOperationException("The logical parent is not registered in this node store.");
+        }
+
+        var count = 0;
+        var child = record.FirstLogicalChild;
+        while (child.IsValid)
+        {
+            if (!TryGetRecord(child, out var childRecord))
+            {
+                throw new InvalidOperationException("The logical child relation is stale.");
+            }
+
+            count++;
+            child = childRecord.NextLogicalSibling;
+        }
+
+        return count;
+    }
+
+    internal UiElement GetLogicalChild(UiElement parent, int index)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        if (!TryGetRecord(ToNodeId(parent), out var record))
+        {
+            throw new InvalidOperationException("The logical parent is not registered in this node store.");
+        }
+
+        var child = record.FirstLogicalChild;
+        for (var position = 0; child.IsValid; position++)
+        {
+            if (!TryGetRecord(child, out var childRecord) || childRecord.Element is not { } element)
+            {
+                throw new InvalidOperationException("The logical child relation is stale.");
+            }
+
+            if (position == index)
+            {
+                return element;
+            }
+
+            child = childRecord.NextLogicalSibling;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(index));
     }
 
     internal bool TryResolve(UiPropertyHandle handle, [NotNullWhen(true)] out UiElement? element)
@@ -277,6 +368,114 @@ internal sealed class UiNodeStore
         _treeVersion = root.TreeVersion;
     }
 
+    private void AttachActiveElements()
+    {
+        for (var i = 0; i < _activeIndices.Count; i++)
+        {
+            var record = _records[_activeIndices[i]];
+            record.Element?.AttachNodeStore(this);
+        }
+    }
+
+    private void AttachSubtree(UiNodeId root)
+    {
+        _removalQueue.Clear();
+        _removalQueue.Add(root);
+        for (var i = 0; i < _removalQueue.Count; i++)
+        {
+            var id = _removalQueue[i];
+            if (!TryGetRecord(id, out var record) || record.Element is not { } element)
+            {
+                throw new InvalidOperationException("The newly registered subtree contains a stale node.");
+            }
+
+            var child = record.FirstLogicalChild;
+            while (child.IsValid)
+            {
+                _removalQueue.Add(child);
+                if (!TryGetRecord(child, out var childRecord))
+                {
+                    throw new InvalidOperationException("The newly registered subtree contains a stale child relation.");
+                }
+
+                child = childRecord.NextLogicalSibling;
+            }
+
+            element.AttachNodeStore(this);
+        }
+    }
+
+    private void RebuildDetachedRelations(UiNodeId root, bool detachWholeStore)
+    {
+        _removalQueue.Clear();
+        if (detachWholeStore)
+        {
+            for (var i = 0; i < _activeIndices.Count; i++)
+            {
+                _removalQueue.Add(_records[_activeIndices[i]].Id);
+            }
+        }
+        else
+        {
+            _removalQueue.Add(root);
+            for (var i = 0; i < _removalQueue.Count; i++)
+            {
+                if (!TryGetRecord(_removalQueue[i], out var record))
+                {
+                    continue;
+                }
+
+                var child = record.FirstLogicalChild;
+                while (child.IsValid)
+                {
+                    _removalQueue.Add(child);
+                    if (!TryGetRecord(child, out var childRecord))
+                    {
+                        break;
+                    }
+
+                    child = childRecord.NextLogicalSibling;
+                }
+            }
+        }
+
+        for (var i = 0; i < _removalQueue.Count; i++)
+        {
+            if (TryGetRecord(_removalQueue[i], out var record) && record.Element is { } element)
+            {
+                element.PrepareNodeStoreDetachment(this);
+            }
+        }
+
+        for (var i = 0; i < _removalQueue.Count; i++)
+        {
+            if (!TryGetRecord(_removalQueue[i], out var record) || record.Element is not { } parent)
+            {
+                continue;
+            }
+
+            var child = record.FirstLogicalChild;
+            while (child.IsValid)
+            {
+                if (!TryGetRecord(child, out var childRecord) || childRecord.Element is not { } childElement)
+                {
+                    break;
+                }
+
+                parent.AddDetachedChild(childElement);
+                child = childRecord.NextLogicalSibling;
+            }
+        }
+
+        for (var i = 0; i < _removalQueue.Count; i++)
+        {
+            if (TryGetRecord(_removalQueue[i], out var record) && record.Element is { } element)
+            {
+                element.CompleteNodeStoreDetachment(this);
+            }
+        }
+    }
+
     private void RegisterSubtree(UiElement root, UiElement? parent, UiElement? previousSibling)
     {
         _registrationQueue.Clear();
@@ -382,14 +581,6 @@ internal sealed class UiNodeStore
         _activeIndices.RemoveAt(lastPosition);
         _activePositions[lastIndex] = position;
         _activePositions[index] = -1;
-    }
-
-    private void EnsureCurrentVersionBeforeMutation(UiElement parent)
-    {
-        if (!ReferenceEquals(parent.RootElement, _root) || _treeVersion != _root.TreeVersion - 1)
-        {
-            throw new InvalidOperationException("The retained tree mutation is not owned by this node store.");
-        }
     }
 
     private bool TryGetRecord(UiNodeId id, out UiNodeRecord record, bool validateGeneration = true)
