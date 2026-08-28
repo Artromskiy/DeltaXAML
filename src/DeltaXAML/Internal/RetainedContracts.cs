@@ -84,13 +84,6 @@ internal interface IUiBinding
 {
     object? Read(); bool TryWrite(object? value, [NotNullWhen(false)] out string? diagnostic); event EventHandler? Changed;
 }
-internal interface IUiPropertyStore
-{
-    void SetDefault(string name, object? value, UiDirtyFlags invalidation); void SetLocal(string name, object? value, UiDirtyFlags invalidation); void SetStyle(string name, object? value, UiDirtyFlags invalidation);
-    void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation); void SetHandle(string name, object? value, UiDirtyFlags invalidation); void Clear(string name, UiValueSource source); bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value);
-    UiPropertyHandle GetHandle(string name); bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic);
-}
-
 internal readonly record struct UiClipId(uint Value);
 /// <summary>Renderer-neutral text request; it is not shaped glyph data.</summary>
 /// <remarks>DeltaXAML owns content, style, layout bounds, DPI-dependent text metrics and identity. Owner plus OwnerGeneration identify retained lifetime; Version identifies text/style/DPI dirtiness. Layout changes are represented by Bounds, Clip and draw-list deltas. Shaping and glyph pixels remain external.</remarks>

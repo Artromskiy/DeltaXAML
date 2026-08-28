@@ -71,7 +71,7 @@ internal sealed class UiBindingValue : IUiBinding
     public event EventHandler? Changed; public void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
 }
 
-internal sealed class UiPropertyStore : IUiPropertyStore
+internal sealed class UiPropertyStore
 {
     private readonly Dictionary<string, IUiValue> _values = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SourceSlots> _slots = new(StringComparer.Ordinal);
@@ -118,10 +118,6 @@ internal sealed class UiPropertyStore : IUiPropertyStore
         _resourceBindings.Clear();
         _bindings.Clear();
     }
-    void IUiPropertyStore.SetDefault(string name, object? value, UiDirtyFlags invalidation) => SetDefault(name, value, invalidation);
-    void IUiPropertyStore.SetLocal(string name, object? value, UiDirtyFlags invalidation) => SetLocal(name, value, invalidation);
-    void IUiPropertyStore.SetStyle(string name, object? value, UiDirtyFlags invalidation) => SetStyle(name, value, invalidation);
-    void IUiPropertyStore.SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => SetBinding(name, binding, invalidation);
     public void InitializeDefault(string name, object? value, UiDirtyFlags invalidation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -324,7 +320,7 @@ internal sealed class UiPropertyStore : IUiPropertyStore
     }
 }
 
-internal class UiElement : IUiPropertyStore
+internal class UiElement
 {
     private static uint _nextId;
     private static uint _nextGeneration;
