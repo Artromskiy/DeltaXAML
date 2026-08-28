@@ -246,6 +246,7 @@ internal static partial class Program
         ScrollAndClips();
         TextDisplayListUsesDeltaText();
         DisplayListDirtySubtreeReusesStableText();
+        TextCacheDropsRemovedNodes();
         DpiInvalidatesLayoutWithoutCompoundingScale();
         CustomVisualsRemainNeutral();
         PublicDisplayListWarmFrameHasNoAllocations();
@@ -777,6 +778,37 @@ internal static partial class Program
         Assert.Equal(3, resolver.ResolveCount, "dirty extraction resolves only the changed text subtree");
         Assert.Equal(3, textService.ShapeCount, "dirty extraction reshapes only the changed text");
         Assert.True(ReferenceEquals(stableShaped, second.Text[1].Text), "dirty extraction reuses the stable shaped text");
+    }
+
+    private static void TextCacheDropsRemovedNodes()
+    {
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
+        var fonts = new Library.UiFontCatalog();
+        fonts.Register(
+            "default",
+            new TextContract.FontSourceId(new Guid("5B9AA8C5-4B0A-4AE4-8B6D-9E2F6C2D46B0")),
+            File.ReadAllBytes(fontPath));
+        var root = new Library.UiPanel { Width = 100, Height = 40 };
+        var removed = new Library.UiTextBlock { Text = "removed", Width = 100, Height = 20 };
+        var retained = new Library.UiTextBlock { Text = "retained", Width = 100, Height = 20 };
+        root.Add(removed);
+        root.Add(retained);
+        using var textService = new CountingTextService();
+        using var document = new Library.UiDocument(root, textService, fonts);
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        _ = document.BuildDisplayList();
+        Assert.Equal(2, document.TextCacheCount, "initial extraction caches both live text nodes");
+
+        root.Remove(removed);
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        _ = document.BuildDisplayList();
+        Assert.Equal(1, document.TextCacheCount, "structural extraction drops the removed text cache entry");
+
+        root.Add(removed);
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        _ = document.BuildDisplayList();
+        Assert.Equal(2, document.TextCacheCount, "re-added text gets one live cache entry");
+        Assert.Equal(3, textService.ShapeCount, "re-added text reshapes after its old cache entry was removed");
     }
 
     private static void DpiInvalidatesLayoutWithoutCompoundingScale()

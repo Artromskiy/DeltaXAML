@@ -927,6 +927,7 @@ public sealed class UiDocument : IDisposable
     private readonly UiTheme? _theme;
     private readonly Dictionary<string, FontInstanceId> _fontInstances = new(StringComparer.Ordinal);
     private readonly Dictionary<UiTextCacheKey, UiTextCacheEntry> _textCache = new();
+    private readonly List<UiTextCacheKey> _staleTextCacheKeys = new();
     private readonly FontInstanceId[] _singleFontFallback = new FontInstanceId[1];
     private UiVisualCommand[] _visuals = Array.Empty<UiVisualCommand>();
     private UiClip[] _clips = Array.Empty<UiClip>();
@@ -941,6 +942,8 @@ public sealed class UiDocument : IDisposable
     private float2 _displayListViewport;
     private bool _hasDisplayList;
     private bool _disposed;
+
+    internal int TextCacheCount => _textCache.Count;
 
     public UiDocument(UiElement root, ITextService textService)
         : this(root, textService, EmptyFontResolver.Instance)
@@ -1099,12 +1102,39 @@ public sealed class UiDocument : IDisposable
             return false;
         }
 
+        PruneTextCache();
+
         _displayListVersion = retainedRoot.OutputVersion;
         _displayListTreeVersion = retainedRoot.TreeVersion;
         _displayListViewport = viewport;
         _hasDisplayList = true;
         displayList = new(_visuals.AsSpan(0, _visualCount), _clips.AsSpan(0, _clipCount), _text.AsSpan(0, _textCount));
         return true;
+    }
+
+    private void PruneTextCache()
+    {
+        if (_textCache.Count == 0)
+        {
+            return;
+        }
+
+        _staleTextCacheKeys.Clear();
+        foreach (var pair in _textCache)
+        {
+            var node = new Retained.UiNodeId(pair.Key.Owner.Value, pair.Key.Generation);
+            if (!_runtime.TryGetNode(node, out _))
+            {
+                _staleTextCacheKeys.Add(pair.Key);
+            }
+        }
+
+        for (var i = 0; i < _staleTextCacheKeys.Count; i++)
+        {
+            _textCache.Remove(_staleTextCacheKeys[i]);
+        }
+
+        _staleTextCacheKeys.Clear();
     }
 
     private bool TryUpdateVisuals(
