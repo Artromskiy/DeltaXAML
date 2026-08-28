@@ -858,13 +858,13 @@ internal static partial class Program
         using var document = new Library.UiDocument(root, textService, resolver);
         document.Layout(new Delta.Maths.float2(100, 40), 1);
         var first = document.BuildDisplayList();
-        Assert.Equal(2, resolver.ResolveCount, "initial display extraction resolves both text runs");
+        Assert.Equal(1, resolver.ResolveCount, "initial display extraction resolves one shared font and reuses its identity");
         var stableShaped = first.Text[1].Text;
 
         changed.Text = "B";
         document.Layout(new Delta.Maths.float2(100, 40), 1);
         var second = document.BuildDisplayList();
-        Assert.Equal(3, resolver.ResolveCount, "dirty extraction resolves only the changed text subtree");
+        Assert.Equal(1, resolver.ResolveCount, "dirty extraction reuses the changed text subtree font slot");
         Assert.Equal(3, textService.ShapeCount, "dirty extraction reshapes only the changed text");
         Assert.True(ReferenceEquals(stableShaped, second.Text[1].Text), "dirty extraction reuses the stable shaped text");
     }
