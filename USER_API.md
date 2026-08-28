@@ -205,6 +205,12 @@ Generated companion code supplies factories, property metadata and runtime
 operation thunks. User controls are not required to be `partial`, do not store
 algorithms in the class, and do not register runtime property dictionaries.
 
+`XamlTypeCatalog.Register(name, factory)` assigns a deterministic identity from
+the qualified XAML name for local catalog use. Generated or shared artifacts
+should use `Register(name, UiTypeId, factory)` with a caller-assigned stable ID;
+the catalog indexes both name and identity and rejects one identity registered
+for different names.
+
 ## Ownership summary
 
 ```text

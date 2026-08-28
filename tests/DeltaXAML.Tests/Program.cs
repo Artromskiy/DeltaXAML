@@ -253,6 +253,7 @@ internal static partial class Program
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
         PublicResourcesStylesTemplatesAndTypes();
+        TypeCatalogUsesStableIds();
         LibraryFacadeSmoke();
         FrameContractAndBatchedMutations();
         ParticipationBoundary();
@@ -507,6 +508,39 @@ internal static partial class Program
         using var textDocumentOwner = new Library.UiDocument(textRoot, textDocument);
         textDocumentOwner.Layout(new Delta.Maths.float2(80, 20), 1);
         Assert.True(!textDocumentOwner.TryBuildDisplayList(out _, out var textDiagnostic) && textDiagnostic is { } unsupported && unsupported.Code.Value == "XAML_TEXT_FONT_NOT_FOUND", "unregistered text font returns a diagnostic");
+    }
+
+    private static void TypeCatalogUsesStableIds()
+    {
+        var name = new Library.XamlQualifiedName("urn:sample", "Badge");
+        var first = new Library.XamlTypeCatalog();
+        first.Register(name, static () => new Library.UiBorder());
+        Assert.True(first.TryResolveName(name, out var firstId), "type catalog resolves a registered name");
+
+        var second = new Library.XamlTypeCatalog();
+        second.Register(name, static () => new Library.UiBorder());
+        Assert.True(second.TryResolveName(name, out var secondId) && firstId == secondId, "implicit custom type identity is stable across catalog instances");
+
+        var explicitId = new Library.UiTypeId(new Guid("A9F13A7D-E6FA-4F11-9B28-3D87B9F4EE51"));
+        var explicitCatalog = new Library.XamlTypeCatalog();
+        explicitCatalog.Register(name, explicitId, static () => new Library.UiBorder());
+        Assert.True(explicitCatalog.TryResolveName(name, out var resolvedId) && resolvedId == explicitId, "explicit custom type identity is preserved");
+        Assert.True(explicitCatalog.TryCreate(explicitId, out var created) && created is Library.UiBorder, "custom factory resolves through the indexed type identity");
+
+        var duplicate = new Library.XamlTypeCatalog();
+        duplicate.Register(name, explicitId, static () => new Library.UiBorder());
+        var duplicateName = new Library.XamlQualifiedName("urn:other", "Badge");
+        var threw = false;
+        try
+        {
+            duplicate.Register(duplicateName, explicitId, static () => new Library.UiBorder());
+        }
+        catch (ArgumentException)
+        {
+            threw = true;
+        }
+
+        Assert.True(threw, "a stable type identity cannot be registered for two XAML names");
     }
 
     private static void TextDisplayListUsesDeltaText()
