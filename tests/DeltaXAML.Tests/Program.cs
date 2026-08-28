@@ -260,6 +260,7 @@ internal static partial class Program
         ParticipationBoundary();
         RuntimeLayoutQueuesAreNonRecursive();
         NodeStagesFollowStructuralMutations();
+        DisplayExtractionFollowsNodeLinksAfterTreeMutation();
         DescriptorLayoutDispatch();
     }
 
@@ -1179,6 +1180,39 @@ internal static partial class Program
         runtime.Layout(new(100, 40), 2f);
         Assert.Equal(1, runtime.NodeCount, "binding and scale stages discard a removed node");
         Assert.Equal(1f, child.DpiScale, "detached child is not processed by the node-backed scale stage");
+    }
+
+    private static void DisplayExtractionFollowsNodeLinksAfterTreeMutation()
+    {
+        var root = new Library.UiPanel { Width = 100, Height = 40, Background = new(1, 2, 3) };
+        var firstChild = new Library.UiPanel { Width = 20, Height = 10, Background = new(4, 5, 6) };
+        var secondChild = new Library.UiPanel { Width = 30, Height = 10, Background = new(7, 8, 9) };
+        root.Add(firstChild);
+        root.Add(secondChild);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(root, textService);
+
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        var initial = document.BuildDisplayList();
+        Assert.Equal(3, initial.Visuals.Length, "initial visual extraction follows retained child order");
+        var initialFirst = initial.Visuals[1];
+        var initialSecond = initial.Visuals[2];
+
+        var lateChild = new Library.UiPanel { Width = 40, Height = 10, Background = new(10, 11, 12) };
+        root.Add(lateChild);
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        var added = document.BuildDisplayList();
+        Assert.Equal(4, added.Visuals.Length, "visual extraction refreshes after a child is added");
+        Assert.Equal(initialFirst with { Clip = added.Visuals[1].Clip }, added.Visuals[1], "first child visual remains in stable order");
+        Assert.Equal(initialSecond with { Clip = added.Visuals[2].Clip }, added.Visuals[2], "second child visual remains in stable order");
+        var lateVisual = added.Visuals[3];
+
+        root.Remove(firstChild);
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        var removed = document.BuildDisplayList();
+        Assert.Equal(3, removed.Visuals.Length, "visual extraction refreshes after a child is removed");
+        Assert.Equal(initialSecond with { Clip = removed.Visuals[1].Clip }, removed.Visuals[1], "remaining child visual follows node-store sibling links");
+        Assert.Equal(lateVisual with { Clip = removed.Visuals[2].Clip }, removed.Visuals[2], "late child visual remains last after removal");
     }
 
     private static void DescriptorLayoutDispatch()

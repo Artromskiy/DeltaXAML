@@ -94,6 +94,12 @@ internal sealed class UiRuntime
         return _nodes.TryGetNode(id, out record);
     }
 
+    internal bool TryCopyVisualChildren(UiNodeId parent, List<UiNodeId> destination)
+    {
+        _nodes.EnsureCurrent(_retainedRoot);
+        return _nodes.TryCopyVisualChildren(parent, destination);
+    }
+
     internal bool Contains(UiElement element)
     {
         ArgumentNullException.ThrowIfNull(element);

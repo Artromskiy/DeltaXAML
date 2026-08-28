@@ -906,6 +906,7 @@ public sealed class UiDocument : IDisposable
     private UiClip[] _clips = Array.Empty<UiClip>();
     private UiTextDraw[] _text = Array.Empty<UiTextDraw>();
     private readonly List<VisualVisit> _visualTraversal = new();
+    private readonly List<Retained.UiNodeId> _visualChildOrder = new();
     private int _visualCount;
     private int _clipCount;
     private int _textCount;
@@ -1024,6 +1025,7 @@ public sealed class UiDocument : IDisposable
     {
         diagnostic = null;
         var retainedRoot = Root.RetainedElement;
+        var rootId = new Retained.UiNodeId(retainedRoot.Id.Value, retainedRoot.Generation);
         var viewport = new float2(retainedRoot.Bounds.Width, retainedRoot.Bounds.Height);
         if (_hasDisplayList && _displayListVersion == retainedRoot.OutputVersion && _displayListViewport == viewport)
         {
@@ -1034,7 +1036,7 @@ public sealed class UiDocument : IDisposable
 
         if (_hasDisplayList &&
             _displayListTreeVersion == retainedRoot.TreeVersion &&
-            TryUpdateVisuals(retainedRoot, new Retained.UiRect(0, 0, viewport.x, viewport.y), UiClipId.None, out var compatible, out diagnostic) &&
+            TryUpdateVisuals(rootId, new Retained.UiRect(0, 0, viewport.x, viewport.y), UiClipId.None, out var compatible, out diagnostic) &&
             compatible)
         {
             _displayListVersion = retainedRoot.OutputVersion;
@@ -1052,7 +1054,7 @@ public sealed class UiDocument : IDisposable
         _visualCount = 0;
         _clipCount = 0;
         _textCount = 0;
-        if (!TryExtractVisuals(retainedRoot, new Retained.UiRect(0, 0, viewport.x, viewport.y), UiClipId.None, out diagnostic))
+        if (!TryExtractVisuals(rootId, new Retained.UiRect(0, 0, viewport.x, viewport.y), UiClipId.None, out diagnostic))
         {
             displayList = default;
             return false;
@@ -1067,7 +1069,7 @@ public sealed class UiDocument : IDisposable
     }
 
     private bool TryUpdateVisuals(
-        RetainedElement element,
+        Retained.UiNodeId root,
         Retained.UiRect clip,
         UiClipId parentClip,
         out bool compatible,
@@ -1079,13 +1081,17 @@ public sealed class UiDocument : IDisposable
         var visualCount = 0;
         var textCount = 0;
         _visualTraversal.Clear();
-        _visualTraversal.Add(new(element, clip, parentClip));
+        _visualTraversal.Add(new(root, clip, parentClip));
         while (_visualTraversal.Count != 0)
         {
             var last = _visualTraversal.Count - 1;
             var visit = _visualTraversal[last];
             _visualTraversal.RemoveAt(last);
-            var current = visit.Element;
+            if (!_runtime.TryGetNode(visit.Id, out var node) || node.Element is not { } current)
+            {
+                return true;
+            }
+
             if (current.Visibility != Retained.UiVisibility.Visible ||
                 (current.Participation & UiParticipation.Layout) == 0)
             {
@@ -1171,12 +1177,14 @@ public sealed class UiDocument : IDisposable
             }
 
             current.CompleteVisualExtraction();
-            for (var i = current.Children.Count - 1; i >= 0; i--)
+            if (!_runtime.TryCopyVisualChildren(visit.Id, _visualChildOrder))
             {
-                if (current.Children[i] is RetainedElement child)
-                {
-                    _visualTraversal.Add(new(child, effective, new UiClipId(current.DisplayClipIndex)));
-                }
+                return true;
+            }
+
+            for (var i = _visualChildOrder.Count - 1; i >= 0; i--)
+            {
+                _visualTraversal.Add(new(_visualChildOrder[i], effective, new UiClipId(current.DisplayClipIndex)));
             }
         }
 
@@ -1189,30 +1197,44 @@ public sealed class UiDocument : IDisposable
         return true;
     }
 
-    private bool TryExtractVisuals(RetainedElement element, Retained.UiRect clip, UiClipId parentClip, out Diagnostic? diagnostic)
+    private bool TryExtractVisuals(Retained.UiNodeId root, Retained.UiRect clip, UiClipId parentClip, out Diagnostic? diagnostic)
     {
         diagnostic = null;
         _visualTraversal.Clear();
-        _visualTraversal.Add(new(element, clip, parentClip));
+        _visualTraversal.Add(new(root, clip, parentClip));
         while (_visualTraversal.Count != 0)
         {
             var last = _visualTraversal.Count - 1;
             var visit = _visualTraversal[last];
             _visualTraversal.RemoveAt(last);
-            var current = visit.Element;
+            if (!_runtime.TryGetNode(visit.Id, out var node) || node.Element is not { } current)
+            {
+                diagnostic = NodeDiagnostic(visit.Id);
+                return false;
+            }
+
             if (visit.Exit)
             {
                 var clips = 1;
                 var visuals = current.DisplayVisualIndex >= 0 ? 1 : 0;
                 var text = current.DisplayTextIndex >= 0 ? 1 : 0;
-                for (var i = 0; i < current.Children.Count; i++)
+                if (!_runtime.TryCopyVisualChildren(visit.Id, _visualChildOrder))
                 {
-                    if (current.Children[i] is RetainedElement child)
+                    diagnostic = NodeDiagnostic(visit.Id);
+                    return false;
+                }
+
+                for (var i = 0; i < _visualChildOrder.Count; i++)
+                {
+                    if (!_runtime.TryGetNode(_visualChildOrder[i], out var childNode) || childNode.Element is not { } child)
                     {
-                        clips += child.DisplayClipCount;
-                        visuals += child.DisplayVisualCount;
-                        text += child.DisplayTextCount;
+                        diagnostic = NodeDiagnostic(_visualChildOrder[i]);
+                        return false;
                     }
+
+                    clips += child.DisplayClipCount;
+                    visuals += child.DisplayVisualCount;
+                    text += child.DisplayTextCount;
                 }
 
                 current.SetDisplaySubtreeCounts(clips, visuals, text);
@@ -1256,14 +1278,17 @@ public sealed class UiDocument : IDisposable
 
             current.SetDisplayRange(clipId.Value, visualIndex, textIndex);
             current.CompleteVisualExtraction();
-            _visualTraversal.Add(new(current, effective, visit.ParentClip, true));
+            _visualTraversal.Add(new(visit.Id, effective, visit.ParentClip, true));
 
-            for (var i = current.Children.Count - 1; i >= 0; i--)
+            if (!_runtime.TryCopyVisualChildren(visit.Id, _visualChildOrder))
             {
-                if (current.Children[i] is RetainedElement child)
-                {
-                    _visualTraversal.Add(new(child, effective, clipId));
-                }
+                diagnostic = NodeDiagnostic(visit.Id);
+                return false;
+            }
+
+            for (var i = _visualChildOrder.Count - 1; i >= 0; i--)
+            {
+                _visualTraversal.Add(new(_visualChildOrder[i], effective, clipId));
             }
         }
 
@@ -1405,21 +1430,24 @@ public sealed class UiDocument : IDisposable
     private static Diagnostic TextDiagnostic(string code, string message) =>
         new(new DiagnosticCode(code), DiagnosticSeverity.Error, message, null);
 
+    private static Diagnostic NodeDiagnostic(Retained.UiNodeId node) =>
+        new(new DiagnosticCode("XAML_NODE_STALE"), DiagnosticSeverity.Error, $"Visual node {node.Index}:{node.Generation} could not be resolved.", null);
+
     private readonly record struct UiTextCacheKey(Retained.UiElementId Owner, uint Generation, string GlyphRunKey);
 
     private sealed record UiTextCacheEntry(string FontKey, string Text, float FontSize, ShapedText Shaped);
 
     private readonly struct VisualVisit
     {
-        public VisualVisit(RetainedElement element, Retained.UiRect clip, UiClipId parentClip, bool exit = false)
+        public VisualVisit(Retained.UiNodeId id, Retained.UiRect clip, UiClipId parentClip, bool exit = false)
         {
-            Element = element;
+            Id = id;
             Clip = clip;
             ParentClip = parentClip;
             Exit = exit;
         }
 
-        public RetainedElement Element { get; }
+        public Retained.UiNodeId Id { get; }
         public Retained.UiRect Clip { get; }
         public UiClipId ParentClip { get; }
         public bool Exit { get; }

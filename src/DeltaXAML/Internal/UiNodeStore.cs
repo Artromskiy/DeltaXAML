@@ -103,6 +103,31 @@ internal sealed class UiNodeStore
         }
     }
 
+    internal bool TryCopyVisualChildren(UiNodeId parent, List<UiNodeId> destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        destination.Clear();
+        if (!TryGetRecord(parent, out var parentRecord))
+        {
+            return false;
+        }
+
+        var childId = parentRecord.FirstVisualChild;
+        while (childId.IsValid)
+        {
+            if (!TryGetRecord(childId, out var child))
+            {
+                destination.Clear();
+                return false;
+            }
+
+            destination.Add(child.Id);
+            childId = child.NextVisualSibling;
+        }
+
+        return true;
+    }
+
     private bool TryGetFirstChild(UiNodeId parent, bool visual, out UiNodeRecord child)
     {
         if (!TryGetRecord(parent, out var record))
