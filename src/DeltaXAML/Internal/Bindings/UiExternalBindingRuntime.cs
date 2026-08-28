@@ -40,6 +40,9 @@ internal sealed class UiExternalBindingRuntime : IDisposable
 
     internal string PropertyName => _propertyName;
 
+    internal bool IsTemplateOwnerRelation =>
+        _binding is IUiRelationBindingMetadata { SourceKind: Delta.XAML.UiBindingSourceKind.TemplateOwner };
+
     internal void Attach()
     {
         ApplyValue();
@@ -88,6 +91,11 @@ internal sealed class UiExternalBindingRuntime : IDisposable
         {
             changed.Changed -= OnBindingChanged;
             _subscribed = false;
+        }
+
+        if (_binding is IDisposable disposable)
+        {
+            disposable.Dispose();
         }
     }
 

@@ -8,13 +8,14 @@ namespace DeltaXAML.Internal;
 [Flags] internal enum UiDirtyMask { None = 0, Tree = 1, Style = 2, Binding = 4, Measure = 8, Arrange = 16, Visual = 32, HitTest = 64, Resource = 128, BindingSubtree = 256, Text = 512 }
 internal enum UiVisibility { Visible, Hidden, Collapsed }
 internal enum UiOrientation { Horizontal, Vertical }
-internal enum UiValueSource { Default, Local, Style, Binding, Handle, Animation }
+internal enum UiValueSource { Default, Local, Style, Trigger, Binding, Handle, Animation }
 internal enum UiPropertyKey
 {
     Unknown,
     Width,
     Height,
     Background,
+    BackgroundBrush,
     Padding,
     Fill,
     IsEnabled,
@@ -29,6 +30,20 @@ internal enum UiPropertyKey
     Value,
     Minimum,
     Maximum,
+    Step,
+    Source,
+    Tint,
+    SelectedIndex,
+    IsOpen,
+    AutomationName,
+    AutomationRole,
+    Gestures,
+    Command,
+    CommandKey,
+    IsFocusScope,
+    Stretch,
+    Placeholder,
+    ErrorSource,
 }
 
 internal static class UiPropertyKeys
@@ -38,6 +53,7 @@ internal static class UiPropertyKeys
         "Width" => UiPropertyKey.Width,
         "Height" => UiPropertyKey.Height,
         "Background" => UiPropertyKey.Background,
+        "BackgroundBrush" => UiPropertyKey.BackgroundBrush,
         "Padding" => UiPropertyKey.Padding,
         "Fill" => UiPropertyKey.Fill,
         "IsEnabled" => UiPropertyKey.IsEnabled,
@@ -52,6 +68,20 @@ internal static class UiPropertyKeys
         "Value" => UiPropertyKey.Value,
         "Minimum" => UiPropertyKey.Minimum,
         "Maximum" => UiPropertyKey.Maximum,
+        "Step" => UiPropertyKey.Step,
+        "Source" => UiPropertyKey.Source,
+        "Tint" => UiPropertyKey.Tint,
+        "SelectedIndex" => UiPropertyKey.SelectedIndex,
+        "IsOpen" => UiPropertyKey.IsOpen,
+        "AutomationName" => UiPropertyKey.AutomationName,
+        "AutomationRole" => UiPropertyKey.AutomationRole,
+        "Gestures" => UiPropertyKey.Gestures,
+        "Command" => UiPropertyKey.Command,
+        "CommandKey" => UiPropertyKey.CommandKey,
+        "IsFocusScope" => UiPropertyKey.IsFocusScope,
+        "Stretch" => UiPropertyKey.Stretch,
+        "Placeholder" => UiPropertyKey.Placeholder,
+        "ErrorSource" => UiPropertyKey.ErrorSource,
         _ => UiPropertyKey.Unknown,
     };
 
@@ -74,6 +104,13 @@ internal static class UiPropertyKeys
             "Width" or "Height" or "FontSize" => typeof(float),
             "Fill" or "IsEnabled" or "IsSelected" => typeof(bool),
             "Background" or "Foreground" => typeof(UiColor),
+            "BackgroundBrush" => typeof(Delta.XAML.UiBrush),
+            "AutomationName" => typeof(string),
+            "AutomationRole" => typeof(Delta.XAML.UiSemanticRole),
+            "Gestures" => typeof(Delta.XAML.UiGestureKind),
+            "Command" => typeof(Delta.XAML.UiCommandId),
+            "CommandKey" => typeof(Delta.XAML.UiKeyGesture),
+            "IsFocusScope" => typeof(bool),
             _ => typeof(object),
         };
     }
@@ -118,7 +155,7 @@ internal readonly record struct UiResourceReference(string Key, Guid ResourceId 
 
     internal bool HasResourceId => ResourceId != Guid.Empty;
 }
-internal enum UiAutomationRole { None, Unknown, Generic, Button, Window, Text, TextBox, NumericEditor }
+internal enum UiAutomationRole { None, Unknown, Generic, Button, Window, Text, TextBox, NumericEditor, Slider, Image, List, ListItem, Menu, Tab, Link }
 internal readonly record struct UiAutomationMetadata(string Name, UiAutomationRole Role, string ValueText, bool IsEnabled, bool IsInvalid);
 internal enum UiVisualState { Normal, Hover, Pressed, Focused, Disabled, Invalid, Selected }
 internal readonly record struct UiStateSnapshot(UiVisualState State, bool IsEnabled, bool IsInvalid, bool IsSelected, bool IsFocused, bool IsHovered, bool IsPressed);
@@ -143,7 +180,18 @@ internal readonly record struct UiArrangeContext(
 internal readonly record struct UiMeasureRequest(UiNodeId Element, UiSize Available);
 internal readonly record struct UiArrangeRequest(UiNodeId Element, UiRect Bounds, UiRect Clip);
 internal readonly record struct UiTextVisualContext(UiElementId Owner, uint OwnerGeneration, float LayoutScale, uint Version);
-internal readonly record struct UiBindingSpec(string Property, string Path, UiBindingMode Mode, string? ConverterKey, string? StringFormat);
+internal readonly record struct UiBindingSpec(
+    string Property,
+    string Path,
+    UiBindingMode Mode,
+    string? ConverterKey,
+    string? StringFormat,
+    string? CultureName);
+
+internal interface IUiRelationBindingMetadata
+{
+    Delta.XAML.UiBindingSourceKind SourceKind { get; }
+}
 
 internal enum UiRoutedEventPhase { Preview, Bubble }
 internal readonly record struct UiRoutedEvent(
@@ -151,7 +199,8 @@ internal readonly record struct UiRoutedEvent(
     UiRoutedEventPhase Phase,
     UiPointerEventKind Kind,
     float2 Position,
-    float2 WheelDelta);
+    float2 WheelDelta,
+    UiElement? Origin = null);
 internal interface IUiClipboard
 {
     string? ReadText();

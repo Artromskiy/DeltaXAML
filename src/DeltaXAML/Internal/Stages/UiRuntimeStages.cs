@@ -4,7 +4,7 @@ namespace DeltaXAML.Internal;
 
 internal static class UiInputStage
 {
-    internal static void Run(UiInputRouter router, List<UiInputEvent> queue)
+    internal static void Run(UiInputRouter router, List<Delta.XAML.UiInputSample> queue)
     {
         ArgumentNullException.ThrowIfNull(router);
         ArgumentNullException.ThrowIfNull(queue);
@@ -185,6 +185,68 @@ internal static class UiScaleStage
     }
 }
 
+internal static class UiImageMetadataStage
+{
+    internal static void Run(
+        Delta.XAML.IUiImageMetadataResolver? resolver,
+        UiNodeStore nodes,
+        UiElement root,
+        List<UiNodeId> traversal,
+        List<UiNodeId> childOrder)
+    {
+        if (resolver is null)
+        {
+            return;
+        }
+
+        ArgumentNullException.ThrowIfNull(nodes);
+        ArgumentNullException.ThrowIfNull(root);
+        traversal.Clear();
+        traversal.Add(new(root.Id.Value, root.Generation));
+        while (traversal.Count != 0)
+        {
+            var last = traversal.Count - 1;
+            var id = traversal[last];
+            traversal.RemoveAt(last);
+            if (!nodes.TryGetNode(id, out var record) || record.Element is not { } element)
+            {
+                continue;
+            }
+
+            if (element is Image image && image.Source != Guid.Empty)
+            {
+                var resource = new UiResourceId(image.Source);
+                if (resolver.TryGetMetadata(resource, out var metadata))
+                {
+                    if (!float.IsFinite(metadata.Width) || !float.IsFinite(metadata.Height) ||
+                        metadata.Width < 0 || metadata.Height < 0)
+                    {
+                        throw new InvalidOperationException("Image metadata dimensions must be finite and non-negative.");
+                    }
+
+                    var status = metadata.HasError ? (byte)Delta.XAML.UiImageStatus.Error :
+                        metadata.IsReady ? (byte)Delta.XAML.UiImageStatus.Ready : (byte)Delta.XAML.UiImageStatus.Loading;
+                    image.SetMetadata(metadata.Width, metadata.Height, status);
+                }
+                else
+                {
+                    image.SetMetadata(0, 0, (byte)Delta.XAML.UiImageStatus.Loading);
+                }
+            }
+
+            if (!nodes.TryCopyLogicalChildren(record.Id, childOrder))
+            {
+                continue;
+            }
+
+            for (var i = childOrder.Count - 1; i >= 0; i--)
+            {
+                traversal.Add(childOrder[i]);
+            }
+        }
+    }
+}
+
 internal static class UiStyleStage
 {
     internal static void Run(
@@ -238,6 +300,29 @@ internal static class UiStyleStage
         }
 
         theme?.RefreshStates(nodes, root, traversal, childOrder);
+        traversal.Clear();
+        traversal.Add(new(root.RetainedElement.Id.Value, root.RetainedElement.Generation));
+        while (traversal.Count != 0)
+        {
+            var last = traversal.Count - 1;
+            var id = traversal[last];
+            traversal.RemoveAt(last);
+            if (!nodes.TryGetNode(id, out var record) || record.Element is not { } element)
+            {
+                continue;
+            }
+
+            element.ApplyTemplateOwnerBindings();
+            if (!nodes.TryCopyLogicalChildren(record.Id, childOrder))
+            {
+                continue;
+            }
+
+            for (var i = childOrder.Count - 1; i >= 0; i--)
+            {
+                traversal.Add(childOrder[i]);
+            }
+        }
     }
 }
 

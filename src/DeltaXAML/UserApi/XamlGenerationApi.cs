@@ -23,6 +23,7 @@ public enum UiXamlValueKind : byte
     Thickness,
     GridLengthList,
     Enum,
+    WholeNumber,
 }
 
 /// <summary>Registers a custom element with the compile-time XAML generator.</summary>
@@ -75,6 +76,39 @@ public sealed class UiXamlPropertyAttribute : Attribute
     public UiXamlValueKind ValueKind { get; }
 }
 
+/// <summary>Registers a static typed attached-property descriptor for generated XAML.</summary>
+[AttributeUsage(AttributeTargets.Property, Inherited = false)]
+public sealed class UiXamlAttachedPropertyAttribute : Attribute
+{
+    public UiXamlAttachedPropertyAttribute(
+        string xmlNamespace,
+        string ownerName,
+        string ownerStableId,
+        string stableId,
+        UiXamlValueKind valueKind)
+    {
+        ArgumentNullException.ThrowIfNull(xmlNamespace);
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerStableId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(stableId);
+        XmlNamespace = xmlNamespace;
+        OwnerName = ownerName;
+        OwnerStableId = ownerStableId;
+        StableId = stableId;
+        ValueKind = valueKind;
+    }
+
+    public string XmlNamespace { get; }
+
+    public string OwnerName { get; }
+
+    public string OwnerStableId { get; }
+
+    public string StableId { get; }
+
+    public UiXamlValueKind ValueKind { get; }
+}
+
 /// <summary>Direction of one compile-time converter method.</summary>
 [SuppressMessage("Design", "CA1028:Enum Storage should be Int32", Justification = "Generator attribute metadata uses the established compact byte representation.")]
 public enum UiXamlConverterDirection : byte
@@ -104,4 +138,62 @@ public sealed class UiXamlConverterAttribute : Attribute
     public string Key { get; }
 
     public UiXamlConverterDirection Direction { get; }
+}
+
+/// <summary>Registers a static typed template-selector method for generated collections.</summary>
+/// <remarks>
+/// The attributed method accepts one item value and returns a stable <see cref="UiTemplateId"/>.
+/// Generated code invokes it directly and validates the returned identity against templates in
+/// the same artifact; no selector object or per-item delegate is retained.
+/// </remarks>
+[AttributeUsage(AttributeTargets.Method, Inherited = false)]
+public sealed class UiXamlTemplateSelectorAttribute : Attribute
+{
+    public UiXamlTemplateSelectorAttribute(string key, params string[] templateKeys)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(templateKeys);
+        if (templateKeys.Length == 0)
+        {
+            throw new ArgumentException("A selector must declare at least one generated template key.", nameof(templateKeys));
+        }
+
+        for (var i = 0; i < templateKeys.Length; i++)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(templateKeys[i], nameof(templateKeys));
+        }
+
+        Key = key;
+        TemplateKeys = templateKeys;
+    }
+
+    public string Key { get; }
+
+    public IReadOnlyList<string> TemplateKeys { get; }
+}
+
+/// <summary>Registers a static typed function used by generated multi-source bindings.</summary>
+[AttributeUsage(AttributeTargets.Method, Inherited = false)]
+public sealed class UiXamlBindingFunctionAttribute : Attribute
+{
+    public UiXamlBindingFunctionAttribute(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        Key = key;
+    }
+
+    public string Key { get; }
+}
+
+/// <summary>Registers a static generated behavior plan; the state type comes from IUiBehaviorPlan.</summary>
+[AttributeUsage(AttributeTargets.Struct, Inherited = false)]
+public sealed class UiXamlBehaviorAttribute : Attribute
+{
+    public UiXamlBehaviorAttribute(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        Key = key;
+    }
+
+    public string Key { get; }
 }

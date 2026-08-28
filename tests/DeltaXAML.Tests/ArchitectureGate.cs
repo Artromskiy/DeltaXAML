@@ -16,6 +16,8 @@ internal static class ArchitectureGate
         InspectArea(root, "UserApi/Controls", "Ui*.cs", "Controls", pending, violations, ValidateControl);
         InspectRuntimePaths(root, violations);
         InspectNewTypePaths(root, violations);
+        InspectFullCapabilityPaths(root, violations);
+        InspectGeneratedSamples(root, violations);
 
         foreach (var message in pending)
         {
@@ -271,6 +273,90 @@ internal static class ArchitectureGate
         }
     }
 
+    private static void InspectFullCapabilityPaths(string root, List<string> violations)
+    {
+        var files = new[]
+        {
+            "src/DeltaXAML/UserApi/CollectionsApi.cs",
+            "src/DeltaXAML/Internal/Input/UiGestureArena.cs",
+            "src/DeltaXAML/Internal/Accessibility/UiAccessibilityStage.cs",
+            "src/DeltaXAML/Internal/Mixins/RichTextMixin.cs",
+        };
+        foreach (var relativePath in files)
+        {
+            var file = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(file))
+            {
+                violations.Add($"{relativePath}: required full-capability runtime path is absent.");
+                continue;
+            }
+
+            var tokens = SourceShapeParser.TokenizeForGate(File.ReadAllText(file));
+            if (HasSequence(tokens, "IUiItemsSource", "<", "object") ||
+                HasSequence(tokens, "Dictionary", "<", "Type", ",") ||
+                HasSequence(tokens, "Dictionary", "<", "string", ",", "object") ||
+                ContainsAny(tokens, "Activator", "BindingFlags", "GetProperty", "PropertyInfo", "Enumerable", "ToArray"))
+            {
+                violations.Add($"{relativePath}: full-capability hot path contains boxed collection, reflection, object-keyed storage or LINQ materialization.");
+            }
+
+            if (relativePath.EndsWith("UiGestureArena.cs", StringComparison.Ordinal) &&
+                ContainsAny(tokens, "Action", "Func", "event", "+="))
+            {
+                violations.Add($"{relativePath}: gesture arena contains a per-element delegate or subscription path.");
+            }
+        }
+    }
+
+    private static void InspectGeneratedSamples(string root, List<string> violations)
+    {
+        var directory = Path.Combine(root, "tests", "DeltaXAML.Tests", "Fixtures", "Samples");
+        var project = Path.Combine(root, "tests", "DeltaXAML.Tests", "DeltaXAML.Tests.csproj");
+        var runner = Path.Combine(root, "tests", "DeltaXAML.Tests", "GeneratedSampleParityTests.cs");
+        if (!Directory.Exists(directory) || !File.Exists(project) || !File.Exists(runner))
+        {
+            violations.Add("generated sample parity requires its fixture directory, AdditionalFiles project entry and executable runner.");
+            return;
+        }
+
+        var fixtures = Directory.GetFiles(directory, "*.xaml", SearchOption.TopDirectoryOnly);
+        Array.Sort(fixtures, StringComparer.Ordinal);
+        if (fixtures.Length != 20)
+        {
+            violations.Add($"tests/DeltaXAML.Tests/Fixtures/Samples: expected 20 retained sample ports, found {fixtures.Length}.");
+        }
+
+        var projectText = File.ReadAllText(project);
+        if (!projectText.Contains("Fixtures/Samples/*.xaml", StringComparison.Ordinal) ||
+            !projectText.Contains("DeltaXamlClassName=\"Sample%(Filename)Artifact\"", StringComparison.Ordinal))
+        {
+            violations.Add("tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj: sample fixtures must enter the normal generated AdditionalFiles path.");
+        }
+
+        var runnerText = File.ReadAllText(runner);
+        if (runnerText.Contains("XamlLoader", StringComparison.Ordinal) ||
+            runnerText.Contains("new UiPanel", StringComparison.Ordinal) ||
+            runnerText.Contains("SetItems(", StringComparison.Ordinal))
+        {
+            violations.Add("tests/DeltaXAML.Tests/GeneratedSampleParityTests.cs: sample acceptance uses a cold loader or host-built substitute tree.");
+        }
+
+        foreach (var fixture in fixtures)
+        {
+            var source = File.ReadAllText(fixture);
+            var name = Path.GetFileNameWithoutExtension(fixture);
+            if (!source.Contains("dotnet/maui-samples@e78b475", StringComparison.Ordinal))
+            {
+                violations.Add($"{RelativePath(root, fixture)}: sample source attribution is missing or unpinned.");
+            }
+
+            if (!runnerText.Contains("Sample" + name + "Artifact", StringComparison.Ordinal))
+            {
+                violations.Add($"{RelativePath(root, fixture)}: generated artifact is not exercised by the headless sample runner.");
+            }
+        }
+    }
+
     private static bool ContainsAny(IReadOnlyList<Token> tokens, params string[] values)
     {
         for (var i = 0; i < tokens.Count; i++)
@@ -500,6 +586,17 @@ internal static class ArchitectureGate
             while (start <= headerEnd && tokens[start].Text is ";" or "}")
             {
                 start++;
+            }
+
+            while (start <= headerEnd && tokens[start].Text == "[")
+            {
+                var attributeEnd = FindMatching(tokens, start, "[", "]");
+                if (attributeEnd < 0 || attributeEnd > headerEnd)
+                {
+                    break;
+                }
+
+                start = attributeEnd + 1;
             }
 
             if (start > headerEnd)

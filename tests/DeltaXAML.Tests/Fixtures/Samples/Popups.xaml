@@ -1,0 +1,5 @@
+<!-- Ported from dotnet/maui-samples@e78b475: Navigation/Pop-ups (MIT). -->
+<Panel>
+  <Button><TextBlock Text="Show popup" /></Button>
+  <Overlay IsOpen="true"><Border><TextBlock Text="Popup content" /></Border></Overlay>
+</Panel>

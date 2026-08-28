@@ -1,0 +1,7 @@
+<!-- Ported from dotnet/maui-samples@e78b475: Fundamentals/ControlTemplateDemos (MIT). -->
+<Panel xmlns:x="urn:delta-xaml">
+  <Template x:Key="CardTemplate">
+    <Border Background="{TemplateBinding Background}"><TextBlock Text="Card content" /></Border>
+  </Template>
+  <Button Background="#315A7D" TemplateKey="CardTemplate" />
+</Panel>

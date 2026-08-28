@@ -31,6 +31,8 @@ internal static class XamlCompiler
         private readonly ImmutableArray<XamlScalarResourcePlan>.Builder _scalarResources = ImmutableArray.CreateBuilder<XamlScalarResourcePlan>();
         private readonly ImmutableArray<XamlStylePlan>.Builder _styles = ImmutableArray.CreateBuilder<XamlStylePlan>();
         private readonly ImmutableArray<XamlTemplatePlan>.Builder _templates = ImmutableArray.CreateBuilder<XamlTemplatePlan>();
+        private readonly ImmutableArray<XamlTriggerPlan>.Builder _triggers = ImmutableArray.CreateBuilder<XamlTriggerPlan>();
+        private readonly ImmutableArray<XamlBehaviorPlan>.Builder _behaviors = ImmutableArray.CreateBuilder<XamlBehaviorPlan>();
         private readonly List<XamlResourceSlotPlan> _resourceSlots = new();
         private readonly Dictionary<UiResourceId, int> _resourceSlotIndices = new();
         private readonly HashSet<string> _styleKeys = new(StringComparer.Ordinal);
@@ -89,6 +91,8 @@ internal static class XamlCompiler
                 _scalarResources.ToImmutable(),
                 _styles.ToImmutable(),
                 _templates.ToImmutable(),
+                _triggers.ToImmutable(),
+                _behaviors.ToImmutable(),
                 _resourceSlots.ToImmutableArray(),
                 _diagnostics.ToImmutable());
         }
@@ -151,10 +155,26 @@ internal static class XamlCompiler
                 return null;
             }
 
+            if (lexicalName == "Trigger")
+            {
+                ParseTrigger(attributes, selfClosing, elementStart);
+                return null;
+            }
+
+            if (lexicalName == "Behavior")
+            {
+                ParseBehavior(attributes, selfClosing, elementStart);
+                return null;
+            }
+
             var hasType = _registry.TryResolveType(name, out var type);
             if (!hasType)
             {
-                Report("XAML002", $"Unsupported element '{lexicalName}'.", nameStart, nameStart + lexicalName.Length);
+                Report(
+                    "XAML002",
+                    GetUnsupportedElementMessage(lexicalName),
+                    nameStart,
+                    nameStart + lexicalName.Length);
             }
 
             var members = ImmutableArray.CreateBuilder<XamlMemberPlan>();
@@ -201,22 +221,37 @@ internal static class XamlCompiler
                     continue;
                 }
 
-                if (type is null || !type.TryGetProperty(attribute.LocalName, out var property))
+                var attributeNamespace = attribute.Prefix.Length != 0 && namespaces.TryGetValue(attribute.Prefix, out var namespaceUri)
+                    ? namespaceUri
+                    : string.Empty;
+                if ((type is null || !type.TryGetProperty(attribute.LocalName, out var property)) &&
+                    !_registry.TryResolveAttachedProperty(new XamlQualifiedName(attributeNamespace, attribute.LocalName), out property))
                 {
-                    Report("XAML003", $"Unsupported property '{attribute.LocalName}' on '{lexicalName}'.", attribute.Range);
+                    Report(
+                        "XAML003",
+                        GetUnsupportedPropertyMessage(lexicalName, attribute.LocalName),
+                        attribute.Range);
                     continue;
                 }
 
                 if (TryParseValue(attribute.Value, property.ValueKind, attribute.Range, out var value))
                 {
-                    members.Add(new(property.Id, property.Name, value, attribute.Range));
+                    members.Add(new(property.Id, property.Name, value, attribute.Range, property.AttachedPropertyExpression));
                 }
             }
 
             var children = ImmutableArray.CreateBuilder<XamlObjectPlan>();
+            var textSpans = ImmutableArray.CreateBuilder<XamlTextSpanPlan>();
             if (!selfClosing)
             {
-                ParseChildren(lexicalName, name, type, namespaces, children);
+                if (string.Equals(name.LocalName, "RichTextBlock", StringComparison.Ordinal))
+                {
+                    ParseTextSpans(lexicalName, textSpans);
+                }
+                else
+                {
+                    ParseChildren(lexicalName, name, type, namespaces, children);
+                }
             }
 
             var elementRange = Range(elementStart, _offset);
@@ -226,7 +261,8 @@ internal static class XamlCompiler
                 scopeName,
                 elementRange,
                 members.ToImmutable(),
-                children.ToImmutable());
+                children.ToImmutable(),
+                textSpans.ToImmutable());
             if (resourceKey is not null)
             {
                 if (!_registry.TryResolveResource(resourceKey, out var resourceId))
@@ -344,6 +380,7 @@ internal static class XamlCompiler
                 "Real32" or "Single" => XamlValueKind.Single,
                 "Real64" or "Double" => XamlValueKind.Double,
                 "Color" => XamlValueKind.Color,
+                "Brush" => XamlValueKind.Brush,
                 "Thickness" => XamlValueKind.Thickness,
                 _ => XamlValueKind.Invalid,
             };
@@ -670,6 +707,7 @@ internal static class XamlCompiler
             Dictionary<string, string> namespaces)
         {
             string? key = null;
+            string? itemTypeName = null;
             var keyRange = Range(elementStart, _offset);
             foreach (var attribute in attributes)
             {
@@ -682,6 +720,10 @@ internal static class XamlCompiler
                 {
                     key = attribute.Value;
                     keyRange = attribute.Range;
+                }
+                else if (attribute.IsDataType && !string.IsNullOrWhiteSpace(attribute.Value))
+                {
+                    itemTypeName = attribute.Value;
                 }
                 else
                 {
@@ -740,7 +782,7 @@ internal static class XamlCompiler
                 }
                 else
                 {
-                    _templates.Add(new(key, CreateTemplateId(key), root, Range(elementStart, _offset)));
+                    _templates.Add(new(key, CreateTemplateId(key), root, Range(elementStart, _offset), itemTypeName));
                 }
             }
         }
@@ -749,6 +791,118 @@ internal static class XamlCompiler
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("DeltaXAML.Template/" + key));
             return new UiTemplateId(new Guid(bytes.AsSpan(0, 16)));
+        }
+
+        private void ParseTrigger(
+            List<AttributeSyntax> attributes,
+            bool selfClosing,
+            int elementStart)
+        {
+            string? target = null;
+            string? sourcesText = null;
+            string? valuesText = null;
+            string? property = null;
+            string? setValue = null;
+            string? action = null;
+            string? argument = null;
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                var attribute = attributes[i];
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                switch (attribute.LocalName)
+                {
+                    case "Target": target = attribute.Value; break;
+                    case "Sources": sourcesText = attribute.Value; break;
+                    case "Values": valuesText = attribute.Value; break;
+                    case "Property": property = attribute.Value; break;
+                    case "Set": setValue = attribute.Value; break;
+                    case "Action": action = attribute.Value; break;
+                    case "Argument": argument = attribute.Value; break;
+                    default: Report("XAML043", $"Unsupported Trigger attribute '{attribute.LocalName}'.", attribute.Range); break;
+                }
+            }
+
+            if (!selfClosing)
+            {
+                Report("XAML043", "Trigger must be self-closing in the compiled dialect.", Range(elementStart, _offset));
+                SkipElementBody("Trigger");
+            }
+
+            if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(sourcesText) ||
+                string.IsNullOrWhiteSpace(valuesText) || string.IsNullOrWhiteSpace(property) || setValue is null)
+            {
+                Report("XAML044", "Trigger requires Target, Sources, Values, Property and Set.", Range(elementStart, _offset));
+                return;
+            }
+
+            var sourceTokens = sourcesText.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var expected = valuesText.Split('|', StringSplitOptions.TrimEntries);
+            if (sourceTokens.Length == 0 || sourceTokens.Length != expected.Length)
+            {
+                Report("XAML044", "Trigger Sources and Values must contain the same non-zero number of entries.", Range(elementStart, _offset));
+                return;
+            }
+
+            var sources = ImmutableArray.CreateBuilder<XamlMultiBindingSourcePlan>(sourceTokens.Length);
+            for (var i = 0; i < sourceTokens.Length; i++)
+            {
+                if (!TryParseMultiBindingSource(sourceTokens[i], out var source))
+                {
+                    Report("XAML044", $"Trigger source '{sourceTokens[i]}' is not a typed relation path.", Range(elementStart, _offset));
+                    return;
+                }
+
+                sources.Add(source);
+            }
+
+            _triggers.Add(new(
+                target,
+                sources.ToImmutable(),
+                expected.ToImmutableArray(),
+                property,
+                setValue,
+                action,
+                argument,
+                Range(elementStart, _offset)));
+        }
+
+        private void ParseBehavior(List<AttributeSyntax> attributes, bool selfClosing, int elementStart)
+        {
+            string? target = null;
+            string? plan = null;
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                var attribute = attributes[i];
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                switch (attribute.LocalName)
+                {
+                    case "Target": target = attribute.Value; break;
+                    case "Plan": plan = attribute.Value; break;
+                    default: Report("XAML045", $"Unsupported Behavior attribute '{attribute.LocalName}'.", attribute.Range); break;
+                }
+            }
+
+            if (!selfClosing)
+            {
+                Report("XAML045", "Behavior must be self-closing in the compiled dialect.", Range(elementStart, _offset));
+                SkipElementBody("Behavior");
+            }
+
+            if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(plan))
+            {
+                Report("XAML046", "Behavior requires Target and Plan.", Range(elementStart, _offset));
+                return;
+            }
+
+            _behaviors.Add(new(target, plan, Range(elementStart, _offset)));
         }
 
         private UiResourceId CreateResourceId(string key)
@@ -841,6 +995,89 @@ internal static class XamlCompiler
                 {
                     Report("XAML004", $"Text content is not supported in '{parent.LocalName}'.", textStart, _offset);
                 }
+            }
+
+            if (!closed)
+            {
+                Report("XAML012", $"Element '{lexicalParent}' is not closed.", _offset, _offset);
+            }
+        }
+
+        private void ParseTextSpans(
+            string lexicalParent,
+            ImmutableArray<XamlTextSpanPlan>.Builder spans)
+        {
+            var closed = false;
+            while (_offset < _text.Length)
+            {
+                SkipWhitespace();
+                if (StartsWith("</"))
+                {
+                    var closeStart = _offset;
+                    var closeName = ParseEndElement();
+                    if (!string.Equals(closeName, lexicalParent, StringComparison.Ordinal))
+                    {
+                        Report("XAML013", $"Closing element '{closeName}' does not match '{lexicalParent}'.", closeStart, _offset);
+                    }
+
+                    closed = true;
+                    break;
+                }
+
+                var start = _offset;
+                if (!Consume('<'))
+                {
+                    ReadText();
+                    if (!string.IsNullOrWhiteSpace(_text[start.._offset]))
+                    {
+                        Report("XAML040", "RichTextBlock accepts only Span elements.", start, _offset);
+                    }
+
+                    continue;
+                }
+
+                var name = ReadName();
+                var attributes = new List<AttributeSyntax>();
+                var selfClosing = ParseStartTag(attributes, start);
+                if (!string.Equals(name, "Span", StringComparison.Ordinal) || !selfClosing)
+                {
+                    Report("XAML040", "RichTextBlock accepts self-closing Span elements only.", start, _offset);
+                    if (!selfClosing)
+                    {
+                        SkipElementBody(name);
+                    }
+
+                    continue;
+                }
+
+                string? text = null;
+                var fontKey = "default";
+                var fontSize = 14f;
+                var color = "#FFFFFFFF";
+                var command = Guid.Empty;
+                string? argument = null;
+                for (var i = 0; i < attributes.Count; i++)
+                {
+                    var attribute = attributes[i];
+                    switch (attribute.LocalName)
+                    {
+                        case "Text": text = attribute.Value; break;
+                        case "FontKey" when !string.IsNullOrWhiteSpace(attribute.Value): fontKey = attribute.Value; break;
+                        case "FontSize" when float.TryParse(attribute.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var size) && float.IsFinite(size) && size > 0: fontSize = size; break;
+                        case "Foreground" when TryColor(attribute.Value, out _): color = attribute.Value; break;
+                        case "Command" when Guid.TryParse(attribute.Value, out var parsed) && parsed != Guid.Empty: command = parsed; break;
+                        case "Argument": argument = attribute.Value; break;
+                        default: Report("XAML041", $"Unsupported Span property '{attribute.LocalName}'.", attribute.Range); break;
+                    }
+                }
+
+                if (text is null)
+                {
+                    Report("XAML042", "Span requires a Text value.", start, _offset);
+                    continue;
+                }
+
+                spans.Add(new(text, fontKey, fontSize, color, command, argument, Range(start, _offset)));
             }
 
             if (!closed)
@@ -961,7 +1198,20 @@ internal static class XamlCompiler
 
             if (TryParseBinding(value, out var binding, out var bindingError))
             {
+                plan = expected == XamlValueKind.ItemsSource
+                    ? XamlValuePlan.FromItemsSource(binding)
+                    : XamlValuePlan.FromBinding(binding);
+                return true;
+            }
+
+            if (TryParseTemplateBinding(value, out binding, out bindingError))
+            {
                 plan = XamlValuePlan.FromBinding(binding);
+                return true;
+            }
+            if (TryParseMultiBinding(value, out var multiBinding, out bindingError))
+            {
+                plan = XamlValuePlan.FromMultiBinding(multiBinding);
                 return true;
             }
 
@@ -974,7 +1224,10 @@ internal static class XamlCompiler
 
             if (value.StartsWith('{'))
             {
-                Report("XAML008", $"Markup extension '{value}' is not supported.", range);
+                var message = value.StartsWith("{x:Reference", StringComparison.Ordinal)
+                    ? "The x:Reference markup extension is not supported; use a generated ElementName binding."
+                    : $"Markup extension '{value}' is not supported.";
+                Report("XAML008", message, range);
                 plan = default;
                 return false;
             }
@@ -989,6 +1242,24 @@ internal static class XamlCompiler
             plan = XamlValuePlan.FromLiteral(literal);
             return true;
         }
+
+        private static string GetUnsupportedElementMessage(string lexicalName) => lexicalName switch
+        {
+            "Label" => "Unsupported element 'Label'; use TextBlock.",
+            "Entry" => "Unsupported element 'Entry'; use TextBox.",
+            "FormattedString" => "Unsupported element 'FormattedString'; use RichTextBlock with Span children.",
+            "TapGestureRecognizer" => "Unsupported element 'TapGestureRecognizer'; use the Gestures property and a generated Command binding.",
+            _ => $"Unsupported element '{lexicalName}'.",
+        };
+
+        private static string GetUnsupportedPropertyMessage(string lexicalName, string propertyName) => propertyName switch
+        {
+            "Click" => $"Unsupported property 'Click' on '{lexicalName}'; bind Command instead of an event-handler name.",
+            "FormattedText" => $"Unsupported property 'FormattedText' on '{lexicalName}'; use RichTextBlock with Span children.",
+            "GestureRecognizers" => $"Unsupported property 'GestureRecognizers' on '{lexicalName}'; use the Gestures property and generated command bindings.",
+            "NativeAutomationPeer" => $"Unsupported property 'NativeAutomationPeer' on '{lexicalName}'; set neutral AutomationName and AutomationRole metadata.",
+            _ => $"Unsupported property '{propertyName}' on '{lexicalName}'.",
+        };
 
         private static bool TryCanonicalLiteral(
             string value,
@@ -1014,6 +1285,15 @@ internal static class XamlCompiler
                     return true;
                 case XamlValueKind.Double when double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue) && double.IsFinite(doubleValue):
                     literal = new(expected, doubleValue.ToString("R", CultureInfo.InvariantCulture));
+                    return true;
+                case XamlValueKind.Integer when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer):
+                    literal = new(expected, integer.ToString(CultureInfo.InvariantCulture));
+                    return true;
+                case XamlValueKind.ResourceId when Guid.TryParse(value, out var resourceId) && resourceId != Guid.Empty:
+                    literal = new(expected, resourceId.ToString("D"));
+                    return true;
+                case XamlValueKind.Brush when TryBrush(value, out var brush):
+                    literal = new(expected, brush);
                     return true;
                 case XamlValueKind.Color when TryColor(value, out var color):
                     literal = new(expected, color);
@@ -1074,6 +1354,9 @@ internal static class XamlCompiler
             var mode = UiBindingMode.OneWay;
             string? converter = null;
             string? format = null;
+            string? culture = null;
+            var sourceKind = XamlBindingSourceKind.Context;
+            string? sourceArgument = null;
             var parts = body.Split(',', StringSplitOptions.TrimEntries);
             foreach (var part in parts)
             {
@@ -1108,7 +1391,18 @@ internal static class XamlCompiler
                         converter = option;
                         break;
                     case "StringFormat":
-                        format = option;
+                        format = UnquoteMarkupOption(option);
+                        break;
+                    case "Culture" when option.Length != 0:
+                        culture = option;
+                        break;
+                    case "Source" when TryParseBindingSource(option, out sourceKind, out sourceArgument):
+                        break;
+                    case "RelativeSource" when TryParseBindingSource(option, out sourceKind, out sourceArgument):
+                        break;
+                    case "ElementName" when option.Length != 0:
+                        sourceKind = XamlBindingSourceKind.Name;
+                        sourceArgument = option;
                         break;
                     default:
                         error = $"Binding option '{key}' is not supported or is invalid.";
@@ -1122,8 +1416,216 @@ internal static class XamlCompiler
                 return false;
             }
 
-            binding = new(path, mode, converter, format);
+            if (format is not null && culture is null)
+            {
+                error = "StringFormat requires an explicit Culture option.";
+                return false;
+            }
+
+            if (format is not null && mode == UiBindingMode.TwoWay)
+            {
+                error = "A formatted generated binding cannot be TwoWay; bind the editable value separately.";
+                return false;
+            }
+
+            binding = new(path, mode, converter, format, culture, sourceKind, sourceArgument);
             return true;
+        }
+
+        private static bool TryParseTemplateBinding(
+            string value,
+            out XamlBindingPlan binding,
+            out string? error)
+        {
+            binding = default;
+            error = null;
+            const string prefix = "{TemplateBinding ";
+            if (!value.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (!value.EndsWith('}'))
+            {
+                error = "TemplateBinding markup is not closed.";
+                return false;
+            }
+
+            var path = value[prefix.Length..^1].Trim();
+            if (path.Length == 0 || path.Contains(',', StringComparison.Ordinal))
+            {
+                error = "TemplateBinding requires exactly one property path.";
+                return false;
+            }
+
+            binding = new(path, UiBindingMode.OneWay, null, null, null, XamlBindingSourceKind.TemplateOwner);
+            return true;
+        }
+
+        private static bool TryParseMultiBinding(
+            string value,
+            out XamlMultiBindingPlan binding,
+            out string? error)
+        {
+            binding = default;
+            error = null;
+            const string prefix = "{MultiBinding ";
+            if (!value.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (!value.EndsWith('}'))
+            {
+                error = "MultiBinding markup is not closed.";
+                return false;
+            }
+
+            string? sourcesText = null;
+            string? function = null;
+            string? format = null;
+            string? culture = null;
+            var parts = value[prefix.Length..^1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var separator = parts[i].IndexOf('=', StringComparison.Ordinal);
+                if (separator <= 0)
+                {
+                    error = $"MultiBinding argument '{parts[i]}' must use name=value syntax.";
+                    return false;
+                }
+
+                var key = parts[i][..separator].Trim();
+                var argument = parts[i][(separator + 1)..].Trim().Trim('\'', '"');
+                switch (key)
+                {
+                    case "Sources": sourcesText = argument; break;
+                    case "Function": function = argument; break;
+                    case "StringFormat": format = UnquoteMarkupOption(argument); break;
+                    case "Culture": culture = argument; break;
+                    default:
+                        error = $"MultiBinding option '{key}' is not supported.";
+                        return false;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(sourcesText) || (function is null) == (format is null))
+            {
+                error = "MultiBinding requires Sources and exactly one Function or StringFormat.";
+                return false;
+            }
+
+            if (format is not null && string.IsNullOrWhiteSpace(culture))
+            {
+                error = "MultiBinding StringFormat requires an explicit Culture option.";
+                return false;
+            }
+
+            var sources = ImmutableArray.CreateBuilder<XamlMultiBindingSourcePlan>();
+            var sourceTokens = sourcesText.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            for (var i = 0; i < sourceTokens.Length; i++)
+            {
+                if (!TryParseMultiBindingSource(sourceTokens[i], out var source))
+                {
+                    error = $"MultiBinding source '{sourceTokens[i]}' must be Self.Property, TemplateOwner.Property, Ancestor:Type.Property or Name.Property.";
+                    return false;
+                }
+
+                sources.Add(source);
+            }
+
+            if (sources.Count < 2)
+            {
+                error = "MultiBinding requires at least two typed sources.";
+                return false;
+            }
+
+            binding = new(sources.ToImmutable(), function, format, culture);
+            return true;
+        }
+
+        private static bool TryParseMultiBindingSource(
+            string value,
+            out XamlMultiBindingSourcePlan source)
+        {
+            var separator = value.LastIndexOf('.');
+            if (separator <= 0 || separator == value.Length - 1)
+            {
+                source = default;
+                return false;
+            }
+
+            var relation = value[..separator];
+            var path = value[(separator + 1)..];
+            if (string.Equals(relation, "Self", StringComparison.OrdinalIgnoreCase))
+            {
+                source = new(XamlBindingSourceKind.Self, null, path);
+                return true;
+            }
+
+            if (string.Equals(relation, "TemplateOwner", StringComparison.OrdinalIgnoreCase))
+            {
+                source = new(XamlBindingSourceKind.TemplateOwner, null, path);
+                return true;
+            }
+
+            if (string.Equals(relation, "Context", StringComparison.OrdinalIgnoreCase))
+            {
+                source = new(XamlBindingSourceKind.Context, null, path);
+                return true;
+            }
+
+            const string ancestorPrefix = "Ancestor:";
+            if (relation.StartsWith(ancestorPrefix, StringComparison.OrdinalIgnoreCase) && relation.Length > ancestorPrefix.Length)
+            {
+                source = new(XamlBindingSourceKind.Ancestor, relation[ancestorPrefix.Length..], path);
+                return true;
+            }
+
+            source = new(XamlBindingSourceKind.Name, relation, path);
+            return true;
+        }
+
+        private static bool TryParseBindingSource(
+            string value,
+            out XamlBindingSourceKind source,
+            out string? argument)
+        {
+            argument = null;
+            if (string.Equals(value, "Self", StringComparison.OrdinalIgnoreCase))
+            {
+                source = XamlBindingSourceKind.Self;
+                return true;
+            }
+
+            if (string.Equals(value, "TemplateOwner", StringComparison.OrdinalIgnoreCase))
+            {
+                source = XamlBindingSourceKind.TemplateOwner;
+                return true;
+            }
+
+            const string ancestorPrefix = "Ancestor:";
+            if (value.StartsWith(ancestorPrefix, StringComparison.OrdinalIgnoreCase) &&
+                value.Length > ancestorPrefix.Length)
+            {
+                source = XamlBindingSourceKind.Ancestor;
+                argument = value[ancestorPrefix.Length..];
+                return true;
+            }
+
+            source = XamlBindingSourceKind.Context;
+            return false;
+        }
+
+        private static string UnquoteMarkupOption(string value)
+        {
+            if (value.Length >= 2 &&
+                ((value[0] == '\'' && value[^1] == '\'') || (value[0] == '"' && value[^1] == '"')))
+            {
+                return value[1..^1];
+            }
+
+            return value;
         }
 
         private void RegisterName(string name, SourceRange range)
@@ -1328,6 +1830,31 @@ internal static class XamlCompiler
             }
 
             canonical = value.ToUpperInvariant();
+            return true;
+        }
+
+        private static bool TryBrush(string value, out string canonical)
+        {
+            if (TryColor(value, out canonical))
+            {
+                return true;
+            }
+
+            var separator = value.IndexOf(':', StringComparison.Ordinal);
+            if (separator <= 0 || !Guid.TryParse(value[(separator + 1)..], out var resource) || resource == Guid.Empty)
+            {
+                canonical = string.Empty;
+                return false;
+            }
+
+            var kind = value[..separator];
+            if (kind is not ("LinearGradient" or "RadialGradient" or "Image"))
+            {
+                canonical = string.Empty;
+                return false;
+            }
+
+            canonical = kind + ":" + resource.ToString("D");
             return true;
         }
 

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using Delta.Diagnostics;
+using Delta.Maths;
 using Delta.Text.Contract;
 using Delta.XAML.Contract;
 using Retained = DeltaXAML.Internal;
@@ -131,6 +132,16 @@ public abstract class UiElement
     }
     internal RetainedElement RetainedElement => _retained;
 
+    public uint ElementId => _retained.Id.Value;
+
+    public uint Generation => _retained.Generation;
+
+    public float4 Bounds => new(_retained.Bounds.X, _retained.Bounds.Y, _retained.Bounds.Width, _retained.Bounds.Height);
+
+    public bool IsFocused => _retained.IsFocused;
+
+    public bool IsInvalid => _retained.IsInvalid;
+
     internal UiElement WrapRetained(RetainedElement element)
     {
         ArgumentNullException.ThrowIfNull(element);
@@ -224,6 +235,62 @@ public abstract class UiElement
         set => _retained.Background = new Retained.UiColor(value.R, value.G, value.B, value.A);
     }
 
+    /// <summary>Renderer-neutral paint. Gradients and images remain stable resource references.</summary>
+    public UiBrush BackgroundBrush
+    {
+        get
+        {
+            if (!_retained.HasCustomVisual)
+            {
+                return UiBrush.Solid(Background);
+            }
+
+            var kind = _retained.CustomVisualTypeId == UiKnownVisuals.LinearGradient.Value
+                ? UiBrushKind.LinearGradient
+                : _retained.CustomVisualTypeId == UiKnownVisuals.RadialGradient.Value
+                    ? UiBrushKind.RadialGradient
+                    : UiBrushKind.Image;
+            return new(kind, UiColorFromRetained(_retained.CustomVisualColor), new UiResourceId(_retained.CustomVisualResourceId));
+        }
+        set
+        {
+            switch (value.Kind)
+            {
+                case UiBrushKind.None:
+                    _retained.ClearCustomVisual();
+                    Background = default;
+                    break;
+                case UiBrushKind.Solid:
+                    _retained.ClearCustomVisual();
+                    Background = value.Color;
+                    break;
+                case UiBrushKind.LinearGradient:
+                    SetCustomVisual(UiKnownVisuals.LinearGradient, value.Resource, value.Color);
+                    break;
+                case UiBrushKind.RadialGradient:
+                    SetCustomVisual(UiKnownVisuals.RadialGradient, value.Resource, value.Color);
+                    break;
+                case UiBrushKind.Image:
+                    SetCustomVisual(new UiVisualTypeId(new Guid("3419D85F-C401-4DD8-86DD-D2A68359D303")), value.Resource, value.Color);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(value), "Unknown brush kinds cannot enter retained state.");
+            }
+        }
+    }
+
+    public string? AutomationName
+    {
+        get => _retained.AutomationName;
+        set => _retained.AutomationName = value;
+    }
+
+    public UiSemanticRole AutomationRole
+    {
+        get => ToPublicRole(_retained.AutomationRole);
+        set => _retained.AutomationRole = ToRetainedRole(value);
+    }
+
     /// <summary>Stable semantic custom-visual identity consumed by a renderer adapter.</summary>
     public UiVisualTypeId CustomVisualType => new(_retained.CustomVisualTypeId);
 
@@ -252,6 +319,42 @@ public abstract class UiElement
             return new UiThickness(value.Left, value.Top, value.Right, value.Bottom);
         }
         set => _retained.Padding = new Retained.UiThickness(value.Left, value.Top, value.Right, value.Bottom);
+    }
+
+    /// <summary>Descriptor capability bits consumed by the document-owned gesture arena.</summary>
+    public UiGestureKind Gestures
+    {
+        get => _retained.Gestures;
+        set
+        {
+            if ((value & ~(UiGestureKind.Tap | UiGestureKind.MultipleTap | UiGestureKind.LongPress |
+                UiGestureKind.Drag | UiGestureKind.Pan | UiGestureKind.Swipe | UiGestureKind.Pinch)) != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            _retained.Gestures = value;
+        }
+    }
+
+    /// <summary>Application-owned command emitted by gestures and keyboard routing.</summary>
+    public UiCommandId Command
+    {
+        get => _retained.Command;
+        set => _retained.Command = value;
+    }
+
+    public UiKeyGesture CommandKey
+    {
+        get => _retained.CommandKey;
+        set => _retained.CommandKey = value;
+    }
+
+    /// <summary>Constrains keyboard traversal to this retained subtree while focus is inside it.</summary>
+    public bool IsFocusScope
+    {
+        get => _retained.IsFocusScope;
+        set => _retained.IsFocusScope = value;
     }
     /// <summary>Controls whether this element participates in layout, rendering and hit testing.</summary>
     public UiParticipation Participation
@@ -319,6 +422,20 @@ public abstract class UiElement
     {
         ArgumentNullException.ThrowIfNull(property);
         _retained.SetLocal(property.Name, ToRetainedValue(value), PropertyInvalidation(property.Name));
+    }
+
+    /// <summary>Reads a typed attached-property slot without exposing retained storage.</summary>
+    public T GetAttachedValue<T>(UiAttachedProperty<T> property)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        return property.Read(_retained);
+    }
+
+    /// <summary>Writes a typed attached-property slot through its generated owner descriptor.</summary>
+    public void SetAttachedValue<T>(UiAttachedProperty<T> property, T value)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        property.Write(_retained, value);
     }
 
     /// <summary>Attaches a programmatic binding without exposing retained invalidation flags.</summary>
@@ -401,6 +518,14 @@ public abstract class UiElement
             Retained.ToggleButton toggleButton => new UiToggleButton(toggleButton),
             Retained.Button button => new UiButton(button),
             Retained.ScrollViewer scrollViewer => new UiScrollViewer(scrollViewer),
+            Retained.Slider slider => new UiSlider(slider),
+            Retained.Image image => new UiImage(image),
+            Retained.Overlay overlay => new UiOverlay(overlay),
+            Retained.CollectionView collection => new UiCollectionView(collection),
+            Retained.Picker picker => new UiPicker(picker),
+            Retained.TabView tabs => new UiTabView(tabs),
+            Retained.Menu menu => new UiMenu(menu),
+            Retained.RichTextBlock richText => new UiRichTextBlock(richText),
             Retained.ContentControl contentControl => new UiContentControl(contentControl),
             _ => new RetainedElementView(element, cache),
         };
@@ -465,6 +590,12 @@ public abstract class UiElement
         ArgumentNullException.ThrowIfNull(property);
         ApplyStyleValue(property.Name, value);
     }
+
+    internal void ApplyTriggerValue<T>(UiProperty<T> property, T value) =>
+        _retained.SetTrigger(property.Name, ToRetainedValue(value), PropertyInvalidation(property.Name));
+
+    internal void ClearTriggerValue<T>(UiProperty<T> property) =>
+        _retained.Clear(property.Name, Retained.UiValueSource.Trigger);
 
     internal void ApplyStyleResource(string propertyName, UiResourceCatalog resources, string resourceKey)
     {
@@ -605,6 +736,8 @@ public abstract class UiElement
         return MutableChildren.Remove(child);
     }
 
+    internal void SetCollectionIndex(int index) => _retained.SetCollectionIndex(index);
+
     internal void SetSingleChild(UiElement? child)
     {
         MutableChildren.Clear();
@@ -646,6 +779,49 @@ public abstract class UiElement
     internal static UiColor ToPublicColor(Retained.UiColor value) =>
         new(value.R, value.G, value.B, value.A);
 
+    private static UiColor UiColorFromRetained(Retained.UiColor value) =>
+        new(value.R, value.G, value.B, value.A);
+
+    private static UiSemanticRole ToPublicRole(Retained.UiAutomationRole value) => value switch
+    {
+        Retained.UiAutomationRole.None => UiSemanticRole.None,
+        Retained.UiAutomationRole.Unknown => UiSemanticRole.Unknown,
+        Retained.UiAutomationRole.Generic => UiSemanticRole.Generic,
+        Retained.UiAutomationRole.Button => UiSemanticRole.Button,
+        Retained.UiAutomationRole.Window => UiSemanticRole.Window,
+        Retained.UiAutomationRole.Text => UiSemanticRole.Text,
+        Retained.UiAutomationRole.TextBox => UiSemanticRole.TextBox,
+        Retained.UiAutomationRole.NumericEditor => UiSemanticRole.NumericEditor,
+        Retained.UiAutomationRole.Slider => UiSemanticRole.Slider,
+        Retained.UiAutomationRole.Image => UiSemanticRole.Image,
+        Retained.UiAutomationRole.List => UiSemanticRole.List,
+        Retained.UiAutomationRole.ListItem => UiSemanticRole.ListItem,
+        Retained.UiAutomationRole.Menu => UiSemanticRole.Menu,
+        Retained.UiAutomationRole.Tab => UiSemanticRole.Tab,
+        Retained.UiAutomationRole.Link => UiSemanticRole.Link,
+        _ => UiSemanticRole.Unknown,
+    };
+
+    private static Retained.UiAutomationRole ToRetainedRole(UiSemanticRole value) => value switch
+    {
+        UiSemanticRole.None => Retained.UiAutomationRole.None,
+        UiSemanticRole.Unknown => Retained.UiAutomationRole.Unknown,
+        UiSemanticRole.Generic => Retained.UiAutomationRole.Generic,
+        UiSemanticRole.Button => Retained.UiAutomationRole.Button,
+        UiSemanticRole.Window => Retained.UiAutomationRole.Window,
+        UiSemanticRole.Text => Retained.UiAutomationRole.Text,
+        UiSemanticRole.TextBox => Retained.UiAutomationRole.TextBox,
+        UiSemanticRole.NumericEditor => Retained.UiAutomationRole.NumericEditor,
+        UiSemanticRole.Slider => Retained.UiAutomationRole.Slider,
+        UiSemanticRole.Image => Retained.UiAutomationRole.Image,
+        UiSemanticRole.List => Retained.UiAutomationRole.List,
+        UiSemanticRole.ListItem => Retained.UiAutomationRole.ListItem,
+        UiSemanticRole.Menu => Retained.UiAutomationRole.Menu,
+        UiSemanticRole.Tab => Retained.UiAutomationRole.Tab,
+        UiSemanticRole.Link => Retained.UiAutomationRole.Link,
+        _ => throw new ArgumentOutOfRangeException(nameof(value)),
+    };
+
     internal static Retained.UiColor ToRetainedColor(UiColor value) =>
         new(value.R, value.G, value.B, value.A);
 
@@ -674,10 +850,11 @@ public abstract class UiElement
             return;
         }
 
+        var previousViews = _views;
         SetViewCache(views);
         foreach (var child in _retained.Children)
         {
-            if (child is RetainedElement retainedChild && _views.TryGetValue(retainedChild, out var childView))
+            if (child is RetainedElement retainedChild && previousViews.TryGetValue(retainedChild, out var childView))
             {
                 childView.AdoptViewCache(views);
             }
@@ -693,7 +870,7 @@ public abstract class UiElement
         _childrenEditor = new RetainedChildrenEditor(_retained, _views);
     }
 
-    private static object? ToRetainedValue(object? value) => value switch
+    internal static object? ToRetainedValue(object? value) => value switch
     {
         UiColor color => new Retained.UiColor(color.R, color.G, color.B, color.A),
         UiThickness thickness => new Retained.UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
@@ -722,6 +899,7 @@ public abstract class UiElement
     {
         "Text" or "FontKey" or "FontSize" => RetainedDirty.Measure | RetainedDirty.Visual | RetainedDirty.Text,
         "Foreground" => RetainedDirty.Visual | RetainedDirty.Text,
+        "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
         "Width" or "Height" or "Padding" or
         "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
         _ => RetainedDirty.Visual,

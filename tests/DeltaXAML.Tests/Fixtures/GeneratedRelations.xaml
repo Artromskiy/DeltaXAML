@@ -1,0 +1,15 @@
+<StackPanel xmlns:x="urn:delta-xaml">
+  <TextBlock x:Name="Source" Text="alpha" />
+  <TextBlock x:Name="Mirror" Text="{Binding Text, ElementName=Source}" />
+  <TextBlock x:Name="Self" Text="{Binding Text, Source=Self}" />
+  <TextBlock x:Name="Right" Text="right" />
+  <TextBlock x:Name="ColorSource" Background="#778899" />
+  <TextBlock x:Name="Combined" Text="{MultiBinding Sources=Source.Text|Right.Text, Function=JoinText}" />
+  <ToggleButton x:Name="Toggle" IsSelected="false" />
+  <TextBlock x:Name="TriggerTarget" Text="trigger" />
+  <Trigger Target="TriggerTarget" Sources="Toggle.IsSelected" Values="true" Property="Foreground" Set="#CC2200" Action="Command" Argument="activated" />
+  <Panel Background="#112233">
+    <TextBlock x:Name="AncestorValue" Background="{Binding Background, RelativeSource=Ancestor:Panel}" />
+    <TextBlock x:Name="AncestorMulti" Background="{MultiBinding Sources=Ancestor:Panel.Background|ColorSource.Background, Function=FirstColor}" />
+  </Panel>
+</StackPanel>

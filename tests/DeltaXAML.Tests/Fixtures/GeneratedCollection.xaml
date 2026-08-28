@@ -1,0 +1,9 @@
+<Panel xmlns:x="urn:delta-xaml" x:DataType="DeltaXaml.Tests.CollectionModel">
+  <CollectionView ItemsSource="{Binding Rows}" ItemTemplate="RowTemplate" ItemTemplateSelector="RowKind" VirtualizationCount="8" />
+  <Template x:Key="RowTemplate" x:DataType="DeltaXaml.Tests.CollectionRow">
+    <TextBlock Text="{MultiBinding Sources=Context.Label|Context.Alternate, Function=RowSummary}" FontKey="default" FontSize="14" />
+  </Template>
+  <Template x:Key="AlternateRowTemplate" x:DataType="DeltaXaml.Tests.CollectionRow">
+    <Border Background="#224466"><TextBlock Text="{Binding Label}" FontKey="default" FontSize="14" /></Border>
+  </Template>
+</Panel>

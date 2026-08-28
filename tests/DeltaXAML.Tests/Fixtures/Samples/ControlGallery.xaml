@@ -1,0 +1,9 @@
+<!-- Ported from dotnet/maui-samples@e78b475: UserInterface/ControlGallery (MIT). -->
+<StackPanel>
+  <Button><TextBlock Text="Button" /></Button>
+  <ToggleButton><TextBlock Text="Toggle" /></ToggleButton>
+  <TextBox Text="Text" />
+  <NumericEditor Value="42" />
+  <Slider Minimum="0" Maximum="100" Value="50" />
+  <Image Source="56f86c2b-228e-4f9e-bb90-3145dd9cb102" />
+</StackPanel>

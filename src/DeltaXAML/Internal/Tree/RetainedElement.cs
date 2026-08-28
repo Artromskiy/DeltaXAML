@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text;
 using Delta.XAML.Contract;
 
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
@@ -87,6 +88,7 @@ internal sealed class UiPropertyStore
         UiValueSource.Handle,
         UiValueSource.Local,
         UiValueSource.Binding,
+        UiValueSource.Trigger,
         UiValueSource.Style,
         UiValueSource.Default,
     ];
@@ -134,6 +136,8 @@ internal sealed class UiPropertyStore
         RemoveResourceBinding(name);
         SetSource(name, new(value, UiValueSource.Style, invalidation));
     }
+    public void SetTrigger(string name, object? value, UiDirtyFlags invalidation) =>
+        SetSource(name, new(value, UiValueSource.Trigger, invalidation));
     public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -257,6 +261,7 @@ internal sealed class UiPropertyStore
         {
             case UiValueSource.Default: slots.DefaultValue = value; break;
             case UiValueSource.Style: slots.StyleValue = value; break;
+            case UiValueSource.Trigger: slots.TriggerValue = value; break;
             case UiValueSource.Binding: slots.BindingValue = value; break;
             case UiValueSource.Local: slots.LocalValue = value; break;
             case UiValueSource.Handle: slots.HandleValue = value; break;
@@ -303,6 +308,8 @@ internal sealed class UiPropertyStore
         {
             _values[name] = effective;
         }
+
+        _owner.NotifyEffectivePropertyChanged(name);
     }
     private static UiValue? Resolve(SourceSlots slots)
     {
@@ -314,6 +321,7 @@ internal sealed class UiPropertyStore
                 UiValueSource.Handle => slots.HandleValue,
                 UiValueSource.Local => slots.LocalValue,
                 UiValueSource.Binding => slots.BindingValue,
+                UiValueSource.Trigger => slots.TriggerValue,
                 UiValueSource.Style => slots.StyleValue,
                 UiValueSource.Default => slots.DefaultValue,
                 _ => null,
@@ -339,7 +347,7 @@ internal sealed class UiPropertyStore
          left.Source == right.Source && Equals(left.UntypedValue, right.UntypedValue));
     private sealed class SourceSlots
     {
-        public UiValue? DefaultValue, StyleValue, BindingValue, LocalValue, HandleValue, AnimationValue;
+        public UiValue? DefaultValue, StyleValue, TriggerValue, BindingValue, LocalValue, HandleValue, AnimationValue;
     }
     private sealed class ResourceBinding
     {
@@ -369,7 +377,14 @@ internal class UiElement
     private readonly Dictionary<string, IUiCompiledBindingRuntime> _compiledBindingRuntimes = new(StringComparer.Ordinal);
     private readonly UiPropertyStore _properties;
     private UiNodeStore? _nodeStore;
-    private UiElementState _state = new() { Width = float.NaN, Height = float.NaN, IsEnabled = true };
+    private UiElementState _state = new()
+    {
+        Width = float.NaN,
+        Height = float.NaN,
+        IsEnabled = true,
+        GridRowSpan = 1,
+        GridColumnSpan = 1,
+    };
     private object? _bindingContext;
     private bool _hasExplicitBindingContext;
     private bool _bindingStageManaged;
@@ -379,6 +394,7 @@ internal class UiElement
     private uint _dpiVersion;
     private uint _textVersion;
     private uint _treeVersion;
+    private uint _relationVersion;
     private uint _outputVersion;
     private Delta.XAML.UiStyle? _appliedStyle;
     private Delta.XAML.UiStyleState _appliedStyleState;
@@ -396,6 +412,7 @@ internal class UiElement
     private int _displayClipIndex = -1;
     private int _displayVisualIndex = -1;
     private int _displayTextIndex = -1;
+    private int _displayOwnTextCount;
     private int _displayClipCount;
     private int _displayVisualCount;
     private int _displayTextCount;
@@ -419,6 +436,7 @@ internal class UiElement
     public UiElementId Id { get; }
     public uint Generation { get; }
     internal uint TreeVersion => _treeVersion;
+    internal uint RelationVersion => _relationVersion;
     public string TypeName => _typeName;
     public UiElement? Parent => _nodeStore is { } store ? store.GetLogicalParent(this) : _detachedParent;
     public IReadOnlyList<UiElement> Children => _children;
@@ -442,7 +460,17 @@ internal class UiElement
     public bool IsEnabled { get => _state.IsEnabled; set => SetLocalProperty("IsEnabled", value, UiDirtyFlags.Visual); }
     public bool IsHovered { get; private set; }
     public bool IsPressed => UiDescriptorCatalog.IsPressed(this);
-    public bool IsSelected { get => _state.IsSelected; set => SetLocalProperty("IsSelected", value, UiDirtyFlags.Visual); }
+    public bool IsSelected
+    {
+        get => _state.IsSelected;
+        set
+        {
+            if (_state.IsSelected != value)
+            {
+                SetLocalProperty("IsSelected", value, UiDirtyFlags.Visual);
+            }
+        }
+    }
     public bool IsInvalid { get; protected set; }
     public string? StyleKey
     {
@@ -477,6 +505,53 @@ internal class UiElement
     public UiAutomationRole AutomationRole { get; set; } = UiAutomationRole.Generic;
     public UiThickness Margin { get; set; }
     public UiThickness Padding { get => _state.Padding; set => SetLocalProperty("Padding", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual); }
+    internal Delta.XAML.UiGestureKind Gestures
+    {
+        get => (Delta.XAML.UiGestureKind)_state.GestureBits;
+        set => _state.GestureBits = (ulong)value;
+    }
+    internal Delta.XAML.UiCommandId Command
+    {
+        get => new(_state.CommandId);
+        set => _state.CommandId = value.Value;
+    }
+    internal Delta.XAML.UiKeyGesture CommandKey
+    {
+        get => new(new(_state.CommandPhysicalKey), new(_state.CommandModifiers));
+        set
+        {
+            _state.CommandPhysicalKey = value.Key.Value;
+            _state.CommandModifiers = value.Modifiers.Bits;
+        }
+    }
+    internal bool IsFocusScope
+    {
+        get => _state.IsFocusScope;
+        set => _state.IsFocusScope = value;
+    }
+    internal int GridRow => _state.GridRow;
+    internal int GridColumn => _state.GridColumn;
+    internal int GridRowSpan => _state.GridRowSpan;
+    internal int GridColumnSpan => _state.GridColumnSpan;
+    internal bool HasGridRow => (_state.GridPlacementFlags & 1) != 0;
+    internal bool HasGridColumn => (_state.GridPlacementFlags & 2) != 0;
+    internal int CollectionIndex => _state.HasCollectionIndex ? _state.CollectionIndex : -1;
+    internal void SetGridRow(int value) => SetGridSlot(ref _state.GridRow, value, 1, nameof(GridRow));
+    internal void SetGridColumn(int value) => SetGridSlot(ref _state.GridColumn, value, 2, nameof(GridColumn));
+    internal void SetGridRowSpan(int value) => SetGridSpan(ref _state.GridRowSpan, value, nameof(GridRowSpan));
+    internal void SetGridColumnSpan(int value) => SetGridSpan(ref _state.GridColumnSpan, value, nameof(GridColumnSpan));
+    internal void SetCollectionIndex(int value)
+    {
+        if (value < 0)
+        {
+            _state.CollectionIndex = 0;
+            _state.HasCollectionIndex = false;
+            return;
+        }
+
+        _state.CollectionIndex = value;
+        _state.HasCollectionIndex = true;
+    }
     internal UiDirtyFlags DirtyFlags { get; set; } = UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual;
     public UiAutomationMetadata Automation => new(AutomationName ?? TypeName, AutomationRole, GetAutomationValueText(), IsEnabled, IsInvalid);
     public UiStateSnapshot VisualState => new(IsEnabled ? IsInvalid ? UiVisualState.Invalid : IsPressed ? UiVisualState.Pressed : IsHovered ? UiVisualState.Hover : IsSelected ? UiVisualState.Selected : IsFocused ? UiVisualState.Focused : UiVisualState.Normal : UiVisualState.Disabled, IsEnabled, IsInvalid, IsSelected, IsFocused, IsHovered, IsPressed);
@@ -521,6 +596,7 @@ internal class UiElement
         {
             child._detachedParent = this;
             _detachedChildren.Add(child);
+            child.AdvanceDetachedRelationVersion();
         }
 
         var invalidation = UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual;
@@ -555,6 +631,7 @@ internal class UiElement
 
         _detachedChildren.RemoveAt(index);
         child._detachedParent = null;
+        child.AdvanceDetachedRelationVersion();
         InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         return true;
     }
@@ -568,6 +645,40 @@ internal class UiElement
     public void Invalidate(UiDirtyFlags flags)
     {
         InvalidateCore(flags, false);
+    }
+
+    private void SetGridSlot(ref int field, int value, byte flag, string name)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(value, name);
+        if (field == value && (_state.GridPlacementFlags & flag) != 0)
+        {
+            return;
+        }
+
+        field = value;
+        _state.GridPlacementFlags |= flag;
+        InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
+    }
+
+    private void SetGridSpan(ref int field, int value, string name)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(value, 1, name);
+        if (field == value)
+        {
+            return;
+        }
+
+        field = value;
+        InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
+    }
+
+    private void AdvanceDetachedRelationVersion()
+    {
+        _relationVersion++;
+        for (var i = 0; i < _detachedChildren.Count; i++)
+        {
+            _detachedChildren[i].AdvanceDetachedRelationVersion();
+        }
     }
 
     internal void InvalidateChanged(UiDirtyFlags flags)
@@ -754,14 +865,16 @@ internal class UiElement
     internal int DisplayClipIndex => _displayClipIndex;
     internal int DisplayVisualIndex => _displayVisualIndex;
     internal int DisplayTextIndex => _displayTextIndex;
+    internal int DisplayOwnTextCount => _displayOwnTextCount;
     internal int DisplayClipCount => _displayClipCount;
     internal int DisplayVisualCount => _displayVisualCount;
     internal int DisplayTextCount => _displayTextCount;
-    internal void SetDisplayRange(int clipIndex, int visualIndex, int textIndex)
+    internal void SetDisplayRange(int clipIndex, int visualIndex, int textIndex, int ownTextCount = 0)
     {
         _displayClipIndex = clipIndex;
         _displayVisualIndex = visualIndex;
         _displayTextIndex = textIndex;
+        _displayOwnTextCount = ownTextCount;
     }
     internal void SetDisplaySubtreeCounts(int clips, int visuals, int text)
     {
@@ -771,16 +884,17 @@ internal class UiElement
     }
     internal void ClearDisplayRange()
     {
-        SetDisplayRange(-1, -1, -1);
+        SetDisplayRange(-1, -1, -1, 0);
         SetDisplaySubtreeCounts(0, 0, 0);
     }
-    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) => _properties.TryGet(name, out value);
+    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetTrigger(string name, object? value, UiDirtyFlags invalidation) => _properties.SetTrigger(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) => _properties.TryGet(name, out value);
     public UiPropertyHandle GetHandle(string name) => _properties.GetHandle(name);
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic) => _properties.TrySet(handle, value, invalidation, out diagnostic);
     private string GetAutomationValueText() => UiDescriptorCatalog.GetAutomationValueText(this);
     public uint TextVersion => _textVersion;
     public uint LayoutVersion => _layoutVersion;
     internal uint OutputVersion => _outputVersion;
+    internal event Action<string>? EffectivePropertyChanged;
     internal Delta.XAML.UiStyle? AppliedStyle => _appliedStyle;
     internal Delta.XAML.UiStyleState AppliedStyleState => _appliedStyleState;
     internal int AppliedStyleVersion => _appliedStyleVersion;
@@ -933,7 +1047,18 @@ internal class UiElement
         UiPropertyKey property,
         object? value,
         UiDirtyFlags invalidation) =>
-        _properties.SetBindingValue(propertyName, property, value, invalidation);
+        _properties.SetBindingValue(propertyName, property, Delta.XAML.UiElement.ToRetainedValue(value), invalidation);
+
+    internal void ApplyTemplateOwnerBindings()
+    {
+        foreach (var binding in _externalBindingRuntimes.Values)
+        {
+            if (binding.IsTemplateOwnerRelation)
+            {
+                binding.ApplyPending();
+            }
+        }
+    }
 
     internal void QueueCompiledBindingRefresh(string propertyName)
     {
@@ -974,6 +1099,7 @@ internal class UiElement
         _nodeStore = store;
         _detachedParent = null;
         _detachedChildren.Clear();
+        _relationVersion++;
     }
 
     internal void PrepareNodeStoreDetachment(UiNodeStore store)
@@ -999,6 +1125,7 @@ internal class UiElement
         if (ReferenceEquals(_nodeStore, store))
         {
             _nodeStore = null;
+            _relationVersion++;
         }
     }
 
@@ -1054,6 +1181,8 @@ internal class UiElement
             compiledBinding.TryWrite(value, out _);
         }
     }
+
+    internal void NotifyEffectivePropertyChanged(string propertyName) => EffectivePropertyChanged?.Invoke(propertyName);
 
     internal Type BindingTargetType(string propertyName) => UiPropertyKeys.ValueType(this, propertyName);
 
@@ -1214,13 +1343,13 @@ internal sealed class StackPanel : UiElement
 
 internal sealed class ItemsControl : UiElement
 {
-    private PanelState _panelState;
+    private StackPanelState _layoutState = new() { Orientation = UiOrientation.Vertical };
     private ItemsControlState _state;
     private readonly List<object?> _items = new();
     private readonly List<UiElement> _realized = new();
     private readonly List<UiElement> _nextRealized = new();
 
-    internal ref PanelState PanelState => ref _panelState;
+    internal ref StackPanelState LayoutState => ref _layoutState;
     internal ref ItemsControlState State => ref _state;
 
     public ItemsControl() : base("ItemsControl") { }
@@ -1262,6 +1391,507 @@ internal sealed class ItemsControl : UiElement
             var element = factory(source.GetValue(index));
             return element ?? throw new InvalidOperationException("The item factory returned a null UI element.");
         }
+    }
+}
+
+internal sealed class Slider : UiElement
+{
+    private SliderState _state = new()
+    {
+        Maximum = 1,
+        Step = 0.1,
+        Orientation = UiOrientation.Horizontal,
+    };
+
+    internal ref SliderState State => ref _state;
+
+    internal Slider() : base("Slider")
+    {
+        Focusable = true;
+        AutomationRole = UiAutomationRole.Slider;
+        SetDefaultProperty("Minimum", _state.Minimum, UiDirtyFlags.Visual);
+        SetDefaultProperty("Maximum", _state.Maximum, UiDirtyFlags.Visual);
+        SetDefaultProperty("Value", _state.Value, UiDirtyFlags.Binding | UiDirtyFlags.Visual);
+        SetDefaultProperty("Step", _state.Step, UiDirtyFlags.Visual);
+        SetDefaultProperty("Orientation", _state.Orientation, UiDirtyFlags.Measure | UiDirtyFlags.Arrange);
+    }
+
+    internal double Minimum { get => _state.Minimum; set => SetLocalProperty("Minimum", value, UiDirtyFlags.Visual); }
+    internal double Maximum { get => _state.Maximum; set => SetLocalProperty("Maximum", value, UiDirtyFlags.Visual); }
+    internal double Value { get => _state.Value; set => SetLocalProperty("Value", value, UiDirtyFlags.Binding | UiDirtyFlags.Visual); }
+    internal double Step { get => _state.Step; set => SetLocalProperty("Step", value, UiDirtyFlags.Visual); }
+    internal UiOrientation Orientation { get => _state.Orientation; set => SetLocalProperty("Orientation", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange); }
+
+    internal void SetUserValue(double value)
+    {
+        value = Math.Clamp(value, _state.Minimum, _state.Maximum);
+        if (HasBinding(nameof(Value)))
+        {
+            if (_state.Value.Equals(value))
+            {
+                return;
+            }
+
+            _state.Value = value;
+            InvalidateChanged(UiDirtyFlags.Binding | UiDirtyFlags.Visual);
+        }
+        else
+        {
+            Value = value;
+        }
+
+        NotifyBindingTargetChanged(nameof(Value), value);
+    }
+}
+
+internal sealed class Image : UiElement
+{
+    private ImageState _state = new() { Tint = new(255, 255, 255, 255), Stretch = (byte)Delta.XAML.UiImageStretch.Uniform };
+
+    internal ref ImageState State => ref _state;
+
+    internal Image() : base("Image") => AutomationRole = UiAutomationRole.Image;
+
+    internal Guid Source
+    {
+        get => _state.Resource;
+        set
+        {
+            if (_state.Resource == value)
+            {
+                return;
+            }
+
+            _state.Resource = value;
+            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        }
+    }
+
+    internal UiColor Tint
+    {
+        get => _state.Tint;
+        set
+        {
+            if (_state.Tint == value)
+            {
+                return;
+            }
+
+            _state.Tint = value;
+            InvalidateChanged(UiDirtyFlags.Visual);
+        }
+    }
+
+    internal byte Stretch
+    {
+        get => _state.Stretch;
+        set
+        {
+            if (_state.Stretch == value)
+            {
+                return;
+            }
+
+            _state.Stretch = value;
+            InvalidateChanged(UiDirtyFlags.Visual);
+        }
+    }
+
+    internal Guid Placeholder
+    {
+        get => _state.Placeholder;
+        set
+        {
+            if (_state.Placeholder == value)
+            {
+                return;
+            }
+
+            _state.Placeholder = value;
+            InvalidateChanged(UiDirtyFlags.Visual);
+        }
+    }
+
+    internal Guid ErrorSource
+    {
+        get => _state.ErrorSource;
+        set
+        {
+            if (_state.ErrorSource == value)
+            {
+                return;
+            }
+
+            _state.ErrorSource = value;
+            InvalidateChanged(UiDirtyFlags.Visual);
+        }
+    }
+
+    internal Guid DisplaySource => _state.Status switch
+    {
+        (byte)Delta.XAML.UiImageStatus.Error when _state.ErrorSource != Guid.Empty => _state.ErrorSource,
+        (byte)Delta.XAML.UiImageStatus.Loading when _state.Placeholder != Guid.Empty => _state.Placeholder,
+        _ => _state.Resource,
+    };
+
+    internal UiRect ImageBounds
+    {
+        get
+        {
+            var width = MathF.Max(0, _state.IntrinsicWidth);
+            var height = MathF.Max(0, _state.IntrinsicHeight);
+            if ((Delta.XAML.UiImageStretch)_state.Stretch == Delta.XAML.UiImageStretch.Fill || width <= 0 || height <= 0)
+            {
+                return Bounds;
+            }
+
+            var scale = (Delta.XAML.UiImageStretch)_state.Stretch switch
+            {
+                Delta.XAML.UiImageStretch.None => 1,
+                Delta.XAML.UiImageStretch.UniformToFill => MathF.Max(Bounds.Width / width, Bounds.Height / height),
+                _ => MathF.Min(Bounds.Width / width, Bounds.Height / height),
+            };
+            var renderedWidth = width * scale;
+            var renderedHeight = height * scale;
+            return new(
+                Bounds.X + (Bounds.Width - renderedWidth) * 0.5f,
+                Bounds.Y + (Bounds.Height - renderedHeight) * 0.5f,
+                renderedWidth,
+                renderedHeight);
+        }
+    }
+
+    internal void SetMetadata(float width, float height, byte status)
+    {
+        if (_state.IntrinsicWidth.Equals(width) && _state.IntrinsicHeight.Equals(height) && _state.Status == status)
+        {
+            return;
+        }
+
+        _state.IntrinsicWidth = MathF.Max(0, width);
+        _state.IntrinsicHeight = MathF.Max(0, height);
+        _state.Status = status;
+        InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+    }
+}
+
+internal sealed class RichTextBlock : UiElement
+{
+    private RichTextState _state = new()
+    {
+        Spans = Array.Empty<Delta.XAML.UiTextSpan>(),
+        HitRanges = Array.Empty<Delta.XAML.UiInlineHitRange>(),
+    };
+
+    internal RichTextBlock() : base("RichTextBlock") => AutomationRole = UiAutomationRole.Text;
+
+    internal ref RichTextState State => ref _state;
+
+    internal ReadOnlyMemory<Delta.XAML.UiTextSpan> Spans
+    {
+        get => _state.Spans;
+        set
+        {
+            var source = value.Span;
+            for (var i = 0; i < source.Length; i++)
+            {
+                ArgumentNullException.ThrowIfNull(source[i].Text);
+                ArgumentException.ThrowIfNullOrWhiteSpace(source[i].FontKey);
+                if (!float.IsFinite(source[i].FontSize) || source[i].FontSize <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(value), "Rich-text font sizes must be finite and positive.");
+                }
+            }
+
+            if (source.SequenceEqual(_state.Spans))
+            {
+                return;
+            }
+
+            var shapingChanged = source.Length != _state.Spans.Length;
+            if (!shapingChanged)
+            {
+                for (var i = 0; i < source.Length; i++)
+                {
+                    var previous = _state.Spans[i];
+                    if (!string.Equals(source[i].Text, previous.Text, StringComparison.Ordinal) ||
+                        !string.Equals(source[i].FontKey, previous.FontKey, StringComparison.Ordinal) ||
+                        !source[i].FontSize.Equals(previous.FontSize))
+                    {
+                        shapingChanged = true;
+                        break;
+                    }
+                }
+            }
+
+            _state.Spans = source.ToArray();
+            InvalidateChanged(shapingChanged
+                ? UiDirtyFlags.Measure | UiDirtyFlags.Text | UiDirtyFlags.Visual
+                : UiDirtyFlags.Text | UiDirtyFlags.Visual);
+        }
+    }
+
+    internal void SetHitRanges(Delta.XAML.UiInlineHitRange[] ranges, int count)
+    {
+        ArgumentNullException.ThrowIfNull(ranges);
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, ranges.Length);
+        _state.HitRanges = ranges;
+        _state.HitRangeCount = count;
+    }
+
+    internal string AutomationText
+    {
+        get
+        {
+            var builder = new StringBuilder();
+            for (var i = 0; i < _state.Spans.Length; i++)
+            {
+                builder.Append(_state.Spans[i].Text);
+            }
+
+            return builder.ToString();
+        }
+    }
+
+    internal bool TryGetLink(UiPoint point, out Delta.XAML.UiCommandId command, out string? argument)
+        => RichTextHitTestMixin.TryGetLink(ref _state, point, out command, out argument);
+}
+
+internal sealed class Overlay : UiElement
+{
+    private OverlayState _state = new() { IsOpen = true };
+    internal ref OverlayState State => ref _state;
+    internal Overlay() : base("Overlay") => IsFocusScope = true;
+    internal bool IsOpen
+    {
+        get => _state.IsOpen;
+        set
+        {
+            if (_state.IsOpen == value)
+            {
+                return;
+            }
+
+            _state.IsOpen = value;
+            SetParticipation(value ? Delta.XAML.UiParticipation.All : Delta.XAML.UiParticipation.None);
+        }
+    }
+}
+
+internal sealed class CollectionView : UiElement
+{
+    private CollectionViewState _state = new() { SelectedIndex = -1 };
+    internal ref CollectionViewState State => ref _state;
+    internal CollectionView() : base("CollectionView")
+    {
+        AutomationRole = UiAutomationRole.List;
+        Focusable = true;
+    }
+    internal int SelectedIndex
+    {
+        get => _state.SelectedIndex;
+        set
+        {
+            if (_state.SelectedIndex == value)
+            {
+                return;
+            }
+
+            _state.SelectedIndex = value;
+            ApplySelection();
+            InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual);
+        }
+    }
+
+    internal bool SelectTarget(UiElement? target)
+    {
+        var items = ItemsHost;
+        if (items is null || target is null)
+        {
+            return false;
+        }
+
+        var current = target;
+        while (current.Parent is { } parent && !ReferenceEquals(parent, items))
+        {
+            current = parent;
+        }
+
+        if (!ReferenceEquals(current.Parent, items) || current.CollectionIndex < 0)
+        {
+            return false;
+        }
+
+        SelectedIndex = current.CollectionIndex;
+        return true;
+    }
+
+    internal bool MoveSelection(int delta)
+    {
+        var items = ItemsHost;
+        if (items is null || items.Children.Count == 0)
+        {
+            return false;
+        }
+
+        var first = items.Children[0].CollectionIndex;
+        var last = items.Children[^1].CollectionIndex;
+        var next = SelectedIndex < first || SelectedIndex > last
+            ? delta < 0 ? last : first
+            : Math.Clamp(SelectedIndex + delta, first, last);
+        if (next == SelectedIndex)
+        {
+            return false;
+        }
+
+        SelectedIndex = next;
+        return true;
+    }
+
+    private ItemsControl? ItemsHost =>
+        Children.Count > 0 && Children[0] is ScrollViewer { Content: ItemsControl items } ? items : null;
+
+    private void ApplySelection()
+    {
+        if (ItemsHost is not { } items)
+        {
+            return;
+        }
+
+        for (var i = 0; i < items.Children.Count; i++)
+        {
+            items.Children[i].IsSelected = items.Children[i].CollectionIndex == _state.SelectedIndex;
+        }
+    }
+}
+
+internal sealed class Picker : UiElement
+{
+    private PickerState _state = new() { SelectedIndex = -1 };
+    internal ref PickerState State => ref _state;
+    internal Picker() : base("Picker") => Focusable = true;
+    internal int SelectedIndex
+    {
+        get => _state.SelectedIndex;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, -1);
+
+            if (_state.SelectedIndex == value)
+            {
+                return;
+            }
+
+            _state.SelectedIndex = value;
+            if (ItemsCollection is { } items)
+            {
+                items.SelectedIndex = value;
+            }
+
+            InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Visual);
+        }
+    }
+    internal bool IsOpen
+    {
+        get => _state.IsOpen;
+        set
+        {
+            if (_state.IsOpen == value)
+            {
+                return;
+            }
+
+            _state.IsOpen = value;
+            if (Children.Count > 1 && Children[1] is Overlay overlay)
+            {
+                overlay.IsOpen = value;
+            }
+
+            InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
+        }
+    }
+
+    internal bool ProcessPointer(UiElement? target)
+    {
+        if (target is null)
+        {
+            return false;
+        }
+
+        if (Children.Count > 0 && IsWithin(target, Children[0]))
+        {
+            IsOpen = !IsOpen;
+            return true;
+        }
+
+        if (ItemsCollection is { } items && items.SelectTarget(target))
+        {
+            SelectedIndex = items.SelectedIndex;
+            IsOpen = false;
+            return true;
+        }
+
+        return false;
+    }
+
+    internal bool MoveSelection(int delta)
+    {
+        if (ItemsCollection is not { } items || !items.MoveSelection(delta))
+        {
+            return false;
+        }
+
+        SelectedIndex = items.SelectedIndex;
+        return true;
+    }
+
+    internal bool SynchronizeSelection()
+    {
+        if (ItemsCollection is not { } items || items.SelectedIndex == _state.SelectedIndex)
+        {
+            return false;
+        }
+
+        SelectedIndex = items.SelectedIndex;
+        return true;
+    }
+
+    private CollectionView? ItemsCollection =>
+        Children.Count > 1 && Children[1] is Overlay overlay && overlay.Children.Count > 0
+            ? overlay.Children[0] as CollectionView
+            : null;
+
+    private static bool IsWithin(UiElement candidate, UiElement ancestor)
+    {
+        for (var current = candidate; current is not null; current = current.Parent)
+        {
+            if (ReferenceEquals(current, ancestor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+internal sealed class TabView : UiElement
+{
+    private TabViewState _state = new() { SelectedIndex = -1 };
+    internal ref TabViewState State => ref _state;
+    internal TabView() : base("TabView") => AutomationRole = UiAutomationRole.Tab;
+    internal int SelectedIndex { get => _state.SelectedIndex; set => _state.SelectedIndex = value; }
+}
+
+internal sealed class Menu : UiElement
+{
+    private MenuState _state = new() { Layout = new StackPanelState { Orientation = UiOrientation.Vertical } };
+    internal ref MenuState State => ref _state;
+    internal Menu() : base("Menu")
+    {
+        IsFocusScope = true;
+        AutomationRole = UiAutomationRole.Menu;
     }
 }
 

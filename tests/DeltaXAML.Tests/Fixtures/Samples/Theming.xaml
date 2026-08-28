@@ -1,0 +1,6 @@
+<!-- Ported from dotnet/maui-samples@e78b475: UserInterface/ThemingDemo (MIT). -->
+<StackPanel xmlns:x="urn:delta-xaml">
+  <Resource x:Key="Accent" Type="Color" Value="#F2BB66" />
+  <Style x:Key="Title" TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource Accent}" /></Style>
+  <TextBlock Text="Theme-backed title" StyleKey="Title" />
+</StackPanel>

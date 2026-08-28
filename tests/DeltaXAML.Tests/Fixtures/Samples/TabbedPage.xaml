@@ -1,0 +1,5 @@
+<!-- Ported from dotnet/maui-samples@e78b475: Navigation/TabbedPage (MIT). -->
+<StackPanel>
+  <TabView SelectedIndex="1" />
+  <TextBlock Text="Selected tab content" />
+</StackPanel>

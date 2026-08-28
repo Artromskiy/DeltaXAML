@@ -160,7 +160,7 @@ internal sealed class UiInterpretedBinding : IDisposable
 
         if (_expression?.StringFormat is { Length: > 0 } format)
         {
-            value = string.Format(CultureInfo.InvariantCulture, format, value);
+            value = string.Format(_expression.Culture ?? CultureInfo.InvariantCulture, format, value);
         }
 
         return value;

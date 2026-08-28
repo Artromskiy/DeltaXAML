@@ -76,7 +76,12 @@ public sealed class XamlLoader : IXamlLoader
 
             element.AttachBinding(new Retained.UiInterpretedBinding(
                 spec.Property,
-                new UiBindingExpression(spec.Path, BindingModeMap.ToPublic(spec.Mode), converter, spec.StringFormat)));
+                new UiBindingExpression(
+                    spec.Path,
+                    BindingModeMap.ToPublic(spec.Mode),
+                    converter,
+                    spec.StringFormat,
+                    spec.CultureName is null ? null : System.Globalization.CultureInfo.GetCultureInfo(spec.CultureName))));
         }
 
         foreach (var child in element.Children)

@@ -12,7 +12,8 @@ internal sealed class UiRuntime
 {
     private readonly List<UiMutation> _mutations = new();
     private readonly List<UiControlMutation> _controlMutations = new();
-    private readonly List<UiInputEvent> _inputQueue = new();
+    private readonly List<Delta.XAML.UiInputSample> _inputQueue = new();
+    private readonly UiSemanticQueue _semanticCommands = new();
     private readonly UiElement _retainedRoot;
     private readonly UiNodeStore _nodes;
     private readonly UiInputRouter _input;
@@ -46,6 +47,7 @@ internal sealed class UiRuntime
     public int PendingMutationCount => _mutations.Count;
     internal int PendingInputCount => _inputQueue.Count;
     internal int NodeCount => _nodes.Count;
+    internal ReadOnlySpan<Delta.XAML.UiSemanticCommand> SemanticCommands => _semanticCommands.Values;
 
     internal void Dispose()
     {
@@ -65,22 +67,30 @@ internal sealed class UiRuntime
 
     public void Enqueue(in UiMutation mutation) => _mutations.Add(mutation);
 
-    internal void EnqueueInput(in UiInputEvent packet)
+    internal void EnqueueInput(in UiInputEvent packet) =>
+        EnqueueInput(new Delta.XAML.UiInputSample(packet, TimeSpan.Zero));
+
+    internal void EnqueueInput(in Delta.XAML.UiInputSample sample)
     {
+        var packet = sample.Event;
         switch (packet.Kind)
         {
             case UiInputEventKind.Text:
-                _inputQueue.Add(UiInputEvent.FromText(new UiTextInput(CopyInputText(packet.Text.Text.Span))));
+                _inputQueue.Add(new(
+                    UiInputEvent.FromText(new UiTextInput(CopyInputText(packet.Text.Text.Span))),
+                    sample.Timestamp));
                 break;
             case UiInputEventKind.Composition:
                 var composition = packet.Composition;
-                _inputQueue.Add(UiInputEvent.FromComposition(new UiCompositionEvent(
-                    composition.Stage,
-                    CopyInputText(composition.Preedit.Span),
-                    composition.Selection)));
+                _inputQueue.Add(new(
+                    UiInputEvent.FromComposition(new UiCompositionEvent(
+                        composition.Stage,
+                        CopyInputText(composition.Preedit.Span),
+                        composition.Selection)),
+                    sample.Timestamp));
                 break;
             default:
-                _inputQueue.Add(packet);
+                _inputQueue.Add(sample);
                 break;
         }
     }
@@ -101,9 +111,23 @@ internal sealed class UiRuntime
         UiSize viewport,
         float dpiScale,
         Delta.XAML.UiTheme? theme,
-        Delta.XAML.UiElement? publicRoot)
+        Delta.XAML.UiElement? publicRoot,
+        Delta.XAML.IUiImageMetadataResolver? imageMetadataResolver = null,
+        Delta.XAML.IUiGeneratedDocumentProgram? program = null,
+        Delta.XAML.UiDocument? document = null)
     {
+        _semanticCommands.Clear();
         UiInputStage.Run(_input, _inputQueue);
+        if (program is not null)
+        {
+            if (document is null)
+            {
+                throw new InvalidOperationException("A generated document program requires its owning document stage context.");
+            }
+
+            program.RunStage(document, Delta.XAML.UiGeneratedStage.AfterInput);
+        }
+
         UiMutationStage.Run(_nodes, _retainedRoot, _controlMutations, _mutations, out var applied, out var rejected);
         _inputTextCount = 0;
         AppliedMutationCount = applied;
@@ -111,6 +135,16 @@ internal sealed class UiRuntime
         var bindingTreeChanged = _bindingTreeVersion != _retainedRoot.TreeVersion;
         UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder, bindingTreeChanged);
         _bindingTreeVersion = _retainedRoot.TreeVersion;
+        if (program is not null)
+        {
+            if (document is null)
+            {
+                throw new InvalidOperationException("A generated document program requires its owning document stage context.");
+            }
+
+            program.RunStage(document, Delta.XAML.UiGeneratedStage.AfterBindings);
+        }
+
         if (publicRoot is not null)
         {
             UiStyleStage.Run(theme, _nodes, publicRoot, _stageTraversal, _childOrder);
@@ -122,6 +156,7 @@ internal sealed class UiRuntime
             _appliedScale = dpiScale;
             _scaledTreeVersion = _retainedRoot.TreeVersion;
         }
+        UiImageMetadataStage.Run(imageMetadataResolver, _nodes, _retainedRoot, _stageTraversal, _childOrder);
         var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
         UiMeasureStage.Run(_nodes, _retainedRoot, scaled, _measureQueue, _childOrder);
         UiArrangeStage.Run(_nodes, _retainedRoot, new(0, 0, viewport.Width, viewport.Height), _arrangeQueue);
@@ -144,6 +179,28 @@ internal sealed class UiRuntime
     {
         ArgumentNullException.ThrowIfNull(target);
         _controlMutations.Add(UiControlMutation.FromRoutedEvent(new(target.Id.Value, target.Generation), in routedEvent));
+    }
+
+    internal void PublishSemantic(
+        UiElement source,
+        Delta.XAML.UiSemanticActionKind action,
+        Delta.XAML.UiGestureData gesture,
+        string? argument = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var command = new Delta.XAML.UiSemanticCommand(source.Command, Delta.XAML.UiElement.Wrap(source), action, gesture, argument);
+        _semanticCommands.Add(in command);
+    }
+
+    internal void PublishSemantic(
+        UiElement source,
+        Delta.XAML.UiCommandId commandId,
+        Delta.XAML.UiSemanticActionKind action,
+        string? argument = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var command = new Delta.XAML.UiSemanticCommand(commandId, Delta.XAML.UiElement.Wrap(source), action, default, argument);
+        _semanticCommands.Add(in command);
     }
 
     internal bool TryResolve(UiElementId id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element)
@@ -242,12 +299,13 @@ internal sealed class UiRuntime
         return null;
     }
 
-    internal void CollectFocusable(List<UiElement> result)
+    internal void CollectFocusable(List<UiElement> result, UiElement? scope = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         _nodes.EnsureCurrent(_retainedRoot);
         _traversal.Clear();
-        _traversal.Add(new(new UiNodeId(_retainedRoot.Id.Value, _retainedRoot.Generation), false));
+        var traversalRoot = scope ?? _retainedRoot;
+        _traversal.Add(new(new UiNodeId(traversalRoot.Id.Value, traversalRoot.Generation), false));
         while (_traversal.Count != 0)
         {
             var last = _traversal.Count - 1;

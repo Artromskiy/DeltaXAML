@@ -1,0 +1,23 @@
+<StackPanel xmlns:x="urn:delta-xaml" x:DataType="DeltaXaml.Tests.FullCapabilityModel">
+  <Resource x:Key="SurfaceBrush" Type="Brush" Value="LinearGradient:56f86c2b-228e-4f9e-bb90-3145dd9cb001" />
+  <Panel x:Name="Surface" Height="24" BackgroundBrush="{DynamicResource SurfaceBrush}" AutomationName="Gradient surface" AutomationRole="Generic" />
+  <Button x:Name="Action" Height="24" Gestures="Tap,LongPress" Command="56f86c2b-228e-4f9e-bb90-3145dd9cb002" CommandKey="13,Control" IsFocusScope="true">
+    <TextBlock Text="Action" />
+  </Button>
+  <TextBlock x:Name="ConditionTarget" Text="condition" />
+  <Trigger Target="ConditionTarget" Sources="Context.Armed|Volume.Value" Values="true|4" Property="Foreground" Set="#33CC66" Action="Command" Argument="armed" />
+  <TextBlock x:Name="BehaviorTarget" Text="behavior" />
+  <Behavior Target="BehaviorTarget" Plan="SelectOnStage" />
+  <CollectionView x:Name="List" Height="48" ItemsSource="{Binding Rows}" ItemTemplate="RowTemplate" ItemTemplateSelector="RowKind" ItemExtent="16" />
+  <Picker x:Name="Choice" Height="32" SelectedIndex="0" ItemsSource="{Binding Rows}" ItemTemplate="RowTemplate" ItemTemplateSelector="RowKind" VirtualizationCount="3" />
+  <Slider x:Name="Volume" Minimum="0" Maximum="10" Value="{Binding Volume, Mode=TwoWay}" Step="2" AutomationName="Volume" AutomationRole="Slider" />
+  <TextBlock x:Name="ContextMulti" Text="{MultiBinding Sources=Context.Armed|Volume.Value, Function=ArmedValue}" />
+  <Image x:Name="Picture" Source="56f86c2b-228e-4f9e-bb90-3145dd9cb003" Placeholder="56f86c2b-228e-4f9e-bb90-3145dd9cb004" ErrorSource="56f86c2b-228e-4f9e-bb90-3145dd9cb005" Stretch="UniformToFill" />
+  <RichTextBlock x:Name="Rich"><Span Text="Delta" Foreground="#FFFFFF" /><Span Text="XAML" Foreground="#33CC66" Command="56f86c2b-228e-4f9e-bb90-3145dd9cb006" Argument="docs" /></RichTextBlock>
+  <Template x:Key="RowTemplate" x:DataType="DeltaXaml.Tests.CollectionRow">
+    <TextBlock Text="{Binding Label}" />
+  </Template>
+  <Template x:Key="AlternateRowTemplate" x:DataType="DeltaXaml.Tests.CollectionRow">
+    <Border Background="#223344"><TextBlock Text="{Binding Label}" /></Border>
+  </Template>
+</StackPanel>

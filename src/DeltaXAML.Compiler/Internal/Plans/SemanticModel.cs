@@ -13,12 +13,26 @@ internal enum XamlValueKind
     Boolean,
     Single,
     Double,
+    Integer,
+    ResourceId,
+    Brush,
     Color,
     Thickness,
     GridLengthList,
     Enum,
     Binding,
+    MultiBinding,
     ResourceReference,
+    ItemsSource,
+}
+
+internal enum XamlBindingSourceKind
+{
+    Context,
+    Self,
+    TemplateOwner,
+    Name,
+    Ancestor,
 }
 
 internal enum XamlContentKind
@@ -46,7 +60,8 @@ internal readonly record struct XamlPropertyDefinition(
     string Name,
     XamlValueKind ValueKind,
     string? SetterExpression = null,
-    string? MemberName = null);
+    string? MemberName = null,
+    string? AttachedPropertyExpression = null);
 
 internal sealed class XamlTypeDefinition
 {
@@ -272,7 +287,21 @@ internal readonly record struct XamlBindingPlan(
     string Path,
     UiBindingMode Mode,
     string? ConverterKey,
-    string? StringFormat);
+    string? StringFormat,
+    string? CultureName,
+    XamlBindingSourceKind SourceKind = XamlBindingSourceKind.Context,
+    string? SourceArgument = null);
+
+internal readonly record struct XamlMultiBindingSourcePlan(
+    XamlBindingSourceKind SourceKind,
+    string? SourceArgument,
+    string Path);
+
+internal readonly record struct XamlMultiBindingPlan(
+    ImmutableArray<XamlMultiBindingSourcePlan> Sources,
+    string? FunctionKey,
+    string? StringFormat,
+    string? CultureName);
 
 internal sealed record XamlBindingDefinition(
     string Path,
@@ -280,13 +309,33 @@ internal sealed record XamlBindingDefinition(
     string ValueTypeName,
     string ReadExpression,
     string? WriteExpression,
-    string? ConverterKey = null);
+    string? ConverterKey = null,
+    string? CollectionItemTypeName = null);
+
+internal sealed record XamlTemplateSelectorDefinition(
+    string Key,
+    string ItemTypeName,
+    string SelectExpression,
+    bool PassByIn,
+    ImmutableArray<string> TemplateKeys);
+
+internal sealed record XamlBindingFunctionDefinition(
+    string Key,
+    string MethodExpression,
+    ImmutableArray<string> ParameterTypeNames,
+    string ReturnTypeName);
+
+internal sealed record XamlBehaviorDefinition(
+    string Key,
+    string PlanTypeName,
+    string StateTypeName);
 
 internal readonly record struct XamlValuePlan(
     XamlValueKind Kind,
     XamlLiteralValue Literal,
     XamlResourceReferencePlan Resource,
-    XamlBindingPlan Binding)
+    XamlBindingPlan Binding,
+    XamlMultiBindingPlan MultiBinding = default)
 {
     internal static XamlValuePlan FromLiteral(XamlLiteralValue literal) =>
         new(literal.Kind, literal, default, default);
@@ -296,13 +345,20 @@ internal readonly record struct XamlValuePlan(
 
     internal static XamlValuePlan FromBinding(XamlBindingPlan binding) =>
         new(XamlValueKind.Binding, default, default, binding);
+
+    internal static XamlValuePlan FromItemsSource(XamlBindingPlan binding) =>
+        new(XamlValueKind.ItemsSource, default, default, binding);
+
+    internal static XamlValuePlan FromMultiBinding(XamlMultiBindingPlan binding) =>
+        new(XamlValueKind.MultiBinding, default, default, default, binding);
 }
 
 internal readonly record struct XamlMemberPlan(
     UiPropertyId Property,
     string Name,
     XamlValuePlan Value,
-    SourceRange Range);
+    SourceRange Range,
+    string? AttachedPropertyExpression = null);
 
 internal sealed record XamlObjectPlan(
     UiTypeId Type,
@@ -310,7 +366,17 @@ internal sealed record XamlObjectPlan(
     string? ScopeName,
     SourceRange Range,
     ImmutableArray<XamlMemberPlan> Members,
-    ImmutableArray<XamlObjectPlan> Children);
+    ImmutableArray<XamlObjectPlan> Children,
+    ImmutableArray<XamlTextSpanPlan> TextSpans = default);
+
+internal readonly record struct XamlTextSpanPlan(
+    string Text,
+    string FontKey,
+    float FontSize,
+    string Color,
+    Guid Command,
+    string? Argument,
+    SourceRange Range);
 
 internal sealed record XamlResourcePlan(
     UiResourceId Id,
@@ -342,6 +408,22 @@ internal sealed record XamlTemplatePlan(
     string Key,
     UiTemplateId Id,
     XamlObjectPlan Root,
+    SourceRange Range,
+    string? ItemTypeName = null);
+
+internal sealed record XamlTriggerPlan(
+    string TargetName,
+    ImmutableArray<XamlMultiBindingSourcePlan> Sources,
+    ImmutableArray<string> ExpectedValues,
+    string TargetProperty,
+    string SetValue,
+    string? Action,
+    string? Argument,
+    SourceRange Range);
+
+internal sealed record XamlBehaviorPlan(
+    string TargetName,
+    string Key,
     SourceRange Range);
 
 internal sealed record XamlDocumentPlan(
@@ -352,6 +434,8 @@ internal sealed record XamlDocumentPlan(
     ImmutableArray<XamlScalarResourcePlan> ScalarResources,
     ImmutableArray<XamlStylePlan> Styles,
     ImmutableArray<XamlTemplatePlan> Templates,
+    ImmutableArray<XamlTriggerPlan> Triggers,
+    ImmutableArray<XamlBehaviorPlan> Behaviors,
     ImmutableArray<XamlResourceSlotPlan> ResourceSlots,
     ImmutableArray<Diagnostic> Diagnostics)
 {
@@ -367,7 +451,12 @@ internal sealed class XamlSemanticRegistry
     private readonly Dictionary<UiTypeId, XamlTypeDefinition> _definitions = new();
     private readonly Dictionary<string, UiResourceId> _resources = new(StringComparer.Ordinal);
     private readonly Dictionary<UiResourceId, string> _resourceIds = new();
-    private readonly Dictionary<string, XamlBindingDefinition> _bindings = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string SourceType, string Path, string? Converter), XamlBindingDefinition> _bindings = new();
+    private readonly Dictionary<(string Path, string? Converter), XamlBindingDefinition> _bindingsByPath = new();
+    private readonly Dictionary<string, XamlTemplateSelectorDefinition> _templateSelectors = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, XamlBindingFunctionDefinition> _bindingFunctions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, XamlBehaviorDefinition> _behaviors = new(StringComparer.Ordinal);
+    private readonly Dictionary<XamlQualifiedName, XamlPropertyDefinition> _attachedProperties = new();
 
     internal void RegisterType(XamlTypeDefinition definition)
     {
@@ -407,6 +496,23 @@ internal sealed class XamlSemanticRegistry
         }
     }
 
+    internal void RegisterAttachedProperty(in XamlQualifiedName name, XamlPropertyDefinition definition)
+    {
+        if (!definition.Id.IsValid || string.IsNullOrWhiteSpace(name.LocalName) ||
+            string.IsNullOrWhiteSpace(definition.AttachedPropertyExpression))
+        {
+            throw new ArgumentException("An attached property requires stable identity, XAML name, and a direct descriptor expression.", nameof(definition));
+        }
+
+        if (!_attachedProperties.TryAdd(name, definition))
+        {
+            throw new ArgumentException($"The attached property '{name.LocalName}' is registered twice.", nameof(definition));
+        }
+    }
+
+    internal bool TryResolveAttachedProperty(in XamlQualifiedName name, out XamlPropertyDefinition definition) =>
+        _attachedProperties.TryGetValue(name, out definition);
+
     internal bool TryResolveType(
         in XamlQualifiedName name,
         [NotNullWhen(true)] out XamlTypeDefinition? definition)
@@ -445,14 +551,98 @@ internal sealed class XamlSemanticRegistry
             ArgumentException.ThrowIfNullOrWhiteSpace(converterKey);
         }
 
-        if (!_bindings.TryAdd(definition.Path, definition))
+        var key = (NormalizeTypeName(definition.SourceTypeName), definition.Path, definition.ConverterKey);
+        if (_bindings.TryGetValue(key, out var existing))
         {
-            throw new ArgumentException($"The XAML binding path '{definition.Path}' is registered twice.", nameof(definition));
+            if (existing == definition)
+            {
+                return;
+            }
+
+            throw new ArgumentException($"The XAML binding path '{definition.Path}' is registered with conflicting definitions for '{definition.SourceTypeName}'.", nameof(definition));
+        }
+
+        if (!_bindings.TryAdd(key, definition))
+        {
+            throw new ArgumentException($"The XAML binding path '{definition.Path}' is registered twice for '{definition.SourceTypeName}'.", nameof(definition));
+        }
+
+        _bindingsByPath.TryAdd((definition.Path, definition.ConverterKey), definition);
+    }
+
+    internal bool TryResolveBindingVariant(
+        string path,
+        string? converterKey,
+        [NotNullWhen(true)] out XamlBindingDefinition? definition) =>
+        _bindingsByPath.TryGetValue((path, converterKey), out definition);
+
+    internal bool TryResolveBinding(string path, [NotNullWhen(true)] out XamlBindingDefinition? definition) =>
+        TryResolveBindingVariant(path, null, out definition);
+
+    internal bool TryResolveBindingVariant(
+        string sourceTypeName,
+        string path,
+        string? converterKey,
+        [NotNullWhen(true)] out XamlBindingDefinition? definition) =>
+        _bindings.TryGetValue((NormalizeTypeName(sourceTypeName), path, converterKey), out definition);
+
+    internal bool TryResolveBinding(
+        string sourceTypeName,
+        string path,
+        [NotNullWhen(true)] out XamlBindingDefinition? definition) =>
+        TryResolveBindingVariant(sourceTypeName, path, null, out definition);
+
+    internal void RegisterTemplateSelector(XamlTemplateSelectorDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.Key);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.ItemTypeName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.SelectExpression);
+        if (!_templateSelectors.TryAdd(definition.Key, definition))
+        {
+            throw new ArgumentException($"The XAML template selector '{definition.Key}' is registered twice.", nameof(definition));
         }
     }
 
-    internal bool TryResolveBinding(string path, [NotNullWhen(true)] out XamlBindingDefinition? definition) =>
-        _bindings.TryGetValue(path, out definition);
+    internal bool TryResolveTemplateSelector(
+        string key,
+        [NotNullWhen(true)] out XamlTemplateSelectorDefinition? definition) =>
+        _templateSelectors.TryGetValue(key, out definition);
+
+    internal void RegisterBindingFunction(XamlBindingFunctionDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.Key);
+        if (!_bindingFunctions.TryAdd(definition.Key, definition))
+        {
+            throw new ArgumentException($"The XAML binding function '{definition.Key}' is registered twice.", nameof(definition));
+        }
+    }
+
+    internal bool TryResolveBindingFunction(
+        string key,
+        [NotNullWhen(true)] out XamlBindingFunctionDefinition? definition) =>
+        _bindingFunctions.TryGetValue(key, out definition);
+
+    internal void RegisterBehavior(XamlBehaviorDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.Key);
+        if (!_behaviors.TryAdd(definition.Key, definition))
+        {
+            throw new ArgumentException($"The XAML behavior '{definition.Key}' is registered twice.", nameof(definition));
+        }
+    }
+
+    internal bool TryResolveBehavior(
+        string key,
+        [NotNullWhen(true)] out XamlBehaviorDefinition? definition) =>
+        _behaviors.TryGetValue(key, out definition);
+
+    private static string NormalizeTypeName(string sourceTypeName) =>
+        sourceTypeName.StartsWith("global::", StringComparison.Ordinal)
+            ? sourceTypeName[8..]
+            : sourceTypeName;
 
     internal static XamlSemanticRegistry CreateBuiltIns()
     {
@@ -467,6 +657,14 @@ internal sealed class XamlSemanticRegistry
             Property("IsSelected", "10000000-0000-4000-8000-000000000007", XamlValueKind.Boolean),
             Property("StyleKey", "10000000-0000-4000-8000-000000000008", XamlValueKind.String),
             Property("TemplateKey", "10000000-0000-4000-8000-000000000009", XamlValueKind.String));
+        common = common.AddRange(ImmutableArray.Create(
+            Property("BackgroundBrush", "10000000-0000-4000-8000-00000000000A", XamlValueKind.Brush),
+            Property("AutomationName", "10000000-0000-4000-8000-00000000000B", XamlValueKind.String),
+            Property("AutomationRole", "10000000-0000-4000-8000-00000000000C", XamlValueKind.Enum),
+            Property("Gestures", "10000000-0000-4000-8000-00000000000D", XamlValueKind.Enum),
+            Property("Command", "10000000-0000-4000-8000-00000000000E", XamlValueKind.String),
+            Property("CommandKey", "10000000-0000-4000-8000-00000000000F", XamlValueKind.String),
+            Property("IsFocusScope", "10000000-0000-4000-8000-000000000010", XamlValueKind.Boolean)));
         Register(registry, "Panel", "22222222-2222-2222-2222-222222222201", XamlContentKind.Children, common);
         Register(registry, "Border", "22222222-2222-2222-2222-222222222202", XamlContentKind.SingleContent, common);
         Register(registry, "ContentControl", "22222222-2222-2222-2222-222222222203", XamlContentKind.SingleContent, common);
@@ -495,6 +693,49 @@ internal sealed class XamlSemanticRegistry
                 Property("Value", "30000000-0000-4000-8000-000000000001", XamlValueKind.Double),
                 Property("Minimum", "30000000-0000-4000-8000-000000000002", XamlValueKind.Double),
                 Property("Maximum", "30000000-0000-4000-8000-000000000003", XamlValueKind.Double))));
+        Register(registry, "Slider", "22222222-2222-2222-2222-22222222220E", XamlContentKind.None,
+            common.AddRange(ImmutableArray.Create(
+                Property("Value", "70000000-0000-4000-8000-000000000001", XamlValueKind.Double),
+                Property("Minimum", "70000000-0000-4000-8000-000000000002", XamlValueKind.Double),
+                Property("Maximum", "70000000-0000-4000-8000-000000000003", XamlValueKind.Double),
+                Property("Step", "70000000-0000-4000-8000-000000000004", XamlValueKind.Double),
+                Property("Orientation", "70000000-0000-4000-8000-000000000005", XamlValueKind.Enum))));
+        Register(registry, "Image", "22222222-2222-2222-2222-22222222220F", XamlContentKind.None,
+            common.AddRange(ImmutableArray.Create(
+                Property("Source", "71000000-0000-4000-8000-000000000001", XamlValueKind.ResourceId),
+                Property("Tint", "71000000-0000-4000-8000-000000000002", XamlValueKind.Color),
+                Property("Stretch", "71000000-0000-4000-8000-000000000003", XamlValueKind.Enum),
+                Property("Placeholder", "71000000-0000-4000-8000-000000000004", XamlValueKind.ResourceId),
+                Property("ErrorSource", "71000000-0000-4000-8000-000000000005", XamlValueKind.ResourceId))));
+        Register(registry, "Overlay", "22222222-2222-2222-2222-222222222210", XamlContentKind.Children,
+            common.Add(Property("IsOpen", "72000000-0000-4000-8000-000000000001", XamlValueKind.Boolean)));
+        Register(registry, "CollectionView", "22222222-2222-2222-2222-222222222211", XamlContentKind.None,
+            common.AddRange(ImmutableArray.Create(
+                Property("SelectedIndex", "72000000-0000-4000-8000-000000000002", XamlValueKind.Integer),
+                Property("ItemsSource", "73000000-0000-4000-8000-000000000001", XamlValueKind.ItemsSource),
+                Property("ItemTemplate", "73000000-0000-4000-8000-000000000002", XamlValueKind.String),
+                Property("ItemTemplateSelector", "73000000-0000-4000-8000-000000000005", XamlValueKind.String),
+                Property("VirtualizationStart", "73000000-0000-4000-8000-000000000003", XamlValueKind.Integer),
+                Property("VirtualizationCount", "73000000-0000-4000-8000-000000000004", XamlValueKind.Integer),
+                Property("ItemExtent", "73000000-0000-4000-8000-000000000006", XamlValueKind.Single))));
+        Register(registry, "Picker", "22222222-2222-2222-2222-222222222212", XamlContentKind.None,
+            common.AddRange(ImmutableArray.Create(
+                Property("SelectedIndex", "72000000-0000-4000-8000-000000000003", XamlValueKind.Integer),
+                Property("IsOpen", "72000000-0000-4000-8000-000000000004", XamlValueKind.Boolean),
+                Property("ItemsSource", "73000000-0000-4000-8000-000000000007", XamlValueKind.ItemsSource),
+                Property("ItemTemplate", "73000000-0000-4000-8000-000000000008", XamlValueKind.String),
+                Property("ItemTemplateSelector", "73000000-0000-4000-8000-000000000009", XamlValueKind.String),
+                Property("VirtualizationStart", "73000000-0000-4000-8000-00000000000A", XamlValueKind.Integer),
+                Property("VirtualizationCount", "73000000-0000-4000-8000-00000000000B", XamlValueKind.Integer),
+                Property("ItemExtent", "73000000-0000-4000-8000-00000000000C", XamlValueKind.Single))));
+        Register(registry, "TabView", "22222222-2222-2222-2222-222222222213", XamlContentKind.None,
+            common.Add(Property("SelectedIndex", "72000000-0000-4000-8000-000000000005", XamlValueKind.Integer)));
+        Register(registry, "Menu", "22222222-2222-2222-2222-222222222214", XamlContentKind.None, common);
+        Register(registry, "RichTextBlock", "22222222-2222-2222-2222-222222222215", XamlContentKind.None, common);
+        RegisterAttached(registry, "Grid.Row", "60000000-0000-4000-8000-000000000002", XamlValueKind.Integer, "global::Delta.XAML.UiGridAttachedProperties.Row");
+        RegisterAttached(registry, "Grid.Column", "60000000-0000-4000-8000-000000000003", XamlValueKind.Integer, "global::Delta.XAML.UiGridAttachedProperties.Column");
+        RegisterAttached(registry, "Grid.RowSpan", "60000000-0000-4000-8000-000000000004", XamlValueKind.Integer, "global::Delta.XAML.UiGridAttachedProperties.RowSpan");
+        RegisterAttached(registry, "Grid.ColumnSpan", "60000000-0000-4000-8000-000000000005", XamlValueKind.Integer, "global::Delta.XAML.UiGridAttachedProperties.ColumnSpan");
         registry.RegisterType(new(
             new UiTypeId(Guid.Parse("22222222-2222-2222-2222-22222222220D")),
             new XamlQualifiedName(string.Empty, "ResourceDictionary"),
@@ -505,6 +746,20 @@ internal sealed class XamlSemanticRegistry
 
     private static XamlPropertyDefinition Property(string name, string id, XamlValueKind kind) =>
         new(new UiPropertyId(Guid.Parse(id)), name, kind);
+
+    private static void RegisterAttached(
+        XamlSemanticRegistry registry,
+        string name,
+        string id,
+        XamlValueKind kind,
+        string descriptorExpression) =>
+        registry.RegisterAttachedProperty(
+            new XamlQualifiedName(string.Empty, name),
+            new XamlPropertyDefinition(
+                new UiPropertyId(Guid.Parse(id)),
+                name,
+                kind,
+                AttachedPropertyExpression: descriptorExpression));
 
     private static void Register(
         XamlSemanticRegistry registry,

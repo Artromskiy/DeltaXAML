@@ -70,6 +70,30 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             return;
         }
 
+        if (!TryRegisterAttachedProperties(registry, compilation, out metadataError))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(MetadataError, Location.None, metadataError));
+            return;
+        }
+
+        if (!TryRegisterTemplateSelectors(registry, compilation, out metadataError))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(MetadataError, Location.None, metadataError));
+            return;
+        }
+
+        if (!TryRegisterBindingFunctions(registry, compilation, out metadataError))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(MetadataError, Location.None, metadataError));
+            return;
+        }
+
+        if (!TryRegisterBehaviors(registry, compilation, out metadataError))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(MetadataError, Location.None, metadataError));
+            return;
+        }
+
         var sourceId = new DeltaSourceId(CreateStableGuid(file.Path));
         var plan = XamlCompiler.Compile(sourceId, file.Text, registry);
         for (var i = 0; i < plan.Diagnostics.Length; i++)
@@ -155,6 +179,227 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             try
             {
                 registry.RegisterType(definition);
+            }
+            catch (ArgumentException exception)
+            {
+                error = exception.Message;
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryRegisterTemplateSelectors(
+        XamlSemanticRegistry registry,
+        Compilation compilation,
+        out string error)
+    {
+        foreach (var type in EnumerateTypes(compilation.Assembly.GlobalNamespace))
+        {
+            foreach (var method in type.GetMembers().OfType<IMethodSymbol>())
+            {
+                var attribute = FindAttribute(method.GetAttributes(), "Delta.XAML.UiXamlTemplateSelectorAttribute");
+                if (attribute is null)
+                {
+                    continue;
+                }
+
+                if (attribute.ConstructorArguments.Length != 2 ||
+                    attribute.ConstructorArguments[0].Value is not string key ||
+                    string.IsNullOrWhiteSpace(key) ||
+                    !method.IsStatic || method.IsGenericMethod || method.Parameters.Length != 1 ||
+                    method.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal) ||
+                    method.Parameters[0].RefKind is not (RefKind.None or RefKind.In) ||
+                    method.ReturnType.SpecialType != SpecialType.System_Int32)
+                {
+                    error = $"Template selector '{method.ToDisplayString()}' must be an accessible non-generic static method accepting one item and returning a compact Int32 template index.";
+                    return false;
+                }
+
+                var templateKeys = System.Collections.Immutable.ImmutableArray.CreateBuilder<string>();
+                foreach (var value in attribute.ConstructorArguments[1].Values)
+                {
+                    if (value.Value is not string templateKey || string.IsNullOrWhiteSpace(templateKey))
+                    {
+                        error = $"Template selector '{method.ToDisplayString()}' declares an empty template key.";
+                        return false;
+                    }
+
+                    templateKeys.Add(templateKey);
+                }
+
+                if (templateKeys.Count == 0)
+                {
+                    error = $"Template selector '{method.ToDisplayString()}' must declare at least one template key.";
+                    return false;
+                }
+
+                var definition = new XamlTemplateSelectorDefinition(
+                    key,
+                    method.Parameters[0].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "." + method.Name,
+                    method.Parameters[0].RefKind == RefKind.In,
+                    templateKeys.ToImmutable());
+                try
+                {
+                    registry.RegisterTemplateSelector(definition);
+                }
+                catch (ArgumentException exception)
+                {
+                    error = exception.Message;
+                    return false;
+                }
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryRegisterAttachedProperties(
+        XamlSemanticRegistry registry,
+        Compilation compilation,
+        out string error)
+    {
+        foreach (var type in EnumerateTypes(compilation.Assembly.GlobalNamespace))
+        {
+            foreach (var property in type.GetMembers().OfType<IPropertySymbol>())
+            {
+                var attribute = FindAttribute(property.GetAttributes(), "Delta.XAML.UiXamlAttachedPropertyAttribute");
+                if (attribute is null)
+                {
+                    continue;
+                }
+
+                if (attribute.ConstructorArguments.Length != 5 ||
+                    attribute.ConstructorArguments[0].Value is not string xmlNamespace ||
+                    attribute.ConstructorArguments[1].Value is not string ownerName ||
+                    string.IsNullOrWhiteSpace(ownerName) ||
+                    attribute.ConstructorArguments[2].Value is not string ownerIdText ||
+                    attribute.ConstructorArguments[3].Value is not string propertyIdText ||
+                    attribute.ConstructorArguments[4].Value is not byte valueKind ||
+                    !Guid.TryParse(ownerIdText, out var ownerId) || ownerId == Guid.Empty ||
+                    !Guid.TryParse(propertyIdText, out var propertyId) || propertyId == Guid.Empty ||
+                    !property.IsStatic || property.GetMethod is null ||
+                    property.GetMethod.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal) ||
+                    property.Type is not INamedTypeSymbol propertyType ||
+                    !string.Equals(propertyType.OriginalDefinition.ToDisplayString(), "Delta.XAML.UiAttachedProperty<T>", StringComparison.Ordinal) ||
+                    !TryMapValueKind(valueKind, out var mappedKind))
+                {
+                    error = $"Attached property '{property.ToDisplayString()}' has invalid UiXamlAttachedProperty metadata or is not an accessible static UiAttachedProperty<T>.";
+                    return false;
+                }
+
+                var expression = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "." + property.Name;
+                var definition = new XamlPropertyDefinition(
+                    new UiPropertyId(propertyId),
+                    ownerName + "." + property.Name,
+                    mappedKind,
+                    AttachedPropertyExpression: expression);
+                try
+                {
+                    registry.RegisterAttachedProperty(new XamlQualifiedName(xmlNamespace, definition.Name), definition);
+                }
+                catch (ArgumentException exception)
+                {
+                    error = exception.Message;
+                    return false;
+                }
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryRegisterBindingFunctions(
+        XamlSemanticRegistry registry,
+        Compilation compilation,
+        out string error)
+    {
+        foreach (var type in EnumerateTypes(compilation.Assembly.GlobalNamespace))
+        {
+            foreach (var method in type.GetMembers().OfType<IMethodSymbol>())
+            {
+                var attribute = FindAttribute(method.GetAttributes(), "Delta.XAML.UiXamlBindingFunctionAttribute");
+                if (attribute is null)
+                {
+                    continue;
+                }
+
+                if (attribute.ConstructorArguments.Length != 1 ||
+                    attribute.ConstructorArguments[0].Value is not string key ||
+                    string.IsNullOrWhiteSpace(key) ||
+                    !method.IsStatic || method.IsGenericMethod || method.Parameters.Length < 2 ||
+                    method.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal) ||
+                    method.ReturnsVoid ||
+                    method.Parameters.Any(static parameter => parameter.RefKind != RefKind.None))
+                {
+                    error = $"Multi-binding function '{method.ToDisplayString()}' must be an accessible non-generic static value function with at least two by-value parameters.";
+                    return false;
+                }
+
+                var parameters = System.Collections.Immutable.ImmutableArray.CreateBuilder<string>(method.Parameters.Length);
+                for (var i = 0; i < method.Parameters.Length; i++)
+                {
+                    parameters.Add(method.Parameters[i].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                }
+
+                try
+                {
+                    registry.RegisterBindingFunction(new(
+                        key,
+                        method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "." + method.Name,
+                        parameters.ToImmutable(),
+                        method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+                }
+                catch (ArgumentException exception)
+                {
+                    error = exception.Message;
+                    return false;
+                }
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryRegisterBehaviors(
+        XamlSemanticRegistry registry,
+        Compilation compilation,
+        out string error)
+    {
+        foreach (var type in EnumerateTypes(compilation.Assembly.GlobalNamespace))
+        {
+            var attribute = FindAttribute(type.GetAttributes(), "Delta.XAML.UiXamlBehaviorAttribute");
+            if (attribute is null)
+            {
+                continue;
+            }
+
+            var behaviorInterface = type.AllInterfaces.FirstOrDefault(static contract =>
+                contract.OriginalDefinition.ToDisplayString() == "Delta.XAML.IUiBehaviorPlan<TPlan, TState>");
+            if (attribute.ConstructorArguments.Length != 1 ||
+                attribute.ConstructorArguments[0].Value is not string key ||
+                string.IsNullOrWhiteSpace(key) ||
+                type.TypeKind != TypeKind.Struct || !type.IsReadOnly || type.GetMembers().OfType<IFieldSymbol>().Any(static field => !field.IsStatic) ||
+                behaviorInterface is null || behaviorInterface.TypeArguments.Length != 2 ||
+                !SymbolEqualityComparer.Default.Equals(behaviorInterface.TypeArguments[0], type) ||
+                behaviorInterface.TypeArguments[1] is not INamedTypeSymbol { TypeKind: TypeKind.Struct } stateType)
+            {
+                error = $"Behavior '{type.ToDisplayString()}' must be a stateless readonly struct implementing IUiBehaviorPlan<Self, TState>.";
+                return false;
+            }
+
+            try
+            {
+                registry.RegisterBehavior(new(
+                    key,
+                    type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    stateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
             }
             catch (ArgumentException exception)
             {
@@ -263,45 +508,80 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         Compilation compilation,
         out string error)
     {
-        var bindings = new Dictionary<string, BindingRequest>(StringComparer.Ordinal);
+        var bindings = new Dictionary<BindingRequestKey, BindingRequest>();
         if (!CollectBindings(plan.Root, bindings, out error))
+        {
+            return false;
+        }
+
+        for (var triggerIndex = 0; triggerIndex < plan.Triggers.Length; triggerIndex++)
+        {
+            var trigger = plan.Triggers[triggerIndex];
+            for (var sourceIndex = 0; sourceIndex < trigger.Sources.Length; sourceIndex++)
+            {
+                if (trigger.Sources[sourceIndex].SourceKind == XamlBindingSourceKind.Context)
+                {
+                    bindings.TryAdd(new(trigger.Sources[sourceIndex].Path, null), new(null, false, false));
+                }
+            }
+        }
+
+        if (!TryRegisterBindingSet(registry, compilation, plan.BindingSourceTypeName, bindings, out error))
         {
             return false;
         }
 
         for (var i = 0; i < plan.Templates.Length; i++)
         {
-            if (!CollectBindings(plan.Templates[i].Root, bindings, out error))
+            bindings.Clear();
+            if (!CollectBindings(plan.Templates[i].Root, bindings, out error) ||
+                !TryRegisterBindingSet(
+                    registry,
+                    compilation,
+                    plan.Templates[i].ItemTypeName ?? plan.BindingSourceTypeName,
+                    bindings,
+                    out error))
             {
                 return false;
             }
         }
 
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryRegisterBindingSet(
+        XamlSemanticRegistry registry,
+        Compilation compilation,
+        string? sourceTypeName,
+        Dictionary<BindingRequestKey, BindingRequest> bindings,
+        out string error)
+    {
         if (bindings.Count == 0)
         {
             error = string.Empty;
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(plan.BindingSourceTypeName))
+        if (string.IsNullOrWhiteSpace(sourceTypeName))
         {
-            error = "Generated bindings require x:DataType on the XAML document.";
+            error = "Generated bindings require x:DataType on their document or data template.";
             return false;
         }
 
-        var metadataName = plan.BindingSourceTypeName.StartsWith("global::", StringComparison.Ordinal)
-            ? plan.BindingSourceTypeName[8..]
-            : plan.BindingSourceTypeName;
+        var metadataName = sourceTypeName.StartsWith("global::", StringComparison.Ordinal)
+            ? sourceTypeName[8..]
+            : sourceTypeName;
         var sourceType = compilation.GetTypeByMetadataName(metadataName);
         if (sourceType is null)
         {
-            error = $"Binding source type '{plan.BindingSourceTypeName}' was not found in the compilation.";
+            error = $"Binding source type '{sourceTypeName}' was not found in the compilation.";
             return false;
         }
 
         foreach (var pair in bindings)
         {
-            if (!TryCreateBindingDefinition(compilation, sourceType, pair.Key, pair.Value, out var definition, out error))
+            if (!TryCreateBindingDefinition(compilation, sourceType, pair.Key.Path, pair.Value, out var definition, out error))
             {
                 return false;
             }
@@ -383,14 +663,21 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
 
         var sourceTypeName = sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var valueTypeName = valueType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        definition = new(path, sourceTypeName, valueTypeName, read, write, request.ConverterKey);
+        string? collectionItemType = null;
+        if (request.IsCollection && !TryGetCollectionItemType(valueType, out collectionItemType))
+        {
+            error = $"ItemsSource path '{path}' must implement Delta.XAML.IUiItemsSource<TItem>.";
+            return false;
+        }
+
+        definition = new(path, sourceTypeName, valueTypeName, read, write, request.ConverterKey, collectionItemType);
         error = string.Empty;
         return true;
     }
 
     private static bool CollectBindings(
         XamlObjectPlan? node,
-        Dictionary<string, BindingRequest> bindings,
+        Dictionary<BindingRequestKey, BindingRequest> bindings,
         out string error)
     {
         if (node is null)
@@ -401,23 +688,44 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
 
         for (var i = 0; i < node.Members.Length; i++)
         {
-            if (node.Members[i].Value.Kind == XamlValueKind.Binding)
+            if (node.Members[i].Value.Kind == XamlValueKind.MultiBinding)
+            {
+                var sources = node.Members[i].Value.MultiBinding.Sources;
+                for (var sourceIndex = 0; sourceIndex < sources.Length; sourceIndex++)
+                {
+                    if (sources[sourceIndex].SourceKind == XamlBindingSourceKind.Context)
+                    {
+                        bindings.TryAdd(new(sources[sourceIndex].Path, null), new(null, false, false));
+                    }
+                }
+
+                continue;
+            }
+
+            if (node.Members[i].Value.Kind is XamlValueKind.Binding or XamlValueKind.ItemsSource)
             {
                 var binding = node.Members[i].Value.Binding;
-                var request = new BindingRequest(binding.ConverterKey, binding.Mode == UiBindingMode.TwoWay);
-                if (bindings.TryGetValue(binding.Path, out var previous))
+                if (binding.SourceKind != XamlBindingSourceKind.Context)
                 {
-                    if (previous.ConverterKey != request.ConverterKey)
-                    {
-                        error = $"Binding path '{binding.Path}' uses more than one converter in the same artifact.";
-                        return false;
-                    }
+                    continue;
+                }
 
-                    bindings[binding.Path] = previous with { NeedsWrite = previous.NeedsWrite || request.NeedsWrite };
+                var request = new BindingRequest(
+                    binding.ConverterKey,
+                    binding.Mode == UiBindingMode.TwoWay,
+                    node.Members[i].Value.Kind == XamlValueKind.ItemsSource);
+                var key = new BindingRequestKey(binding.Path, binding.ConverterKey);
+                if (bindings.TryGetValue(key, out var previous))
+                {
+                    bindings[key] = previous with
+                    {
+                        NeedsWrite = previous.NeedsWrite || request.NeedsWrite,
+                        IsCollection = previous.IsCollection || request.IsCollection,
+                    };
                 }
                 else
                 {
-                    bindings.Add(binding.Path, request);
+                    bindings.Add(key, request);
                 }
             }
         }
@@ -480,6 +788,38 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
 
         error = string.Empty;
         return true;
+    }
+
+    private static bool TryGetCollectionItemType(ITypeSymbol source, [NotNullWhen(true)] out string? itemType)
+    {
+        if (source is INamedTypeSymbol named && IsItemsSourceInterface(named, out itemType))
+        {
+            return true;
+        }
+
+        foreach (var candidate in source.AllInterfaces)
+        {
+            if (IsItemsSourceInterface(candidate, out itemType))
+            {
+                return true;
+            }
+        }
+
+        itemType = null;
+        return false;
+    }
+
+    private static bool IsItemsSourceInterface(INamedTypeSymbol type, [NotNullWhen(true)] out string? itemType)
+    {
+        if (type.TypeArguments.Length == 1 &&
+            string.Equals(type.OriginalDefinition.ToDisplayString(), "Delta.XAML.IUiItemsSource<TItem>", StringComparison.Ordinal))
+        {
+            itemType = type.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            return true;
+        }
+
+        itemType = null;
+        return false;
     }
 
     private static string ConverterExpression(IMethodSymbol method) =>
@@ -572,6 +912,7 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             5 => XamlValueKind.Thickness,
             6 => XamlValueKind.GridLengthList,
             7 => XamlValueKind.Enum,
+            8 => XamlValueKind.Integer,
             _ => XamlValueKind.Invalid,
         };
         return kind != XamlValueKind.Invalid;
@@ -645,5 +986,7 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         string? ClassName,
         string? NamespaceName);
 
-    private readonly record struct BindingRequest(string? ConverterKey, bool NeedsWrite);
+    private readonly record struct BindingRequest(string? ConverterKey, bool NeedsWrite, bool IsCollection);
+
+    private readonly record struct BindingRequestKey(string Path, string? ConverterKey);
 }

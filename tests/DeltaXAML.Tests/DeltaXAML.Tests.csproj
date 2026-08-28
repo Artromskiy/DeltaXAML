@@ -1,1 +1,55 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><!-- The harness has a direct text-service test dependency; its license is supplied by the workspace. --><NuGetAudit>false</NuGetAudit></PropertyGroup><ItemGroup><ProjectReference Include="../../src/DeltaXAML/DeltaXAML.csproj" /><ProjectReference Include="../../src/DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" /><ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" OutputItemType="Analyzer" /><ProjectReference Include="../../src/DeltaXAML.Contract/DeltaXAML.Contract.csproj" /><ProjectReference Include="../../../DeltaDiagnostics/src/Delta.Diagnostics.Contract/Delta.Diagnostics.Contract.csproj" /><ProjectReference Include="../../../DeltaMaths/DeltaMaths.csproj" /><ProjectReference Include="../../../DeltaText/DeltaText.csproj" /></ItemGroup><ItemGroup><Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Compiler.dll" /><Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/Delta.Diagnostics.Contract.dll" /><Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.dll" /><Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Contract.dll" /><Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaMaths.dll" /><Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaText.dll" /></ItemGroup><ItemGroup><CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName" /><CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace" /></ItemGroup><ItemGroup><PackageReference Include="SixLabors.Fonts" Version="3.0.0" /></ItemGroup><ItemGroup><None Include="../../../DeltaText/Tests/Fixtures/NotoSans-Regular.ttf" Link="Fixtures/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest" /><AdditionalFiles Include="Fixtures/EditorShell.xaml" DeltaXamlClassName="EditorShellArtifact" DeltaXamlNamespace="DeltaXaml.Generated" /><AdditionalFiles Include="Fixtures/GameHud.xaml" DeltaXamlClassName="GameHudArtifact" DeltaXamlNamespace="DeltaXaml.Generated" /><AdditionalFiles Include="Fixtures/CustomBadge.xaml" DeltaXamlClassName="CustomBadgeArtifact" DeltaXamlNamespace="DeltaXaml.Generated" /><AdditionalFiles Include="Fixtures/BoundText.xaml" DeltaXamlClassName="BoundTextArtifact" DeltaXamlNamespace="DeltaXaml.Generated" /><AdditionalFiles Include="Fixtures/Composition.xaml" DeltaXamlClassName="CompositionArtifact" DeltaXamlNamespace="DeltaXaml.Generated" /><AdditionalFiles Include="Fixtures/ToggleButton.xaml" DeltaXamlClassName="ToggleButtonArtifact" DeltaXamlNamespace="DeltaXaml.Generated" /><None Include="Fixtures/EditorShell.xaml" CopyToOutputDirectory="PreserveNewest" /><None Include="Fixtures/GameHud.xaml" CopyToOutputDirectory="PreserveNewest" /><None Include="Fixtures/CustomBadge.xaml" CopyToOutputDirectory="PreserveNewest" /><None Include="Fixtures/BoundText.xaml" CopyToOutputDirectory="PreserveNewest" /><None Include="Fixtures/Composition.xaml" CopyToOutputDirectory="PreserveNewest" /><None Include="Fixtures/ToggleButton.xaml" CopyToOutputDirectory="PreserveNewest" /></ItemGroup></Project>
+<?xml version="1.0"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/DeltaXAML/DeltaXAML.csproj"/>
+    <ProjectReference Include="../../src/DeltaXAML.Compiler/DeltaXAML.Compiler.csproj"/>
+    <ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" OutputItemType="Analyzer"/>
+    <ProjectReference Include="../../src/DeltaXAML.Contract/DeltaXAML.Contract.csproj"/>
+    <ProjectReference Include="../../../DeltaDiagnostics/src/Delta.Diagnostics.Contract/Delta.Diagnostics.Contract.csproj"/>
+    <ProjectReference Include="../../../DeltaMaths/DeltaMaths.csproj"/>
+    <ProjectReference Include="../../../DeltaText/DeltaText.csproj"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Compiler.dll"/>
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/Delta.Diagnostics.Contract.dll"/>
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.dll"/>
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Contract.dll"/>
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaMaths.dll"/>
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaText.dll"/>
+  </ItemGroup>
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName"/>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace"/>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../DeltaText/Tests/Fixtures/NotoSans-Regular.ttf" Link="Fixtures/NotoSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest"/>
+    <AdditionalFiles Include="Fixtures/EditorShell.xaml" DeltaXamlClassName="EditorShellArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/GameHud.xaml" DeltaXamlClassName="GameHudArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/CustomBadge.xaml" DeltaXamlClassName="CustomBadgeArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/BoundText.xaml" DeltaXamlClassName="BoundTextArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/Composition.xaml" DeltaXamlClassName="CompositionArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/ToggleButton.xaml" DeltaXamlClassName="ToggleButtonArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/GeneratedCollection.xaml" DeltaXamlClassName="GeneratedCollectionArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/GeneratedRelations.xaml" DeltaXamlClassName="GeneratedRelationsArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/FullCapability.xaml" DeltaXamlClassName="FullCapabilityArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/GeneratedAttached.xaml" DeltaXamlClassName="GeneratedAttachedArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/Samples/*.xaml" DeltaXamlClassName="Sample%(Filename)Artifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <None Include="Fixtures/EditorShell.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/GameHud.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/CustomBadge.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/BoundText.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/Composition.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/ToggleButton.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/GeneratedCollection.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/GeneratedRelations.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/FullCapability.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/GeneratedAttached.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Update="Fixtures/Samples/*.xaml" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+</Project>

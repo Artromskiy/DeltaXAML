@@ -1,0 +1,7 @@
+<!-- Ported from dotnet/maui-samples@e78b475: Fundamentals/DataBindingDemos (MIT). -->
+<StackPanel xmlns:x="urn:delta-xaml" x:DataType="DeltaXaml.Tests.BindingModel">
+  <TextBox Text="{Binding Name, Mode=TwoWay}" />
+  <TextBlock Text="{Binding Name, Converter=Upper}" />
+  <TextBlock Text="{Binding Name, StringFormat='Hello {0}', Culture=en-US}" />
+  <TextBlock Text="{MultiBinding Sources=Context.Name|Context.Name, StringFormat='{0} / {1}', Culture=en-US}" />
+</StackPanel>

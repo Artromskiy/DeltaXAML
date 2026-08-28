@@ -255,32 +255,45 @@ for different names.
 
 Generated XAML supports the built-in elements `Panel`, `StackPanel`, `Grid`,
 `ItemsControl`, `Border`, `ContentControl`, `ScrollViewer`, `Button`,
-`ToggleButton`, `TextBlock`, `TextBox` and `NumericEditor`. The following source
-features compile to typed artifacts:
+`ToggleButton`, `TextBlock`, `TextBox`, `NumericEditor`, `Slider`, `Picker`,
+`CollectionView`, `Overlay`, `TabView`, `Menu`, `Image` and `RichTextBlock`
+with `Span` declarations. The following source features compile to typed
+artifacts:
 
 - common size, background, padding, fill, enabled/selected, style and template
   properties;
 - text/font/foreground and numeric editor properties;
 - stack orientation and fixed/`Auto`/star grid definitions;
-- `x:Name`, `x:DataType`, `{Binding ...}`, typed converters and
-  `OneTime`/`OneWay`/`TwoWay` modes;
-- scalar/static/dynamic resources, styles, visual states and templates;
+- `x:Name`, `x:DataType`, typed `ItemsSource`, data templates, template
+  selectors and viewport-driven realization;
+- `{Binding ...}` with `OneTime`/`OneWay`/`TwoWay`, typed converters, `Self`,
+  template-owner, element-name and cached ancestor sources;
+- typed multi-source functions and explicitly cultured `StringFormat`;
+- `TemplateBinding`, generated attached properties and direct grid row/column
+  slots;
+- scalar/static/dynamic resources, resource-backed brushes, styles, visual
+  states, control/data/multi triggers and templates;
+- descriptor-bound behaviors, semantic commands, keyboard routing and tap,
+  multiple-tap, long-press, drag/pan, swipe and pinch declarations;
+- image resource identities and fallback state, rich style/action spans,
+  automation metadata and explicit localization inputs;
 - custom controls and direct custom properties declared with
   `UiXamlTypeAttribute` and `UiXamlPropertyAttribute`.
 
 Input is attached in code through neutral `UiInputEvent` packets and ordinary
-control events. The compiler intentionally rejects XAML event-handler members,
-attached properties such as `Grid.Row`, `x:Reference`, `RelativeSource`,
-`TemplateBinding`, undeclared binding paths, unsupported markup extensions and
-automation markup. These produce stable compiler/generator diagnostics; there
-is no reflection or alternate-runtime fallback. Collection source generation,
-data templates, triggers beyond the declared visual-state setters and general
-MAUI/WPF/Avalonia syntax are not part of the current dialect.
+control events. Platform work is published as semantic commands and adapted by
+the host. The compiler intentionally rejects code-behind event-handler members,
+`x:Reference` (use `ElementName`), undeclared binding paths, foreign control
+names and unsupported markup extensions. These produce stable diagnostics that
+name a Delta alternative where one exists; there is no reflection or
+alternate-runtime fallback. DeltaXAML supplies equivalent retained
+capabilities, not general MAUI/WPF/Avalonia source compatibility.
 
 ## Full-capability dialect target
 
-The completed retained kernel above is the baseline, not the final extent of
-the DeltaXAML language. The full-capability milestone is complete only when a
+The capabilities in this section are implemented by the generated artifact and
+single retained pipeline described above. The milestone remains complete only
+while a
 sample expressible through ordinary retained UI concepts can be authored
 without host code rebuilding layout, hit testing, binding or rendering logic.
 DeltaXAML does not promise source compatibility with another XAML dialect, but

@@ -4,6 +4,33 @@ using System.Text;
 
 namespace Delta.XAML;
 
+/// <summary>Stable identities of the built-in generated element descriptors.</summary>
+public static class UiKnownTypes
+{
+    public static UiTypeId Panel { get; } = Create("22222222-2222-2222-2222-222222222201");
+    public static UiTypeId Border { get; } = Create("22222222-2222-2222-2222-222222222202");
+    public static UiTypeId ContentControl { get; } = Create("22222222-2222-2222-2222-222222222203");
+    public static UiTypeId ScrollViewer { get; } = Create("22222222-2222-2222-2222-222222222204");
+    public static UiTypeId StackPanel { get; } = Create("22222222-2222-2222-2222-222222222205");
+    public static UiTypeId Grid { get; } = Create("22222222-2222-2222-2222-222222222206");
+    public static UiTypeId ItemsControl { get; } = Create("22222222-2222-2222-2222-222222222207");
+    public static UiTypeId Button { get; } = Create("22222222-2222-2222-2222-222222222208");
+    public static UiTypeId ToggleButton { get; } = Create("22222222-2222-2222-2222-222222222209");
+    public static UiTypeId TextBlock { get; } = Create("22222222-2222-2222-2222-22222222220A");
+    public static UiTypeId TextBox { get; } = Create("22222222-2222-2222-2222-22222222220B");
+    public static UiTypeId NumericEditor { get; } = Create("22222222-2222-2222-2222-22222222220C");
+    public static UiTypeId Slider { get; } = Create("22222222-2222-2222-2222-22222222220E");
+    public static UiTypeId Image { get; } = Create("22222222-2222-2222-2222-22222222220F");
+    public static UiTypeId Overlay { get; } = Create("22222222-2222-2222-2222-222222222210");
+    public static UiTypeId CollectionView { get; } = Create("22222222-2222-2222-2222-222222222211");
+    public static UiTypeId Picker { get; } = Create("22222222-2222-2222-2222-222222222212");
+    public static UiTypeId TabView { get; } = Create("22222222-2222-2222-2222-222222222213");
+    public static UiTypeId Menu { get; } = Create("22222222-2222-2222-2222-222222222214");
+    public static UiTypeId RichTextBlock { get; } = Create("22222222-2222-2222-2222-222222222215");
+
+    private static UiTypeId Create(string value) => new(Guid.Parse(value));
+}
+
 /// <summary>Explicit XAML name-to-factory catalog; it performs no reflection discovery.</summary>
 public sealed class XamlTypeCatalog : IXamlTypeResolver
 {

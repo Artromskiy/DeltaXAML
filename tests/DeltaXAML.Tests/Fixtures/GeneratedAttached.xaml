@@ -1,0 +1,4 @@
+<Panel xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+       xmlns:local="urn:delta-tests">
+  <TextBlock x:Name="Target" local:Layout.Priority="8" Text="attached" />
+</Panel>

@@ -8,7 +8,7 @@
     </VisualState>
   </Style>
   <Template x:Key="PrimaryButtonTemplate">
-    <TextBlock Text="Generated template" FontKey="default" FontSize="14" Foreground="#FFFFFF" />
+    <TextBlock Text="Generated template" FontKey="default" FontSize="14" Foreground="#FFFFFF" Background="{TemplateBinding Background}" />
   </Template>
   <Button x:Name="Action" Width="180" Height="40" StyleKey="PrimaryButton" TemplateKey="PrimaryButtonTemplate" />
 </Panel>

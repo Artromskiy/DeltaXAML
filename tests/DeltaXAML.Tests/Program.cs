@@ -263,6 +263,21 @@ internal static partial class Program
         ButtonArchitectureTests.Run();
         EditingArchitectureTests.Run();
         ItemsScrollArchitectureTests.Run();
+        TypedCollectionTests.Run();
+        AttachedPropertyTests.Run();
+        RelationBindingTests.Run();
+        GestureCommandTests.Run();
+        ValueControlTests.Run();
+        CompositeControlTests.Run();
+        PlatformBoundaryTests.Run();
+        ConditionTests.Run();
+        BehaviorTests.Run();
+        RichTextTests.Run();
+        GeneratedCollectionTests.Run();
+        GeneratedRelationTests.Run();
+        GeneratedAttachedTests.Run();
+        FullCapabilityGeneratedTests.Run();
+        GeneratedSampleParityTests.Run();
         TypedPropertyStateTests();
         PropertyPrecedenceTests();
         HiddenBindingTests();
@@ -1519,12 +1534,16 @@ internal static partial class Program
         var compositionDisplay = composition.Document.BuildDisplayList();
         Assert.True(compositionDisplay.Visuals.Length >= 2, "generated style contributes retained visual output");
         Assert.True(compositionDisplay.Text.Length == 1, "generated template contributes one retained text leaf");
+        var templatedButton = (Library.UiButton)composition.Document.Root.Children[0];
+        var templatedLabel = (Library.UiTextBlock)templatedButton.Children[0];
+        Assert.Equal(templatedButton.Background, templatedLabel.Background, "TemplateBinding reads the owner through a generated relation plan");
         var initialButtonVisual = compositionDisplay.Visuals[1];
         Assert.True(composition.TryGetResourceId("Accent", out var accent), "generated artifact exposes its stable resource identity");
         composition.Resources.Set(accent, new Library.UiColor(80, 100, 120));
         composition.Document.Layout(new(320, 120), 1);
         var changedComposition = composition.Document.BuildDisplayList();
         Assert.True(!initialButtonVisual.Equals(changedComposition.Visuals[1]), "dynamic resource update invalidates the dependent style output");
+        Assert.Equal(templatedButton.Background, templatedLabel.Background, "TemplateBinding follows owner style/resource changes");
 
     }
 

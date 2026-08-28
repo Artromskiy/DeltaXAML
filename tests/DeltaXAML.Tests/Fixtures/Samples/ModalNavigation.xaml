@@ -1,0 +1,5 @@
+<!-- Ported from dotnet/maui-samples@e78b475: Navigation/ModalNavigation (MIT). -->
+<Panel>
+  <Button Command="56f86c2b-228e-4f9e-bb90-3145dd9cb104"><TextBlock Text="Open modal" /></Button>
+  <Overlay IsOpen="true"><Border><TextBlock Text="Modal content" /></Border></Overlay>
+</Panel>

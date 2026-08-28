@@ -12,4 +12,16 @@ internal struct UiElementState
     public Guid CustomVisualType;
     public Guid CustomVisualResource;
     public UiColor CustomVisualColor;
+    public int GridRow;
+    public int GridColumn;
+    public int GridRowSpan;
+    public int GridColumnSpan;
+    public byte GridPlacementFlags;
+    public ulong GestureBits;
+    public Guid CommandId;
+    public uint CommandPhysicalKey;
+    public ulong CommandModifiers;
+    public bool IsFocusScope;
+    public int CollectionIndex;
+    public bool HasCollectionIndex;
 }

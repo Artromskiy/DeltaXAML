@@ -1,0 +1,5 @@
+<!-- Ported from dotnet/maui-samples@e78b475: UserInterface/Views/TwoPaneView (MIT). -->
+<Grid Columns="*,*" Rows="*">
+  <Border Grid.Column="0"><TextBlock Text="Pane one" /></Border>
+  <Border Grid.Column="1"><TextBlock Text="Pane two" /></Border>
+</Grid>

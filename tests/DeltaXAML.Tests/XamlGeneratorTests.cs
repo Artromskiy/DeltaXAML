@@ -28,6 +28,47 @@ internal static partial class Program
         Assert.True(first.Contains("TryFindName", StringComparison.Ordinal), "the companion contains a generated namescope lookup");
         Assert.True(!first.Contains("Activator", StringComparison.Ordinal) && !first.Contains("Type.GetType", StringComparison.Ordinal), "generated artifact has no reflection fallback");
 
+        const string capabilitySource = "<Panel><Slider Minimum=\"0\" Maximum=\"10\" Value=\"4\" Step=\"0.5\" /><Image Source=\"285a7033-e9eb-438e-81d8-7906cf978301\" Tint=\"#112233\" /><Overlay IsOpen=\"true\"><TextBlock Text=\"popup\" /></Overlay><CollectionView SelectedIndex=\"2\" /></Panel>";
+        var capabilityPlan = XamlCompiler.Compile(sourceId, capabilitySource, XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(capabilityPlan.Success, "full-capability controls are accepted by the typed semantic model");
+        Assert.True(CSharpArtifactEmitter.TryEmit(capabilityPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "CapabilityArtifact", out var capabilityArtifact, out _), "full-capability controls emit through direct factories");
+        Assert.True(capabilityArtifact.Contains("new global::Delta.XAML.UiSlider()", StringComparison.Ordinal) && capabilityArtifact.Contains("node1.Value = 4d;", StringComparison.Ordinal), "slider construction and value assignment are direct");
+        Assert.True(capabilityArtifact.Contains("new global::Delta.XAML.UiImage()", StringComparison.Ordinal) && capabilityArtifact.Contains("new global::Delta.XAML.Contract.UiResourceId", StringComparison.Ordinal), "image keeps a stable neutral resource identity");
+        Assert.True(capabilityArtifact.Contains("node3.Add(node4);", StringComparison.Ordinal), "overlay content remains in the canonical generated tree");
+        var attachedPlan = XamlCompiler.Compile(sourceId, "<Grid Columns=\"*\" Rows=\"Auto,*\"><TextBlock Grid.Row=\"1\" Grid.Column=\"0\" Grid.ColumnSpan=\"1\" Text=\"placed\" /></Grid>", XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(attachedPlan.Success, "built-in attached layout slots compile without object-keyed storage");
+        Assert.True(CSharpArtifactEmitter.TryEmit(attachedPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "AttachedArtifact", out var attachedArtifact, out _), "attached slots emit through generated typed setters");
+        Assert.True(attachedArtifact.Contains("node1.SetAttachedValue(global::Delta.XAML.UiGridAttachedProperties.Row, 1);", StringComparison.Ordinal), "grid row uses its stable generated attached slot");
+        var richPlan = XamlCompiler.Compile(sourceId, "<RichTextBlock><Span Text=\"Delta\" Foreground=\"#FF0000\" Command=\"b3288fca-9dc6-4b90-ac40-c1c23366c301\" Argument=\"docs\" /><Span Text=\"XAML\" FontSize=\"16\" /></RichTextBlock>", XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(richPlan.Success, "formatted Span content lowers into one typed paragraph plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(richPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "RichArtifact", out var richArtifact, out _), "rich paragraph emits through its generated factory");
+        Assert.True(richArtifact.Contains("node0.Spans = new global::Delta.XAML.UiTextSpan[]", StringComparison.Ordinal) && richArtifact.Contains("new global::Delta.XAML.UiCommandId", StringComparison.Ordinal), "generated Span values preserve style and hyperlink command identity");
+
+        var collectionRegistry = XamlSemanticRegistry.CreateBuiltIns();
+        collectionRegistry.RegisterBinding(new(
+            "Rows",
+            "global::Sample.CollectionModel",
+            "global::Sample.RowSource",
+            "source.Rows",
+            null,
+            CollectionItemTypeName: "global::Sample.Row"));
+        collectionRegistry.RegisterBinding(new(
+            "Label",
+            "global::Sample.Row",
+            "string",
+            "source.Label",
+            null));
+        var collectionPlan = XamlCompiler.Compile(
+            sourceId,
+            "<Panel x:DataType=\"global::Sample.CollectionModel\"><CollectionView ItemsSource=\"{Binding Rows}\" ItemTemplate=\"RowTemplate\" VirtualizationCount=\"8\" /><Template x:Key=\"RowTemplate\" x:DataType=\"global::Sample.Row\"><TextBlock Text=\"{Binding Label}\" /></Template></Panel>",
+            collectionRegistry);
+        Assert.True(collectionPlan.Success, "typed ItemsSource and data template share one semantic artifact");
+        Assert.True(CSharpArtifactEmitter.TryEmit(collectionPlan, collectionRegistry, "Generated", "CollectionArtifact", out var collectionArtifact, out var collectionDiagnostic), "typed collection artifact emits");
+        Assert.True(collectionDiagnostic is null && collectionArtifact.Contains("IUiItemTemplatePlan<ItemPlan0, global::Sample.Row>", StringComparison.Ordinal), "data template lowers to a static typed item plan");
+        Assert.True(collectionArtifact.Contains("UiVirtualizingPresenter<global::Sample.Row, global::Sample.RowSource, ItemPlan0>", StringComparison.Ordinal), "ItemsSource lowers to the shared typed virtualizer");
+        Assert.True(collectionArtifact.Contains("itemNode0.Text = item.Label;", StringComparison.Ordinal), "item binding remains a direct typed read");
+        Assert.True(!collectionArtifact.Contains("Activator", StringComparison.Ordinal) && !collectionArtifact.Contains("GetProperty", StringComparison.Ordinal), "collection artifact has no reflection fallback");
+
         var customRegistry = XamlSemanticRegistry.CreateBuiltIns();
         customRegistry.RegisterType(new(
             new UiTypeId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D402")),
@@ -207,6 +248,27 @@ internal static partial class Program
         Assert.True(bindingSource.Contains("_bindingSource.PropertyChanged += OnContextPropertyChanged", StringComparison.Ordinal), "binding artifact uses one source notification boundary");
         Assert.True(bindingSource.Contains("UiBindingMode.TwoWay, false", StringComparison.Ordinal), "generated bindings disable per-binding source subscriptions");
         Assert.True(!bindingSource.Contains("GetProperty", StringComparison.Ordinal) && !bindingSource.Contains("Split", StringComparison.Ordinal), "typed binding artifact has no reflection or path traversal");
+
+        bindingRegistry.RegisterBinding(new(
+            "Count",
+            "global::Sample.BindingModel",
+            "int",
+            "source.Count",
+            "source.Count = value"));
+        var formattedPlan = XamlCompiler.Compile(
+            sourceId,
+            "<TextBlock Text=\"{Binding Count, StringFormat='Items: {0:N0}', Culture=en-US}\" />",
+            bindingRegistry);
+        Assert.True(formattedPlan.Success, "formatted binding with an explicit culture is a valid semantic plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(formattedPlan, bindingRegistry, "Generated", "FormattedBindingArtifact", out var formattedSource, out _), "formatted binding emits through the typed artifact path");
+        Assert.True(formattedSource.Contains("UiCompiledBinding<global::Sample.BindingModel, global::System.String>", StringComparison.Ordinal), "formatted target has a typed string binding slot");
+        Assert.True(formattedSource.Contains("CultureInfo.GetCultureInfo(\"en-US\")", StringComparison.Ordinal), "generated formatting embeds its explicit culture");
+        Assert.True(formattedSource.Contains("source.Count", StringComparison.Ordinal) && !formattedSource.Contains("GetProperty", StringComparison.Ordinal), "formatted binding keeps direct typed source access");
+        var implicitCulturePlan = XamlCompiler.Compile(
+            sourceId,
+            "<TextBlock Text=\"{Binding Count, StringFormat='Items: {0}'}\" />",
+            bindingRegistry);
+        Assert.True(!implicitCulturePlan.Success && HasCode(implicitCulturePlan.Diagnostics, "XAML008"), "StringFormat without an explicit culture has a stable compile diagnostic");
 
         bindingRegistry.RegisterBinding(new(
             "Other",

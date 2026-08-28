@@ -22,6 +22,7 @@ internal static class XamlBindingParser
         UiBindingMode mode = UiBindingMode.OneWay;
         string? converter = null;
         string? format = null;
+        string? culture = null;
         var parts = body.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         for (var i = 0; i < parts.Length; i++)
         {
@@ -55,6 +56,9 @@ internal static class XamlBindingParser
                 case "StringFormat":
                     format = argument;
                     break;
+                case "Culture":
+                    culture = argument;
+                    break;
                 default:
                     error = $"Unsupported binding argument '{key}'.";
                     return false;
@@ -67,7 +71,19 @@ internal static class XamlBindingParser
             return false;
         }
 
-        spec = new UiBindingSpec(string.Empty, path, mode, converter, format);
+        if (format is not null && string.IsNullOrWhiteSpace(culture))
+        {
+            error = "Binding StringFormat requires an explicit Culture argument.";
+            return false;
+        }
+
+        if (format is not null && mode == UiBindingMode.TwoWay)
+        {
+            error = "A formatted binding cannot be TwoWay; bind the editable value separately.";
+            return false;
+        }
+
+        spec = new UiBindingSpec(string.Empty, path, mode, converter, format, culture);
         return true;
     }
 

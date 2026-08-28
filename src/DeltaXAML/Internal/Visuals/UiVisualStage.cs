@@ -23,6 +23,7 @@ internal sealed class UiVisualStage : IDisposable
     private readonly Dictionary<string, FontInstanceId> _fontInstances = new(StringComparer.Ordinal);
     private UiFontSlot[] _fontSlots = Array.Empty<UiFontSlot>();
     private UiTextCacheEntry?[] _textCache = Array.Empty<UiTextCacheEntry?>();
+    private UiRichTextCacheEntry?[] _richTextCache = Array.Empty<UiRichTextCacheEntry?>();
     private readonly FontInstanceId[] _singleFontFallback = new FontInstanceId[1];
     private readonly List<VisualVisit> _visualTraversal = new();
     private readonly List<Retained.UiNodeId> _visualChildOrder = new();
@@ -30,6 +31,7 @@ internal sealed class UiVisualStage : IDisposable
     private uint _displayListVersion;
     private uint _displayListTreeVersion;
     private float2 _displayListViewport;
+    private UiLocalizationContext _localization = UiLocalizationContext.Invariant;
     private bool _hasDisplayList;
     private bool _disposed;
 
@@ -50,6 +52,20 @@ internal sealed class UiVisualStage : IDisposable
     }
 
     internal int TextCacheCount => _textCacheCount;
+
+    internal void SetLocalization(UiLocalizationContext localization)
+    {
+        var validated = localization.Validate();
+        if (_localization == validated)
+        {
+            return;
+        }
+
+        _localization = validated;
+        Array.Clear(_textCache);
+        _textCacheCount = 0;
+        _hasDisplayList = false;
+    }
 
     internal bool TryBuild(RetainedElement retainedRoot, out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
@@ -113,6 +129,7 @@ internal sealed class UiVisualStage : IDisposable
         _fontInstances.Clear();
         _fontSlots = Array.Empty<UiFontSlot>();
         _textCache = Array.Empty<UiTextCacheEntry?>();
+        _richTextCache = Array.Empty<UiRichTextCacheEntry?>();
         _textCacheCount = 0;
     }
 
@@ -121,24 +138,26 @@ internal sealed class UiVisualStage : IDisposable
 
     private void PruneTextCache()
     {
-        if (_textCacheCount == 0)
-        {
-            return;
-        }
-
         for (var index = 1; index < _textCache.Length; index++)
         {
             var cache = _textCache[index];
-            if (cache is null)
+            var richCache = _richTextCache[index];
+            if (cache is null && richCache is null)
             {
                 continue;
             }
 
-            var node = new Retained.UiNodeId((uint)index, cache.Generation);
+            var generation = cache?.Generation ?? richCache?.Generation ?? 0;
+            var node = new Retained.UiNodeId((uint)index, generation);
             if (!_runtime.TryGetNode(node, out _))
             {
-                _textCache[index] = null;
-                _textCacheCount--;
+                if (cache is not null)
+                {
+                    _textCache[index] = null;
+                    _textCacheCount--;
+                }
+
+                _richTextCache[index] = null;
             }
         }
     }
@@ -191,6 +210,11 @@ internal sealed class UiVisualStage : IDisposable
                 visualCount += current.DisplayVisualCount;
                 textCount += current.DisplayTextCount;
                 continue;
+            }
+
+            if (current is Retained.RichTextBlock)
+            {
+                return true;
             }
 
             if (current.DisplayClipIndex != clipCount)
@@ -296,7 +320,7 @@ internal sealed class UiVisualStage : IDisposable
             {
                 var clips = 1;
                 var visuals = current.DisplayVisualIndex >= 0 ? 1 : 0;
-                var text = current.DisplayTextIndex >= 0 ? 1 : 0;
+                var text = current.DisplayOwnTextCount;
                 if (!_runtime.TryCopyVisualChildren(visit.Id, _visualChildOrder))
                 {
                     diagnostic = NodeDiagnostic(visit.Id);
@@ -334,6 +358,7 @@ internal sealed class UiVisualStage : IDisposable
             _storage.Clips[_storage.ClipCount++] = new(ToFloat4(effective), visit.ParentClip);
             var visualIndex = -1;
             var textIndex = -1;
+            var ownTextCount = 0;
 
             if (TryGetVisualCommand(current, clipId, out var visual))
             {
@@ -342,7 +367,20 @@ internal sealed class UiVisualStage : IDisposable
                 _storage.Visuals[_storage.VisualCount++] = visual;
             }
 
-            if ((current.Participation & UiParticipation.Rendering) != 0 &&
+            if ((current.Participation & UiParticipation.Rendering) != 0 && current is Retained.RichTextBlock richText)
+            {
+                textIndex = _storage.TextCount;
+                if (!TryAppendRichText(richText, effective, clipId, out ownTextCount, out diagnostic))
+                {
+                    return false;
+                }
+
+                if (ownTextCount == 0)
+                {
+                    textIndex = -1;
+                }
+            }
+            else if ((current.Participation & UiParticipation.Rendering) != 0 &&
                 Retained.UiDescriptorCatalog.TryGetTextRun(
                     node.RuntimeType,
                     current,
@@ -358,9 +396,10 @@ internal sealed class UiVisualStage : IDisposable
                 }
 
                 _storage.TextCount++;
+                ownTextCount = 1;
             }
 
-            current.SetDisplayRange(clipId.Value, visualIndex, textIndex);
+            current.SetDisplayRange(clipId.Value, visualIndex, textIndex, ownTextCount);
             current.CompleteVisualExtraction();
             _visualTraversal.Add(new(visit.Id, effective, visit.ParentClip, true));
 
@@ -396,6 +435,18 @@ internal sealed class UiVisualStage : IDisposable
                 ToColor(element.CustomVisualColor),
                 clip,
                 new UiResourceId(element.CustomVisualResourceId));
+            return true;
+        }
+
+        if (element is Retained.Image image && image.DisplaySource != Guid.Empty)
+        {
+            visual = new(
+                UiVisualKind.Image,
+                default,
+                ToFloat4(image.ImageBounds),
+                ToColor(image.Tint),
+                clip,
+                new UiResourceId(image.DisplaySource));
             return true;
         }
 
@@ -435,7 +486,8 @@ internal sealed class UiVisualStage : IDisposable
                     run.Text.AsMemory(),
                     run.FontSize,
                     _singleFontFallback,
-                    TextDirection.LeftToRight));
+                    _localization.Direction,
+                    Language: _localization.Language));
                 cache = new UiTextCacheEntry(run, shaped);
                 if (_textCache[ownerIndex] is null)
                 {
@@ -467,6 +519,141 @@ internal sealed class UiVisualStage : IDisposable
         draw = new UiTextDraw(cache.Shaped, baseline, ToColor(run.Color), clip);
         diagnostic = null;
         return true;
+    }
+
+    private bool TryAppendRichText(
+        Retained.RichTextBlock owner,
+        Retained.UiRect clipBounds,
+        UiClipId clip,
+        out int count,
+        out Diagnostic? diagnostic)
+    {
+        var ownerIndex = checked((int)owner.Id.Value);
+        EnsureOwnerCapacity(ownerIndex);
+        var spans = owner.Spans.Span;
+        var direction = ResolveParagraphDirection(spans, _localization.Direction);
+        var cache = _richTextCache[ownerIndex];
+        if (cache is null || !cache.MatchesShaping(owner, spans, _localization, direction))
+        {
+            var shaped = new ShapedText[spans.Length];
+            var origins = new float2[spans.Length];
+            var bounds = new TextBounds[spans.Length];
+            for (var i = 0; i < spans.Length; i++)
+            {
+                var span = spans[i];
+                if (!TryResolveFontKey(span.FontKey, out var font, out diagnostic))
+                {
+                    count = 0;
+                    return false;
+                }
+
+                try
+                {
+                    _singleFontFallback[0] = font;
+                    shaped[i] = _textService.Shape(new TextShapeRequest(
+                        span.Text.AsMemory(),
+                        span.FontSize * owner.LayoutScale,
+                        _singleFontFallback,
+                        direction,
+                        Language: _localization.Language));
+                }
+                catch (ArgumentException exception)
+                {
+                    diagnostic = TextDiagnostic("XAML_RICH_TEXT_SHAPE_FAILED", exception.Message);
+                    count = 0;
+                    return false;
+                }
+                catch (InvalidOperationException exception)
+                {
+                    diagnostic = TextDiagnostic("XAML_RICH_TEXT_SHAPE_FAILED", exception.Message);
+                    count = 0;
+                    return false;
+                }
+                catch (NotSupportedException exception)
+                {
+                    diagnostic = TextDiagnostic("XAML_RICH_TEXT_SHAPING_UNSUPPORTED", exception.Message);
+                    count = 0;
+                    return false;
+                }
+
+                bounds[i] = ShapedBounds(shaped[i]);
+            }
+
+            LayoutRichRuns(shaped, bounds, origins, owner.Bounds.Width, direction);
+            cache = new(owner, spans, _localization, direction, shaped, origins, bounds);
+            _richTextCache[ownerIndex] = cache;
+        }
+
+        EnsureCapacity(ref _storage.Text, _storage.TextCount + spans.Length);
+        var hitCount = 0;
+        var hits = cache.HitRanges;
+        for (var i = 0; i < spans.Length; i++)
+        {
+            var origin = cache.Origins[i];
+            _storage.Text[_storage.TextCount++] = new(
+                cache.Shaped[i],
+                new float2(owner.Bounds.X + origin.x, owner.Bounds.Y + origin.y),
+                ToColor(spans[i].Color),
+                clip);
+            if (spans[i].Link.IsValid)
+            {
+                var shapedBounds = cache.Bounds[i];
+                var width = Advance(cache.Shaped[i], shapedBounds);
+                if (hits.Length <= hitCount)
+                {
+                    Array.Resize(ref hits, Math.Max(4, hitCount + 1));
+                }
+
+                hits[hitCount++] = new(
+                    new float4(
+                        owner.Bounds.X + origin.x + shapedBounds.Left,
+                        owner.Bounds.Y + origin.y + shapedBounds.Top,
+                        width,
+                        MathF.Max(1, shapedBounds.Height)),
+                    spans[i].Link,
+                    spans[i].LinkArgument);
+            }
+        }
+
+        cache.HitRanges = hits;
+        owner.SetHitRanges(hits, hitCount);
+
+        count = spans.Length;
+        diagnostic = null;
+        return true;
+    }
+
+    private bool TryResolveFontKey(string fontKey, out FontInstanceId font, out Diagnostic? diagnostic)
+    {
+        if (_fontInstances.TryGetValue(fontKey, out font))
+        {
+            diagnostic = null;
+            return true;
+        }
+
+        if (!_fontResolver.TryResolve(fontKey, out var request))
+        {
+            diagnostic = TextDiagnostic("XAML_TEXT_FONT_NOT_FOUND", $"Font key '{fontKey}' was not registered.");
+            return false;
+        }
+
+        try
+        {
+            font = _textService.OpenFont(request);
+            _fontInstances.Add(fontKey, font);
+            diagnostic = null;
+            return true;
+        }
+        catch (ArgumentException exception)
+        {
+            diagnostic = TextDiagnostic("XAML_TEXT_FONT_OPEN_FAILED", exception.Message);
+            return false;
+        }
+        catch (InvalidOperationException exception)
+        {
+            diagnostic = TextDiagnostic("XAML_TEXT_FONT_OPEN_FAILED", exception.Message);
+            return false;
+        }
     }
 
     private bool TryResolveFont(Retained.UiTextRun run, out FontInstanceId font, out Diagnostic? diagnostic)
@@ -523,6 +710,7 @@ internal sealed class UiVisualStage : IDisposable
         var length = Math.Max(ownerIndex + 1, Math.Max(8, _fontSlots.Length * 2));
         Array.Resize(ref _fontSlots, length);
         Array.Resize(ref _textCache, length);
+        Array.Resize(ref _richTextCache, length);
     }
 
     private static TextBounds ShapedBounds(ShapedText shaped)
@@ -550,6 +738,91 @@ internal sealed class UiVisualStage : IDisposable
         return new TextBounds(left, top, right, bottom);
     }
 
+    private static float Advance(ShapedText shaped, TextBounds bounds)
+    {
+        var runs = shaped.Runs.Span;
+        var advance = 0f;
+        for (var i = 0; i < runs.Length; i++)
+        {
+            advance += MathF.Abs(runs[i].AdvanceX);
+        }
+
+        return MathF.Max(bounds.Width, advance);
+    }
+
+    private static void LayoutRichRuns(
+        ShapedText[] shaped,
+        TextBounds[] bounds,
+        float2[] origins,
+        float availableWidth,
+        TextDirection direction)
+    {
+        var first = 0;
+        var lineWidth = 0f;
+        var lineTop = 0f;
+        for (var i = 0; i <= shaped.Length; i++)
+        {
+            var advance = i < shaped.Length ? Advance(shaped[i], bounds[i]) : 0;
+            var breakBefore = i == shaped.Length ||
+                (i > first && availableWidth > 0 && lineWidth + advance > availableWidth);
+            if (!breakBefore)
+            {
+                lineWidth += advance;
+                continue;
+            }
+
+            var ascent = 0f;
+            var descent = 0f;
+            for (var run = first; run < i; run++)
+            {
+                ascent = MathF.Max(ascent, MathF.Max(0, -bounds[run].Top));
+                descent = MathF.Max(descent, MathF.Max(0, bounds[run].Bottom));
+            }
+
+            var rightToLeft = direction == TextDirection.RightToLeft;
+            var cursor = rightToLeft && availableWidth > 0 ? availableWidth : 0;
+            for (var run = first; run < i; run++)
+            {
+                var runAdvance = Advance(shaped[run], bounds[run]);
+                var left = rightToLeft ? cursor - runAdvance : cursor;
+                origins[run] = new(left - bounds[run].Left, lineTop + ascent);
+                cursor += rightToLeft ? -runAdvance : runAdvance;
+            }
+
+            lineTop += MathF.Max(1, ascent + descent);
+            first = i;
+            lineWidth = advance;
+        }
+    }
+
+    private static TextDirection ResolveParagraphDirection(ReadOnlySpan<UiTextSpan> spans, TextDirection requested)
+    {
+        if (requested != TextDirection.Auto)
+        {
+            return requested;
+        }
+
+        for (var spanIndex = 0; spanIndex < spans.Length; spanIndex++)
+        {
+            var text = spans[spanIndex].Text;
+            for (var characterIndex = 0; characterIndex < text.Length; characterIndex++)
+            {
+                var character = text[characterIndex];
+                if (character is >= '\u0590' and <= '\u08FF')
+                {
+                    return TextDirection.RightToLeft;
+                }
+
+                if (char.IsLetter(character))
+                {
+                    return TextDirection.LeftToRight;
+                }
+            }
+        }
+
+        return TextDirection.LeftToRight;
+    }
+
     private static Diagnostic TextDiagnostic(string code, string message) =>
         new(new DiagnosticCode(code), DiagnosticSeverity.Error, message, null);
 
@@ -559,6 +832,7 @@ internal sealed class UiVisualStage : IDisposable
     private static float4 ToFloat4(Retained.UiRect value) => new(value.X, value.Y, value.Width, value.Height);
 
     private static float4 ToColor(Retained.UiColor value) => new(value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
+    private static float4 ToColor(UiColor value) => new(value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
 
     private static void EnsureCapacity<T>(ref T[] storage, int count)
     {
@@ -603,6 +877,80 @@ internal sealed class UiVisualStage : IDisposable
             string.Equals(FontKey, run.FontKey, StringComparison.Ordinal) &&
             string.Equals(Text, run.Text, StringComparison.Ordinal) &&
             FontSize.Equals(run.FontSize);
+    }
+
+    private sealed class UiRichTextCacheEntry
+    {
+        private readonly uint _generation;
+        private readonly float _width;
+        private readonly float _scale;
+        private readonly TextDirection _direction;
+        private readonly string? _language;
+        private readonly string[] _text;
+        private readonly string[] _fontKeys;
+        private readonly float[] _fontSizes;
+
+        internal UiRichTextCacheEntry(
+            Retained.RichTextBlock owner,
+            ReadOnlySpan<UiTextSpan> spans,
+            UiLocalizationContext localization,
+            TextDirection direction,
+            ShapedText[] shaped,
+            float2[] origins,
+            TextBounds[] bounds)
+        {
+            _generation = owner.Generation;
+            _width = owner.Bounds.Width;
+            _scale = owner.LayoutScale;
+            _direction = direction;
+            _language = localization.Language;
+            _text = new string[spans.Length];
+            _fontKeys = new string[spans.Length];
+            _fontSizes = new float[spans.Length];
+            for (var i = 0; i < spans.Length; i++)
+            {
+                _text[i] = spans[i].Text;
+                _fontKeys[i] = spans[i].FontKey;
+                _fontSizes[i] = spans[i].FontSize;
+            }
+
+            Shaped = shaped;
+            Origins = origins;
+            Bounds = bounds;
+            HitRanges = Array.Empty<UiInlineHitRange>();
+        }
+
+        internal ShapedText[] Shaped { get; }
+        internal float2[] Origins { get; }
+        internal TextBounds[] Bounds { get; }
+        internal UiInlineHitRange[] HitRanges { get; set; }
+        internal uint Generation => _generation;
+
+        internal bool MatchesShaping(
+            Retained.RichTextBlock owner,
+            ReadOnlySpan<UiTextSpan> spans,
+            UiLocalizationContext localization,
+            TextDirection direction)
+        {
+            if (_generation != owner.Generation || !_width.Equals(owner.Bounds.Width) || !_scale.Equals(owner.LayoutScale) ||
+                _direction != direction || !string.Equals(_language, localization.Language, StringComparison.Ordinal) ||
+                _text.Length != spans.Length)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < spans.Length; i++)
+            {
+                if (!string.Equals(_text[i], spans[i].Text, StringComparison.Ordinal) ||
+                    !string.Equals(_fontKeys[i], spans[i].FontKey, StringComparison.Ordinal) ||
+                    !_fontSizes[i].Equals(spans[i].FontSize))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 
     private readonly struct VisualVisit
