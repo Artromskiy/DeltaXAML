@@ -2,8 +2,23 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-project_name="${1:-$(basename "$repo_root")}"
+project_name="${LAYOUT_PROJECT_NAME:-${1:-$(basename "$repo_root")}}"
 required_directories=(
+    src
+    tests
+    benchmarks
+    samples
+    probes
+    playground
+    tools
+    adr
+    docs
+    eng
+    artifacts
+    assets
+)
+allowed_tracked_directories=(
+    .github
     src
     tests
     benchmarks
@@ -27,6 +42,17 @@ for directory in "${required_directories[@]}"; do
     fi
 done
 
+while IFS= read -r tracked_directory; do
+    case "$tracked_directory" in
+        .github|src|tests|benchmarks|samples|probes|playground|tools|adr|docs|eng|artifacts|assets)
+            ;;
+        *)
+            printf 'layout: unexpected tracked top-level directory: %s\n' "$tracked_directory" >&2
+            failed=1
+            ;;
+    esac
+done < <(git -C "$repo_root" ls-tree -d --name-only HEAD | sort)
+
 primary_source="$repo_root/src/$project_name"
 if [[ ! -d "$primary_source" ]]; then
     printf 'layout: missing primary source directory: src/%s\n' "$project_name" >&2
@@ -35,8 +61,7 @@ fi
 
 source_root="$repo_root/src"
 if [[ -d "$source_root" ]]; then
-    while IFS= read -r source_directory; do
-        source_name="${source_directory##*/}"
+    while IFS= read -r source_name; do
         case "$source_name" in
             "$project_name"|"$project_name".*)
                 ;;
@@ -46,7 +71,11 @@ if [[ -d "$source_root" ]]; then
                 failed=1
                 ;;
         esac
-    done < <(find "$source_root" -mindepth 1 -maxdepth 1 -type d -print | sort)
+    done < <(
+        git -C "$repo_root" ls-tree -d --name-only HEAD src/ |
+            sed 's#^src/##' |
+            sort
+    )
 fi
 
 if (( failed != 0 )); then
