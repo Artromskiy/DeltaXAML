@@ -318,6 +318,12 @@ internal sealed record XamlResourcePlan(
     XamlObjectPlan Value,
     SourceRange Range);
 
+internal sealed record XamlScalarResourcePlan(
+    UiResourceId Id,
+    string Key,
+    XamlValuePlan Value,
+    SourceRange Range);
+
 internal sealed record XamlStylePlan(
     string Key,
     UiStyleId Id,
@@ -343,13 +349,14 @@ internal sealed record XamlDocumentPlan(
     string? BindingSourceTypeName,
     XamlObjectPlan? Root,
     ImmutableArray<XamlResourcePlan> Resources,
+    ImmutableArray<XamlScalarResourcePlan> ScalarResources,
     ImmutableArray<XamlStylePlan> Styles,
     ImmutableArray<XamlTemplatePlan> Templates,
     ImmutableArray<XamlResourceSlotPlan> ResourceSlots,
     ImmutableArray<Diagnostic> Diagnostics)
 {
     internal bool Success =>
-        (Root is not null || Resources.Length != 0 || Styles.Length != 0 || Templates.Length != 0) &&
+        (Root is not null || Resources.Length != 0 || ScalarResources.Length != 0 || Styles.Length != 0 || Templates.Length != 0) &&
         Diagnostics.All(static diagnostic => diagnostic.Severity != DiagnosticSeverity.Error);
 }
 

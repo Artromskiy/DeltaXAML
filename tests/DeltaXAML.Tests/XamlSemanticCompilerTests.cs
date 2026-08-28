@@ -94,6 +94,21 @@ internal static partial class Program
         Assert.True(resourceDocument.ResourceSlots[0].IsDynamic, "dynamic resource reference marks its dependency slot");
         Assert.Equal(0, resourceDocument.Root?.Children[0].Members[0].Value.Resource.Slot, "resource reference points at its compact local slot");
 
+        var scalarResources = XamlCompiler.Compile(
+            sourceId,
+            "<Panel><Resource x:Key=\"GeneratedAccent\" Type=\"Color\" Value=\"#123456\" /><TextBlock Foreground=\"{DynamicResource GeneratedAccent}\" /></Panel>",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(scalarResources.Success, "scalar resource declarations resolve later dynamic references");
+        Assert.Equal(1, scalarResources.ScalarResources.Length, "scalar resource is retained in the typed semantic plan");
+        Assert.Equal(XamlValueKind.Color, scalarResources.ScalarResources[0].Value.Kind, "scalar resource value is typed");
+        Assert.True(scalarResources.ResourceSlots[0].IsDynamic, "scalar resource dependency is marked dynamic");
+
+        var invalidScalarResource = XamlCompiler.Compile(
+            sourceId,
+            "<Panel><Resource x:Key=\"Bad\" Type=\"Unknown\" Value=\"x\" /></Panel>",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(HasCode(invalidScalarResource.Diagnostics, "XAML035"), "unsupported scalar resource type has a stable diagnostic");
+
         var duplicateDeclarations = XamlCompiler.Compile(
             sourceId,
             "<ResourceDictionary><Style x:Key=\"Title\" TargetType=\"TextBlock\"><VisualState Name=\"Hover\" /><VisualState Name=\"Hover\" /></Style><Style x:Key=\"Title\" TargetType=\"TextBlock\" /><Template x:Key=\"ButtonTemplate\"><Border /></Template><Template x:Key=\"ButtonTemplate\"><Border /></Template></ResourceDictionary>",

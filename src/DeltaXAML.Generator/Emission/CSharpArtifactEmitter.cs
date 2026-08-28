@@ -257,6 +257,19 @@ internal static class CSharpArtifactEmitter
 
         writer.AppendLine("        Resources = new global::Delta.XAML.UiResourceCatalog();");
         writer.AppendLine("        Theme = new global::Delta.XAML.UiTheme(Resources);");
+        for (var scalarIndex = 0; scalarIndex < plan.ScalarResources.Length; scalarIndex++)
+        {
+            var scalar = plan.ScalarResources[scalarIndex];
+            if (!TryLiteralExpression("Resource", scalar.Value, out var scalarExpression, out var scalarError))
+            {
+                throw new InvalidOperationException(scalarError);
+            }
+
+            writer.Append("        Resources.Set(")
+                .Append(ResourceSlotExpression(scalar.Id, plan.ResourceSlots))
+                .Append(", ").Append(scalarExpression).AppendLine(");");
+        }
+
         for (var i = 0; i < resourceNodes.Count; i++)
         {
             if (!registry.TryResolveType(resourceNodes[i].Type, out var resourceType))
@@ -442,6 +455,22 @@ internal static class CSharpArtifactEmitter
         }
 
         writer.AppendLine("        element = null;");
+        writer.AppendLine("        return false;");
+        writer.AppendLine("    }");
+        writer.AppendLine();
+        writer.AppendLine("    public bool TryGetResourceId(string key, out global::Delta.XAML.Contract.UiResourceId resource)");
+        writer.AppendLine("    {");
+        writer.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(key);");
+        for (var resourceIndex = 0; resourceIndex < plan.ResourceSlots.Length; resourceIndex++)
+        {
+            writer.Append("        if (key == ").Append(Quote(plan.ResourceSlots[resourceIndex].Key)).AppendLine(")");
+            writer.AppendLine("        {");
+            writer.Append("            resource = _resourceIds[").Append(resourceIndex).AppendLine("]; ");
+            writer.AppendLine("            return true;");
+            writer.AppendLine("        }");
+        }
+
+        writer.AppendLine("        resource = default;");
         writer.AppendLine("        return false;");
         writer.AppendLine("    }");
         writer.AppendLine();

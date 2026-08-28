@@ -255,14 +255,21 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         Compilation compilation,
         out string error)
     {
-        var paths = new HashSet<string>(StringComparer.Ordinal);
-        CollectBindingPaths(plan.Root, paths);
-        for (var i = 0; i < plan.Templates.Length; i++)
+        var bindings = new Dictionary<string, BindingRequest>(StringComparer.Ordinal);
+        if (!CollectBindings(plan.Root, bindings, out error))
         {
-            CollectBindingPaths(plan.Templates[i].Root, paths);
+            return false;
         }
 
-        if (paths.Count == 0)
+        for (var i = 0; i < plan.Templates.Length; i++)
+        {
+            if (!CollectBindings(plan.Templates[i].Root, bindings, out error))
+            {
+                return false;
+            }
+        }
+
+        if (bindings.Count == 0)
         {
             error = string.Empty;
             return true;
@@ -284,9 +291,9 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             return false;
         }
 
-        foreach (var path in paths)
+        foreach (var pair in bindings)
         {
-            if (!TryCreateBindingDefinition(sourceType, path, out var definition, out error))
+            if (!TryCreateBindingDefinition(compilation, sourceType, pair.Key, pair.Value, out var definition, out error))
             {
                 return false;
             }
@@ -299,8 +306,10 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
     }
 
     private static bool TryCreateBindingDefinition(
+        Compilation compilation,
         INamedTypeSymbol sourceType,
         string path,
+        BindingRequest request,
         [NotNullWhen(true)] out XamlBindingDefinition? definition,
         out string error)
     {
@@ -327,37 +336,146 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             current = finalProperty.Type;
         }
 
-        var sourceTypeName = sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var valueTypeName = current.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var access = "source." + path;
-        var write = finalProperty?.SetMethod?.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
+        var valueType = current;
+        var read = access;
+        string? write = finalProperty?.SetMethod?.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
             ? access + " = value"
             : null;
-        definition = new(path, sourceTypeName, valueTypeName, access, write);
+        if (request.ConverterKey is { } converterKey)
+        {
+            if (!TryFindConverter(compilation, converterKey, UiXamlConverterDirection.Forward, out var forward, out error) ||
+                !compilation.ClassifyConversion(current, forward.Parameters[0].Type).IsImplicit)
+            {
+                error = error.Length == 0
+                    ? $"Converter '{converterKey}' cannot accept binding value '{current.ToDisplayString()}'."
+                    : error;
+                return false;
+            }
+
+            read = ConverterExpression(forward) + "(" + access + ")";
+            valueType = forward.ReturnType;
+            if (request.NeedsWrite)
+            {
+                if (!TryFindConverter(compilation, converterKey, UiXamlConverterDirection.Backward, out var backward, out error) ||
+                    !compilation.ClassifyConversion(valueType, backward.Parameters[0].Type).IsImplicit ||
+                    !compilation.ClassifyConversion(backward.ReturnType, current).IsImplicit)
+                {
+                    error = error.Length == 0
+                        ? $"Converter '{converterKey}' has no compatible backward method for '{current.ToDisplayString()}'."
+                        : error;
+                    return false;
+                }
+
+                write = finalProperty?.SetMethod?.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
+                    ? access + " = " + ConverterExpression(backward) + "(value)"
+                    : null;
+            }
+        }
+
+        var sourceTypeName = sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var valueTypeName = valueType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        definition = new(path, sourceTypeName, valueTypeName, read, write, request.ConverterKey);
         error = string.Empty;
         return true;
     }
 
-    private static void CollectBindingPaths(XamlObjectPlan? node, HashSet<string> paths)
+    private static bool CollectBindings(
+        XamlObjectPlan? node,
+        Dictionary<string, BindingRequest> bindings,
+        out string error)
     {
         if (node is null)
         {
-            return;
+            error = string.Empty;
+            return true;
         }
 
         for (var i = 0; i < node.Members.Length; i++)
         {
             if (node.Members[i].Value.Kind == XamlValueKind.Binding)
             {
-                paths.Add(node.Members[i].Value.Binding.Path);
+                var binding = node.Members[i].Value.Binding;
+                var request = new BindingRequest(binding.ConverterKey, binding.Mode == UiBindingMode.TwoWay);
+                if (bindings.TryGetValue(binding.Path, out var previous))
+                {
+                    if (previous.ConverterKey != request.ConverterKey)
+                    {
+                        error = $"Binding path '{binding.Path}' uses more than one converter in the same artifact.";
+                        return false;
+                    }
+
+                    bindings[binding.Path] = previous with { NeedsWrite = previous.NeedsWrite || request.NeedsWrite };
+                }
+                else
+                {
+                    bindings.Add(binding.Path, request);
+                }
             }
         }
 
         for (var i = 0; i < node.Children.Length; i++)
         {
-            CollectBindingPaths(node.Children[i], paths);
+            if (!CollectBindings(node.Children[i], bindings, out error))
+            {
+                return false;
+            }
         }
+
+        error = string.Empty;
+        return true;
     }
+
+    private static bool TryFindConverter(
+        Compilation compilation,
+        string key,
+        UiXamlConverterDirection direction,
+        [NotNullWhen(true)] out IMethodSymbol? method,
+        out string error)
+    {
+        method = null;
+        foreach (var type in EnumerateTypes(compilation.Assembly.GlobalNamespace))
+        {
+            foreach (var candidate in type.GetMembers().OfType<IMethodSymbol>())
+            {
+                var attribute = FindAttribute(candidate.GetAttributes(), "Delta.XAML.UiXamlConverterAttribute");
+                if (attribute is null || attribute.ConstructorArguments.Length != 2 ||
+                    attribute.ConstructorArguments[0].Value is not string candidateKey ||
+                    attribute.ConstructorArguments[1].Value is not byte candidateDirection ||
+                    !string.Equals(key, candidateKey, StringComparison.Ordinal) || candidateDirection != (byte)direction)
+                {
+                    continue;
+                }
+
+                if (!candidate.IsStatic || candidate.Parameters.Length != 1 || candidate.ReturnsVoid ||
+                    candidate.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal))
+                {
+                    error = $"Converter '{key}' method '{candidate.ToDisplayString()}' must be an accessible static one-argument function.";
+                    return false;
+                }
+
+                if (method is not null)
+                {
+                    error = $"Converter '{key}' has more than one {direction} method.";
+                    return false;
+                }
+
+                method = candidate;
+            }
+        }
+
+        if (method is null)
+        {
+            error = $"Converter '{key}' has no registered {direction} method.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static string ConverterExpression(IMethodSymbol method) =>
+        method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "." + method.Name;
 
     private static IEnumerable<INamedTypeSymbol> EnumerateTypes(INamespaceSymbol scope)
     {
@@ -518,4 +636,6 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         string Text,
         string? ClassName,
         string? NamespaceName);
+
+    private readonly record struct BindingRequest(string? ConverterKey, bool NeedsWrite);
 }

@@ -70,3 +70,33 @@ public sealed class UiXamlPropertyAttribute : Attribute
 
     public UiXamlValueKind ValueKind { get; }
 }
+
+/// <summary>Direction of one compile-time converter method.</summary>
+public enum UiXamlConverterDirection : byte
+{
+    Forward,
+    Backward,
+}
+
+/// <summary>Registers a static typed converter method for generated bindings.</summary>
+/// <remarks>
+/// A forward method accepts the source value and returns the target value. A
+/// backward method with the same key accepts the target value and returns the
+/// source value. Generated code calls both methods directly.
+/// </remarks>
+[AttributeUsage(AttributeTargets.Method, Inherited = false)]
+public sealed class UiXamlConverterAttribute : Attribute
+{
+    public UiXamlConverterAttribute(
+        string key,
+        UiXamlConverterDirection direction = UiXamlConverterDirection.Forward)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        Key = key;
+        Direction = direction;
+    }
+
+    public string Key { get; }
+
+    public UiXamlConverterDirection Direction { get; }
+}

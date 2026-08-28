@@ -28,6 +28,7 @@ internal static class XamlCompiler
         private readonly XamlSemanticRegistry _registry;
         private readonly ImmutableArray<Diagnostic>.Builder _diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         private readonly ImmutableArray<XamlResourcePlan>.Builder _resources = ImmutableArray.CreateBuilder<XamlResourcePlan>();
+        private readonly ImmutableArray<XamlScalarResourcePlan>.Builder _scalarResources = ImmutableArray.CreateBuilder<XamlScalarResourcePlan>();
         private readonly ImmutableArray<XamlStylePlan>.Builder _styles = ImmutableArray.CreateBuilder<XamlStylePlan>();
         private readonly ImmutableArray<XamlTemplatePlan>.Builder _templates = ImmutableArray.CreateBuilder<XamlTemplatePlan>();
         private readonly List<XamlResourceSlotPlan> _resourceSlots = new();
@@ -51,7 +52,7 @@ internal static class XamlCompiler
             var root = _offset < _text.Length && Current == '<'
                 ? ParseElement(new Dictionary<string, string>(StringComparer.Ordinal))
                 : null;
-            if (root is null && (_resources.Count != 0 || _styles.Count != 0 || _templates.Count != 0) &&
+            if (root is null && (_resources.Count != 0 || _scalarResources.Count != 0 || _styles.Count != 0 || _templates.Count != 0) &&
                 _registry.TryResolveType(new XamlQualifiedName(string.Empty, "ResourceDictionary"), out var resourceDictionary))
             {
                 root = new XamlObjectPlan(resourceDictionary.Id, resourceDictionary.Name, null, Range(0, _offset), ImmutableArray<XamlMemberPlan>.Empty, ImmutableArray<XamlObjectPlan>.Empty);
@@ -85,6 +86,7 @@ internal static class XamlCompiler
                 _bindingSourceTypeName,
                 root,
                 _resources.ToImmutable(),
+                _scalarResources.ToImmutable(),
                 _styles.ToImmutable(),
                 _templates.ToImmutable(),
                 _resourceSlots.ToImmutableArray(),
@@ -134,6 +136,12 @@ internal static class XamlCompiler
             if (lexicalName == "Style")
             {
                 ParseStyle(attributes, selfClosing, elementStart, namespaces);
+                return null;
+            }
+
+            if (lexicalName == "Resource")
+            {
+                ParseScalarResource(attributes, selfClosing, elementStart);
                 return null;
             }
 
@@ -234,6 +242,112 @@ internal static class XamlCompiler
             }
 
             return plan;
+        }
+
+        private void ParseScalarResource(List<AttributeSyntax> attributes, bool selfClosing, int elementStart)
+        {
+            string? key = null;
+            string? typeName = null;
+            string? value = null;
+            var keyRange = Range(elementStart, _offset);
+            var valueRange = keyRange;
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                var attribute = attributes[i];
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                if (attribute.IsKey)
+                {
+                    key = attribute.Value;
+                    keyRange = attribute.Range;
+                }
+                else if (attribute.Prefix.Length == 0 && attribute.LocalName == "Type")
+                {
+                    typeName = attribute.Value;
+                }
+                else if (attribute.Prefix.Length == 0 && attribute.LocalName == "Value")
+                {
+                    value = attribute.Value;
+                    valueRange = attribute.Range;
+                }
+                else
+                {
+                    Report("XAML035", $"Unsupported Resource attribute '{attribute.LocalName}'.", attribute.Range);
+                }
+            }
+
+            if (!selfClosing)
+            {
+                Report("XAML035", "A scalar Resource must be self-closing.", Range(elementStart, _offset));
+                SkipElementBody("Resource");
+            }
+
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(typeName) || value is null)
+            {
+                Report("XAML035", "A scalar Resource requires x:Key, Type and Value.", Range(elementStart, _offset));
+                return;
+            }
+
+            if (!TryScalarResourceKind(typeName, out var kind) ||
+                !TryParseValue(value, kind, valueRange, out var valuePlan) ||
+                valuePlan.Kind is XamlValueKind.Binding or XamlValueKind.ResourceReference)
+            {
+                Report("XAML035", $"Scalar Resource '{key}' has an unsupported type or value.", valueRange);
+                return;
+            }
+
+            if (!_registry.TryResolveResource(key, out var resourceId))
+            {
+                resourceId = CreateResourceId(key);
+                _registry.RegisterResource(key, resourceId);
+            }
+
+            RegisterResourceSlot(resourceId, key, false);
+            _scalarResources.Add(new(resourceId, key, valuePlan, keyRange));
+        }
+
+        private void SkipElementBody(string lexicalName)
+        {
+            while (_offset < _text.Length)
+            {
+                if (StartsWith("</"))
+                {
+                    var closeName = ParseEndElement();
+                    if (!string.Equals(closeName, lexicalName, StringComparison.Ordinal))
+                    {
+                        Report("XAML013", $"Closing element '{closeName}' does not match '{lexicalName}'.", _offset, _offset);
+                    }
+
+                    return;
+                }
+
+                if (Current == '<')
+                {
+                    ParseElement(new Dictionary<string, string>(StringComparer.Ordinal));
+                }
+                else
+                {
+                    ReadText();
+                }
+            }
+        }
+
+        private static bool TryScalarResourceKind(string typeName, out XamlValueKind kind)
+        {
+            kind = typeName switch
+            {
+                "Text" or "String" => XamlValueKind.String,
+                "Boolean" => XamlValueKind.Boolean,
+                "Real32" or "Single" => XamlValueKind.Single,
+                "Real64" or "Double" => XamlValueKind.Double,
+                "Color" => XamlValueKind.Color,
+                "Thickness" => XamlValueKind.Thickness,
+                _ => XamlValueKind.Invalid,
+            };
+            return kind != XamlValueKind.Invalid;
         }
 
         private void ParseStyle(

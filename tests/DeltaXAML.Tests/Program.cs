@@ -1329,10 +1329,17 @@ internal static partial class Program
         var model = new BindingModel { Name = "generated binding" };
         using var bindingText = new CountingTextService();
         using var bound = new DeltaXaml.Generated.BoundTextArtifact(model, bindingText, fonts);
-        Assert.True(bound.Document.Root is Library.UiTextBlock { Text: "generated binding" }, "x:DataType binding applies through the generated typed accessor");
+        Assert.True(bound.Document.Root is Library.UiTextBox { Text: "GENERATED BINDING" }, "x:DataType binding and converter apply through generated typed accessors");
         model.Name = "updated binding";
         bound.Document.Layout(new(320, 80), 1);
-        Assert.True(bound.Document.Root is Library.UiTextBlock { Text: "updated binding" }, "generated source notification refreshes through the binding stage");
+        Assert.True(bound.Document.Root is Library.UiTextBox { Text: "UPDATED BINDING" }, "generated source notification refreshes through the binding stage");
+        if (bound.Document.Root is not Library.UiTextBox boundEditor)
+        {
+            throw new InvalidOperationException("Generated bound text editor missing.");
+        }
+
+        boundEditor.SetText("Round Trip");
+        Assert.Equal("round trip", model.Name, "generated two-way binding calls its typed backward converter");
 
         using var compositionText = new CountingTextService();
         using var composition = new DeltaXaml.Generated.CompositionArtifact(compositionText, fonts);
@@ -1340,6 +1347,12 @@ internal static partial class Program
         var compositionDisplay = composition.Document.BuildDisplayList();
         Assert.True(compositionDisplay.Visuals.Length >= 2, "generated style contributes retained visual output");
         Assert.True(compositionDisplay.Text.Length == 1, "generated template contributes one retained text leaf");
+        var initialButtonVisual = compositionDisplay.Visuals[1];
+        Assert.True(composition.TryGetResourceId("Accent", out var accent), "generated artifact exposes its stable resource identity");
+        composition.Resources.Set(accent, new Library.UiColor(80, 100, 120));
+        composition.Document.Layout(new(320, 120), 1);
+        var changedComposition = composition.Document.BuildDisplayList();
+        Assert.True(!initialButtonVisual.Equals(changedComposition.Visuals[1]), "dynamic resource update invalidates the dependent style output");
     }
 
     private static void ExerciseGeneratedDocument(

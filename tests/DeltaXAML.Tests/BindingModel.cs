@@ -23,3 +23,20 @@ public sealed class BindingModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 }
+
+public static class GeneratedBindingConverters
+{
+    [Delta.XAML.UiXamlConverter("Upper")]
+    public static string ToUpper(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return value.ToUpperInvariant();
+    }
+
+    [Delta.XAML.UiXamlConverter("Upper", Delta.XAML.UiXamlConverterDirection.Backward)]
+    public static string ToSource(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return value.ToLowerInvariant();
+    }
+}

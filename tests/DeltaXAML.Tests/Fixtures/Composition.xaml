@@ -1,7 +1,8 @@
 <Panel Fill="true" Background="#101820">
+  <Resource x:Key="Accent" Type="Color" Value="#304860" />
   <TextBlock x:Key="SharedLabel" Text="resource" />
   <Style x:Key="PrimaryButton" TargetType="Button">
-    <Setter Property="Background" Value="#304860" />
+    <Setter Property="Background" Value="{DynamicResource Accent}" />
     <VisualState Name="Pressed">
       <Setter Property="Background" Value="#486C90" />
     </VisualState>

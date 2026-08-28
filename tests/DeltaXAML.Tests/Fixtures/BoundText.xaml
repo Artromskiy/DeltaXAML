@@ -1,1 +1,1 @@
-<TextBlock xmlns:x="urn:delta-xaml" x:DataType="DeltaXaml.Tests.BindingModel" Text="{Binding Name}" FontKey="default" FontSize="14" Foreground="#FFFFFF" />
+<TextBox xmlns:x="urn:delta-xaml" x:DataType="DeltaXaml.Tests.BindingModel" Text="{Binding Name, Converter=Upper, Mode=TwoWay}" FontKey="default" FontSize="14" Foreground="#FFFFFF" />
