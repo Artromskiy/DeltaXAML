@@ -231,6 +231,7 @@ internal static partial class Program
         PointerFocusAndDispatch();
         ScrollAndClips();
         TextDisplayListUsesDeltaText();
+        DpiInvalidatesLayoutWithoutCompoundingScale();
         CustomVisualsRemainNeutral();
         PublicDisplayListWarmFrameHasNoAllocations();
         BindingExpressionsAndContexts();
@@ -526,6 +527,28 @@ internal static partial class Program
         Assert.Equal(3, textService.ShapeCount, "value-only visual update does not reshape unchanged text");
         Assert.True(ReferenceEquals(first.Text[1].Text, third.Text[1].Text), "value-only visual update preserves unchanged shaped text");
         Assert.Equal(first.Text[0].Clip, third.Text[0].Clip, "text clip identity remains canonical");
+    }
+
+    private static void DpiInvalidatesLayoutWithoutCompoundingScale()
+    {
+        var text = new TextBlock { Text = "dpi" };
+        var runtime = new UiRuntime(text);
+        runtime.Layout(new(100, 40), 1);
+        Assert.True(text.TryGetTextRun(out var first), "DPI fixture emits a text run");
+        var firstLayoutVersion = text.LayoutVersion;
+
+        runtime.Layout(new(100, 40), 2);
+        Assert.True(text.TryGetTextRun(out var second), "DPI update keeps the text run available");
+        Assert.True(second.Version != first.Version, "DPI change invalidates the text-run version");
+        Assert.True(second.FontSize.Equals(first.FontSize * 2), "DPI scales text metrics exactly once");
+        Assert.True(text.LayoutVersion > firstLayoutVersion, "DPI change invalidates layout");
+
+        var stableLayoutVersion = text.LayoutVersion;
+        runtime.Layout(new(100, 40), 2);
+        Assert.True(text.TryGetTextRun(out var third), "repeated DPI layout keeps the text run available");
+        Assert.Equal(stableLayoutVersion, text.LayoutVersion, "unchanged DPI does not repeat layout invalidation");
+        Assert.Equal(second.Version, third.Version, "unchanged DPI keeps the text-run version");
+        Assert.Equal(second.FontSize, third.FontSize, "unchanged DPI does not compound text scaling");
     }
 
     private static void PublicDisplayListWarmFrameHasNoAllocations()

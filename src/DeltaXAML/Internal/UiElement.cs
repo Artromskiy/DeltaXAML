@@ -594,6 +594,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
             _dpiScale = scale;
             _dpiVersion++;
             _outputVersion++;
+            _layoutVersion++;
             DirtyFlags |= UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual;
         }
 
