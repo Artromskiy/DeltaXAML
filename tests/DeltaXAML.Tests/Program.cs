@@ -212,6 +212,7 @@ internal static partial class Program
         PointerFocusAndDispatch();
         ScrollAndClips();
         TextDisplayListUsesDeltaText();
+        PublicDisplayListWarmFrameHasNoAllocations();
         BindingExpressionsAndContexts();
         EditorShellLibrarySlice();
         HandlesCompiledBindingsAndCustomTypes();
@@ -491,6 +492,32 @@ internal static partial class Program
         var third = document.BuildDisplayList();
         Assert.True(!ReferenceEquals(firstShaped, third.Text[0].Text), "text mutation reshapes only the changed text cache");
         Assert.Equal(first.Text[0].Clip, third.Text[0].Clip, "text clip identity remains canonical");
+    }
+
+    private static void PublicDisplayListWarmFrameHasNoAllocations()
+    {
+        var root = new Library.UiPanel { Width = 80, Height = 40, Background = new(1, 2, 3) };
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(root, textService);
+        document.Layout(new Delta.Maths.float2(80, 40), 1);
+        var first = document.BuildDisplayList();
+        Assert.Equal(1, first.Visuals.Length, "warm-frame fixture has one visual");
+        _ = document.BuildDisplayList();
+        for (var i = 0; i < 3; i++)
+        {
+            document.Layout(new Delta.Maths.float2(80, 40), 1);
+            _ = document.BuildDisplayList();
+        }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 20; i++)
+        {
+            document.Layout(new Delta.Maths.float2(80, 40), 1);
+            _ = document.BuildDisplayList();
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(0L, allocated, "unchanged public frame has no allocations");
     }
 
     private static void BindingExpressionsAndContexts()
