@@ -5,7 +5,7 @@ internal static class ContentLayoutArchitectureTests
     public static void Run()
     {
         var child = new TextBlock { Width = 20, Height = 10 };
-        IUiElement[] children = [child];
+        UiElement[] children = [child];
         var borderState = new BorderState
         {
             Padding = new UiThickness(4, 5, 6, 7),

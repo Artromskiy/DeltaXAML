@@ -25,10 +25,10 @@ internal sealed class UiRuntime
     private uint _bindingTreeVersion;
     private bool _disposed;
 
-    public UiRuntime(IUiElement root)
+    public UiRuntime(UiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
-        _retainedRoot = root as UiElement ?? throw new ArgumentException("Root must be a DeltaXAML element.", nameof(root));
+        _retainedRoot = root;
         Root = _retainedRoot;
         _nodes = new(_retainedRoot);
         _input = new(this);
@@ -36,7 +36,7 @@ internal sealed class UiRuntime
         _bindingTreeVersion = _retainedRoot.TreeVersion;
     }
 
-    public IUiElement Root { get; }
+    public UiElement Root { get; }
     public IUiInputRouter Input => _input;
     public int AppliedMutationCount { get; private set; }
     public int RejectedMutationCount { get; private set; }

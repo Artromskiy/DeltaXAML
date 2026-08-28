@@ -72,7 +72,7 @@ internal readonly struct GridMeasureMixin : IMeasureMixin<GridState>
     private static void MeasureAuto(
         GridLength[] definitions,
         float[] measured,
-        IReadOnlyList<IUiElement> children,
+        IReadOnlyList<UiElement> children,
         bool columns)
     {
         for (var definition = 0; definition < definitions.Length; definition++)

@@ -271,9 +271,8 @@ internal static partial class Program
 
     private static void PropertyInvalidation()
     {
-        Assert.True(typeof(IUiElement).GetProperty("Id") is not null, "element identity remains in the base contract");
-        Assert.True(typeof(IUiElement).GetProperty("Generation") is not null, "element generation remains in the base contract");
-        Assert.True(typeof(IUiElement).GetProperty("DirtyFlags") is null, "dirty flags are not part of the external element contract");
+        Assert.True(typeof(UiElement).GetProperty("Id") is not null, "element identity remains on the retained owner");
+        Assert.True(typeof(UiElement).GetProperty("Generation") is not null, "element generation remains on the retained owner");
         Assert.True(typeof(UiElement).GetProperty("DirtyFlags") is null, "dirty flags are internal to the retained implementation");
         var defaultHandle = default(Library.UiPropertyHandle);
         Assert.True(!defaultHandle.IsValid && defaultHandle.Name.Length == 0, "default public handle has a safe empty name");

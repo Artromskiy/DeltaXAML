@@ -324,11 +324,11 @@ internal sealed class UiPropertyStore : IUiPropertyStore
     }
 }
 
-internal class UiElement : IUiElement, IUiPropertyStore
+internal class UiElement : IUiPropertyStore
 {
     private static uint _nextId;
     private static uint _nextGeneration;
-    private readonly List<IUiElement> _children = new();
+    private readonly List<UiElement> _children = new();
     private readonly List<UiBindingSpec> _bindingSpecs = new();
     private readonly Dictionary<string, UiBindingRuntime> _bindingRuntimes = new(StringComparer.Ordinal);
     private readonly UiPropertyStore _properties;
@@ -375,8 +375,8 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public UiElementId Id { get; }
     public uint Generation { get; }
     internal uint TreeVersion => _treeVersion;
-    public virtual string TypeName => "Element"; public IUiElement? Parent { get; private set; }
-    public IReadOnlyList<IUiElement> Children => _children;
+    public virtual string TypeName => "Element"; public UiElement? Parent { get; private set; }
+    public IReadOnlyList<UiElement> Children => _children;
     public UiVisibility Visibility { get; set; } = UiVisibility.Visible; public bool Focusable { get; set; }
     public Delta.XAML.UiParticipation Participation { get; private set; } = Delta.XAML.UiParticipation.All;
     internal bool ParticipatesIn(Delta.XAML.UiParticipation participation) => (Participation & participation) == participation;
@@ -432,43 +432,39 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public UiAutomationMetadata Automation => new(AutomationName ?? TypeName, AutomationRole, GetAutomationValueText(), IsEnabled, IsInvalid);
     public UiStateSnapshot VisualState => new(IsEnabled ? IsInvalid ? UiVisualState.Invalid : IsPressed ? UiVisualState.Pressed : IsHovered ? UiVisualState.Hover : IsSelected ? UiVisualState.Selected : IsFocused ? UiVisualState.Focused : UiVisualState.Normal : UiVisualState.Disabled, IsEnabled, IsInvalid, IsSelected, IsFocused, IsHovered, IsPressed);
     public bool IsFocused { get; private set; }
-    public void Add(IUiElement child)
+    public void Add(UiElement child)
     {
         ArgumentNullException.ThrowIfNull(child);
-        if (child is not UiElement owned)
-        {
-            throw new ArgumentException("Child must be a DeltaXAML element.", nameof(child));
-        }
 
-        for (var ancestor = this; ancestor is not null; ancestor = ancestor.Parent as UiElement)
+        for (var ancestor = this; ancestor is not null; ancestor = ancestor.Parent)
         {
-            if (ReferenceEquals(ancestor, owned))
+            if (ReferenceEquals(ancestor, child))
             {
                 throw new ArgumentException("A UI element cannot be added below itself.", nameof(child));
             }
         }
 
-        if (owned.Parent is UiElement parent)
+        if (child.Parent is { } parent)
         {
-            parent.Remove(owned);
+            parent.Remove(child);
         }
 
-        owned.Parent = this;
-        if (_hasExplicitBindingContext && !owned._hasExplicitBindingContext)
+        child.Parent = this;
+        if (_hasExplicitBindingContext && !child._hasExplicitBindingContext)
         {
-            owned.SetBindingContext(_bindingContext, false);
+            child.SetBindingContext(_bindingContext, false);
         }
 
-        _children.Add(owned);
+        _children.Add(child);
         var invalidation = UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual;
-        if (owned.IsStyleDirty)
+        if (child.IsStyleDirty)
         {
             invalidation |= UiDirtyFlags.Style;
         }
 
         InvalidateChanged(invalidation);
     }
-    public bool Remove(IUiElement child) { if (!_children.Remove(child)) { return false; } if (child is UiElement owned) { owned.Parent = null; } InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); return true; }
+    public bool Remove(UiElement child) { if (!_children.Remove(child)) { return false; } child.Parent = null; InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); return true; }
     public void ClearChildren()
     {
         for (var i = _children.Count - 1; i >= 0; i--)
@@ -956,7 +952,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     }
 }
 
-internal class Panel : UiElement, IUiPanel
+internal class Panel : UiElement
 {
     private PanelState _state;
 
@@ -965,7 +961,7 @@ internal class Panel : UiElement, IUiPanel
     public override string TypeName => "Panel";
 }
 
-internal sealed class StackPanel : UiElement, IUiPanel
+internal sealed class StackPanel : UiElement
 {
     private StackPanelState _state = new() { Orientation = UiOrientation.Vertical };
 
@@ -1044,20 +1040,20 @@ internal sealed class ItemsControl : Panel
     }
 }
 
-internal class Border : UiElement, IUiPanel
+internal class Border : UiElement
 {
     private BorderState _state;
 
     internal ref BorderState State => ref _state;
 
     public override string TypeName => "Border";
-    public IUiElement? Child => Children.Count == 0 ? null : Children[0];
+    public UiElement? Child => Children.Count == 0 ? null : Children[0];
 }
 
 internal readonly record struct GridLength(float Value, GridUnitType Unit) { public static GridLength Fixed(float v) => new(v, GridUnitType.Pixel); public static GridLength Auto => new(1, GridUnitType.Auto); public static GridLength Star(float weight = 1) => new(weight, GridUnitType.Star); }
 internal enum GridUnitType { Pixel, Auto, Star }
 
-internal sealed class Grid : UiElement, IUiPanel
+internal sealed class Grid : UiElement
 {
     private GridState _state;
 
@@ -1109,7 +1105,7 @@ internal class ContentControl : UiElement
 
     internal ref ContentControlState State => ref _state;
 
-    public override string TypeName => "ContentControl"; public IUiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
+    public override string TypeName => "ContentControl"; public UiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
 }
 
 internal class Button : ContentControl

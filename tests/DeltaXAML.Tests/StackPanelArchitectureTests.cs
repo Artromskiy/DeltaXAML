@@ -8,7 +8,7 @@ internal static class StackPanelArchitectureTests
         var first = new TextBlock { Width = 40, Height = 10 };
         var second = new TextBlock { Width = 60, Height = 20 };
         var fill = new TextBlock { Fill = true };
-        IUiElement[] children = [first, second, fill];
+        UiElement[] children = [first, second, fill];
 
         UiStackPanelGenerated.Measure(ref state, new(new(200, 100), 1, children));
         Assert.Equal(new UiSize(60, 47.5f), state.DesiredSize, "typed StackPanel measure uses child desired sizes");

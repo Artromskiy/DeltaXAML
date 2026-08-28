@@ -29,7 +29,7 @@ internal static class ItemsScrollArchitectureTests
     private static void ScrollViewerUsesGeneratedLayout()
     {
         var child = new Panel { Width = 200, Height = 80 };
-        IUiElement[] children = [child];
+        UiElement[] children = [child];
         var state = new ScrollViewerState { Offset = new UiPoint(10, 5) };
         UiScrollViewerGenerated.Measure(ref state, new(new(100, 50), 1, children));
         Assert.Equal(new UiSize(200, 80), state.DesiredSize, "typed ScrollViewer measures its content size");

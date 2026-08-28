@@ -239,27 +239,26 @@ internal static class UiArrangeStage
 
 internal static class UiArrangeQueue
 {
-    internal static void Add(in UiArrangeContext context, IUiElement child, UiRect bounds)
+    internal static void Add(in UiArrangeContext context, UiElement child, UiRect bounds)
     {
         ArgumentNullException.ThrowIfNull(child);
-        if (context.Requests is not null && child is UiElement element)
+        if (context.Requests is not null)
         {
             if (context.Nodes is null)
             {
-                if (element.NeedsArrange(bounds))
+                if (child.NeedsArrange(bounds))
                 {
-                    context.Requests.Add(new(new(element.Id.Value, element.Generation), bounds));
+                    context.Requests.Add(new(new(child.Id.Value, child.Generation), bounds));
                 }
             }
-            else if (context.Nodes.TryGetNode(new(element.Id.Value, element.Generation), out var node) &&
-                     element.NeedsArrange(bounds))
+            else if (context.Nodes.TryGetNode(new(child.Id.Value, child.Generation), out var node) &&
+                     child.NeedsArrange(bounds))
             {
                 context.Requests.Add(new(node.Id, bounds));
             }
 
             return;
         }
-
         child.Arrange(bounds);
     }
 }

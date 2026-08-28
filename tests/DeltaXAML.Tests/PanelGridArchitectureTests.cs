@@ -12,7 +12,7 @@ internal static class PanelGridArchitectureTests
     {
         var first = new TextBlock { Width = 40, Height = 10 };
         var second = new TextBlock { Width = 60, Height = 20 };
-        IUiElement[] children = [first, second];
+        UiElement[] children = [first, second];
         var state = new PanelState();
 
         UiPanelGenerated.Measure(ref state, new(new(200, 100), 1, children));
@@ -42,7 +42,7 @@ internal static class PanelGridArchitectureTests
         var first = new TextBlock { Width = 30, Height = 20 };
         var second = new TextBlock { Width = 50, Height = 20 };
         var third = new TextBlock { Fill = true };
-        IUiElement[] children = [first, second, third];
+        UiElement[] children = [first, second, third];
         var state = NewGridState(columns, rows);
 
         UiGridGenerated.Measure(ref state, new(new(200, 100), 1, children));

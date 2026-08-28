@@ -135,7 +135,7 @@ internal sealed class UiNodeStore
         return true;
     }
 
-    internal IReadOnlyList<IUiElement> GetLogicalChildren(UiNodeId parent)
+    internal IReadOnlyList<UiElement> GetLogicalChildren(UiNodeId parent)
     {
         if (!TryCopyLogicalChildren(parent, _layoutChildIds))
         {
@@ -261,11 +261,11 @@ internal sealed class UiNodeStore
 
     private readonly record struct RegistrationVisit(UiElement Element, UiElement? Parent, UiElement? PreviousSibling);
 
-    private sealed class NodeChildrenView(UiNodeStore owner, List<UiNodeId> ids) : IReadOnlyList<IUiElement>
+    private sealed class NodeChildrenView(UiNodeStore owner, List<UiNodeId> ids) : IReadOnlyList<UiElement>
     {
         public int Count => ids.Count;
 
-        public IUiElement this[int index]
+        public UiElement this[int index]
         {
             get
             {
@@ -278,7 +278,7 @@ internal sealed class UiNodeStore
             }
         }
 
-        public IEnumerator<IUiElement> GetEnumerator()
+        public IEnumerator<UiElement> GetEnumerator()
         {
             for (var i = 0; i < ids.Count; i++)
             {

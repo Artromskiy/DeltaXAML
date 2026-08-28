@@ -47,9 +47,9 @@ internal static class XamlDialectParser
         {
             if (r.NodeType == XmlNodeType.Element)
             {
-                var child = Read(r, d, resources, factory); if (child is not null && e is IUiPanel p)
+                var child = Read(r, d, resources, factory); if (child is not null && (e is Panel or Border or Grid))
                 {
-                    p.Add(child);
+                    e.Add(child);
                 }
                 else if (child is not null && e is ContentControl c)
                 {

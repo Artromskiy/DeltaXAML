@@ -74,28 +74,6 @@ internal readonly record struct UiAutomationMetadata(string Name, UiAutomationRo
 internal enum UiVisualState { Normal, Hover, Pressed, Focused, Disabled, Invalid, Selected }
 internal readonly record struct UiStateSnapshot(UiVisualState State, bool IsEnabled, bool IsInvalid, bool IsSelected, bool IsFocused, bool IsHovered, bool IsPressed);
 
-internal interface IUiElement
-{
-    UiElementId Id { get; }
-    uint Generation { get; }
-    string TypeName { get; }
-    IUiElement? Parent { get; }
-    IReadOnlyList<IUiElement> Children { get; }
-    UiVisibility Visibility { get; }
-    Delta.XAML.UiParticipation Participation { get; }
-    bool Focusable { get; }
-    float Width { get; }
-    float Height { get; }
-    bool Fill { get; }
-    UiRect Bounds { get; }
-    UiRect Clip { get; }
-    UiSize DesiredSize { get; }
-    UiColor Background { get; }
-    UiAutomationMetadata Automation { get; }
-    UiStateSnapshot VisualState { get; }
-    void Measure(UiSize available); void Arrange(UiRect bounds);
-}
-internal interface IUiPanel : IUiElement { void Add(IUiElement child); bool Remove(IUiElement child); }
 internal interface IUiValue
 {
     object? UntypedValue { get; }
@@ -120,12 +98,12 @@ internal readonly record struct UiTextRun(string FontKey, float FontSize, string
 internal readonly record struct UiMeasureContext(
     UiSize Available,
     float DpiScale,
-    IReadOnlyList<IUiElement>? Children = null,
+    IReadOnlyList<UiElement>? Children = null,
     bool MeasureChildren = true);
 internal readonly record struct UiArrangeContext(
     UiRect Bounds,
     UiRect Clip,
-    IReadOnlyList<IUiElement>? Children = null,
+    IReadOnlyList<UiElement>? Children = null,
     List<UiArrangeRequest>? Requests = null,
     UiNodeStore? Nodes = null);
 internal readonly record struct UiMeasureRequest(UiNodeId Element, UiSize Available);

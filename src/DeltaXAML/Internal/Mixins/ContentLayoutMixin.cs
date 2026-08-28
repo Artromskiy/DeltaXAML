@@ -23,7 +23,7 @@ internal readonly struct BorderMeasureMixin : IMeasureMixin<BorderState>
             child.DesiredSize.Height + state.Padding.Vertical);
     }
 
-    private static IUiElement? FirstChild(IReadOnlyList<IUiElement>? children)
+    private static UiElement? FirstChild(IReadOnlyList<UiElement>? children)
     {
         if (children is null || children.Count == 0)
         {
