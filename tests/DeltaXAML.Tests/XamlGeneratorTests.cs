@@ -43,5 +43,29 @@ internal static partial class Program
         Assert.True(resourcePlan.Success, "resource markup remains a valid semantic plan");
         Assert.True(!CSharpArtifactEmitter.TryEmit(resourcePlan, resourceRegistry, "Generated", "ResourceArtifact", out _, out var resourceDiagnostic), "resource values wait for the compiled resource slice");
         Assert.Equal("DXAMLGEN002", resourceDiagnostic?.Code, "deferred resource emission has a stable diagnostic");
+
+        var bindingRegistry = XamlSemanticRegistry.CreateBuiltIns();
+        bindingRegistry.RegisterBinding(new(
+            "Name",
+            "global::Sample.BindingModel",
+            "string",
+            "source.Name",
+            "source.Name = value"));
+        var bindingPlan = XamlCompiler.Compile(sourceId, "<TextBlock Text=\"{Binding Name, Mode=TwoWay}\" />", bindingRegistry);
+        Assert.True(bindingPlan.Success, "declared binding markup is a valid semantic plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(bindingPlan, bindingRegistry, "Generated", "BindingArtifact", out var bindingSource, out var bindingDiagnostic), "declared binding has a typed artifact");
+        Assert.True(bindingDiagnostic is null, "typed binding emission has no diagnostic");
+        Assert.True(bindingSource.Contains("UiCompiledBinding<global::Sample.BindingModel, string>", StringComparison.Ordinal), "binding artifact preserves source and value types");
+        Assert.True(bindingSource.Contains("static source => source.Name", StringComparison.Ordinal), "binding read accessor is direct and static");
+        Assert.True(bindingSource.Contains("static (source, value) => source.Name = value", StringComparison.Ordinal), "two-way binding write accessor is direct and static");
+        Assert.True(bindingSource.Contains("RefreshBindings", StringComparison.Ordinal), "binding artifact exposes one direct refresh batch");
+        Assert.True(!bindingSource.Contains("GetProperty", StringComparison.Ordinal) && !bindingSource.Contains("Split", StringComparison.Ordinal), "typed binding artifact has no reflection or path traversal");
+
+        var oneTimeModel = new BindingModel { Name = "Initial" };
+        using var oneTime = new UiCompiledBinding<BindingModel, string>(oneTimeModel, static model => model.Name, mode: UiBindingMode.OneTime);
+        var oneTimeNotifications = 0;
+        oneTime.Changed += (_, _) => oneTimeNotifications++;
+        oneTimeModel.Name = "Updated";
+        Assert.Equal(0, oneTimeNotifications, "one-time binding does not subscribe to source notifications");
     }
 }

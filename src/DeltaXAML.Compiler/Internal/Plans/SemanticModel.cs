@@ -110,6 +110,13 @@ internal readonly record struct XamlBindingPlan(
     string? ConverterKey,
     string? StringFormat);
 
+internal sealed record XamlBindingDefinition(
+    string Path,
+    string SourceTypeName,
+    string ValueTypeName,
+    string ReadExpression,
+    string? WriteExpression);
+
 internal readonly record struct XamlValuePlan(
     XamlValueKind Kind,
     XamlLiteralValue Literal,
@@ -175,6 +182,7 @@ internal sealed class XamlSemanticRegistry
     private readonly Dictionary<UiTypeId, XamlTypeDefinition> _definitions = new();
     private readonly Dictionary<string, UiResourceId> _resources = new(StringComparer.Ordinal);
     private readonly Dictionary<UiResourceId, string> _resourceIds = new();
+    private readonly Dictionary<string, XamlBindingDefinition> _bindings = new(StringComparer.Ordinal);
 
     internal void RegisterType(XamlTypeDefinition definition)
     {
@@ -239,6 +247,22 @@ internal sealed class XamlSemanticRegistry
 
     internal bool TryResolveResource(string key, out UiResourceId id) =>
         _resources.TryGetValue(key, out id);
+
+    internal void RegisterBinding(XamlBindingDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.Path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.SourceTypeName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.ValueTypeName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definition.ReadExpression);
+        if (!_bindings.TryAdd(definition.Path, definition))
+        {
+            throw new ArgumentException($"The XAML binding path '{definition.Path}' is registered twice.", nameof(definition));
+        }
+    }
+
+    internal bool TryResolveBinding(string path, [NotNullWhen(true)] out XamlBindingDefinition? definition) =>
+        _bindings.TryGetValue(path, out definition);
 
     internal static XamlSemanticRegistry CreateBuiltIns()
     {

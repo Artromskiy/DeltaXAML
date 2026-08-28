@@ -125,7 +125,7 @@ public sealed class UiCompiledBinding<TSource, TValue> : IUiBinding, IUiBindingC
         _read = read;
         _write = write;
         Mode = mode;
-        if (source is INotifyPropertyChanged observable)
+        if (mode != UiBindingMode.OneTime && source is INotifyPropertyChanged observable)
         {
             _observable = observable;
             _observable.PropertyChanged += OnPropertyChanged;

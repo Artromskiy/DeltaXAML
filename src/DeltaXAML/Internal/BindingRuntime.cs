@@ -52,7 +52,7 @@ internal sealed class UiBindingRuntime : IDisposable
         _owner = owner;
         _binding = new UiBindingValue(Read, Write);
         owner.SetBinding(PropertyName, _binding, invalidation);
-        if (_external is PublicBindingChanged changed)
+        if (_external is PublicBindingChanged changed && _external.Mode != PublicBindingMode.OneTime)
         {
             changed.Changed += OnExternalChanged;
         }
@@ -116,7 +116,7 @@ internal sealed class UiBindingRuntime : IDisposable
             _observable.PropertyChanged -= OnPropertyChanged;
         }
 
-        if (_external is PublicBindingChanged changed)
+        if (_external is PublicBindingChanged changed && _external.Mode != PublicBindingMode.OneTime)
         {
             changed.Changed -= OnExternalChanged;
         }

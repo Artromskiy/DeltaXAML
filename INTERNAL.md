@@ -1026,10 +1026,13 @@ generated construction never silently calls it. If the build cannot generate
 an artifact, it reports a build diagnostic instead of producing reflection
 fallback code.
 
-The current generator intentionally accepts literal values and the existing
-typed child/content operations only. Resource references and binding plans are
-preserved by `XamlCompiler` but produce `DXAMLGEN002` until their compiled
-resource and binding slices are implemented.
+The current generator accepts literal values, the existing typed child/content
+operations, and binding plans that have an explicit
+`XamlBindingDefinition` in the registry. Binding definitions supply source and
+value type names plus direct accessor expressions; the artifact emits static
+typed lambdas and one direct refresh/dispose batch. `OneTime` has no source
+subscription. Resource references and bindings without a typed definition
+produce `DXAMLGEN002` rather than a string-path or reflection fallback.
 
 ### `DXAML-COMPILE-3`: compiled binding batches
 
@@ -1044,6 +1047,14 @@ OneTime  : read once during construction; register no notification
 OneWay   : source notification -> deduplicated binding slot -> typed read
 TwoWay   : OneWay path + typed target commit -> source write
 ```
+
+The current implementation represents the declared source contract as an
+`XamlBindingDefinition` in `XamlSemanticRegistry`. `CSharpArtifactEmitter`
+requires all bindings in one artifact to use that source type, emits static
+typed lambdas, and exposes direct `RefreshBindings`/`Dispose` calls over the
+typed binding fields. `UiCompiledBinding` skips `INotifyPropertyChanged`
+subscription for `OneTime`; the legacy string-path `UiBindingRuntime` remains
+tooling/compatibility-only until the runtime stage migration.
 
 Binding attachment may allocate notification infrastructure once. A changed
 notification only records a compact binding slot. The binding stage later

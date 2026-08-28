@@ -62,11 +62,13 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   and one compact generated namescope table; registered stable type/property
   identities are resolved by the compiler registry and missing factory
   metadata is a build diagnostic. No user control becomes `partial` and no
-  reflection fallback is emitted. Binding/resource emission remains in the
-  dedicated later slices.
-- [ ] `DXAML-COMPILE-3`: generate typed binding read/write plans for `OneTime`,
-  `OneWay` and `TwoWay`. Production bindings must not walk string paths or
-  allocate closures; `OneTime` must register no notification.
+  reflection fallback is emitted. Resource emission remains in the dedicated
+  later slice; typed binding emission is covered by `DXAML-COMPILE-3`.
+- [x] `DXAML-COMPILE-3`: registered binding definitions now generate direct
+  typed read/write lambdas for `OneTime`, `OneWay` and `TwoWay`, plus one
+  explicit refresh/dispose batch on the companion. `OneTime` does not subscribe
+  to source notifications. An undeclared XAML binding is a build diagnostic,
+  never a string-path or reflection fallback.
 - [ ] `DXAML-COMPILE-4`: compile resources, styles, selectors, visual states and
   templates into cached plans. Runtime fallback is tooling-only and must never
   be selected silently in a shipping build.

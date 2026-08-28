@@ -37,6 +37,8 @@ internal static class CSharpArtifactEmitter
 
         var nodes = new List<XamlObjectPlan>();
         Flatten(root, nodes);
+        var bindingSites = new List<BindingSite>();
+        string? bindingSourceType = null;
         for (var i = 0; i < nodes.Count; i++)
         {
             if (!registry.TryResolveType(nodes[i].Type, out var type))
@@ -59,10 +61,32 @@ internal static class CSharpArtifactEmitter
 
             for (var memberIndex = 0; memberIndex < nodes[i].Members.Length; memberIndex++)
             {
-                if (!CanEmitMember(nodes[i].Members[memberIndex], out var memberError))
+                var member = nodes[i].Members[memberIndex];
+                if (!CanEmitMember(member, registry, out var memberError))
                 {
-                    diagnostic = new("DXAMLGEN002", memberError, nodes[i].Members[memberIndex].Range);
+                    diagnostic = new("DXAMLGEN002", memberError, member.Range);
                     return false;
+                }
+
+                if (member.Value.Kind == XamlValueKind.Binding)
+                {
+                    if (!registry.TryResolveBinding(member.Value.Binding.Path, out var bindingDefinition))
+                    {
+                        diagnostic = new("DXAMLGEN002", $"Binding path '{member.Value.Binding.Path}' has no typed compile-time definition.", member.Range);
+                        return false;
+                    }
+
+                    if (bindingSourceType is null)
+                    {
+                        bindingSourceType = bindingDefinition.SourceTypeName;
+                    }
+                    else if (!string.Equals(bindingSourceType, bindingDefinition.SourceTypeName, StringComparison.Ordinal))
+                    {
+                        diagnostic = new("DXAMLGEN002", "One generated artifact must use one typed binding source context.", member.Range);
+                        return false;
+                    }
+
+                    bindingSites.Add(new(i, member, bindingDefinition));
                 }
             }
         }
@@ -71,14 +95,36 @@ internal static class CSharpArtifactEmitter
         writer.AppendLine("#nullable enable");
         writer.Append("namespace ").Append(namespaceName).AppendLine(";");
         writer.AppendLine();
-        writer.Append("public sealed class ").Append(className).AppendLine();
+        writer.Append("public sealed class ").Append(className).AppendLine(" : global::System.IDisposable");
         writer.AppendLine("{");
         writer.AppendLine("    private readonly global::Delta.XAML.UiElement[] _scopeElements;");
+        for (var i = 0; i < bindingSites.Count; i++)
+        {
+            var binding = bindingSites[i];
+            writer.Append("    private readonly global::Delta.XAML.UiCompiledBinding<")
+                .Append(binding.Definition.SourceTypeName)
+                .Append(", ")
+                .Append(binding.Definition.ValueTypeName)
+                .Append("> _binding")
+                .Append(i)
+                .AppendLine(";");
+        }
+
         writer.AppendLine("    public global::Delta.XAML.UiDocument Document { get; }");
         writer.AppendLine();
-        writer.Append("    public ").Append(className).AppendLine("(global::Delta.Text.Contract.ITextService textService)");
+        writer.Append("    public ").Append(className).Append('(');
+        if (bindingSourceType is not null)
+        {
+            writer.Append(bindingSourceType).Append(" context, ");
+        }
+
+        writer.AppendLine("global::Delta.Text.Contract.ITextService textService)");
         writer.AppendLine("    {");
         writer.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(textService);");
+        if (bindingSourceType is not null)
+        {
+            writer.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(context);");
+        }
 
         for (var i = 0; i < nodes.Count; i++)
         {
@@ -89,6 +135,11 @@ internal static class CSharpArtifactEmitter
             }
 
             writer.Append("        var node").Append(i).Append(" = ").Append(type.FactoryExpression).AppendLine(";");
+            if (i == 0 && bindingSourceType is not null)
+            {
+                writer.AppendLine("        node0.BindingContext = context;");
+            }
+
             for (var memberIndex = 0; memberIndex < nodes[i].Members.Length; memberIndex++)
             {
                 EmitMember(writer, i, nodes[i].Members[memberIndex]);
@@ -122,6 +173,11 @@ internal static class CSharpArtifactEmitter
             }
         }
 
+        for (var i = 0; i < bindingSites.Count; i++)
+        {
+            EmitBinding(writer, i, bindingSites[i]);
+        }
+
         writer.Append("        Document = new global::Delta.XAML.UiDocument(node0, textService);").AppendLine();
         var namedNodes = nodes.Where(static node => node.ScopeName is not null).ToList();
         writer.Append("        _scopeElements = new global::Delta.XAML.UiElement[]").AppendLine();
@@ -148,6 +204,25 @@ internal static class CSharpArtifactEmitter
 
         writer.AppendLine("        element = null;");
         writer.AppendLine("        return false;");
+        writer.AppendLine("    }");
+        writer.AppendLine();
+        writer.AppendLine("    public void RefreshBindings()");
+        writer.AppendLine("    {");
+        for (var i = 0; i < bindingSites.Count; i++)
+        {
+            writer.Append("        _binding").Append(i).AppendLine(".NotifyChanged();");
+        }
+
+        writer.AppendLine("    }");
+        writer.AppendLine();
+        writer.AppendLine("    public void Dispose()");
+        writer.AppendLine("    {");
+        for (var i = 0; i < bindingSites.Count; i++)
+        {
+            writer.Append("        _binding").Append(i).AppendLine(".Dispose();");
+        }
+
+        writer.AppendLine("        Document.Dispose();");
         writer.AppendLine("    }");
         writer.AppendLine("}");
         source = writer.ToString();
@@ -192,11 +267,37 @@ internal static class CSharpArtifactEmitter
         return true;
     }
 
-    private static bool CanEmitMember(XamlMemberPlan member, out string error)
+    private static bool CanEmitMember(XamlMemberPlan member, XamlSemanticRegistry registry, out string error)
     {
-        if (member.Value.Kind is XamlValueKind.Binding or XamlValueKind.ResourceReference)
+        error = string.Empty;
+        if (member.Value.Kind == XamlValueKind.Binding)
         {
-            error = $"Property '{member.Name}' uses a binding/resource plan; compiled binding/resource emission belongs to a later compile slice.";
+            if (!registry.TryResolveBinding(member.Value.Binding.Path, out var binding))
+            {
+                error = $"Binding path '{member.Value.Binding.Path}' has no typed compile-time definition.";
+                return false;
+            }
+
+            if (member.Value.Binding.ConverterKey is not null || member.Value.Binding.StringFormat is not null)
+            {
+                error = $"Binding '{member.Value.Binding.Path}' uses a converter or format; only direct typed accessors are available in this slice.";
+                return false;
+            }
+
+            if (member.Value.Binding.Mode == UiBindingMode.TwoWay && string.IsNullOrWhiteSpace(binding.WriteExpression))
+            {
+                error = $"Two-way binding '{member.Value.Binding.Path}' has no typed write expression.";
+                return false;
+            }
+
+            if (!TryValidateBinding(binding, out error))
+            {
+                return false;
+            }
+        }
+        else if (member.Value.Kind == XamlValueKind.ResourceReference)
+        {
+            error = $"Property '{member.Name}' uses a resource plan; compiled resource emission belongs to a later compile slice.";
             return false;
         }
 
@@ -212,11 +313,28 @@ internal static class CSharpArtifactEmitter
             return false;
         }
 
-        if (!TryLiteralExpression(member.Name, member.Value, out _, out error))
+        if (member.Value.Kind != XamlValueKind.Binding && !TryLiteralExpression(member.Name, member.Value, out _, out error))
         {
             return false;
         }
 
+        return true;
+    }
+
+    private static bool TryValidateBinding(XamlBindingDefinition binding, out string error)
+    {
+        if (binding.SourceTypeName.Contains("Type", StringComparison.Ordinal) ||
+            binding.SourceTypeName.Contains("Assembly", StringComparison.Ordinal) ||
+            binding.ReadExpression.Contains("GetProperty", StringComparison.Ordinal) ||
+            binding.ReadExpression.Contains("Activator", StringComparison.Ordinal) ||
+            binding.ReadExpression.Contains("dynamic", StringComparison.Ordinal) ||
+            (binding.WriteExpression is { } write && (write.Contains("GetProperty", StringComparison.Ordinal) || write.Contains("Activator", StringComparison.Ordinal))))
+        {
+            error = $"Binding '{binding.Path}' contains reflection or dynamic access and cannot be emitted as a typed plan.";
+            return false;
+        }
+
+        error = string.Empty;
         return true;
     }
 
@@ -248,6 +366,11 @@ internal static class CSharpArtifactEmitter
 
     private static void EmitMember(StringBuilder writer, int nodeIndex, XamlMemberPlan member)
     {
+        if (member.Value.Kind == XamlValueKind.Binding)
+        {
+            return;
+        }
+
         if (!TryLiteralExpression(member.Name, member.Value, out var expression, out var error))
         {
             throw new InvalidOperationException(error);
@@ -269,6 +392,31 @@ internal static class CSharpArtifactEmitter
                 writer.Append(member.Name).Append(" = ").Append(expression).AppendLine(";");
                 break;
         }
+    }
+
+    private static void EmitBinding(StringBuilder writer, int bindingIndex, BindingSite site)
+    {
+        var binding = site.Member.Value.Binding;
+        var definition = site.Definition;
+        writer.Append("        _binding").Append(bindingIndex).Append(" = new global::Delta.XAML.UiCompiledBinding<")
+            .Append(definition.SourceTypeName)
+            .Append(", ")
+            .Append(definition.ValueTypeName)
+            .Append(">(context, static source => ")
+            .Append(definition.ReadExpression)
+            .Append(", ");
+        if (binding.Mode == UiBindingMode.TwoWay)
+        {
+            writer.Append("static (source, value) => ").Append(definition.WriteExpression);
+        }
+        else
+        {
+            writer.Append("null");
+        }
+
+        writer.Append(", global::Delta.XAML.UiBindingMode.").Append(binding.Mode).AppendLine(");");
+        writer.Append("        node").Append(site.NodeIndex).Append(".SetBinding(")
+            .Append(Quote(site.Member.Name)).Append(", _binding").Append(bindingIndex).AppendLine(");");
     }
 
     private static bool TryEmitAttachment(
@@ -474,4 +622,9 @@ internal static class CSharpArtifactEmitter
 
         return builder.Append('"').ToString();
     }
+
+    private readonly record struct BindingSite(
+        int NodeIndex,
+        XamlMemberPlan Member,
+        XamlBindingDefinition Definition);
 }
