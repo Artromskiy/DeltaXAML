@@ -187,3 +187,50 @@ and incompatible requirements.
   acceptance through the generated editor/game document pipeline.
 
 Shared ownership and gates are in [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md).
+
+## P0 — full-capability sample parity
+
+This is the next mandatory implementation milestone. The previous completion
+gate established the canonical kernel; it did not complete the capability
+families specified in `USER_API.md#full-capability-dialect-target` and
+`INTERNAL.md#full-capability-implementation`. Do not mark this section complete
+with host-built sample substitutions.
+
+- [ ] Add typed generated `ItemsSource`, `DataTemplate` and deterministic
+  template selection without item boxing or per-item delegates.
+- [ ] Add the primitive virtualizing repeater: source view, realization store,
+  recycling by descriptor, viewport-driven layouts and bounded collection
+  delta handling. Keep selection, scrolling and chrome as separate policies.
+- [ ] Compile `Self`, template owner, named-element, cached ancestor,
+  multi-source/function and explicitly cultured formatting bindings.
+- [ ] Add generated typed attached-property slots and use them for grid/layout
+  metadata without a global object-keyed store.
+- [ ] Compile property/data/multi conditions and visual states into dependency
+  plans and setter batches over the existing property precedence. Publish
+  trigger actions only as semantic commands after stage completion.
+- [ ] Add descriptor-bound behavior capabilities and one allocation-bounded
+  gesture arena covering tap, multiple tap, long press, drag/pan, swipe and
+  pinch with host-provided timestamps.
+- [ ] Add the common overlay/focus-scope primitive, then implement slider,
+  picker, virtualized list/collection, image, tabs and menu composition from
+  shared capabilities rather than bespoke runtime paths.
+- [ ] Add rich paragraph runs, paragraph-level bidi/wrapping/shaping, inline
+  hit ranges and hyperlink semantic activation while preserving the frozen
+  `UiDisplayList` boundary.
+- [ ] Add compact brush/image user values, gradient/image resource handling,
+  intrinsic metadata, placeholder/error state and precise invalidation without
+  renderer ownership.
+- [ ] Add a borrowed accessibility semantic snapshot and explicit
+  localization/culture/direction inputs without platform automation objects in
+  DeltaXAML.
+- [ ] Define narrow host-service requests for clipboard, drag/drop, navigation,
+  URI activation, file dialogs and asynchronous assets. Samples may supply
+  fixtures, but must not reconstruct DeltaXAML layout/input/binding behavior.
+- [ ] Port every retained MAUI/Avalonia/WinUI/Uno-inspired sample to the
+  generated DeltaXAML path. For an intentionally unsupported foreign feature,
+  add a stable diagnostic and document the supported Delta composition; no
+  sample may remain impossible without such an explicit resolution.
+- [ ] Extend the architecture gate for virtualization, relation caches,
+  conditions, behaviors/gestures, rich text and semantic extraction. Finish
+  with one node/property/stage pipeline, no active superseded callers and a
+  clean repository commit without push.

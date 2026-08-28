@@ -50,6 +50,19 @@ The architecture gate in `DeltaXAML.Tests` is mandatory and must reject:
 - new references to superseded APIs;
 - invalid `State`, `Mixins`, `Descriptors` and `Controls` locations.
 
+Full-capability work additionally extends the gate to reject:
+
+- boxed collection items and per-item template delegates in realization;
+- per-element trigger, behavior or gesture objects/subscriptions;
+- steady-state ancestor walks for relative bindings;
+- object/type-keyed attached-property storage in retained stages;
+- full collection rebuilds for bounded collection deltas;
+- duplicate popup documents, input routers or property engines;
+- rich-text reshaping caused only by color/paint changes;
+- platform accessibility, image-decoder or GPU objects in retained state;
+- sample fixtures that bypass generated XAML by constructing an equivalent
+  host tree in code.
+
 If the gate cannot express a rule through assembly inspection, add a bounded
 source/project check instead of weakening the rule.
 

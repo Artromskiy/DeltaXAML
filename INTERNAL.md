@@ -606,6 +606,124 @@ internal sealed class UiPipeline
 The pipeline exposes order, not a general framework. Engines have narrow data
 dependencies and do not call one another through a service locator.
 
+## Full-capability implementation
+
+The full-capability dialect extends the fixed pipeline through focused plans
+and stores. It does not add methods to a monolithic `UiDocument` facade and
+does not introduce a second runtime. Compile-time declarations converge on the
+same descriptor, node, property and stage data used by the baseline.
+
+### Typed repeater and virtualization
+
+The primitive collection runtime has four independent parts:
+
+```text
+typed source view     Count, item/key access and a structural stamp
+typed template plan   Create, Bind and Unbind thunks
+realization store     item/key/index -> generation-safe UiNodeId
+virtualizing layout   viewport -> required index ranges
+```
+
+Template thunks are generated static operations. A realized element stores its
+source index/key and descriptor, not an `object` item. Recycled elements are
+pooled by template descriptor. Structural collection deltas update the index
+map and realize/recycle only affected ranges. The repeater has no built-in
+selection, scroll viewer or item chrome; those are policies composed above it.
+
+### Relation bindings and attached slots
+
+Binding source plans use a compact discriminant:
+
+```text
+Context | Self | TemplateOwner | Name | Ancestor
+```
+
+`Self`, template owner and namescope links bind once during construction. An
+ancestor plan stores the required descriptor/type identity and a cached
+`UiNodeId`; attach/reparent invalidates and resolves that cache. Binding refresh
+then reads the cached node directly.
+
+Attached properties are generated typed slots associated with an owner
+descriptor. Built-in layout properties receive direct indices in node state.
+Custom cold-path attached properties may use the existing typed property store.
+Neither path uses `Type` or object-keyed storage.
+
+### Condition graph
+
+The compiler lowers triggers and visual states to:
+
+```text
+dependency property slots
+  -> typed condition thunk
+  -> active-state bit
+  -> generated setter range
+  -> optional semantic command
+```
+
+Property invalidation queues dependent condition indices. A condition is
+evaluated at most once per stage generation. Setter output feeds the existing
+effective-value precedence and cannot mutate layout recursively. Commands are
+published only after the stage commits its mutations.
+
+### Capabilities and gesture arena
+
+Generated descriptors opt an element into behavior/gesture capabilities.
+Optional capability state is part of concrete composite state and exists only
+for participating element types. Stateless mixins process it by `ref`.
+
+One document-owned gesture arena stores only active pointer candidates. It
+arbitrates capture and recognition from normalized packets and host timestamps.
+No recognizer object, timer, event subscription or delegate is allocated per
+element. Recognized gestures become routed typed input operations or semantic
+commands.
+
+### Overlay and focus scopes
+
+Popups, drop-downs, tooltips and menus use a document-owned overlay root that
+belongs to the same node store and pipeline. An overlay may establish a focus
+scope and capture policy, but it is not another document or native window.
+Placement is a layout capability receiving anchor and viewport bounds.
+
+### Rich paragraphs
+
+Rich text is stored as one paragraph text buffer plus compact style/action
+runs. A paragraph layout key includes text/run versions, font instances,
+language/script/direction/features, width and DPI. Shaping/layout produces
+positioned runs and inline hit ranges. Color-only changes reuse glyph shaping.
+Visual extraction writes the runs directly as canonical `UiTextDraw` values.
+
+### Resources, brushes and images
+
+Brush state is a compact tagged value containing a solid color or stable
+resource identity. Gradients and images remain resource-backed; an optional
+renderer-neutral metadata resolver supplies intrinsic pixel dimensions and
+readiness for measure/placeholder state. It cannot expose decoded platform or
+GPU objects. Dynamic resource changes reuse dependency invalidation.
+
+### Accessibility snapshot
+
+Accessibility extraction is a separate read-only stage over the same node
+store. It emits borrowed compact semantic nodes only for elements whose
+semantic state changed. Platform automation objects, callbacks and lifetimes
+remain host-owned. Accessibility does not walk or mutate the visual command
+list.
+
+### Full-capability cost rules
+
+- no reflection, boxing, LINQ, string member lookup or expression compilation
+  in retained stages;
+- no per-item container unless a high-policy control explicitly requests one;
+- no per-element behavior/trigger/gesture objects or delegate chains;
+- no parent traversal during steady-state binding refresh;
+- no full collection rebuild for bounded add/remove/move/replace deltas;
+- no reshaping for paint-only rich-text changes;
+- no platform, renderer or GPU object in retained state;
+- all buffers and realization tables are document-owned and reused.
+
+The architecture gate verifies these constraints and that full-capability XAML
+fixtures compile to typed artifacts rather than use the cold loader or a
+host-built substitute tree.
+
 ## Cost zones
 
 ### Hot

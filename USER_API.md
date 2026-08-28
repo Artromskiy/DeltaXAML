@@ -277,6 +277,123 @@ is no reflection or alternate-runtime fallback. Collection source generation,
 data templates, triggers beyond the declared visual-state setters and general
 MAUI/WPF/Avalonia syntax are not part of the current dialect.
 
+## Full-capability dialect target
+
+The completed retained kernel above is the baseline, not the final extent of
+the DeltaXAML language. The full-capability milestone is complete only when a
+sample expressible through ordinary retained UI concepts can be authored
+without host code rebuilding layout, hit testing, binding or rendering logic.
+DeltaXAML does not promise source compatibility with another XAML dialect, but
+it must provide an intentional Delta equivalent for these capability families.
+
+### Typed collection presentation
+
+Generated XAML supports a typed `ItemsSource`, `DataTemplate` and deterministic
+template selection. The primitive collection presenter provides realization,
+recycling and virtualizing layout only. Selection, scrolling, keyboard policy
+and item chrome are composable policies used by higher-level list, picker and
+collection controls; they are not mandatory per-item wrappers.
+
+Small static collections and large virtualized collections use the same typed
+template artifact. Generated item binding does not box `TItem`, use reflection
+or create a closure for every realized item. Collection changes preserve
+retained identity for unaffected keys and update only the affected realization
+range.
+
+### Compiled relative and multi-source bindings
+
+Generated bindings support `Self`, template owner, named element and cached
+ancestor sources. Template-owner and named-element links resolve during
+construction. Ancestor links resolve on attach/reparent and cache a
+generation-safe node identity; they do not traverse parents every frame.
+
+Multiple inputs and binding functions compile into one typed expression plan.
+Formatting has an explicit culture and updates only when its inputs change.
+There is no production reflection fallback. A source that cannot be resolved
+through supported retained relations is a build diagnostic.
+
+### Attached properties
+
+An owner may declare a typed attached property with a stable `UiPropertyId`.
+Generated artifacts assign a compact slot, and the owning layout or behavior
+capability reads that slot directly. This covers layout metadata such as grid
+row/column placement without a global `Dictionary<object, object>` or public
+storage exposure.
+
+### Conditions, states and actions
+
+Property, data and multi-condition declarations compile to dependency plans.
+Only a condition whose dependency changed is reevaluated, and setters write to
+the existing `Style/Trigger` source in the one property-precedence system.
+Visual states are named condition/setter groups over the same mechanism.
+
+Actions do not execute arbitrary delegates during style/layout traversal.
+They enqueue semantic commands that the document publishes after the current
+stage. Host/application code owns command implementation.
+
+### Behaviors, commands and gestures
+
+Reusable behaviors compile to optional typed state plus stateless capability
+operations. They do not allocate a behavior object, event subscription or
+delegate per element in steady state. Attach/detach follows node lifetime.
+
+The input pipeline recognizes tap, multiple tap, long press, drag/pan, swipe
+and pinch through one document-owned active-pointer arena. Pointer timestamps
+come from the host input packet; DeltaXAML does not own a clock. Commands carry
+semantic typed identity and source identity and remain independent of renderer
+commands.
+
+### Collection and value controls
+
+The library supplies reusable controls built from the primitives above:
+
+- slider/range input with capture, keyboard increments and two-way binding;
+- picker/drop-down through overlay, collection presentation and selection;
+- virtualized list/collection presentation with optional selection;
+- image with intrinsic size, stretch, tint and placeholder/error state;
+- popup/overlay primitives, focus scopes, tabs and menu composition.
+
+High-policy controls compose lower-level capabilities. They do not add an
+alternate tree, input router, property engine or submission path.
+
+### Rich text
+
+Formatted text contains typed style runs over one paragraph. Layout preserves
+paragraph-level line breaking, bidi ordering, shaping and baselines across run
+boundaries. Link runs produce retained inline hit ranges and semantic command
+invocations. Extraction may emit several `UiTextDraw` values for one retained
+owner; the frozen display-list contract already supports this.
+
+### Brushes and images
+
+Solid and resource-backed brushes are typed values. Linear/radial gradients
+are represented by stable resources and emitted through the existing custom
+visual/resource boundary. Image decoding, Vulkan images, samplers and uploads
+remain consumer-owned. DeltaXAML may request renderer-neutral intrinsic image
+metadata for layout but never receives a GPU object.
+
+### Platform and application services
+
+Clipboard, drag/drop payload acquisition, navigation, file dialogs, external
+URI activation and asset loading are host services. DeltaXAML may expose a
+narrow semantic request/result boundary for a control that needs them, but it
+does not implement platform policy or depend on DeltaEngine.
+
+### Accessibility and localization
+
+The retained document can produce a borrowed semantic snapshot containing
+roles, names, values, bounds, actions, focus and collection-position metadata.
+The platform host adapts that snapshot to its accessibility API. Localization,
+text direction and formatting culture are explicit document/source inputs;
+process-global culture is never an implicit production dependency.
+
+### Unsupported feature rule
+
+Every unsupported element, member or markup expression produces one stable
+diagnostic naming the unsupported capability and the Delta alternative when
+one exists. Silently ignoring markup, falling back to reflection or requiring
+sample-specific host reconstruction is forbidden.
+
 ## Ownership summary
 
 ```text
