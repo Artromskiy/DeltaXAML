@@ -845,6 +845,9 @@ particular:
 - style/resource application still uses the public cold store and string keys;
   the compiler plan has stable resource slots, but generated typed style plans
   are not yet the sole runtime path;
+- generated templates now use the stateless `IUiTemplateFactory` boundary;
+  the delegate constructor remains compile-error obsolete until runtime-4
+  removes the remaining compatibility surface;
 - source slots and loader/editor discovery still use the retained compatibility
   store, while effective values reach composite state through typed property
   descriptors.
@@ -1216,8 +1219,8 @@ lands; do not wrap it in a new facade:
   property application;
 - `Internal/Compatibility/UiBindingRuntime.cs`: reflection path walking and
   per-binding closure execution;
-- `UserApi/StyleApi.cs`: delegate-based templates and string-key style
-  application;
+- `UserApi/StyleApi.cs`: the obsolete delegate template constructor and
+  string-key style application;
 - obsolete interfaces and packet types in `Internal/RetainedContracts.cs`;
 - retained compatibility accessors that still live in `UserApi/LibraryFacade.cs`.
 

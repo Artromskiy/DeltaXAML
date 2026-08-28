@@ -496,18 +496,33 @@ public sealed class UiStyle
     }
 }
 
+/// <summary>Creates a retained template subtree without owning a document or renderer state.</summary>
+public interface IUiTemplateFactory
+{
+    UiElement Create(UiElement owner, UiResourceCatalog resources);
+}
+
 /// <summary>Reusable code template. It creates a retained subtree only when applied.</summary>
 public sealed class UiTemplate
 {
-    private readonly Func<UiElement, UiElement> _build;
+    private readonly IUiTemplateFactory _factory;
 
-    public UiTemplate(Func<UiElement, UiElement> build)
+    public UiTemplate(IUiTemplateFactory factory)
     {
-        ArgumentNullException.ThrowIfNull(build);
-        _build = build;
+        ArgumentNullException.ThrowIfNull(factory);
+        _factory = factory;
     }
 
-    internal UiElement Build(UiElement owner) => _build(owner);
+    [Obsolete("Use IUiTemplateFactory; remove delegate templates during DXAML-RUNTIME-4.", error: true)]
+    public UiTemplate(Func<UiElement, UiElement> build) => throw new NotSupportedException(
+        "Delegate templates are obsolete; provide an IUiTemplateFactory implementation.");
+
+    internal UiElement Build(UiElement owner, UiResourceCatalog resources)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        ArgumentNullException.ThrowIfNull(resources);
+        return _factory.Create(owner, resources);
+    }
 }
 
 /// <summary>Style/resource/template collection applied to an existing retained tree.</summary>
@@ -724,7 +739,7 @@ public sealed class UiTheme
 
         if (!element.HasTemplateContent && element.Children.Count == 0)
         {
-            element.SetTemplateContent(template.Build(element), template);
+            element.SetTemplateContent(template.Build(element, Resources), template);
         }
     }
 }

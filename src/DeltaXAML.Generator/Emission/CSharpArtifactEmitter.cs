@@ -213,6 +213,8 @@ internal static class CSharpArtifactEmitter
                 .AppendLine(";");
         }
 
+        EmitTemplateFactories(writer, plan.Templates, registry, plan.ResourceSlots);
+
         writer.AppendLine("    public global::Delta.XAML.UiResourceCatalog Resources { get; }");
         writer.AppendLine("    public global::Delta.XAML.UiTheme Theme { get; }");
         writer.Append("    public global::Delta.XAML.UiDocument").Append(hasVisualRoot ? string.Empty : "?").AppendLine(" Document { get; }");
@@ -287,7 +289,7 @@ internal static class CSharpArtifactEmitter
         }
 
         EmitStyles(writer, plan.Styles, plan.ResourceSlots);
-        EmitTemplates(writer, plan.Templates, registry, plan.ResourceSlots);
+        EmitTemplateRegistrations(writer, plan.Templates);
 
         for (var i = 0; i < nodes.Count; i++)
         {
@@ -693,7 +695,7 @@ internal static class CSharpArtifactEmitter
         }
     }
 
-    private static void EmitTemplates(
+    private static void EmitTemplateFactories(
         StringBuilder writer,
         IReadOnlyList<XamlTemplatePlan> templates,
         XamlSemanticRegistry registry,
@@ -704,7 +706,10 @@ internal static class CSharpArtifactEmitter
             var template = templates[templateIndex];
             var nodes = new List<XamlObjectPlan>();
             Flatten(template.Root, nodes);
-            writer.Append("        Theme.RegisterTemplate(").Append(Quote(template.Key)).AppendLine(", new global::Delta.XAML.UiTemplate(owner =>");
+            writer.Append("    private sealed class TemplateFactory").Append(templateIndex)
+                .AppendLine(" : global::Delta.XAML.IUiTemplateFactory");
+            writer.AppendLine("    {");
+            writer.AppendLine("        public global::Delta.XAML.UiElement Create(global::Delta.XAML.UiElement owner, global::Delta.XAML.UiResourceCatalog Resources)");
             writer.AppendLine("        {");
             for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
             {
@@ -743,7 +748,18 @@ internal static class CSharpArtifactEmitter
             }
 
             writer.AppendLine("            return template0;");
-            writer.AppendLine("        }));");
+            writer.AppendLine("        }");
+            writer.AppendLine("    }");
+            writer.AppendLine();
+        }
+    }
+
+    private static void EmitTemplateRegistrations(StringBuilder writer, IReadOnlyList<XamlTemplatePlan> templates)
+    {
+        for (var templateIndex = 0; templateIndex < templates.Count; templateIndex++)
+        {
+            writer.Append("        Theme.RegisterTemplate(").Append(Quote(templates[templateIndex].Key))
+                .Append(", new global::Delta.XAML.UiTemplate(new TemplateFactory").Append(templateIndex).AppendLine("()));");
         }
     }
 

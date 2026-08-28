@@ -157,6 +157,11 @@ over `Guid`. Human-readable XAML keys are source aliases, not runtime identity.
 - compiled selector/state plans;
 - exact invalidation of dependent retained values.
 
+Templates receive an `IUiTemplateFactory`; its `Create` method returns the
+template subtree for the existing owner and resource catalog. This keeps
+compiled template construction typed and avoids a per-template delegate in the
+generated artifact.
+
 Generated style artifacts use the typed overloads on `UiStyle` with the
 `UiElementProperties`, `UiTextBlockProperties`, `UiNumericEditorProperties`,
 `UiStackPanelProperties` and `UiGridProperties` descriptors. The existing

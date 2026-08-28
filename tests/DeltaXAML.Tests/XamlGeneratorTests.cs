@@ -64,6 +64,8 @@ internal static partial class Program
         Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, global::Delta.XAML.UiTextBlockProperties.FontSize, 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
         Assert.True(!compositionSource.Contains("Set(\"FontSize\"", StringComparison.Ordinal), "compiled style does not use string property dispatch");
         Assert.True(compositionSource.Contains("Theme.RegisterTemplate(\"ButtonTemplate\"", StringComparison.Ordinal), "compiled template registration is direct");
+        Assert.True(compositionSource.Contains("IUiTemplateFactory", StringComparison.Ordinal), "compiled templates use a typed factory boundary");
+        Assert.True(!compositionSource.Contains("UiTemplate(owner =>", StringComparison.Ordinal), "compiled templates do not retain delegate construction");
         Assert.True(compositionSource.Contains("Theme.Apply(node0);", StringComparison.Ordinal), "compiled style/template state is applied after attachment");
 
         var typedResourceId = new UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D403"));

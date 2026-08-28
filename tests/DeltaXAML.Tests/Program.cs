@@ -122,6 +122,18 @@ sealed class EditorShellTypeResolver : Library.IXamlTypeResolver
     }
 }
 
+sealed class LabelTemplateFactory : Library.IUiTemplateFactory
+{
+    public Library.UiElement Create(Library.UiElement owner, Library.UiResourceCatalog resources) =>
+        new Library.UiTextBlock { Text = "templated" };
+}
+
+sealed class ReplacementTemplateFactory : Library.IUiTemplateFactory
+{
+    public Library.UiElement Create(Library.UiElement owner, Library.UiResourceCatalog resources) =>
+        new Library.UiTextBlock { Text = "replacement" };
+}
+
 sealed class BindingModel : INotifyPropertyChanged
 {
     private string _name = string.Empty;
@@ -1288,10 +1300,10 @@ internal static partial class Program
         Assert.True(loadedGrid.Children[1] is Library.UiNumericEditor numericFromXaml && numericFromXaml.CurrentValue == 2, "numeric XAML attributes initialize the editor");
 
         var host = new Library.UiContentControl { TemplateKey = "Label" };
-        theme.RegisterTemplate("Label", new Library.UiTemplate(_ => new Library.UiTextBlock { Text = "templated" }));
+        theme.RegisterTemplate("Label", new Library.UiTemplate(new LabelTemplateFactory()));
         theme.Apply(host);
         Assert.True(host.Content is Library.UiTextBlock templated && templated.Text == "templated", "template creates one retained child");
-        theme.RegisterTemplate("OtherLabel", new Library.UiTemplate(_ => new Library.UiTextBlock { Text = "replacement" }));
+        theme.RegisterTemplate("OtherLabel", new Library.UiTemplate(new ReplacementTemplateFactory()));
         using var templateTextService = new EmptyTextService();
         using var templateDocument = new Library.UiDocument(host, templateTextService, null, theme);
         host.TemplateKey = "OtherLabel";
