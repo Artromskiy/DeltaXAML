@@ -859,18 +859,41 @@ public sealed class UiDocument : IDisposable
         switch (input.Kind)
         {
             case UiInputEventKind.PointingDevice:
-                _retainedFrame.Input.RoutePointer(new Retained.UiPointerEvent(ToRetainedPointerKind(input.PointingDevice.Kind), new(input.PointingDevice.Position.x, input.PointingDevice.Position.y), (int)input.PointingDevice.ChangedButton.Value, input.PointingDevice.WheelDelta.y));
-                break;
+                {
+                    var packet = Retained.UiInputPacket.From(new Retained.UiPointerEvent(
+                        ToRetainedPointerKind(input.PointingDevice.Kind),
+                        new(input.PointingDevice.Position.x, input.PointingDevice.Position.y),
+                        (int)input.PointingDevice.ChangedButton.Value,
+                        input.PointingDevice.WheelDelta.y));
+                    _retainedFrame.EnqueueInput(in packet);
+                    break;
+                }
             case UiInputEventKind.Key:
-                _retainedFrame.Input.RouteKey(new Retained.UiKeyEvent(checked((int)input.Key.PhysicalKey.Value), input.Key.Kind == UiKeyEventKind.Down, input.Key.IsRepeat));
-                break;
+                {
+                    var packet = Retained.UiInputPacket.From(new Retained.UiKeyEvent(
+                        checked((int)input.Key.PhysicalKey.Value),
+                        input.Key.Kind == UiKeyEventKind.Down,
+                        input.Key.IsRepeat));
+                    _retainedFrame.EnqueueInput(in packet);
+                    break;
+                }
             case UiInputEventKind.Text:
-                _retainedFrame.Input.RouteText(new Retained.UiTextInput(input.Text.Text.ToString()));
-                break;
+                {
+                    var packet = Retained.UiInputPacket.From(new Retained.UiTextInput(input.Text.Text.ToString()));
+                    _retainedFrame.EnqueueInput(in packet);
+                    break;
+                }
             case UiInputEventKind.Composition:
-                var composition = input.Composition;
-                _retainedFrame.Input.RouteIme(new Retained.UiImeComposition(composition.Preedit.ToString(), composition.Selection.StartUtf16, composition.Selection.LengthUtf16, composition.Stage == UiCompositionStage.Finished));
-                break;
+                {
+                    var composition = input.Composition;
+                    var packet = Retained.UiInputPacket.From(new Retained.UiImeComposition(
+                        composition.Preedit.ToString(),
+                        composition.Selection.StartUtf16,
+                        composition.Selection.LengthUtf16,
+                        composition.Stage == UiCompositionStage.Finished));
+                    _retainedFrame.EnqueueInput(in packet);
+                    break;
+                }
             default:
                 throw new ArgumentOutOfRangeException(nameof(input));
         }

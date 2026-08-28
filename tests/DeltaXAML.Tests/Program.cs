@@ -729,6 +729,7 @@ internal static partial class Program
             0,
             default)));
         document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("Bob".AsMemory())));
+        document.Layout(new Delta.Maths.float2(100, 30), 1);
         if (twoWayRoot.Children[0] is not Library.UiTextBox editText) { throw new InvalidOperationException("edit text missing"); }
         Assert.True(editText.Text == "Bob" && editModel.Name == "Bob", "two-way text edit writes the source");
     }

@@ -5,6 +5,7 @@ internal sealed class UiFrame : IUiFrame
     private readonly DrawList _drawList = new();
     private readonly UiInputRouter _input;
     private readonly List<UiMutation> _mutations = new();
+    private readonly List<UiInputPacket> _inputQueue = new();
     private readonly UiElement _retainedRoot;
     private readonly UiNodeStore _nodes;
     public UiFrame(IUiElement root)
@@ -20,7 +21,19 @@ internal sealed class UiFrame : IUiFrame
     public int AppliedMutationCount { get; private set; }
     public int RejectedMutationCount { get; private set; }
     public int PendingMutationCount => _mutations.Count;
+    internal int PendingInputCount => _inputQueue.Count;
     public void Enqueue(in UiMutation mutation) => _mutations.Add(mutation);
+    internal void EnqueueInput(in UiInputPacket packet) => _inputQueue.Add(packet);
+
+    private void ApplyInput()
+    {
+        for (var i = 0; i < _inputQueue.Count; i++)
+        {
+            _input.Dispatch(_inputQueue[i]);
+        }
+
+        _inputQueue.Clear();
+    }
     public void ApplyMutations()
     {
         AppliedMutationCount = 0; RejectedMutationCount = 0;
@@ -38,7 +51,19 @@ internal sealed class UiFrame : IUiFrame
         }
         _mutations.Clear();
     }
-    public void Layout(UiSize viewport, float dpiScale) { if (Root is UiElement element) { element.SetLayoutScale(dpiScale); } var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale); Root.Measure(scaled); Root.Arrange(new(0, 0, viewport.Width, viewport.Height)); }
+    public void Layout(UiSize viewport, float dpiScale)
+    {
+        ApplyInput();
+        ApplyMutations();
+        if (Root is UiElement element)
+        {
+            element.SetLayoutScale(dpiScale);
+        }
+
+        var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
+        Root.Measure(scaled);
+        Root.Arrange(new(0, 0, viewport.Width, viewport.Height));
+    }
     public IUiDrawList ExtractDrawList(in UiFrameContext context) { _drawList.Build(Root, new(0, 0, context.Viewport.Width, context.Viewport.Height)); return _drawList; }
     internal bool TryResolve(UiPropertyHandle handle, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element)
     {
@@ -214,6 +239,8 @@ internal sealed class DrawList : IUiDrawList
 internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 {
     private readonly UiFrame _frame;
+    private readonly List<UiElement> _focusable = new();
+    private readonly List<UiElement> _routePath = new();
     private UiElement? _focused, _captured, _hovered;
     public UiInputRouter(UiFrame frame) { ArgumentNullException.ThrowIfNull(frame); _frame = frame; }
     public UiElementId? Focused => _focused?.Id;
@@ -296,10 +323,10 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     }
     private void FocusNext()
     {
-        var focusable = new List<UiElement>();
-        CollectFocusable(_frame.Root, focusable);
-        var index = _focused is null ? -1 : focusable.IndexOf(_focused);
-        _focused = focusable.Count == 0 ? null : focusable[(index + 1) % focusable.Count];
+        _focusable.Clear();
+        CollectFocusable(_frame.Root, _focusable);
+        var index = _focused is null ? -1 : _focusable.IndexOf(_focused);
+        _focused = _focusable.Count == 0 ? null : _focusable[(index + 1) % _focusable.Count];
     }
     private static void CollectFocusable(IUiElement element, List<UiElement> result)
     {
@@ -313,19 +340,19 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
             CollectFocusable(child, result);
         }
     }
-    private static void Raise(UiElement target, in UiRoutedEvent e)
+    private void Raise(UiElement target, in UiRoutedEvent e)
     {
-        var path = new List<UiElement>();
+        _routePath.Clear();
         for (UiElement? node = target; node is not null; node = node.Parent as UiElement)
         {
-            path.Add(node);
+            _routePath.Add(node);
         }
 
         if (e.Phase == UiRoutedEventPhase.Preview)
         {
-            for (var i = path.Count - 1; i >= 0; i--)
+            for (var i = _routePath.Count - 1; i >= 0; i--)
             {
-                if (path[i] is IUiRoutedEventSink preview)
+                if (_routePath[i] is IUiRoutedEventSink preview)
                 {
                     preview.OnRoutedEvent(e);
                 }
@@ -333,8 +360,9 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
         }
         else
         {
-            foreach (var node in path)
+            for (var i = 0; i < _routePath.Count; i++)
             {
+                var node = _routePath[i];
                 if (node is IUiRoutedEventSink bubble)
                 {
                     bubble.OnRoutedEvent(e);
