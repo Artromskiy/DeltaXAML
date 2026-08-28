@@ -36,9 +36,11 @@ internal static partial class Program
         Assert.Equal(2, firstRoot.Children.Length, "children are retained in source order");
         Assert.Equal("Width=\"120\"", source[firstRoot.Members[0].Range.Start.Offset..firstRoot.Members[0].Range.End.Offset], "member range is exact");
         Assert.Equal(XamlValueKind.Single, firstRoot.Members[0].Value.Kind, "literal value is typed");
+        Assert.Equal(UiElementProperties.Width.Id, firstRoot.Members[0].Property, "common property identity matches the runtime descriptor");
         Assert.Equal("16", firstRoot.Children[0].Members[1].Value.Literal.CanonicalText, "numeric literal is canonical");
         Assert.Equal(XamlValueKind.ResourceReference, firstRoot.Children[0].Members[2].Value.Kind, "resource markup is semantic");
         Assert.Equal(accent, firstRoot.Children[0].Members[2].Value.Resource.Id, "resource identity is stable and resolved");
+        Assert.Equal(UiTextBlockProperties.Foreground.Id, firstRoot.Children[0].Members[2].Property, "text property identity matches the runtime descriptor");
         Assert.Equal("Hello & world", firstRoot.Children[0].Members[0].Value.Literal.CanonicalText, "XML entities are decoded in typed literals");
 
         var resource = XamlCompiler.Compile(sourceId, "<Panel x:Key=\"PanelResource\" />", registry);
@@ -85,6 +87,7 @@ internal static partial class Program
         Assert.Equal(1, resourceDocument.Templates.Length, "Template declaration is retained");
         Assert.Equal("Border", resourceDocument.Templates[0].Root.Name.LocalName, "template keeps its semantic visual root");
         Assert.Equal(1, resourceDocument.ResourceSlots.Length, "one stable resource identity uses one local slot");
+        Assert.Equal(new UiResourceId(new Guid("33333333-3333-3333-3333-333333333303")), resourceDocument.ResourceSlots[0].Id, "resource slot retains the registered stable identity");
         Assert.True(resourceDocument.ResourceSlots[0].IsDynamic, "dynamic resource reference marks its dependency slot");
         Assert.Equal(0, resourceDocument.Root?.Children[0].Members[0].Value.Resource.Slot, "resource reference points at its compact local slot");
 

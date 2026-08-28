@@ -297,15 +297,15 @@ internal sealed class XamlSemanticRegistry
     {
         var registry = new XamlSemanticRegistry();
         var common = ImmutableArray.Create(
-            Property("Width", "11111111-1111-1111-1111-111111111101", XamlValueKind.Single),
-            Property("Height", "11111111-1111-1111-1111-111111111102", XamlValueKind.Single),
-            Property("Background", "11111111-1111-1111-1111-111111111103", XamlValueKind.Color),
-            Property("Padding", "11111111-1111-1111-1111-111111111104", XamlValueKind.Thickness),
-            Property("Fill", "11111111-1111-1111-1111-111111111105", XamlValueKind.Boolean),
-            Property("IsEnabled", "11111111-1111-1111-1111-111111111106", XamlValueKind.Boolean),
-            Property("IsSelected", "11111111-1111-1111-1111-111111111107", XamlValueKind.Boolean),
-            Property("StyleKey", "11111111-1111-1111-1111-111111111108", XamlValueKind.String),
-            Property("TemplateKey", "11111111-1111-1111-1111-111111111109", XamlValueKind.String),
+            Property("Width", "10000000-0000-4000-8000-000000000001", XamlValueKind.Single),
+            Property("Height", "10000000-0000-4000-8000-000000000002", XamlValueKind.Single),
+            Property("Background", "10000000-0000-4000-8000-000000000003", XamlValueKind.Color),
+            Property("Padding", "10000000-0000-4000-8000-000000000004", XamlValueKind.Thickness),
+            Property("Fill", "10000000-0000-4000-8000-000000000005", XamlValueKind.Boolean),
+            Property("IsEnabled", "10000000-0000-4000-8000-000000000006", XamlValueKind.Boolean),
+            Property("IsSelected", "10000000-0000-4000-8000-000000000007", XamlValueKind.Boolean),
+            Property("StyleKey", "10000000-0000-4000-8000-000000000008", XamlValueKind.String),
+            Property("TemplateKey", "10000000-0000-4000-8000-000000000009", XamlValueKind.String),
             Property("AutomationName", "11111111-1111-1111-1111-11111111110A", XamlValueKind.String),
             Property("AutomationRole", "11111111-1111-1111-1111-11111111110B", XamlValueKind.Enum));
         Register(registry, "Panel", "22222222-2222-2222-2222-222222222201", XamlContentKind.Children, common);
@@ -314,28 +314,28 @@ internal sealed class XamlSemanticRegistry
         Register(registry, "ScrollViewer", "22222222-2222-2222-2222-222222222204", XamlContentKind.SingleContent, common);
 
         Register(registry, "StackPanel", "22222222-2222-2222-2222-222222222205", XamlContentKind.Children,
-            common.Add(Property("Orientation", "11111111-1111-1111-1111-11111111110C", XamlValueKind.Enum)));
+            common.Add(Property("Orientation", "40000000-0000-4000-8000-000000000001", XamlValueKind.Enum)));
         Register(registry, "Grid", "22222222-2222-2222-2222-222222222206", XamlContentKind.Children,
             common.AddRange(ImmutableArray.Create(
-                Property("Columns", "11111111-1111-1111-1111-11111111110D", XamlValueKind.GridLengthList),
-                Property("Rows", "11111111-1111-1111-1111-11111111110E", XamlValueKind.GridLengthList))));
+                Property("Columns", "40000000-0000-4000-8000-000000000002", XamlValueKind.GridLengthList),
+                Property("Rows", "40000000-0000-4000-8000-000000000003", XamlValueKind.GridLengthList))));
         Register(registry, "ItemsControl", "22222222-2222-2222-2222-222222222207", XamlContentKind.Children, common);
         Register(registry, "Button", "22222222-2222-2222-2222-222222222208", XamlContentKind.SingleContent, common);
         Register(registry, "ToggleButton", "22222222-2222-2222-2222-222222222209", XamlContentKind.SingleContent, common);
 
         var text = common.AddRange(ImmutableArray.Create(
-            Property("Text", "11111111-1111-1111-1111-11111111110F", XamlValueKind.String),
-            Property("FontKey", "11111111-1111-1111-1111-111111111110", XamlValueKind.String),
-            Property("FontSize", "11111111-1111-1111-1111-111111111111", XamlValueKind.Single),
-            Property("Foreground", "11111111-1111-1111-1111-111111111112", XamlValueKind.Color)));
+            Property("Text", "20000000-0000-4000-8000-000000000001", XamlValueKind.String),
+            Property("FontKey", "20000000-0000-4000-8000-000000000002", XamlValueKind.String),
+            Property("FontSize", "20000000-0000-4000-8000-000000000003", XamlValueKind.Single),
+            Property("Foreground", "20000000-0000-4000-8000-000000000004", XamlValueKind.Color)));
         Register(registry, "TextBlock", "22222222-2222-2222-2222-22222222220A", XamlContentKind.None, text);
         Register(registry, "TextBox", "22222222-2222-2222-2222-22222222220B", XamlContentKind.None, text);
 
         Register(registry, "NumericEditor", "22222222-2222-2222-2222-22222222220C", XamlContentKind.None,
             text.AddRange(ImmutableArray.Create(
-                Property("Value", "11111111-1111-1111-1111-111111111113", XamlValueKind.Double),
-                Property("Minimum", "11111111-1111-1111-1111-111111111114", XamlValueKind.Double),
-                Property("Maximum", "11111111-1111-1111-1111-111111111115", XamlValueKind.Double))));
+                Property("Value", "30000000-0000-4000-8000-000000000001", XamlValueKind.Double),
+                Property("Minimum", "30000000-0000-4000-8000-000000000002", XamlValueKind.Double),
+                Property("Maximum", "30000000-0000-4000-8000-000000000003", XamlValueKind.Double))));
         registry.RegisterType(new(
             new UiTypeId(Guid.Parse("22222222-2222-2222-2222-22222222220D")),
             new XamlQualifiedName(string.Empty, "ResourceDictionary"),
