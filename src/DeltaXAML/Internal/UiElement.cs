@@ -1214,21 +1214,18 @@ internal class TextBox : TextBlock
             PushUndo();
         }
 
-        if (HasBinding("Text"))
-        {
-            UiTextBlockGenerated.TrySetText(ref ((TextBlock)this).State, text);
-        }
-        else
-        {
-            Text = text;
-        }
+        var bound = HasBinding("Text");
+        var changed = SetTextValue(text, bound);
         _state.CaretIndex = Math.Min(_state.CaretIndex, Text.Length);
         _state.SelectionStart = _state.CaretIndex;
         _state.SelectionLength = 0;
         Diagnostic = null;
         SetInvalid(false);
-        Invalidate(UiDirtyFlags.Binding);
-        Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        if (bound && changed)
+        {
+            Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        }
+
         NotifyBindingTargetChanged("Text", Text);
         TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
     }
@@ -1270,8 +1267,8 @@ internal class TextBox : TextBlock
     }
     public void Cut() { if (!HasSelection()) { return; } if (Clipboard is not null) { Clipboard.SetText(GetSelection()); } DeleteRange(_state.SelectionStart, _state.SelectionLength); }
     public bool Paste() { if (Clipboard?.ReadText() is not { Length: > 0 } text) { return false; } ReplaceSelection(text); return true; }
-    public bool Undo() { if (_undo.Count == 0) { return false; } _redo.Add(Text); Text = _undo[^1]; _undo.RemoveAt(_undo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
-    public bool Redo() { if (_redo.Count == 0) { return false; } _undo.Add(Text); Text = _redo[^1]; _redo.RemoveAt(_redo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
+    public bool Undo() { if (_undo.Count == 0) { return false; } _redo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_undo[^1], bound); _undo.RemoveAt(_undo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
+    public bool Redo() { if (_redo.Count == 0) { return false; } _undo.Add(Text); var bound = HasBinding("Text"); var changed = SetTextValue(_redo[^1], bound); _redo.RemoveAt(_redo.Count - 1); _state.CaretIndex = Text.Length; _state.SelectionStart = Text.Length; _state.SelectionLength = 0; if (bound && changed) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); return true; }
     protected void ReplaceSelection(string inserted)
     {
         ArgumentNullException.ThrowIfNull(inserted);
@@ -1281,17 +1278,37 @@ internal class TextBox : TextBlock
             DeleteRange(_state.SelectionStart, _state.SelectionLength, false);
         }
 
-        Text = Text.Insert(_state.CaretIndex, inserted);
+        var bound = HasBinding("Text");
+        var changed = SetTextValue(Text.Insert(_state.CaretIndex, inserted), bound);
         _state.CaretIndex += inserted.Length;
         _state.SelectionStart = _state.CaretIndex; _state.SelectionLength = 0;
         Diagnostic = null;
         SetInvalid(false);
-        Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        if (bound && changed)
+        {
+            Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        }
+
         NotifyBindingTargetChanged("Text", Text);
         TextChanged?.Invoke(this, new TextChangedEventArgs(Text));
     }
     private void PushUndo() { _undo.Add(Text); _redo.Clear(); }
-    private void DeleteRange(int start, int length, bool record = true) { if (record) { PushUndo(); } Text = Text.Remove(start, length); _state.CaretIndex = start; _state.SelectionStart = start; _state.SelectionLength = 0; Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); }
+    private void DeleteRange(int start, int length, bool record = true) { if (record) { PushUndo(); } var bound = HasBinding("Text"); var changed = SetTextValue(Text.Remove(start, length), bound); _state.CaretIndex = start; _state.SelectionStart = start; _state.SelectionLength = 0; if (bound && changed) { Invalidate(UiDirtyFlags.Measure | UiDirtyFlags.Visual); } NotifyBindingTargetChanged("Text", Text); TextChanged?.Invoke(this, new TextChangedEventArgs(Text)); }
+    private bool SetTextValue(string text, bool bound)
+    {
+        if (bound)
+        {
+            return UiTextBlockGenerated.TrySetText(ref ((TextBlock)this).State, text);
+        }
+
+        if (Text == text)
+        {
+            return false;
+        }
+
+        Text = text;
+        return true;
+    }
     private bool HasSelection() => _state.SelectionLength > 0;
     private string GetSelection() => Text.Substring(_state.SelectionStart, _state.SelectionLength);
     protected override string GetAutomationValueText() => Text;
