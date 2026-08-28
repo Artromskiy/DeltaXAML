@@ -75,6 +75,31 @@ internal static class UiBindingStage
     }
 }
 
+internal static class UiScaleStage
+{
+    internal static void Run(UiElement root, float scale, List<UiElement> traversal)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(traversal);
+        traversal.Clear();
+        traversal.Add(root);
+        while (traversal.Count != 0)
+        {
+            var last = traversal.Count - 1;
+            var element = traversal[last];
+            traversal.RemoveAt(last);
+            element.ApplyLayoutScale(scale);
+            for (var i = element.Children.Count - 1; i >= 0; i--)
+            {
+                if (element.Children[i] is UiElement child)
+                {
+                    traversal.Add(child);
+                }
+            }
+        }
+    }
+}
+
 internal static class UiStyleStage
 {
     internal static void Run(Delta.XAML.UiTheme? theme, Delta.XAML.UiElement root)

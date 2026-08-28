@@ -585,7 +585,9 @@ internal class UiElement : IUiElement, IUiPropertyStore
     internal int AppliedStyleVersion => _appliedStyleVersion;
     public float LayoutScale => _layoutScale;
     public float DpiScale => _dpiScale;
-    public void SetLayoutScale(float scale)
+    public void SetLayoutScale(float scale) => ApplyLayoutScale(scale);
+
+    internal void ApplyLayoutScale(float scale)
     {
         if (Math.Abs(_dpiScale - scale) > float.Epsilon)
         {
@@ -595,13 +597,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
             DirtyFlags |= UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual;
         }
 
-        _layoutScale = scale; foreach (var child in _children)
-        {
-            if (child is UiElement element)
-            {
-                element.SetLayoutScale(scale);
-            }
-        }
+        _layoutScale = scale;
     }
     protected uint TextRunVersion => _textVersion ^ (_dpiVersion << 1);
     internal virtual bool TryGetTextRun(out UiTextRun run)

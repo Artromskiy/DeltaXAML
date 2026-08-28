@@ -65,7 +65,7 @@ internal sealed class UiRuntime
             UiStyleStage.Run(theme, publicRoot);
         }
 
-        _retainedRoot.SetLayoutScale(dpiScale);
+        UiScaleStage.Run(_retainedRoot, dpiScale, _stageTraversal);
         var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
         UiMeasureStage.Run(_retainedRoot, scaled);
         UiArrangeStage.Run(_retainedRoot, new(0, 0, viewport.Width, viewport.Height));
