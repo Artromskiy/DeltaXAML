@@ -34,6 +34,7 @@ internal sealed class UiRuntime
     public int RejectedMutationCount { get; private set; }
     public int PendingMutationCount => _mutations.Count;
     internal int PendingInputCount => _inputQueue.Count;
+    internal int NodeCount => _nodes.Count;
 
     public void Enqueue(in UiMutation mutation) => _mutations.Add(mutation);
 

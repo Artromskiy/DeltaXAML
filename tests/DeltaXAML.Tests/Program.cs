@@ -1021,6 +1021,7 @@ internal static partial class Program
         var rootNodeId = new UiNodeId(root.Id.Value, root.Generation);
         var textNodeId = new UiNodeId(text.Id.Value, text.Generation);
         var otherNodeId = new UiNodeId(other.Id.Value, other.Generation);
+        Assert.Equal(3, frame.NodeCount, "node store registers each live element once");
         Assert.True(frame.TryGetNode(rootNodeId, out var rootNode) && rootNode.FirstLogicalChild == textNodeId, "node store records the first logical child");
         Assert.True(frame.TryGetNode(textNodeId, out var textNode) && textNode.LogicalParent == rootNodeId && textNode.NextLogicalSibling == otherNodeId, "node store records logical parent and sibling links");
         Assert.True(textNode.VisualParent == rootNodeId && rootNode.FirstVisualChild == textNodeId, "node store records the visual relation in the same node record");
@@ -1055,6 +1056,7 @@ internal static partial class Program
         Assert.Equal(1, frame.RejectedMutationCount, "removed element mutation rejected");
         Assert.True(!frame.TryResolve(otherHandle, out _), "removed element is absent from the frame identity index");
         Assert.True(frame.TryResolve(handle, out var indexed) && ReferenceEquals(indexed, text), "frame resolves a live handle through the dense node index");
+        Assert.Equal(2, frame.NodeCount, "node store clears only the removed element slot after a tree refresh");
         frame.Layout(new(100, 20), 1);
         Assert.Equal(new UiRect(0, 0, 100, 20), text.Bounds, "frame layout boundary");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Down, new(10, 10), 1)));

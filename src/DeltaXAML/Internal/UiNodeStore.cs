@@ -12,6 +12,7 @@ internal sealed class UiNodeStore
 {
     private UiNodeRecord[] _records = Array.Empty<UiNodeRecord>();
     private readonly List<RegistrationVisit> _registrationQueue = new();
+    private readonly List<int> _activeIndices = new();
     private uint _treeVersion;
 
     internal UiNodeStore(UiElement root)
@@ -67,9 +68,16 @@ internal sealed class UiNodeStore
 
     internal bool TryGetNode(UiNodeId id, out UiNodeRecord record) => TryGetRecord(id, out record);
 
+    internal int Count => _activeIndices.Count;
+
     private void Refresh(UiElement root)
     {
-        Array.Clear(_records);
+        for (var i = 0; i < _activeIndices.Count; i++)
+        {
+            _records[_activeIndices[i]] = default;
+        }
+
+        _activeIndices.Clear();
         _registrationQueue.Clear();
         _registrationQueue.Add(new(root, null, null));
         for (var visitIndex = 0; visitIndex < _registrationQueue.Count; visitIndex++)
@@ -96,6 +104,7 @@ internal sealed class UiNodeStore
                 default,
                 element.DirtyFlags);
             _records[index] = record;
+            _activeIndices.Add(index);
             if (visit.PreviousSibling is not null)
             {
                 var previousIndex = checked((int)visit.PreviousSibling.Id.Value);
@@ -107,8 +116,9 @@ internal sealed class UiNodeStore
 
             UiNodeId firstChild = default;
             UiElement? previousChild = null;
-            foreach (var child in element.Children)
+            for (var childIndex = 0; childIndex < element.Children.Count; childIndex++)
             {
+                var child = element.Children[childIndex];
                 if (child is UiElement childElement)
                 {
                     var childId = ToNodeId(childElement);
