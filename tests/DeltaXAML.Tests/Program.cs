@@ -125,35 +125,6 @@ sealed class CustomLibraryTypeResolver : Library.IXamlTypeResolver
     }
 }
 
-sealed class EditorShellTypeResolver : Library.IXamlTypeResolver
-{
-    private static readonly Library.UiTypeId EditorShellType = new(new Guid("A6D7C0B8-0A6A-46DC-9C72-726C1E6A2B4A"));
-
-    public bool TryResolveName(in Library.XamlQualifiedName name, out Library.UiTypeId type)
-    {
-        if (name.Namespace == "urn:delta-editor-shell" && name.LocalName == "EditorShell")
-        {
-            type = EditorShellType;
-            return true;
-        }
-
-        type = default;
-        return false;
-    }
-
-    public bool TryCreate(Library.UiTypeId type, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Library.UiElement? element)
-    {
-        if (type == EditorShellType)
-        {
-            element = new Library.UiPanel();
-            return true;
-        }
-
-        element = null;
-        return false;
-    }
-}
-
 sealed class LabelTemplateFactory : Library.IUiTemplateFactory
 {
     public Library.UiElement Create(Library.UiElement owner, Library.UiResourceCatalog resources) =>
@@ -317,7 +288,7 @@ internal static partial class Program
         CustomVisualsRemainNeutral();
         PublicDisplayListWarmFrameHasNoAllocations();
         BindingExpressionsAndContexts();
-        EditorShellLibrarySlice();
+        GeneratedEditorAndGameHostPaths();
         HandlesCompiledBindingsAndCustomTypes();
         TypedPropertyCatalog();
         RuntimeStagesAreOrdered();
@@ -1333,48 +1304,95 @@ internal static partial class Program
         Assert.Equal("updated", first.Text, "dirty binding value is applied before layout");
     }
 
-    private static void EditorShellLibrarySlice()
+    private static void GeneratedEditorAndGameHostPaths()
     {
-        var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "EditorShell.xaml"));
-        var loader = new Library.XamlLoader();
-        var context = new Library.XamlLoadContext(new EditorShellTypeResolver(), new EmptyLibraryResourceResolver());
-        var loaded = loader.Load(source, in context);
-        Assert.True(loaded.Success && loaded.Root is Library.UiPanel, "EditorShell fixture loads through the concrete library API");
-        if (loaded.Root is not { } root)
-        {
-            throw new InvalidOperationException("EditorShell fixture root missing");
-        }
-
         var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
         var fonts = new Library.UiFontCatalog();
         fonts.Register("default", new TextContract.FontSourceId(new Guid("B1BD4F0D-4A43-4A15-B5DF-DBF9A5A1A8E3")), File.ReadAllBytes(fontPath));
-        using var textService = new SixLaborsTextService();
-        using var document = new Library.UiDocument(root, textService, fonts);
-        document.Layout(new Delta.Maths.float2(960, 540), 1);
+
+        using var editorText = new CountingTextService();
+        using var editor = new DeltaXaml.Generated.EditorShellArtifact(editorText, fonts);
+        ExerciseGeneratedDocument(editor.Document, editorText, new(960, 540), new(800, 450), "generated editor shell");
+
+        using var gameText = new CountingTextService();
+        using var game = new DeltaXaml.Generated.GameHudArtifact(gameText, fonts);
+        ExerciseGeneratedDocument(game.Document, gameText, new(640, 360), new(480, 270), "generated game HUD");
+        Assert.True(game.TryFindName("PauseButton", out var named) && named is Library.UiButton, "generated namescope resolves the HUD button");
+        if (named is not Library.UiButton button)
+        {
+            throw new InvalidOperationException("Generated HUD button missing.");
+        }
+
+        var clicks = 0;
+        button.Click += (_, _) => clicks++;
+        var bounds = button.RetainedElement.Bounds;
+        var down = LibraryContract.UiInputEvent.FromPointingDevice(Pointer(
+            LibraryContract.UiPointerEventKind.ButtonDown,
+            bounds.X + (bounds.Width * 0.5f),
+            bounds.Y + (bounds.Height * 0.5f)));
+        var up = LibraryContract.UiInputEvent.FromPointingDevice(Pointer(
+            LibraryContract.UiPointerEventKind.ButtonUp,
+            bounds.X + (bounds.Width * 0.5f),
+            bounds.Y + (bounds.Height * 0.5f)));
+        game.Document.Dispatch(in down);
+        game.Document.Dispatch(in up);
+        game.Document.Layout(new(480, 270), 1);
+        Assert.Equal(1, clicks, "generated game HUD uses canonical input dispatch");
+    }
+
+    private static void ExerciseGeneratedDocument(
+        Library.UiDocument document,
+        CountingTextService textService,
+        Delta.Maths.float2 initialViewport,
+        Delta.Maths.float2 resizedViewport,
+        string scenario)
+    {
+        document.Layout(initialViewport, 1);
+        var storage = document.DisplayListStorage;
         var first = document.BuildDisplayList();
-        Assert.True(first.Visuals.Length >= 4, "EditorShell emits colored visual rectangles");
-        Assert.True(first.Clips.Length >= first.Visuals.Length, "EditorShell emits clip hierarchy entries");
-        Assert.True(first.Text.Length >= 1 && first.Text[0].Text.Runs.Length > 0, "EditorShell emits renderer-neutral text through the library path");
+        Assert.True(first.Visuals.Length > 0, $"{scenario} emits visuals");
+        Assert.True(first.Clips.Length > 0, $"{scenario} emits clips");
+        Assert.True(first.Text.Length > 0, $"{scenario} emits neutral shaped text");
+        AssertDisplayListWithinViewport(first, initialViewport, scenario);
+        var firstShapeCount = textService.ShapeCount;
+        var firstText = first.Text[0].Text;
 
-        var second = document.BuildDisplayList();
-        Assert.Equal(first.Visuals.Length, second.Visuals.Length, "unchanged EditorShell visual count is deterministic");
-        Assert.Equal(first.Clips.Length, second.Clips.Length, "unchanged EditorShell clip count is deterministic");
-        Assert.Equal(first.Text.Length, second.Text.Length, "unchanged EditorShell text count is deterministic");
-        for (var i = 0; i < first.Visuals.Length; i++)
+        document.Layout(initialViewport, 1);
+        var unchanged = document.BuildDisplayList();
+        Assert.True(ReferenceEquals(storage, document.DisplayListStorage), $"{scenario} retains borrowed display-list storage");
+        Assert.Equal(firstShapeCount, textService.ShapeCount, $"{scenario} does not reshape unchanged text");
+        Assert.True(ReferenceEquals(firstText, unchanged.Text[0].Text), $"{scenario} reuses unchanged shaped text");
+
+        document.Layout(resizedViewport, 1);
+        var resized = document.BuildDisplayList();
+        AssertDisplayListWithinViewport(resized, resizedViewport, $"{scenario} after resize");
+    }
+
+    private static void AssertDisplayListWithinViewport(
+        LibraryContract.UiDisplayList displayList,
+        Delta.Maths.float2 viewport,
+        string scenario)
+    {
+        const float tolerance = 0.001f;
+        for (var i = 0; i < displayList.Visuals.Length; i++)
         {
-            Assert.Equal(first.Visuals[i], second.Visuals[i], "unchanged EditorShell visual is stable");
+            var bounds = displayList.Visuals[i].Bounds;
+            Assert.True(
+                bounds.x >= -tolerance && bounds.y >= -tolerance &&
+                bounds.x + bounds.z <= viewport.x + tolerance &&
+                bounds.y + bounds.w <= viewport.y + tolerance,
+                $"{scenario} visual {i} stays inside the viewport");
         }
 
-        for (var i = 0; i < first.Clips.Length; i++)
+        for (var i = 0; i < displayList.Clips.Length; i++)
         {
-            Assert.Equal(first.Clips[i], second.Clips[i], "unchanged EditorShell clip is stable");
+            var bounds = displayList.Clips[i].Bounds;
+            Assert.True(
+                bounds.x >= -tolerance && bounds.y >= -tolerance &&
+                bounds.x + bounds.z <= viewport.x + tolerance &&
+                bounds.y + bounds.w <= viewport.y + tolerance,
+                $"{scenario} clip {i} stays inside the viewport");
         }
-
-        for (var i = 0; i < first.Text.Length; i++)
-        {
-            Assert.True(ReferenceEquals(first.Text[i].Text, second.Text[i].Text), "unchanged EditorShell text reuses shaped state");
-        }
-
     }
 
     private static void PublicResourcesStylesTemplatesAndTypes()

@@ -782,6 +782,18 @@ public sealed class UiGrid : UiElement
     public UiGrid() : base(Retained.UiGridGenerated.Create(), null) { }
     internal UiGrid(Retained.Grid element, Dictionary<RetainedElement, UiElement>? views) : base(element, views) { }
 
+    public void Add(UiElement child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        MutableChildren.Add(child);
+    }
+
+    public bool Remove(UiElement child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        return MutableChildren.Remove(child);
+    }
+
     public void SetColumns(params UiGridLength[] columns) => GridElement.SetColumns(columns.Select(ToRetained).ToArray());
 
     public void SetRows(params UiGridLength[] rows) => GridElement.SetRows(rows.Select(ToRetained).ToArray());

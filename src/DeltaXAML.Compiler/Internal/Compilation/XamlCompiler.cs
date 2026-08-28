@@ -1229,7 +1229,8 @@ internal static class XamlCompiler
                 {
                     normalized[i] = "Auto";
                 }
-                else if (part.EndsWith('*') && float.TryParse(part[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var weight) && float.IsFinite(weight) && weight > 0)
+                else if (part.EndsWith('*') &&
+                         TryStarWeight(part.AsSpan(0, part.Length - 1), out var weight))
                 {
                     normalized[i] = weight.ToString("R", CultureInfo.InvariantCulture) + "*";
                 }
@@ -1245,6 +1246,19 @@ internal static class XamlCompiler
 
             canonical = string.Join(',', normalized);
             return true;
+        }
+
+        private static bool TryStarWeight(ReadOnlySpan<char> text, out float weight)
+        {
+            if (text.IsEmpty)
+            {
+                weight = 1;
+                return true;
+            }
+
+            return float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out weight) &&
+                   float.IsFinite(weight) &&
+                   weight > 0;
         }
 
         private readonly record struct AttributeSyntax(

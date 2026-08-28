@@ -246,7 +246,8 @@ internal static class CSharpArtifactEmitter
             writer.Append(bindingSourceType).Append(" context, ");
         }
 
-        writer.AppendLine("global::Delta.Text.Contract.ITextService textService)");
+        writer.AppendLine("global::Delta.Text.Contract.ITextService textService,");
+        writer.AppendLine("        global::Delta.XAML.IUiFontResolver? fontResolver = null)");
         writer.AppendLine("    {");
         writer.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(textService);");
         if (bindingSourceType is not null)
@@ -415,7 +416,7 @@ internal static class CSharpArtifactEmitter
         if (hasVisualRoot)
         {
             writer.AppendLine("        Theme.Apply(node0);");
-            writer.Append("        Document = new global::Delta.XAML.UiDocument(node0, textService, null, Theme);").AppendLine();
+            writer.Append("        Document = new global::Delta.XAML.UiDocument(node0, textService, fontResolver, Theme);").AppendLine();
         }
         var namedNodes = nodes.Where(static node => node.ScopeName is not null).ToList();
         writer.Append("        _scopeElements = new global::Delta.XAML.UiElement[]").AppendLine();

@@ -1,0 +1,7 @@
+<StackPanel x:Name="Hud" Width="320" Height="180" Background="#101820">
+  <TextBlock x:Name="Title" Text="Mission" FontKey="default" FontSize="18" Foreground="#FFFFFF" />
+  <TextBlock Text="Reach the extraction point" FontKey="default" FontSize="14" Foreground="#C8D4E3" />
+  <Button x:Name="PauseButton" Height="32" Background="#2B3A4D">
+    <TextBlock Text="Pause" FontKey="default" FontSize="14" Foreground="#FFFFFF" />
+  </Button>
+</StackPanel>

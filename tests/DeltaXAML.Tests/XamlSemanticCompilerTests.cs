@@ -55,6 +55,9 @@ internal static partial class Program
             Assert.Equal(customProperty, customRoot.Members[0].Property, "custom property identity is stable");
         }
 
+        var starGrid = XamlCompiler.Compile(sourceId, "<Grid Columns=\"40,*,Auto\" Rows=\"*\" />", registry);
+        Assert.True(starGrid.Success, "semantic compiler accepts the canonical bare-star grid length");
+
         var errors = XamlCompiler.Compile(
             sourceId,
             "<Panel Width=\"bad\" Broken=bad Height=\"20\"><TextBlock x:Name=\"Same\" /><Button x:Name=\"Same\" Missing=\"x\" /></Panel>",

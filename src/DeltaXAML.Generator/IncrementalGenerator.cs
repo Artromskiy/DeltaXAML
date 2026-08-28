@@ -31,9 +31,19 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
     {
         var xamlFiles = context.AdditionalTextsProvider
             .Where(static file => Path.GetExtension(file.Path).Equals(".xaml", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) => new XamlAdditionalText(
-                file.Path,
-                file.GetText(cancellationToken)?.ToString() ?? string.Empty));
+            .Combine(context.AnalyzerConfigOptionsProvider)
+            .Select(static (pair, cancellationToken) =>
+            {
+                var file = pair.Left;
+                var options = pair.Right.GetOptions(file);
+                options.TryGetValue("build_metadata.AdditionalFiles.DeltaXamlClassName", out var className);
+                options.TryGetValue("build_metadata.AdditionalFiles.DeltaXamlNamespace", out var namespaceName);
+                return new XamlAdditionalText(
+                    file.Path,
+                    file.GetText(cancellationToken)?.ToString() ?? string.Empty,
+                    className,
+                    namespaceName);
+            });
 
         context.RegisterSourceOutput(xamlFiles, static (sourceProductionContext, file) => Emit(sourceProductionContext, file));
     }
@@ -58,8 +68,13 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             return;
         }
 
-        var className = CreateClassName(file.Path, sourceId);
-        if (!CSharpArtifactEmitter.TryEmit(plan, registry, "DeltaXaml.Generated", className, out var source, out var emissionDiagnostic))
+        var className = string.IsNullOrWhiteSpace(file.ClassName)
+            ? CreateClassName(file.Path, sourceId)
+            : file.ClassName;
+        var namespaceName = string.IsNullOrWhiteSpace(file.NamespaceName)
+            ? "DeltaXaml.Generated"
+            : file.NamespaceName;
+        if (!CSharpArtifactEmitter.TryEmit(plan, registry, namespaceName, className, out var source, out var emissionDiagnostic))
         {
             if (emissionDiagnostic is { } failure)
             {
@@ -117,5 +132,9 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         return builder.ToString();
     }
 
-    private readonly record struct XamlAdditionalText(string Path, string Text);
+    private readonly record struct XamlAdditionalText(
+        string Path,
+        string Text,
+        string? ClassName,
+        string? NamespaceName);
 }

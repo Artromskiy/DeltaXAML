@@ -1,4 +1,4 @@
-<EditorShell xmlns="urn:delta-editor-shell" Width="960" Height="540">
+<StackPanel Fill="true">
   <Border Height="48" Background="#1F2933">
     <TextBlock Text="Delta Editor" FontKey="default" FontSize="18" Foreground="#E6ECF4" />
   </Border>
@@ -19,4 +19,4 @@
   <Border Height="24" Background="#1F2933">
     <TextBlock Text="Ready" FontKey="default" FontSize="12" Foreground="#9BA6B6" />
   </Border>
-</EditorShell>
+</StackPanel>
