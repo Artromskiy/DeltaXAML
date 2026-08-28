@@ -1456,7 +1456,7 @@ internal static partial class Program
         Assert.Equal(1, frame.RejectedMutationCount, "removed element mutation rejected");
         Assert.True(!frame.TryResolve(otherHandle, out _), "removed element is absent from the frame identity index");
         Assert.True(frame.TryResolve(handle, out var indexed) && ReferenceEquals(indexed, text), "frame resolves a live handle through the dense node index");
-        Assert.Equal(2, frame.NodeCount, "node store clears only the removed element slot after a tree refresh");
+        Assert.Equal(2, frame.NodeCount, "node store clears only the removed element slot through incremental removal");
         frame.Layout(new(100, 20), 1);
         Assert.Equal(new UiRect(0, 0, 100, 20), text.Bounds, "frame layout boundary");
         frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Down, new(10, 10), 1));
@@ -1567,7 +1567,7 @@ internal static partial class Program
 
         root.Add(child);
         runtime.Layout(new(100, 40), 1.5f);
-        Assert.Equal(2, runtime.NodeCount, "binding and scale stages refresh the node index after an add");
+        Assert.Equal(2, runtime.NodeCount, "binding and scale stages see an incrementally registered child");
         Assert.Equal(1.5f, child.DpiScale, "scale stage visits a child through the node links");
         Assert.Equal(new UiRect(0, 0, 100, 40), child.Bounds, "new child is laid out after node refresh");
 
@@ -1578,7 +1578,7 @@ internal static partial class Program
         root.Remove(child);
         child.SetLayoutScale(1f);
         runtime.Layout(new(100, 40), 2f);
-        Assert.Equal(1, runtime.NodeCount, "binding and scale stages discard a removed node");
+        Assert.Equal(1, runtime.NodeCount, "binding and scale stages see an incrementally removed node");
         Assert.Equal(1f, child.DpiScale, "detached child is not processed by the node-backed scale stage");
     }
 

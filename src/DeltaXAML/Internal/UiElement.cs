@@ -337,6 +337,7 @@ internal class UiElement
     private readonly Dictionary<string, UiBindingRuntime> _bindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IUiCompiledBindingRuntime> _compiledBindingRuntimes = new(StringComparer.Ordinal);
     private readonly UiPropertyStore _properties;
+    private List<UiNodeStore>? _nodeStores;
     private UiElementState _state = new() { Width = float.NaN, Height = float.NaN, IsEnabled = true };
     private object? _bindingContext;
     private bool _hasExplicitBindingContext;
@@ -426,7 +427,7 @@ internal class UiElement
             }
 
             _templateKey = value;
-            InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+            InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         }
     }
     public string? AutomationName { get; set; }
@@ -468,8 +469,22 @@ internal class UiElement
         }
 
         InvalidateChanged(invalidation);
+        RootElement.NotifyNodeStoresChildAdded(this, child);
     }
-    public bool Remove(UiElement child) { if (!_children.Remove(child)) { return false; } child.Parent = null; InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual); return true; }
+    public bool Remove(UiElement child)
+    {
+        var index = _children.IndexOf(child);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        _children.RemoveAt(index);
+        child.Parent = null;
+        InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        RootElement.NotifyNodeStoresChildRemoved(this, child, index);
+        return true;
+    }
     public void ClearChildren()
     {
         for (var i = _children.Count - 1; i >= 0; i--)
@@ -612,7 +627,7 @@ internal class UiElement
         }
 
         Participation = value;
-        InvalidateChanged(UiDirtyFlags.Tree | UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
+        InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
     }
     internal void MeasureStage(UiSize available, UiNodeStore? nodes = null, List<UiMeasureRequest>? requests = null)
     {
@@ -858,6 +873,64 @@ internal class UiElement
 
     internal bool HasBinding(string propertyName) =>
         _bindingRuntimes.ContainsKey(propertyName) || _compiledBindingRuntimes.ContainsKey(propertyName);
+
+    internal UiElement RootElement
+    {
+        get
+        {
+            var root = this;
+            while (root.Parent is { } parent)
+            {
+                root = parent;
+            }
+
+            return root;
+        }
+    }
+
+    internal void AttachNodeStore(UiNodeStore store)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        _nodeStores ??= new List<UiNodeStore>();
+        if (!_nodeStores.Contains(store))
+        {
+            _nodeStores.Add(store);
+        }
+    }
+
+    internal void DetachNodeStore(UiNodeStore store)
+    {
+        if (_nodeStores is not null && _nodeStores.Remove(store) && _nodeStores.Count == 0)
+        {
+            _nodeStores = null;
+        }
+    }
+
+    private void NotifyNodeStoresChildAdded(UiElement parent, UiElement child)
+    {
+        if (_nodeStores is not { Count: > 0 } stores)
+        {
+            return;
+        }
+
+        for (var i = 0; i < stores.Count; i++)
+        {
+            stores[i].ApplyChildAdded(parent, child);
+        }
+    }
+
+    private void NotifyNodeStoresChildRemoved(UiElement parent, UiElement child, int index)
+    {
+        if (_nodeStores is not { Count: > 0 } stores)
+        {
+            return;
+        }
+
+        for (var i = 0; i < stores.Count; i++)
+        {
+            stores[i].ApplyChildRemoved(parent, child, index);
+        }
+    }
 
     internal void ApplyBindingStage()
     {

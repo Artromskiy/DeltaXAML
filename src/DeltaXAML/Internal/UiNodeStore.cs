@@ -2,11 +2,11 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace DeltaXAML.Internal;
 
-/// <summary>Resolves retained element identities without maintaining a second hierarchy.</summary>
+/// <summary>Resolves retained element identities through one dense relation index.</summary>
 /// <remarks>
-/// The retained tree remains owned by <see cref="UiElement"/>. This store is only a reusable
-/// dense identity index; its entries are rebuilt after a structural version change and are
-/// validated against the element generation on every handle lookup.
+/// The store is initialized from the composed tree once. Later structural changes are applied
+/// directly by the owner mutation path; frame stages only read these records and validate the
+/// element generation on every handle lookup.
 /// </remarks>
 internal sealed class UiNodeStore
 {
@@ -14,23 +14,102 @@ internal sealed class UiNodeStore
     private readonly List<RegistrationVisit> _registrationQueue = new();
     private readonly List<int> _activeIndices = new();
     private readonly List<UiNodeId> _layoutChildIds = new();
+    private readonly List<UiNodeId> _removalQueue = new();
     private readonly NodeChildrenView _layoutChildren;
+    private readonly UiElement _root;
     private uint _treeVersion;
 
     internal UiNodeStore(UiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
+        _root = root;
         _layoutChildren = new(this, _layoutChildIds);
         Refresh(root);
+        root.AttachNodeStore(this);
     }
 
     internal void EnsureCurrent(UiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
+        if (!ReferenceEquals(root, _root))
+        {
+            throw new InvalidOperationException("The node store is attached to a different retained root.");
+        }
+
         if (_treeVersion != root.TreeVersion)
         {
-            Refresh(root);
+            throw new InvalidOperationException("A retained tree mutation bypassed the node store.");
         }
+    }
+
+    internal void Detach()
+    {
+        _root.DetachNodeStore(this);
+    }
+
+    internal void ApplyChildAdded(UiElement parent, UiElement child)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentNullException.ThrowIfNull(child);
+        EnsureCurrentVersionBeforeMutation(parent);
+        if (!ReferenceEquals(child.Parent, parent) || !TryGetRecord(ToNodeId(parent), out var parentRecord))
+        {
+            throw new InvalidOperationException("The added element does not belong to the indexed parent.");
+        }
+
+        var childId = ToNodeId(child);
+        if (TryGetRecord(childId, out _))
+        {
+            throw new InvalidOperationException("The added element is already registered in the node store.");
+        }
+
+        var previous = parent.Children.Count > 1 && parent.Children[parent.Children.Count - 2] is UiElement previousChild
+            ? previousChild
+            : null;
+        if (!parentRecord.FirstLogicalChild.IsValid)
+        {
+            parentRecord.FirstLogicalChild = childId;
+            parentRecord.FirstVisualChild = childId;
+            _records[(int)parentRecord.Id.Index] = parentRecord;
+        }
+
+        RegisterSubtree(child, parent, previous);
+        _treeVersion = _root.TreeVersion;
+    }
+
+    internal void ApplyChildRemoved(UiElement parent, UiElement child, int index)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentNullException.ThrowIfNull(child);
+        EnsureCurrentVersionBeforeMutation(parent);
+        var parentId = ToNodeId(parent);
+        var childId = ToNodeId(child);
+        if (!TryGetRecord(parentId, out var parentRecord) || !TryGetRecord(childId, out var childRecord))
+        {
+            throw new InvalidOperationException("The removed element is not registered in the node store.");
+        }
+
+        var next = childRecord.NextLogicalSibling;
+        if (index == 0)
+        {
+            parentRecord.FirstLogicalChild = next;
+            parentRecord.FirstVisualChild = next;
+        }
+        else if (parent.Children[index - 1] is UiElement previous &&
+                 TryGetRecord(ToNodeId(previous), out var previousRecord))
+        {
+            previousRecord.NextLogicalSibling = next;
+            previousRecord.NextVisualSibling = childRecord.NextVisualSibling;
+            _records[(int)previousRecord.Id.Index] = previousRecord;
+        }
+        else
+        {
+            throw new InvalidOperationException("The removed element has no indexed preceding sibling.");
+        }
+
+        _records[(int)parentRecord.Id.Index] = parentRecord;
+        RemoveSubtree(childId);
+        _treeVersion = _root.TreeVersion;
     }
 
     internal bool TryResolve(UiPropertyHandle handle, [NotNullWhen(true)] out UiElement? element)
@@ -178,8 +257,14 @@ internal sealed class UiNodeStore
         }
 
         _activeIndices.Clear();
+        RegisterSubtree(root, null, null);
+        _treeVersion = root.TreeVersion;
+    }
+
+    private void RegisterSubtree(UiElement root, UiElement? parent, UiElement? previousSibling)
+    {
         _registrationQueue.Clear();
-        _registrationQueue.Add(new(root, null, null));
+        _registrationQueue.Add(new(root, parent, previousSibling));
         for (var visitIndex = 0; visitIndex < _registrationQueue.Count; visitIndex++)
         {
             var visit = _registrationQueue[visitIndex];
@@ -205,13 +290,11 @@ internal sealed class UiNodeStore
                 element.DirtyFlags);
             _records[index] = record;
             _activeIndices.Add(index);
-            if (visit.PreviousSibling is not null)
+            if (visit.PreviousSibling is not null && TryGetRecord(ToNodeId(visit.PreviousSibling), out var previousRecord))
             {
-                var previousIndex = checked((int)visit.PreviousSibling.Id.Value);
-                var previous = _records[previousIndex];
-                previous.NextLogicalSibling = record.Id;
-                previous.NextVisualSibling = record.Id;
-                _records[previousIndex] = previous;
+                previousRecord.NextLogicalSibling = record.Id;
+                previousRecord.NextVisualSibling = record.Id;
+                _records[(int)previousRecord.Id.Index] = previousRecord;
             }
 
             UiNodeId firstChild = default;
@@ -219,21 +302,67 @@ internal sealed class UiNodeStore
             for (var childIndex = 0; childIndex < element.Children.Count; childIndex++)
             {
                 var child = element.Children[childIndex];
-                if (child is UiElement childElement)
-                {
-                    var childId = ToNodeId(childElement);
-                    firstChild = firstChild.IsValid ? firstChild : childId;
-                    _registrationQueue.Add(new(childElement, element, previousChild));
-                    previousChild = childElement;
-                }
+                var childId = ToNodeId(child);
+                firstChild = firstChild.IsValid ? firstChild : childId;
+                _registrationQueue.Add(new(child, element, previousChild));
+                previousChild = child;
             }
 
             record.FirstLogicalChild = firstChild;
             record.FirstVisualChild = firstChild;
             _records[index] = record;
         }
+    }
 
-        _treeVersion = root.TreeVersion;
+    private void RemoveSubtree(UiNodeId root)
+    {
+        _removalQueue.Clear();
+        _removalQueue.Add(root);
+        while (_removalQueue.Count != 0)
+        {
+            var last = _removalQueue.Count - 1;
+            var id = _removalQueue[last];
+            _removalQueue.RemoveAt(last);
+            if (!TryGetRecord(id, out var record))
+            {
+                continue;
+            }
+
+            var child = record.FirstLogicalChild;
+            while (child.IsValid)
+            {
+                _removalQueue.Add(child);
+                if (!TryGetRecord(child, out var childRecord))
+                {
+                    break;
+                }
+
+                child = childRecord.NextLogicalSibling;
+            }
+
+            _records[(int)id.Index] = default;
+            RemoveActiveIndex((int)id.Index);
+        }
+    }
+
+    private void RemoveActiveIndex(int index)
+    {
+        for (var i = 0; i < _activeIndices.Count; i++)
+        {
+            if (_activeIndices[i] == index)
+            {
+                _activeIndices.RemoveAt(i);
+                return;
+            }
+        }
+    }
+
+    private void EnsureCurrentVersionBeforeMutation(UiElement parent)
+    {
+        if (!ReferenceEquals(parent.RootElement, _root) || _treeVersion != _root.TreeVersion - 1)
+        {
+            throw new InvalidOperationException("The retained tree mutation is not owned by this node store.");
+        }
     }
 
     private bool TryGetRecord(UiNodeId id, out UiNodeRecord record, bool validateGeneration = true)
