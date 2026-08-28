@@ -937,12 +937,12 @@ milestone.
 
 ## Remaining implementation specification
 
-This section is the execution plan after the completed `DXAML-MIXIN-1` through
-`DXAML-MIXIN-5` baseline. It defines how the unchecked items in `TODO.md` are
-implemented; it does not change `LIBRARY_CONTRACT.md`, `CONTRACT.md` or
-the types in `src/DeltaXAML.Contract`. If this section and a public contract
-disagree, the public contract wins and implementation stops for a contract
-decision instead of inventing an adapter.
+This section records the execution plan used after the completed
+`DXAML-MIXIN-1` through `DXAML-MIXIN-5` baseline. It documents the implemented
+pipeline; it does not create selected work in `TODO.md` or change
+`LIBRARY_CONTRACT.md`, `CONTRACT.md` or the types in
+`src/DeltaXAML.Contract`. If this section and a public contract disagree, the
+public contract wins instead of inventing an adapter.
 
 The final implementation has one production path:
 
