@@ -7,6 +7,8 @@ required_directories=(
     src
     tests
     benchmarks
+    samples
+    probes
     playground
     tools
     adr

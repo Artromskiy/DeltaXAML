@@ -2,11 +2,20 @@
 
 ```bash
 dotnet restore DeltaXAML.slnx
-dotnet build DeltaXAML.slnx -c Release --no-restore \
+SixLaborsLicenseFile=/path/to/sixlabors.lic \
+  dotnet build DeltaXAML.slnx -c Release --no-restore \
   --disable-build-servers -m:1 /p:UseSharedCompilation=false -v:minimal
-dotnet run --project tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj \
+SixLaborsLicenseFile=/path/to/sixlabors.lic \
+  dotnet run --project tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj \
   -c Release --no-build
 ```
+
+The headless harness references DeltaText and therefore SixLabors.Fonts. Local
+Furnace checkouts keep the license outside Git at
+`../Furnace/Licenses/SixLabors.lic`; CI supplies `SixLaborsLicenseFile` from its
+secret. The code-metrics wrapper recognizes the local workspace location when
+the variable is not already set. Package vulnerability auditing remains
+enabled.
 
 ## Repository layout (mandatory)
 
@@ -18,6 +27,8 @@ DeltaXAML/
 ├── src/
 ├── tests/
 ├── benchmarks/
+├── samples/
+├── probes/
 ├── playground/
 ├── tools/
 ├── adr/
@@ -32,8 +43,11 @@ project is a sibling named `src/DeltaXAML.<Area>/` (`.Contract`, `.Compiler`,
 `.Generator`, and so on). Do not add source projects directly at the repository
 root or use an unrelated `src/<name>` directory. Tests, benchmarks, playground
 code and helper tools stay in their matching top-level directory; they are not
-runtime contracts. Generated output belongs under `artifacts/`, while checked-in
-fixtures and source resources belong under `assets/`.
+runtime contracts. `samples/` contains runnable user-facing examples and
+vertical slices. `probes/` contains small headless/compiler/contract checks for
+one behavior or capability; probes are diagnostics, not substitute samples.
+Generated output belongs under `artifacts/`, while checked-in fixtures and
+source resources belong under `assets/`.
 
 The layout is enforced by a bounded, dependency-free gate:
 
