@@ -637,9 +637,14 @@ internal static class CSharpArtifactEmitter
 
         if (member.Value.Kind == XamlValueKind.ResourceReference)
         {
+            if (!TryTypedPropertyExpression(member.Name, out var resourceProperty))
+            {
+                throw new InvalidOperationException($"Property '{member.Name}' has no typed resource descriptor.");
+            }
+
             writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append('.');
             writer.Append(member.Value.Resource.IsDynamic ? "SetDynamicResource" : "SetStaticResource");
-            writer.Append('(').Append(Quote(member.Name)).Append(", Resources, ")
+            writer.Append('(').Append(resourceProperty).Append(", Resources, ")
                 .Append(ResourceSlotExpression(member.Value.Resource, resourceSlots)).AppendLine(");");
             return;
         }

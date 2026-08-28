@@ -810,6 +810,9 @@ internal static partial class Program
         catalog.Set(targetId, new Library.UiColor(30, 40, 50));
         catalog.Set(aliasId, new Library.UiResourceReference(targetId));
         Assert.Equal(2, catalog.Store.ResourceSlotCount, "compiled resource identities occupy compact catalog slots");
+        Assert.True(catalog.Store.TryGet(aliasId.Value.ToString("D"), out var retainedAlias) &&
+            retainedAlias is DeltaXAML.Internal.UiResourceReference { HasResourceId: true, ResourceId: var retainedTarget } &&
+            retainedTarget == targetId.Value, "resource catalog preserves a reference's stable target identity");
         Assert.True(catalog.TryResolve(aliasId, out var resolvedAlias) && resolvedAlias is Library.UiColor { R: 30, G: 40, B: 50 }, "resource aliases resolve through their stable identity");
         var typedResourceText = new Library.UiTextBlock();
         typedResourceText.SetDynamicResource("Foreground", catalog, aliasId);

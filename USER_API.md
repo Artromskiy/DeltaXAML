@@ -182,6 +182,10 @@ string overloads remain a cold loader/tooling compatibility surface. Compiled
 resource setters use the registered `UiResourceId` directly; name-based
 resource keys remain available for cold markup loading.
 
+Generated element members use the typed `UiElement.SetDynamicResource` and
+`SetStaticResource` overloads with `UiProperty<T>` and `UiResourceId`; the
+string-property overloads remain the cold loader/tooling path.
+
 Resources do not carry Vulkan objects. Images, custom visuals and other GPU
 assets cross the display-list boundary through stable semantic IDs resolved by
 DeltaRender.

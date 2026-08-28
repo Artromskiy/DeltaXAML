@@ -495,6 +495,13 @@ public abstract class UiElement
         ApplyStyleResource(propertyName, resources, resource);
     }
 
+    /// <summary>Assigns a dynamic resource through a generated typed property descriptor.</summary>
+    public void SetDynamicResource<T>(UiProperty<T> property, UiResourceCatalog resources, UiResourceId resource)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        SetDynamicResource(property.Name, resources, resource);
+    }
+
     /// <summary>Assigns the current resource value once without subscribing to later changes.</summary>
     public void SetStaticResource(string propertyName, UiResourceCatalog resources, string resourceKey)
     {
@@ -525,6 +532,13 @@ public abstract class UiElement
         }
 
         ApplyStyleValue(propertyName, value);
+    }
+
+    /// <summary>Assigns a static resource through a generated typed property descriptor.</summary>
+    public void SetStaticResource<T>(UiProperty<T> property, UiResourceCatalog resources, UiResourceId resource)
+    {
+        ArgumentNullException.ThrowIfNull(property);
+        SetStaticResource(property.Name, resources, resource);
     }
 
     internal bool HasTemplateContent

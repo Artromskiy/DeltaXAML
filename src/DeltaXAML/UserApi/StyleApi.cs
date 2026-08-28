@@ -68,7 +68,9 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
     {
         UiColor color => new Retained.UiColor(color.R, color.G, color.B, color.A),
         UiThickness thickness => new Retained.UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
-        UiResourceReference reference => new Retained.UiResourceReference(reference.Key),
+        UiResourceReference reference => reference.Resource.IsValid
+            ? new Retained.UiResourceReference(reference.Resource.Value)
+            : new Retained.UiResourceReference(reference.Key),
         _ => value,
     };
 
@@ -76,7 +78,9 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
     {
         Retained.UiColor color => new UiColor(color.R, color.G, color.B, color.A),
         Retained.UiThickness thickness => new UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
-        Retained.UiResourceReference reference => new UiResourceReference(reference.Key),
+        Retained.UiResourceReference reference => reference.HasResourceId
+            ? new UiResourceReference(new UiResourceId(reference.ResourceId))
+            : new UiResourceReference(reference.Key),
         _ => value,
     };
 }

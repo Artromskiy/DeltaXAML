@@ -43,7 +43,7 @@ internal static partial class Program
         var resourcePlan = XamlCompiler.Compile(sourceId, "<TextBlock Foreground=\"{StaticResource Accent}\" />", resourceRegistry);
         Assert.True(resourcePlan.Success, "resource markup remains a valid semantic plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(resourcePlan, resourceRegistry, "Generated", "ResourceArtifact", out var resourceSource, out var resourceDiagnostic), "resource markup emits through the compiled resource path");
-        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(\"Foreground\", Resources, _resourceIds[0])", StringComparison.Ordinal), "static resource values use the artifact-local resource slot");
+        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(global::Delta.XAML.UiTextBlockProperties.Foreground, Resources, _resourceIds[0])", StringComparison.Ordinal), "static resource values use the typed descriptor and artifact-local resource slot");
         Assert.True(resourceSource.Contains("private static readonly global::Delta.XAML.Contract.UiResourceId[] _resourceIds", StringComparison.Ordinal), "generated artifacts retain one stable resource identity table");
         Assert.True(!resourceSource.Contains("Resources, \"Accent\"", StringComparison.Ordinal), "generated resource values do not use name lookup");
         var resourceDocumentPlan = XamlCompiler.Compile(sourceId, "<Panel x:Key=\"Accent\" Background=\"#112233\" />", resourceRegistry);
