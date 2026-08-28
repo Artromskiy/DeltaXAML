@@ -56,7 +56,9 @@ internal sealed class XamlTypeDefinition
         XamlQualifiedName name,
         XamlContentKind contentKind,
         ImmutableArray<XamlPropertyDefinition> properties,
-        string? factoryExpression = null)
+        string? factoryExpression = null,
+        string? childAttachmentExpression = null,
+        string? contentAttachmentExpression = null)
     {
         if (!id.IsValid)
         {
@@ -73,6 +75,8 @@ internal sealed class XamlTypeDefinition
         ContentKind = contentKind;
         Properties = properties;
         FactoryExpression = factoryExpression;
+        ChildAttachmentExpression = childAttachmentExpression;
+        ContentAttachmentExpression = contentAttachmentExpression;
         _properties = new(StringComparer.Ordinal);
         var propertyIds = new HashSet<UiPropertyId>();
         foreach (var property in properties)
@@ -97,6 +101,26 @@ internal sealed class XamlTypeDefinition
                 throw new ArgumentException($"The XAML property setter '{setter}' must be a qualified static method name.", nameof(properties));
             }
         }
+
+        if (childAttachmentExpression is { } childAttachment && !IsDirectSetterExpression(childAttachment))
+        {
+            throw new ArgumentException($"The XAML child attachment '{childAttachment}' must be a qualified static method name.", nameof(childAttachmentExpression));
+        }
+
+        if (contentAttachmentExpression is { } contentAttachment && !IsDirectSetterExpression(contentAttachment))
+        {
+            throw new ArgumentException($"The XAML content attachment '{contentAttachment}' must be a qualified static method name.", nameof(contentAttachmentExpression));
+        }
+
+        if (childAttachmentExpression is not null && contentKind != XamlContentKind.Children)
+        {
+            throw new ArgumentException("A child attachment thunk requires Children content.", nameof(childAttachmentExpression));
+        }
+
+        if (contentAttachmentExpression is not null && contentKind != XamlContentKind.SingleContent)
+        {
+            throw new ArgumentException("A content attachment thunk requires SingleContent content.", nameof(contentAttachmentExpression));
+        }
     }
 
     internal UiTypeId Id { get; }
@@ -109,6 +133,12 @@ internal sealed class XamlTypeDefinition
 
     /// <summary>Trusted generated construction expression; null means no compiled factory is registered.</summary>
     internal string? FactoryExpression { get; }
+
+    /// <summary>Trusted generated child attachment thunk for custom children owners.</summary>
+    internal string? ChildAttachmentExpression { get; }
+
+    /// <summary>Trusted generated content attachment thunk for custom single-content owners.</summary>
+    internal string? ContentAttachmentExpression { get; }
 
     internal bool TryGetProperty(string name, out XamlPropertyDefinition property) =>
         _properties.TryGetValue(name, out property);

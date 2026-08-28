@@ -56,6 +56,42 @@ internal static partial class Program
         Assert.True(generatedCustomSource.Contains("global::Sample.BadgeSetters.SetLabel(node0, \"hello\")", StringComparison.Ordinal), "custom property uses a direct generated setter thunk");
         Assert.True(!generatedCustomSource.Contains("Set(\"Label\"", StringComparison.Ordinal), "custom property does not use string runtime dispatch");
 
+        var customCompositionRegistry = XamlSemanticRegistry.CreateBuiltIns();
+        customCompositionRegistry.RegisterType(new(
+            new UiTypeId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D408")),
+            new XamlQualifiedName("urn:custom", "StackHost"),
+            XamlContentKind.Children,
+            System.Collections.Immutable.ImmutableArray<XamlPropertyDefinition>.Empty,
+            "new global::Sample.StackHost()",
+            "global::Sample.StackHostChildren.Add"));
+        customCompositionRegistry.RegisterType(new(
+            new UiTypeId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D409")),
+            new XamlQualifiedName("urn:custom", "ContentHost"),
+            XamlContentKind.SingleContent,
+            System.Collections.Immutable.ImmutableArray<XamlPropertyDefinition>.Empty,
+            "new global::Sample.ContentHost()",
+            contentAttachmentExpression: "global::Sample.ContentHostContent.Set"));
+        var customChildrenPlan = XamlCompiler.Compile(sourceId, "<StackHost xmlns=\"urn:custom\"><TextBlock xmlns=\"\" Text=\"child\" /></StackHost>", customCompositionRegistry);
+        Assert.True(customChildrenPlan.Success, "custom children composition is a valid semantic plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(customChildrenPlan, customCompositionRegistry, "Generated", "CustomChildrenArtifact", out var customChildrenSource, out _), "custom children composition emits");
+        Assert.True(customChildrenSource.Contains("global::Sample.StackHostChildren.Add(node0, node1);", StringComparison.Ordinal), "custom children use the registered direct attachment thunk");
+        var customContentPlan = XamlCompiler.Compile(sourceId, "<ContentHost xmlns=\"urn:custom\"><TextBlock xmlns=\"\" Text=\"content\" /></ContentHost>", customCompositionRegistry);
+        Assert.True(customContentPlan.Success, "custom single content composition is a valid semantic plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(customContentPlan, customCompositionRegistry, "Generated", "CustomContentArtifact", out var customContentSource, out _), "custom single content composition emits");
+        Assert.True(customContentSource.Contains("global::Sample.ContentHostContent.Set(node0, node1);", StringComparison.Ordinal), "custom single content uses the registered direct attachment thunk");
+
+        customCompositionRegistry.RegisterType(new(
+            new UiTypeId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D40A")),
+            new XamlQualifiedName("urn:custom", "MissingAttachmentHost"),
+            XamlContentKind.Children,
+            System.Collections.Immutable.ImmutableArray<XamlPropertyDefinition>.Empty,
+            "new global::Sample.MissingAttachmentHost()"));
+        var missingAttachmentPlan = XamlCompiler.Compile(sourceId, "<MissingAttachmentHost xmlns=\"urn:custom\"><TextBlock xmlns=\"\" /></MissingAttachmentHost>", customCompositionRegistry);
+        Assert.True(missingAttachmentPlan.Success, "missing custom attachment remains a valid semantic plan");
+        Assert.True(!CSharpArtifactEmitter.TryEmit(missingAttachmentPlan, customCompositionRegistry, "Generated", "MissingAttachmentArtifact", out _, out var missingAttachmentDiagnostic), "custom owner without an attachment thunk is rejected");
+        Assert.Equal("DXAMLGEN003", missingAttachmentDiagnostic?.Code, "missing custom attachment has a stable diagnostic");
+        Assert.True(missingAttachmentDiagnostic?.Message.Contains("child attachment thunk", StringComparison.Ordinal) == true, "missing custom attachment explains the required thunk");
+
         var incompleteCustomRegistry = XamlSemanticRegistry.CreateBuiltIns();
         incompleteCustomRegistry.RegisterType(new(
             new UiTypeId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D406")),

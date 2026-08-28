@@ -1007,10 +1007,12 @@ literal-only built-in document is therefore constructed without an XML reader
 or runtime factory lookup. Custom registry entries must provide an explicit
 factory expression; otherwise generation reports `DXAMLGEN001`. A custom
 property must additionally provide a qualified static setter expression; the
-emitter calls that thunk with the concrete node and typed literal. Bindings
-and resource references remain restricted to properties with a generated
-`UiProperty<T>` descriptor, so a custom literal cannot silently fall back to
-string dispatch.
+emitter calls that thunk with the concrete node and typed literal. A custom
+children or single-content owner likewise provides a qualified static
+attachment thunk; the emitter calls it with the generated parent and child
+variables. Bindings and resource references remain restricted to properties
+with a generated `UiProperty<T>` descriptor, so a custom literal cannot
+silently fall back to string dispatch.
 
 The compiler registry validates and indexes the immutable descriptor metadata
 once per compilation. Existing built-in runtime descriptor companions remain

@@ -301,7 +301,7 @@ internal static class CSharpArtifactEmitter
                     return false;
                 }
 
-                if (!TryEmitAttachment(writer, i, childPosition, resourceParentType.Name.LocalName, resourceNodes[i].Children[childIndex].Range, out var attachmentError, "resource"))
+                if (!TryEmitAttachment(writer, i, childPosition, resourceParentType, out var attachmentError, "resource"))
                 {
                     diagnostic = new("DXAMLGEN003", attachmentError, resourceNodes[i].Children[childIndex].Range);
                     return false;
@@ -385,7 +385,7 @@ internal static class CSharpArtifactEmitter
                     return false;
                 }
 
-                if (!TryEmitAttachment(writer, i, childPosition, parentType.Name.LocalName, child.Range, out var attachmentError, "node"))
+                if (!TryEmitAttachment(writer, i, childPosition, parentType, out var attachmentError, "node"))
                 {
                     diagnostic = new("DXAMLGEN003", attachmentError, child.Range);
                     return false;
@@ -903,7 +903,7 @@ internal static class CSharpArtifactEmitter
                         throw new InvalidOperationException($"No generated factory is registered for '{nodes[nodeIndex].Name.LocalName}'.");
                     }
 
-                    if (!TryEmitAttachment(writer, nodeIndex, childPosition, type.Name.LocalName, nodes[nodeIndex].Children[childIndex].Range, out var error, "template"))
+                    if (!TryEmitAttachment(writer, nodeIndex, childPosition, type, out var error, "template"))
                     {
                         throw new InvalidOperationException(error);
                     }
@@ -976,37 +976,50 @@ internal static class CSharpArtifactEmitter
         StringBuilder writer,
         int parentIndex,
         int childIndex,
-        string parentType,
-        SourceRange range,
+        XamlTypeDefinition parentType,
         out string error,
         string variablePrefix)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(variablePrefix);
-        switch (parentType)
+        switch (parentType.ContentKind)
         {
-            case "Panel":
-            case "StackPanel":
-            case "Grid":
-            case "ItemsControl":
+            case XamlContentKind.Children when parentType.ChildAttachmentExpression is { } childAttachment:
+                writer.Append("        ").Append(childAttachment).Append('(')
+                    .Append(variablePrefix).Append(parentIndex).Append(", ").Append(variablePrefix).Append(childIndex).AppendLine(");");
+                error = string.Empty;
+                return true;
+            case XamlContentKind.Children when IsBuiltInChildrenOwner(parentType.Name.LocalName):
                 writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".Add(").Append(variablePrefix).Append(childIndex).AppendLine(");");
                 error = string.Empty;
                 return true;
-            case "Border":
+            case XamlContentKind.Children:
+                error = $"Type '{parentType.Name.LocalName}' declares children content but has no generated child attachment thunk.";
+                return false;
+            case XamlContentKind.SingleContent when parentType.ContentAttachmentExpression is { } contentAttachment:
+                writer.Append("        ").Append(contentAttachment).Append('(')
+                    .Append(variablePrefix).Append(parentIndex).Append(", ").Append(variablePrefix).Append(childIndex).AppendLine(");");
+                error = string.Empty;
+                return true;
+            case XamlContentKind.SingleContent when string.Equals(parentType.Name.LocalName, "Border", StringComparison.Ordinal):
                 writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".SetChild(").Append(variablePrefix).Append(childIndex).AppendLine(");");
                 error = string.Empty;
                 return true;
-            case "ContentControl":
-            case "Button":
-            case "ToggleButton":
-            case "ScrollViewer":
+            case XamlContentKind.SingleContent when IsBuiltInContentOwner(parentType.Name.LocalName):
                 writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".SetContent(").Append(variablePrefix).Append(childIndex).AppendLine(");");
                 error = string.Empty;
                 return true;
+            case XamlContentKind.SingleContent:
+                error = $"Type '{parentType.Name.LocalName}' declares single content but has no generated content attachment thunk.";
+                return false;
             default:
-                error = $"Type '{parentType}' has no generated child/content attachment operation.";
+                error = $"Type '{parentType.Name.LocalName}' does not accept generated child/content attachment.";
                 return false;
         }
     }
+
+    private static bool IsBuiltInChildrenOwner(string name) => name is "Panel" or "StackPanel" or "Grid" or "ItemsControl";
+
+    private static bool IsBuiltInContentOwner(string name) => name is "ContentControl" or "Button" or "ToggleButton" or "ScrollViewer";
 
     private static bool TryLiteralExpression(
         string propertyName,
