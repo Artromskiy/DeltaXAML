@@ -1148,7 +1148,12 @@ public sealed class UiDocument : IDisposable
             }
 
             Retained.UiTextRun run = default;
-            var hasText = (current.Participation & UiParticipation.Rendering) != 0 && current.TryGetTextRun(out run);
+            var hasText = (current.Participation & UiParticipation.Rendering) != 0 &&
+                          Retained.UiDescriptorCatalog.TryGetTextRun(
+                              node.RuntimeType,
+                              current,
+                              new(current.Id, current.Generation, current.LayoutScale, current.TextRunVersion),
+                              out run);
             if (hasText != (current.DisplayTextIndex >= 0) ||
                 (hasText && current.DisplayTextIndex != textCount))
             {
@@ -1263,7 +1268,12 @@ public sealed class UiDocument : IDisposable
                 _visuals[_visualCount++] = visual;
             }
 
-            if ((current.Participation & UiParticipation.Rendering) != 0 && current.TryGetTextRun(out var run))
+            if ((current.Participation & UiParticipation.Rendering) != 0 &&
+                Retained.UiDescriptorCatalog.TryGetTextRun(
+                    node.RuntimeType,
+                    current,
+                    new(current.Id, current.Generation, current.LayoutScale, current.TextRunVersion),
+                    out var run))
             {
                 EnsureCapacity(ref _text, _textCount + 1);
                 textIndex = _textCount;

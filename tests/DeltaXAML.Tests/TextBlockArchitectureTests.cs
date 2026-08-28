@@ -46,7 +46,13 @@ internal static class TextBlockArchitectureTests
         retained.Measure(new(320, 100));
         retained.Arrange(new(4, 5, 120, 24));
         Assert.Equal(new UiRect(4, 5, 120, 24), retained.Bounds, "retained TextBlock uses the typed arrange thunk");
-        Assert.True(retained.TryGetTextRun(out var retainedRun), "retained TextBlock uses the typed visual thunk");
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                new UiRuntimeTypeIndex(1),
+                retained,
+                new(retained.Id, retained.Generation, retained.LayoutScale, retained.TextRunVersion),
+                out var retainedRun),
+            "retained TextBlock uses the typed visual thunk");
         Assert.Equal(retained.Bounds, retainedRun.Bounds, "typed visual state carries arranged bounds");
     }
 }

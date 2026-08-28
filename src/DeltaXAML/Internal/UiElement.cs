@@ -678,12 +678,6 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public UiPropertyHandle GetHandle(string name) => _properties.GetHandle(name);
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic) => _properties.TrySet(handle, value, invalidation, out diagnostic);
     protected virtual string GetAutomationValueText() => string.Empty;
-    protected virtual string GetTextRunKey() => TypeName;
-    protected virtual bool HasTextRun => false;
-    protected virtual string GetTextRunText() => string.Empty;
-    protected virtual UiColor GetTextRunColor() => new(255, 255, 255);
-    protected virtual float GetTextRunFontSize() => 14;
-    protected virtual string GetTextRunFontKey() => "default";
     public uint TextVersion => _textVersion;
     public uint LayoutVersion => _layoutVersion;
     internal uint OutputVersion => _outputVersion;
@@ -707,13 +701,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
 
         _layoutScale = scale;
     }
-    protected uint TextRunVersion => _textVersion ^ (_dpiVersion << 1);
-    internal virtual bool TryGetTextRun(out UiTextRun run)
-    {
-        if (!HasTextRun) { run = default; return false; }
-        run = new UiTextRun(GetTextRunFontKey(), GetTextRunFontSize() * LayoutScale, GetTextRunText(), GetTextRunKey(), GetTextRunColor(), Bounds, Clip, Id, Generation, TextRunVersion);
-        return true;
-    }
+    internal uint TextRunVersion => _textVersion ^ (_dpiVersion << 1);
 
     internal IReadOnlyList<UiBindingSpec> BindingSpecs => _bindingSpecs;
     internal object? BindingContext => _bindingContext;
@@ -1072,14 +1060,7 @@ internal class TextBlock : UiElement
         return base.TryApplyTypedProperty(key, value);
     }
 
-    internal override bool TryGetTextRun(out UiTextRun run)
-    {
-        run = UiTextBlockGenerated.EmitVisual(ref _state, new(Id, Generation, LayoutScale, TextRunVersion));
-        return true;
-    }
-
     protected override string GetAutomationValueText() => _state.Text;
-    protected override string GetTextRunKey() => _state.Visual.GlyphRunKey;
 
     internal override Type BindingTargetType(string propertyName) => propertyName switch
     {
@@ -1210,7 +1191,6 @@ internal class TextBox : TextBlock
     private bool HasSelection() => _state.SelectionLength > 0;
     private string GetSelection() => Text.Substring(_state.SelectionStart, _state.SelectionLength);
     protected override string GetAutomationValueText() => Text;
-    protected override string GetTextRunKey() => GlyphRunKey + ":" + Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
 internal sealed class NumericEditor : TextBox

@@ -130,6 +130,23 @@ internal static class UiDescriptorCatalog
         return available;
     }
 
+    internal static bool TryGetTextRun(
+        UiRuntimeTypeIndex type,
+        UiElement element,
+        in UiTextVisualContext context,
+        out UiTextRun run)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        if (type.Value is 1 or 9 or 10 && element is TextBlock text)
+        {
+            run = UiTextBlockGenerated.EmitVisual(ref text.State, in context);
+            return true;
+        }
+
+        run = default;
+        return false;
+    }
+
     internal static bool Arrange(UiElement element, in UiArrangeContext context)
     {
         ArgumentNullException.ThrowIfNull(element);
