@@ -535,7 +535,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
         MeasureStage(available);
     }
 
-    internal void MeasureStage(UiSize available)
+    internal void MeasureStage(UiSize available, UiNodeStore? nodes = null)
     {
         if (CanSkipMeasure(available))
         {
@@ -549,7 +549,10 @@ internal class UiElement : IUiElement, IUiPropertyStore
             return;
         }
 
-        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(this, new(available, LayoutScale, Children, false)));
+        var children = nodes is null
+            ? Children
+            : nodes.GetLogicalChildren(new(Id.Value, Generation));
+        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(this, new(available, LayoutScale, children, false)));
         CompleteMeasure(available);
     }
 
@@ -572,15 +575,18 @@ internal class UiElement : IUiElement, IUiPropertyStore
 
         Bounds = bounds;
         Clip = bounds;
-        if (UiDescriptorCatalog.Arrange(this, new(bounds, bounds, Children, requests, nodes)))
+        var children = nodes is null
+            ? Children
+            : nodes.GetLogicalChildren(new(Id.Value, Generation));
+        if (UiDescriptorCatalog.Arrange(this, new(bounds, bounds, children, requests, nodes)))
         {
             CompleteArrange(bounds);
             return;
         }
 
-        for (var i = 0; i < _children.Count; i++)
+        for (var i = 0; i < children.Count; i++)
         {
-            var child = _children[i];
+            var child = children[i];
             if (requests is not null && child is UiElement element)
             {
                 if (nodes is null)

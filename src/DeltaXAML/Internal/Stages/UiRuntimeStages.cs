@@ -76,7 +76,10 @@ internal static class UiBindingStage
             element.EnableBindingStage();
             element.ApplyBindingStage();
             element.CompleteBindingStage();
-            nodes.CopyLogicalChildren(record.Id, childOrder);
+            if (!nodes.TryCopyLogicalChildren(record.Id, childOrder))
+            {
+                continue;
+            }
             for (var i = childOrder.Count - 1; i >= 0; i--)
             {
                 traversal.Add(childOrder[i]);
@@ -112,7 +115,10 @@ internal static class UiScaleStage
             }
 
             element.ApplyLayoutScale(scale);
-            nodes.CopyLogicalChildren(record.Id, childOrder);
+            if (!nodes.TryCopyLogicalChildren(record.Id, childOrder))
+            {
+                continue;
+            }
             for (var i = childOrder.Count - 1; i >= 0; i--)
             {
                 traversal.Add(childOrder[i]);
@@ -170,7 +176,10 @@ internal static class UiMeasureStage
             }
 
             var childAvailable = UiDescriptorCatalog.ChildMeasureAvailable(element, request.Available);
-            nodes.CopyLogicalChildren(request.Element, childOrder);
+            if (!nodes.TryCopyLogicalChildren(request.Element, childOrder))
+            {
+                continue;
+            }
             for (var childIndex = 0; childIndex < childOrder.Count; childIndex++)
             {
                 if (nodes.TryGetNode(childOrder[childIndex], out var childNode) &&
@@ -187,7 +196,7 @@ internal static class UiMeasureStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.MeasureStage(request.Available);
+                element.MeasureStage(request.Available, nodes);
             }
         }
     }

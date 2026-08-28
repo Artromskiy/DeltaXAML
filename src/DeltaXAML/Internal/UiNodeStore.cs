@@ -13,11 +13,14 @@ internal sealed class UiNodeStore
     private UiNodeRecord[] _records = Array.Empty<UiNodeRecord>();
     private readonly List<RegistrationVisit> _registrationQueue = new();
     private readonly List<int> _activeIndices = new();
+    private readonly List<UiNodeId> _layoutChildIds = new();
+    private readonly NodeChildrenView _layoutChildren;
     private uint _treeVersion;
 
     internal UiNodeStore(UiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
+        _layoutChildren = new(this, _layoutChildIds);
         Refresh(root);
     }
 
@@ -82,25 +85,29 @@ internal sealed class UiNodeStore
     internal bool TryGetNextVisualSibling(UiNodeRecord current, out UiNodeRecord sibling) =>
         TryGetNextSibling(current, visual: true, out sibling);
 
-    internal void CopyLogicalChildren(UiNodeId parent, List<UiNodeId> destination)
+    internal bool TryCopyLogicalChildren(UiNodeId parent, List<UiNodeId> destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
         destination.Clear();
-        if (!TryGetFirstLogicalChild(parent, out var child))
+        if (!TryGetRecord(parent, out var parentRecord))
         {
-            return;
+            return false;
         }
 
-        while (true)
+        var childId = parentRecord.FirstLogicalChild;
+        while (childId.IsValid)
         {
-            destination.Add(child.Id);
-            if (!TryGetNextLogicalSibling(child, out var next))
+            if (!TryGetRecord(childId, out var child))
             {
-                return;
+                destination.Clear();
+                return false;
             }
 
-            child = next;
+            destination.Add(child.Id);
+            childId = child.NextLogicalSibling;
         }
+
+        return true;
     }
 
     internal bool TryCopyVisualChildren(UiNodeId parent, List<UiNodeId> destination)
@@ -126,6 +133,16 @@ internal sealed class UiNodeStore
         }
 
         return true;
+    }
+
+    internal IReadOnlyList<IUiElement> GetLogicalChildren(UiNodeId parent)
+    {
+        if (!TryCopyLogicalChildren(parent, _layoutChildIds))
+        {
+            throw new InvalidOperationException($"Logical node {parent.Index}:{parent.Generation} could not be resolved.");
+        }
+
+        return _layoutChildren;
     }
 
     private bool TryGetFirstChild(UiNodeId parent, bool visual, out UiNodeRecord child)
@@ -243,6 +260,34 @@ internal sealed class UiNodeStore
     private static UiNodeId ToNodeId(UiElement element) => new(element.Id.Value, element.Generation);
 
     private readonly record struct RegistrationVisit(UiElement Element, UiElement? Parent, UiElement? PreviousSibling);
+
+    private sealed class NodeChildrenView(UiNodeStore owner, List<UiNodeId> ids) : IReadOnlyList<IUiElement>
+    {
+        public int Count => ids.Count;
+
+        public IUiElement this[int index]
+        {
+            get
+            {
+                if ((uint)index >= (uint)ids.Count || !owner.TryGetNode(ids[index], out var node) || node.Element is not { } element)
+                {
+                    throw new InvalidOperationException("A logical child node could not be resolved.");
+                }
+
+                return element;
+            }
+        }
+
+        public IEnumerator<IUiElement> GetEnumerator()
+        {
+            for (var i = 0; i < ids.Count; i++)
+            {
+                yield return this[i];
+            }
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 }
 
 internal readonly record struct UiNodeId(uint Index, uint Generation)
