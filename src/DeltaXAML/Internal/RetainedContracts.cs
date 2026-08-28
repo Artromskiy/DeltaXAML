@@ -166,7 +166,6 @@ internal interface IUiClipboard
     void SetText(string? text);
     bool HasText { get; }
 }
-internal interface IUiRoutedEventSink { void OnRoutedEvent(in UiRoutedEvent routedEvent); }
 internal sealed class TextChangedEventArgs(string text) : EventArgs
 {
     public string Text { get; } = text;

@@ -38,6 +38,7 @@ internal readonly struct ToggleButtonInputMixin : IButtonInputMixin<ToggleButton
         if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Up)
         {
             state.IsChecked = !state.IsChecked;
+            return true;
         }
 
         return false;

@@ -147,6 +147,28 @@ internal static class UiDescriptorCatalog
         return false;
     }
 
+    internal static void ProcessRoutedEvent(UiElement element, in UiRoutedEvent routedEvent)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        switch (element)
+        {
+            case ToggleButton toggle:
+                var wasPressed = toggle.InputState.IsPressed;
+                var clicked = UiButtonGenerated.Process(ref toggle.InputState, in routedEvent);
+                var toggled = UiToggleButtonGenerated.Process(ref toggle.State, in routedEvent);
+                toggle.ApplyInputResult(wasPressed, clicked, toggled);
+                break;
+            case Button button:
+                var buttonWasPressed = button.InputState.IsPressed;
+                var buttonClicked = UiButtonGenerated.Process(ref button.InputState, in routedEvent);
+                button.ApplyInputResult(buttonWasPressed, buttonClicked, false);
+                break;
+            case ScrollViewer scroll when routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Wheel:
+                scroll.ApplyWheelInput(-routedEvent.WheelDelta);
+                break;
+        }
+    }
+
     internal static bool Arrange(UiElement element, in UiArrangeContext context)
     {
         ArgumentNullException.ThrowIfNull(element);

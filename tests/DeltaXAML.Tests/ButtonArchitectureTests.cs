@@ -33,9 +33,9 @@ internal static class ButtonArchitectureTests
         var retained = UiButtonGenerated.Create();
         var clicks = 0;
         retained.Click += (_, _) => clicks++;
-        retained.OnRoutedEvent(in down);
+        UiDescriptorCatalog.ProcessRoutedEvent(retained, in down);
         Assert.True(retained.IsPressed, "retained Button forwards pressed state from generated input");
-        retained.OnRoutedEvent(in up);
+        UiDescriptorCatalog.ProcessRoutedEvent(retained, in up);
         Assert.True(!retained.IsPressed, "retained Button leaves pressed state after generated input");
         Assert.Equal(1, clicks, "retained Button forwards the generated click");
     }

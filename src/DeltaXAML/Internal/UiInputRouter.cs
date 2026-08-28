@@ -183,20 +183,14 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
         {
             for (var i = _routePath.Count - 1; i >= 0; i--)
             {
-                if (_routePath[i] is IUiRoutedEventSink preview)
-                {
-                    preview.OnRoutedEvent(routedEvent);
-                }
+                UiDescriptorCatalog.ProcessRoutedEvent(_routePath[i], in routedEvent);
             }
         }
         else
         {
             for (var i = 0; i < _routePath.Count; i++)
             {
-                if (_routePath[i] is IUiRoutedEventSink bubble)
-                {
-                    bubble.OnRoutedEvent(routedEvent);
-                }
+                UiDescriptorCatalog.ProcessRoutedEvent(_routePath[i], in routedEvent);
             }
         }
     }

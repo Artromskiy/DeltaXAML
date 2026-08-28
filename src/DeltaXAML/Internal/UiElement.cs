@@ -1112,11 +1112,12 @@ internal class ContentControl : UiElement
     public override string TypeName => "ContentControl"; public IUiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
 }
 
-internal class Button : ContentControl, IUiRoutedEventSink
+internal class Button : ContentControl
 {
     private ButtonState _state;
 
     internal new ref ButtonState State => ref _state;
+    internal ref ButtonState InputState => ref _state;
 
     public override bool IsPressed => _state.IsPressed;
     public override string TypeName => "Button";
@@ -1131,10 +1132,13 @@ internal class Button : ContentControl, IUiRoutedEventSink
         }
     }
 
-    public virtual void OnRoutedEvent(in UiRoutedEvent routedEvent)
+    internal void ApplyInputResult(bool wasPressed, bool clicked, bool toggled)
     {
-        var clicked = UiButtonGenerated.Process(ref _state, in routedEvent);
-        SetPressed(_state.IsPressed);
+        if (wasPressed != _state.IsPressed || toggled)
+        {
+            InvalidateChanged(UiDirtyFlags.Visual);
+        }
+
         if (clicked)
         {
             Click?.Invoke(this, EventArgs.Empty);
@@ -1150,11 +1154,6 @@ internal sealed class ToggleButton : Button
     internal new ref ToggleButtonState State => ref _state;
 
     public bool IsChecked => _state.IsChecked;
-    public override void OnRoutedEvent(in UiRoutedEvent routedEvent)
-    {
-        base.OnRoutedEvent(routedEvent);
-        UiToggleButtonGenerated.Process(ref _state, in routedEvent);
-    }
 }
 
 internal class TextBlock : UiElement
@@ -1453,7 +1452,7 @@ internal sealed class NumericEditor : TextBox
     internal override Type BindingTargetType(string propertyName) => propertyName == "Value" ? typeof(double) : base.BindingTargetType(propertyName);
 }
 
-internal class ScrollViewer : ContentControl, IUiRoutedEventSink
+internal class ScrollViewer : ContentControl
 {
     private ScrollViewerState _state;
 
@@ -1469,11 +1468,11 @@ internal class ScrollViewer : ContentControl, IUiRoutedEventSink
         }
     }
 
-    public void OnRoutedEvent(in UiRoutedEvent routedEvent)
+    internal void ApplyWheelInput(float delta)
     {
-        if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Wheel)
+        if (UiScrollViewerGenerated.TryScrollBy(ref _state, 0, delta))
         {
-            ScrollBy(0, -routedEvent.WheelDelta);
+            InvalidateChanged(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
         }
     }
 }

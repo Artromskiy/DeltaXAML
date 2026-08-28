@@ -34,11 +34,7 @@ sealed class FakeClipboard : IUiClipboard
     public bool HasText => !string.IsNullOrEmpty(Text);
 }
 
-sealed class EventProbe : UiElement, IUiRoutedEventSink
-{
-    public List<UiRoutedEvent> Events { get; } = [];
-    public void OnRoutedEvent(in UiRoutedEvent routedEvent) => Events.Add(routedEvent);
-}
+sealed class EventProbe : UiElement { }
 
 sealed class EmptyLibraryTypeResolver : Library.IXamlTypeResolver
 {
@@ -470,7 +466,7 @@ internal static partial class Program
         Assert.Equal(button.Id, captured, "pointer capture");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Up, new(10, 65), 1)));
         Assert.True(clicked, "button bubble click");
-        Assert.True(probe.Events.Count == 0, "route does not include unrelated sibling nodes");
+        Assert.True(!probe.IsHovered && !probe.IsFocused, "route does not include unrelated sibling nodes");
         Assert.True(frame.Input.Focused == button.Id, "pointer focuses control");
         Assert.True(button.IsFocused && !box.IsFocused, "pointer focus clears the previous focused visual state");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiKeyEvent(9, true)));
