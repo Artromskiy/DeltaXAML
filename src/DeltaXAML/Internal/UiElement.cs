@@ -505,23 +505,38 @@ internal class UiElement : IUiElement, IUiPropertyStore
             return;
         }
 
+        var childAvailable = MeasureChildAvailable(available);
         foreach (var child in _children)
         {
-            if (child is UiElement element)
-            {
-                element._layoutScale = _layoutScale;
-                element.Measure(available);
-            }
-            else
-            {
-                child.Measure(available);
-            }
+            child.Measure(childAvailable);
+        }
+
+        MeasureStage(available);
+    }
+
+    internal virtual UiSize MeasureChildAvailable(UiSize available) => available;
+
+    internal virtual void MeasureStage(UiSize available)
+    {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
+        if ((Participation & Delta.XAML.UiParticipation.Layout) == 0)
+        {
+            DesiredSize = default;
+            CompleteMeasure(available);
+            return;
         }
 
         DesiredSize = RequestedSize(new(0, 0));
         CompleteMeasure(available);
     }
-    public virtual void Arrange(UiRect bounds)
+
+    public virtual void Arrange(UiRect bounds) => ArrangeStage(bounds, null);
+
+    internal virtual void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -540,10 +555,9 @@ internal class UiElement : IUiElement, IUiPropertyStore
         Clip = bounds;
         foreach (var child in _children)
         {
-            if (child is UiElement element)
+            if (requests is not null && child is UiElement element)
             {
-                element._layoutScale = _layoutScale;
-                element.Arrange(bounds);
+                requests.Add(new(element, bounds));
             }
             else
             {
@@ -781,7 +795,7 @@ internal class Panel : UiElement, IUiPanel
     internal ref PanelState State => ref _state;
 
     public override string TypeName => "Panel";
-    public override void Measure(UiSize available)
+    internal override void MeasureStage(UiSize available)
     {
         if (CanSkipMeasure(available))
         {
@@ -796,11 +810,11 @@ internal class Panel : UiElement, IUiPanel
             return;
         }
 
-        UiPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        UiPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
         DesiredSize = RequestedSize(_state.DesiredSize);
         CompleteMeasure(available);
     }
-    public override void Arrange(UiRect bounds)
+    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -817,7 +831,7 @@ internal class Panel : UiElement, IUiPanel
             return;
         }
 
-        UiPanelGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        UiPanelGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
 
@@ -851,7 +865,7 @@ internal sealed class StackPanel : UiElement, IUiPanel
         return key == UiPropertyKey.Orientation ? false : base.TryApplyTypedProperty(key, value);
     }
 
-    public override void Measure(UiSize available)
+    internal override void MeasureStage(UiSize available)
     {
         if (CanSkipMeasure(available))
         {
@@ -866,11 +880,11 @@ internal sealed class StackPanel : UiElement, IUiPanel
             return;
         }
 
-        UiStackPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        UiStackPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
         DesiredSize = RequestedSize(_state.DesiredSize);
         CompleteMeasure(available);
     }
-    public override void Arrange(UiRect bounds)
+    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -887,7 +901,7 @@ internal sealed class StackPanel : UiElement, IUiPanel
             return;
         }
 
-        UiStackPanelGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        UiStackPanelGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
 
@@ -953,8 +967,16 @@ internal class Border : UiElement, IUiPanel
     internal ref BorderState State => ref _state;
 
     public override string TypeName => "Border";
+    internal override UiSize MeasureChildAvailable(UiSize available)
+    {
+        var padding = Padding;
+        return new(
+            MathF.Max(0, available.Width - padding.Horizontal),
+            MathF.Max(0, available.Height - padding.Vertical));
+    }
+
     public IUiElement? Child => Children.Count == 0 ? null : Children[0];
-    public override void Measure(UiSize available)
+    internal override void MeasureStage(UiSize available)
     {
         if (CanSkipMeasure(available))
         {
@@ -969,12 +991,12 @@ internal class Border : UiElement, IUiPanel
         }
 
         _state.Padding = Padding;
-        UiBorderGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        UiBorderGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
         DesiredSize = RequestedSize(_state.DesiredSize);
 
         CompleteMeasure(available);
     }
-    public override void Arrange(UiRect bounds)
+    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -990,7 +1012,7 @@ internal class Border : UiElement, IUiPanel
         }
 
         _state.Padding = Padding;
-        UiBorderGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        UiBorderGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
         CompleteArrange(bounds);
@@ -1044,7 +1066,7 @@ internal sealed class Grid : UiElement, IUiPanel
         return key is UiPropertyKey.Columns or UiPropertyKey.Rows ? false : base.TryApplyTypedProperty(key, value);
     }
 
-    public override void Measure(UiSize available)
+    internal override void MeasureStage(UiSize available)
     {
         if (CanSkipMeasure(available))
         {
@@ -1059,11 +1081,11 @@ internal sealed class Grid : UiElement, IUiPanel
             return;
         }
 
-        UiGridGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        UiGridGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
         DesiredSize = RequestedSize(_state.DesiredSize);
         CompleteMeasure(available);
     }
-    public override void Arrange(UiRect bounds)
+    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -1080,7 +1102,7 @@ internal sealed class Grid : UiElement, IUiPanel
             return;
         }
 
-        UiGridGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        UiGridGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
 
@@ -1095,7 +1117,7 @@ internal class ContentControl : UiElement
     internal ref ContentControlState State => ref _state;
 
     public override string TypeName => "ContentControl"; public IUiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
-    public override void Measure(UiSize available)
+    internal override void MeasureStage(UiSize available)
     {
         if (CanSkipMeasure(available))
         {
@@ -1109,11 +1131,11 @@ internal class ContentControl : UiElement
             return;
         }
 
-        UiContentControlGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        UiContentControlGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
         DesiredSize = RequestedSize(_state.DesiredSize);
         CompleteMeasure(available);
     }
-    public override void Arrange(UiRect bounds)
+    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -1128,7 +1150,7 @@ internal class ContentControl : UiElement
             return;
         }
 
-        UiContentControlGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        UiContentControlGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
         CompleteArrange(bounds);
@@ -1222,7 +1244,7 @@ internal class TextBlock : UiElement
         return base.TryApplyTypedProperty(key, value);
     }
 
-    public override void Measure(UiSize available)
+    internal override void MeasureStage(UiSize available)
     {
         if (CanSkipMeasure(available))
         {
@@ -1241,7 +1263,7 @@ internal class TextBlock : UiElement
         CompleteMeasure(available);
     }
 
-    public override void Arrange(UiRect bounds)
+    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -1259,7 +1281,7 @@ internal class TextBlock : UiElement
 
         Bounds = bounds;
         Clip = bounds;
-        UiTextBlockGenerated.Arrange(ref _state, new(bounds, bounds));
+        UiTextBlockGenerated.Arrange(ref _state, new(bounds, bounds, null, requests));
         CompleteArrange(bounds);
     }
 
@@ -1530,7 +1552,7 @@ internal class ScrollViewer : ContentControl
         }
     }
 
-    public override void Measure(UiSize available)
+    internal override void MeasureStage(UiSize available)
     {
         if (CanSkipMeasure(available))
         {
@@ -1545,12 +1567,12 @@ internal class ScrollViewer : ContentControl
             return;
         }
 
-        UiScrollViewerGenerated.Measure(ref _state, new(available, LayoutScale, Children));
+        UiScrollViewerGenerated.Measure(ref _state, new(available, LayoutScale, Children, false));
         DesiredSize = RequestedSize(_state.DesiredSize);
         CompleteMeasure(available);
     }
 
-    public override void Arrange(UiRect bounds)
+    internal override void ArrangeStage(UiRect bounds, List<UiArrangeRequest>? requests)
     {
         if (CanSkipArrange(bounds))
         {
@@ -1567,7 +1589,7 @@ internal class ScrollViewer : ContentControl
             return;
         }
 
-        UiScrollViewerGenerated.Arrange(ref _state, new(bounds, bounds, Children));
+        UiScrollViewerGenerated.Arrange(ref _state, new(bounds, bounds, Children, requests));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
         CompleteArrange(bounds);

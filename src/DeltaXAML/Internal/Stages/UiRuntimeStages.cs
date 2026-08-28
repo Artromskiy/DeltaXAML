@@ -111,19 +111,66 @@ internal static class UiStyleStage
 
 internal static class UiMeasureStage
 {
-    internal static void Run(UiElement root, UiSize available)
+    internal static void Run(UiElement root, UiSize available, List<UiMeasureRequest> queue)
     {
         ArgumentNullException.ThrowIfNull(root);
-        root.Measure(available);
+        ArgumentNullException.ThrowIfNull(queue);
+        queue.Clear();
+        queue.Add(new(root, available));
+        for (var i = 0; i < queue.Count; i++)
+        {
+            var request = queue[i];
+            if (!request.Element.ParticipatesIn(Delta.XAML.UiParticipation.Layout))
+            {
+                continue;
+            }
+
+            var childAvailable = request.Element.MeasureChildAvailable(request.Available);
+            for (var childIndex = 0; childIndex < request.Element.Children.Count; childIndex++)
+            {
+                if (request.Element.Children[childIndex] is UiElement child)
+                {
+                    queue.Add(new(child, childAvailable));
+                }
+            }
+        }
+
+        for (var i = queue.Count - 1; i >= 0; i--)
+        {
+            var request = queue[i];
+            request.Element.MeasureStage(request.Available);
+        }
     }
 }
 
 internal static class UiArrangeStage
 {
-    internal static void Run(UiElement root, UiRect bounds)
+    internal static void Run(UiElement root, UiRect bounds, List<UiArrangeRequest> queue)
     {
         ArgumentNullException.ThrowIfNull(root);
-        root.Arrange(bounds);
+        ArgumentNullException.ThrowIfNull(queue);
+        queue.Clear();
+        queue.Add(new(root, bounds));
+        for (var i = 0; i < queue.Count; i++)
+        {
+            var request = queue[i];
+            request.Element.ArrangeStage(request.Bounds, queue);
+        }
+    }
+}
+
+internal static class UiArrangeQueue
+{
+    internal static void Add(in UiArrangeContext context, IUiElement child, UiRect bounds)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        if (context.Requests is not null && child is UiElement element)
+        {
+            context.Requests.Add(new(element, bounds));
+            return;
+        }
+
+        child.Arrange(bounds);
     }
 }
 

@@ -11,7 +11,11 @@ internal readonly struct ScrollViewerMeasureMixin : IMeasureMixin<ScrollViewerSt
             return;
         }
 
-        children[0].Measure(context.Available);
+        if (context.MeasureChildren)
+        {
+            children[0].Measure(context.Available);
+        }
+
         state.DesiredSize = children[0].DesiredSize;
     }
 }
@@ -26,7 +30,7 @@ internal readonly struct ScrollViewerArrangeMixin : IArrangeMixin<ScrollViewerSt
         if (children is not null && children.Count > 0)
         {
             var child = children[0];
-            child.Arrange(new(
+            UiArrangeQueue.Add(in context, child, new(
                 context.Bounds.X - state.Offset.X,
                 context.Bounds.Y - state.Offset.Y,
                 child.DesiredSize.Width,

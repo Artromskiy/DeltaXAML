@@ -12,7 +12,11 @@ internal readonly struct PanelMeasureMixin : IMeasureMixin<PanelState>
             for (var i = 0; i < children.Count; i++)
             {
                 var child = children[i];
-                child.Measure(context.Available);
+                if (context.MeasureChildren)
+                {
+                    child.Measure(context.Available);
+                }
+
                 width = MathF.Max(width, child.DesiredSize.Width);
                 height = MathF.Max(height, child.DesiredSize.Height);
             }
@@ -33,7 +37,7 @@ internal readonly struct PanelArrangeMixin : IArrangeMixin<PanelState>
         {
             for (var i = 0; i < children.Count; i++)
             {
-                children[i].Arrange(context.Bounds);
+                UiArrangeQueue.Add(in context, children[i], context.Bounds);
             }
         }
     }
@@ -48,9 +52,12 @@ internal readonly struct GridMeasureMixin : IMeasureMixin<GridState>
         Array.Clear(state.MeasuredRows, 0, state.Rows.Length);
         if (children is not null)
         {
-            for (var i = 0; i < children.Count; i++)
+            if (context.MeasureChildren)
             {
-                children[i].Measure(context.Available);
+                for (var i = 0; i < children.Count; i++)
+                {
+                    children[i].Measure(context.Available);
+                }
             }
 
             MeasureAuto(state.Columns, state.MeasuredColumns, children, true);
@@ -144,7 +151,7 @@ internal readonly struct GridArrangeMixin : IArrangeMixin<GridState>
                 break;
             }
 
-            children[i].Arrange(new(
+            UiArrangeQueue.Add(in context, children[i], new(
                 context.Bounds.X + Sum(state.ResolvedColumns, column),
                 context.Bounds.Y + Sum(state.ResolvedRows, row),
                 state.ResolvedColumns[column],

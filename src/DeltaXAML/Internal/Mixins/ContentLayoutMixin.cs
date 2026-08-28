@@ -11,9 +11,13 @@ internal readonly struct BorderMeasureMixin : IMeasureMixin<BorderState>
             return;
         }
 
-        child.Measure(new(
-            MathF.Max(0, context.Available.Width - state.Padding.Horizontal),
-            MathF.Max(0, context.Available.Height - state.Padding.Vertical)));
+        if (context.MeasureChildren)
+        {
+            child.Measure(new(
+                MathF.Max(0, context.Available.Width - state.Padding.Horizontal),
+                MathF.Max(0, context.Available.Height - state.Padding.Vertical)));
+        }
+
         state.DesiredSize = new(
             child.DesiredSize.Width + state.Padding.Horizontal,
             child.DesiredSize.Height + state.Padding.Vertical);
@@ -42,7 +46,7 @@ internal readonly struct BorderArrangeMixin : IArrangeMixin<BorderState>
             return;
         }
 
-        children[0].Arrange(new(
+        UiArrangeQueue.Add(in context, children[0], new(
             context.Bounds.X + state.Padding.Left,
             context.Bounds.Y + state.Padding.Top,
             MathF.Max(0, context.Bounds.Width - state.Padding.Horizontal),
@@ -62,7 +66,11 @@ internal readonly struct ContentControlMeasureMixin : IMeasureMixin<ContentContr
         }
 
         var child = children[0];
-        child.Measure(context.Available);
+        if (context.MeasureChildren)
+        {
+            child.Measure(context.Available);
+        }
+
         state.DesiredSize = child.DesiredSize;
     }
 }
@@ -76,7 +84,7 @@ internal readonly struct ContentControlArrangeMixin : IArrangeMixin<ContentContr
         var children = context.Children;
         if (children is not null && children.Count > 0)
         {
-            children[0].Arrange(context.Bounds);
+            UiArrangeQueue.Add(in context, children[0], context.Bounds);
         }
     }
 }

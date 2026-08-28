@@ -15,6 +15,8 @@ internal sealed class UiRuntime
     private readonly UiInputRouter _input;
     private readonly List<UiTraversalEntry> _traversal = new();
     private readonly List<UiElement> _stageTraversal = new();
+    private readonly List<UiMeasureRequest> _measureQueue = new();
+    private readonly List<UiArrangeRequest> _arrangeQueue = new();
 
     public UiRuntime(IUiElement root)
     {
@@ -67,8 +69,8 @@ internal sealed class UiRuntime
 
         UiScaleStage.Run(_retainedRoot, dpiScale, _stageTraversal);
         var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
-        UiMeasureStage.Run(_retainedRoot, scaled);
-        UiArrangeStage.Run(_retainedRoot, new(0, 0, viewport.Width, viewport.Height));
+        UiMeasureStage.Run(_retainedRoot, scaled, _measureQueue);
+        UiArrangeStage.Run(_retainedRoot, new(0, 0, viewport.Width, viewport.Height), _arrangeQueue);
         UiFocusStage.Run(_input);
     }
 

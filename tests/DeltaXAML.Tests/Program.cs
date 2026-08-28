@@ -256,6 +256,7 @@ internal static partial class Program
         LibraryFacadeSmoke();
         FrameContractAndBatchedMutations();
         ParticipationBoundary();
+        RuntimeLayoutQueuesAreNonRecursive();
     }
 
     private static void PropertyInvalidation()
@@ -1022,5 +1023,26 @@ internal static partial class Program
         }
 
         Assert.True(invalid, "rendering requires layout participation");
+    }
+
+    private static void RuntimeLayoutQueuesAreNonRecursive()
+    {
+        var root = new Panel();
+        var current = root;
+        const int depth = 2048;
+        for (var i = 0; i < depth; i++)
+        {
+            var child = new Panel { Width = 10, Height = 10 };
+            current.Add(child);
+            current = child;
+        }
+
+        var measureQueue = new List<UiMeasureRequest>();
+        UiMeasureStage.Run(root, new(100, 100), measureQueue);
+        Assert.Equal(depth + 1, measureQueue.Count, "measure stage visits the deep tree without recursive calls");
+
+        var arrangeQueue = new List<UiArrangeRequest>();
+        UiArrangeStage.Run(root, new(0, 0, 100, 100), arrangeQueue);
+        Assert.Equal(depth + 1, arrangeQueue.Count, "arrange stage visits the deep tree without recursive calls");
     }
 }

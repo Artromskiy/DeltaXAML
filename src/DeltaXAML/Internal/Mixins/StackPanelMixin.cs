@@ -12,7 +12,11 @@ internal readonly struct StackPanelMeasureMixin : IMeasureMixin<StackPanelState>
             for (var i = 0; i < children.Count; i++)
             {
                 var child = children[i];
-                child.Measure(context.Available);
+                if (context.MeasureChildren)
+                {
+                    child.Measure(context.Available);
+                }
+
                 if (state.Orientation == UiOrientation.Horizontal)
                 {
                     width += child.DesiredSize.Width;
@@ -75,7 +79,7 @@ internal readonly struct StackPanelArrangeMixin : IArrangeMixin<StackPanelState>
                 : state.Orientation == UiOrientation.Horizontal
                     ? desired.Width
                     : desired.Height;
-            child.Arrange(state.Orientation == UiOrientation.Horizontal
+            UiArrangeQueue.Add(in context, child, state.Orientation == UiOrientation.Horizontal
                 ? new UiRect(cursor, context.Bounds.Y, main, context.Bounds.Height)
                 : new UiRect(context.Bounds.X, cursor, context.Bounds.Width, main));
             cursor += main;

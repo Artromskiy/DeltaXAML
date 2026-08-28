@@ -120,11 +120,15 @@ internal readonly record struct UiTextRun(string FontKey, float FontSize, string
 internal readonly record struct UiMeasureContext(
     UiSize Available,
     float DpiScale,
-    IReadOnlyList<IUiElement>? Children = null);
+    IReadOnlyList<IUiElement>? Children = null,
+    bool MeasureChildren = true);
 internal readonly record struct UiArrangeContext(
     UiRect Bounds,
     UiRect Clip,
-    IReadOnlyList<IUiElement>? Children = null);
+    IReadOnlyList<IUiElement>? Children = null,
+    List<UiArrangeRequest>? Requests = null);
+internal readonly record struct UiMeasureRequest(UiElement Element, UiSize Available);
+internal readonly record struct UiArrangeRequest(UiElement Element, UiRect Bounds);
 internal readonly record struct UiTextVisualContext(UiElementId Owner, uint OwnerGeneration, float LayoutScale, uint Version);
 internal readonly record struct UiBindingSpec(string Property, string Path, UiBindingMode Mode, string? ConverterKey, string? StringFormat);
 
