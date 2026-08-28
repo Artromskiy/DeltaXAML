@@ -669,6 +669,7 @@ internal static partial class Program
         document.Layout(new(100, 40), 1);
         Assert.Equal(80f, scroll.OffsetY, "scroll offset clamps to content extent");
         Assert.Equal(new UiRect(0, -80, 100, 120), content.RetainedElement.Bounds, "clamped scroll positions content without changing its size");
+        Assert.Equal(new UiRect(0, 0, 100, 40), content.RetainedElement.Clip, "scroll keeps the content clip inside the viewport");
     }
 
     private static void ResourceLookupDiagnostics()
@@ -1562,10 +1563,11 @@ internal static partial class Program
         Assert.Equal(new UiSize(20, 30), deduplicatedMeasure[0].Available, "measure queue keeps the latest constraint for a node");
 
         var deduplicatedArrange = new UiArrangeQueueBuffer();
-        deduplicatedArrange.Add(new(queueNode, new(1, 2, 3, 4)));
-        deduplicatedArrange.Add(new(queueNode, new(5, 6, 7, 8)));
+        deduplicatedArrange.Add(new(queueNode, new(1, 2, 3, 4), new(1, 2, 3, 4)));
+        deduplicatedArrange.Add(new(queueNode, new(5, 6, 7, 8), new(5, 6, 7, 8)));
         Assert.Equal(1, deduplicatedArrange.Count, "arrange queue deduplicates a node within one stage pass");
         Assert.Equal(new UiRect(5, 6, 7, 8), deduplicatedArrange[0].Bounds, "arrange queue keeps the latest bounds for a node");
+        Assert.Equal(new UiRect(5, 6, 7, 8), deduplicatedArrange[0].Clip, "arrange queue keeps the latest effective clip for a node");
 
         var root = new Panel();
         var current = root;

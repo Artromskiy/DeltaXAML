@@ -359,6 +359,7 @@ internal class UiElement
     private string? _templateKey;
     private UiSize _measuredAvailable;
     private UiRect _arrangedBounds;
+    private UiRect _arrangedClip;
     private bool _hasMeasured;
     private bool _hasArranged;
     private bool _runtimeDisposed;
@@ -666,11 +667,11 @@ internal class UiElement
         CompleteMeasure(available);
     }
 
-    internal void ExecuteArrange(UiRuntimeTypeIndex runtimeType, UiRect bounds, UiArrangeQueueBuffer requests, UiNodeStore nodes)
+    internal void ExecuteArrange(UiRuntimeTypeIndex runtimeType, UiRect bounds, UiRect clip, UiArrangeQueueBuffer requests, UiNodeStore nodes)
     {
         ArgumentNullException.ThrowIfNull(requests);
         ArgumentNullException.ThrowIfNull(nodes);
-        if (CanSkipArrange(bounds))
+        if (CanSkipArrange(bounds, clip))
         {
             return;
         }
@@ -678,16 +679,16 @@ internal class UiElement
         if ((Participation & Delta.XAML.UiParticipation.Layout) == 0)
         {
             Bounds = default;
-            Clip = default;
-            CompleteArrange(bounds);
+            Clip = clip;
+            CompleteArrange(bounds, clip);
             return;
         }
 
         Bounds = bounds;
-        Clip = bounds;
+        Clip = clip;
         var children = nodes.GetLogicalChildren(new(Id.Value, Generation));
-        UiDescriptorCatalog.Arrange(runtimeType, this, new(bounds, bounds, children, requests, nodes));
-        CompleteArrange(bounds);
+        UiDescriptorCatalog.Arrange(runtimeType, this, new(bounds, clip, children, requests, nodes));
+        CompleteArrange(bounds, clip);
     }
     protected bool CanSkipMeasure(UiSize available) =>
         _hasMeasured && (DirtyFlags & UiDirtyFlags.Measure) == 0 && _measuredAvailable == available;
@@ -702,14 +703,15 @@ internal class UiElement
         DirtyFlags |= UiDirtyFlags.Arrange;
     }
 
-    protected bool CanSkipArrange(UiRect bounds) =>
-        _hasArranged && (DirtyFlags & UiDirtyFlags.Arrange) == 0 && _arrangedBounds == bounds;
+    protected bool CanSkipArrange(UiRect bounds, UiRect clip) =>
+        _hasArranged && (DirtyFlags & UiDirtyFlags.Arrange) == 0 && _arrangedBounds == bounds && _arrangedClip == clip;
 
-    internal bool NeedsArrange(UiRect bounds) => !CanSkipArrange(bounds);
+    internal bool NeedsArrange(UiRect bounds, UiRect clip) => !CanSkipArrange(bounds, clip);
 
-    protected void CompleteArrange(UiRect bounds)
+    protected void CompleteArrange(UiRect bounds, UiRect clip)
     {
         _arrangedBounds = bounds;
+        _arrangedClip = clip;
         _hasArranged = true;
         DirtyFlags &= ~UiDirtyFlags.Arrange;
     }

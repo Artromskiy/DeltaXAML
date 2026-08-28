@@ -103,7 +103,7 @@ internal readonly record struct UiArrangeContext(
     UiArrangeQueueBuffer? Requests = null,
     UiNodeStore? Nodes = null);
 internal readonly record struct UiMeasureRequest(UiNodeId Element, UiSize Available);
-internal readonly record struct UiArrangeRequest(UiNodeId Element, UiRect Bounds);
+internal readonly record struct UiArrangeRequest(UiNodeId Element, UiRect Bounds, UiRect Clip);
 internal readonly record struct UiTextVisualContext(UiElementId Owner, uint OwnerGeneration, float LayoutScale, uint Version);
 internal readonly record struct UiBindingSpec(string Property, string Path, UiBindingMode Mode, string? ConverterKey, string? StringFormat);
 

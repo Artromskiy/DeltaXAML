@@ -39,7 +39,8 @@ internal readonly struct ScrollViewerArrangeMixin : IArrangeMixin<ScrollViewerSt
                 context.Bounds.X - state.Offset.X,
                 context.Bounds.Y - state.Offset.Y,
                 child.DesiredSize.Width,
-                child.DesiredSize.Height));
+                child.DesiredSize.Height),
+                UiRect.Intersect(context.Clip, context.Bounds));
         }
     }
 }

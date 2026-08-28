@@ -243,18 +243,18 @@ internal static class UiArrangeStage
         ArgumentNullException.ThrowIfNull(queue);
         nodes.EnsureCurrent(root);
         queue.Clear();
-        if (!root.NeedsArrange(bounds))
+        if (!root.NeedsArrange(bounds, bounds))
         {
             return;
         }
 
-        queue.Add(new(new(root.Id.Value, root.Generation), bounds));
+        queue.Add(new(new(root.Id.Value, root.Generation), bounds, bounds));
         for (var i = 0; i < queue.Count; i++)
         {
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.ExecuteArrange(node.RuntimeType, request.Bounds, queue, nodes);
+                element.ExecuteArrange(node.RuntimeType, request.Bounds, request.Clip, queue, nodes);
             }
         }
     }
@@ -263,6 +263,9 @@ internal static class UiArrangeStage
 internal static class UiArrangeQueue
 {
     internal static void Add(in UiArrangeContext context, UiElement child, UiRect bounds)
+        => Add(in context, child, bounds, UiRect.Intersect(context.Clip, bounds));
+
+    internal static void Add(in UiArrangeContext context, UiElement child, UiRect bounds, UiRect clip)
     {
         ArgumentNullException.ThrowIfNull(child);
         if (context.Requests is not { } requests || context.Nodes is not { } nodes)
@@ -270,9 +273,10 @@ internal static class UiArrangeQueue
             return;
         }
 
-        if (nodes.TryGetNode(new(child.Id.Value, child.Generation), out var node) && child.NeedsArrange(bounds))
+        var effectiveClip = UiRect.Intersect(context.Clip, clip);
+        if (nodes.TryGetNode(new(child.Id.Value, child.Generation), out var node) && child.NeedsArrange(bounds, effectiveClip))
         {
-            requests.Add(new(node.Id, bounds));
+            requests.Add(new(node.Id, bounds, effectiveClip));
         }
     }
 }
