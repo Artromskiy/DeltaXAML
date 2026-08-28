@@ -585,7 +585,10 @@ internal class UiElement : IUiElement, IUiPropertyStore
             var child = _children[i];
             if (requests is not null && child is UiElement element)
             {
-                requests.Add(new(element, bounds));
+                if (element.NeedsArrange(bounds))
+                {
+                    requests.Add(new(element, bounds));
+                }
             }
             else
             {
@@ -598,6 +601,8 @@ internal class UiElement : IUiElement, IUiPropertyStore
     protected bool CanSkipMeasure(UiSize available) =>
         _hasMeasured && (DirtyFlags & UiDirtyFlags.Measure) == 0 && _measuredAvailable == available;
 
+    internal bool NeedsMeasure(UiSize available) => !CanSkipMeasure(available);
+
     protected void CompleteMeasure(UiSize available)
     {
         _measuredAvailable = available;
@@ -608,6 +613,8 @@ internal class UiElement : IUiElement, IUiPropertyStore
 
     protected bool CanSkipArrange(UiRect bounds) =>
         _hasArranged && (DirtyFlags & UiDirtyFlags.Arrange) == 0 && _arrangedBounds == bounds;
+
+    internal bool NeedsArrange(UiRect bounds) => !CanSkipArrange(bounds);
 
     protected void CompleteArrange(UiRect bounds)
     {

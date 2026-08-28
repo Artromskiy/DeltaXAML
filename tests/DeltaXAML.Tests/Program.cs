@@ -1133,6 +1133,25 @@ internal static partial class Program
 
         leaf.Invalidate(UiDirtyFlags.Visual);
         Assert.True((root.DirtyFlags & UiDirtyFlags.Visual) != 0, "deep invalidation reaches the root without recursive propagation");
+
+        var preciseRoot = new Panel();
+        var cleanChild = new TextBlock { Width = 10, Height = 10 };
+        var dirtyChild = new TextBlock { Width = 10, Height = 10 };
+        preciseRoot.Add(cleanChild);
+        preciseRoot.Add(dirtyChild);
+        var preciseMeasure = new List<UiMeasureRequest>();
+        var preciseArrange = new List<UiArrangeRequest>();
+        UiMeasureStage.Run(preciseRoot, new(100, 100), preciseMeasure);
+        UiArrangeStage.Run(preciseRoot, new(0, 0, 100, 100), preciseArrange);
+        UiMeasureStage.Run(preciseRoot, new(100, 100), preciseMeasure);
+        UiArrangeStage.Run(preciseRoot, new(0, 0, 100, 100), preciseArrange);
+        dirtyChild.Width = 20;
+        UiMeasureStage.Run(preciseRoot, new(100, 100), preciseMeasure);
+        Assert.Equal(2, preciseMeasure.Count, "measure queue contains the root and only the dirty child");
+        UiArrangeStage.Run(preciseRoot, new(0, 0, 100, 100), preciseArrange);
+        Assert.Equal(2, preciseArrange.Count, "arrange queue contains the root and only the dirty child");
+        UiMeasureStage.Run(preciseRoot, new(200, 100), preciseMeasure);
+        Assert.True(preciseMeasure.Count > 0, "viewport resize invalidates measure even when no dirty flag was pending");
     }
 
     private static void DescriptorLayoutDispatch()

@@ -116,7 +116,7 @@ internal static class UiMeasureStage
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(queue);
         queue.Clear();
-        if ((root.DirtyFlags & UiDirtyMask.Measure) == 0)
+        if (!root.NeedsMeasure(available))
         {
             return;
         }
@@ -125,6 +125,11 @@ internal static class UiMeasureStage
         for (var i = 0; i < queue.Count; i++)
         {
             var request = queue[i];
+            if (!request.Element.NeedsMeasure(request.Available))
+            {
+                continue;
+            }
+
             if (!request.Element.ParticipatesIn(Delta.XAML.UiParticipation.Layout))
             {
                 continue;
@@ -133,7 +138,7 @@ internal static class UiMeasureStage
             var childAvailable = request.Element.MeasureChildAvailable(request.Available);
             for (var childIndex = 0; childIndex < request.Element.Children.Count; childIndex++)
             {
-                if (request.Element.Children[childIndex] is UiElement child)
+                if (request.Element.Children[childIndex] is UiElement child && child.NeedsMeasure(childAvailable))
                 {
                     queue.Add(new(child, childAvailable));
                 }
@@ -155,7 +160,7 @@ internal static class UiArrangeStage
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(queue);
         queue.Clear();
-        if ((root.DirtyFlags & UiDirtyMask.Arrange) == 0)
+        if (!root.NeedsArrange(bounds))
         {
             return;
         }
@@ -176,7 +181,11 @@ internal static class UiArrangeQueue
         ArgumentNullException.ThrowIfNull(child);
         if (context.Requests is not null && child is UiElement element)
         {
-            context.Requests.Add(new(element, bounds));
+            if (element.NeedsArrange(bounds))
+            {
+                context.Requests.Add(new(element, bounds));
+            }
+
             return;
         }
 
