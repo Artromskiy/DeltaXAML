@@ -766,7 +766,7 @@ is not an accepted architecture pass.
 |---|---|---|
 | `Internal/UiElement.cs` | migration compatibility implementation | Existing retained owner/traversal shell plus the single cold source resolver; typed effective values now enter composite state through `ApplyTypedProperty`; remove the virtual compatibility shell during the retained-stage split. |
 | `Internal/Compatibility/UiBindingRuntime.cs` | migration-only cold compatibility implementation | Public `UiBindingExpression` bridge used by the explicit tooling/compatibility loader; generated typed binding artifacts do not call it. Remove after the loader has a generated construction mode. |
-| `UserApi/LibraryFacade.cs` (`XamlLoader`) | migration-only cold compatibility implementation | Public XML inflation entry point; generated companions bypass it and use direct construction. Keep it bounded to the explicit loader contract until a generated loader mode replaces it. |
+| `UserApi/XamlLoader.cs` | migration-only cold compatibility implementation | Public XML inflation entry point; generated companions bypass it and use direct construction. Keep it bounded to the explicit loader contract until a generated loader mode replaces it. |
 | `Internal/RetainedContracts.cs` | retained runtime vocabulary | Concrete records and the typed item source/factory and clipboard adapter boundaries still used by the retained compatibility shell; do not add new runtime algorithms here. |
 | `UserApi/LibraryFacade.cs` | active public compatibility facade | Existing public callers remain supported; new controls and generated descriptors must live in the designated locations, not in this file. |
 | `Internal/State/TextBlockState.cs` | migrated exemplar state | Composite text/layout state only; no algorithms, services or ownership. |
@@ -1228,7 +1228,7 @@ lands; do not wrap it in a new facade:
   cold property/source operations; the public retained `Measure`/`Arrange`
   operation path has been removed, and runtime layout now enters through the
   queued stage methods;
-- `UserApi/LibraryFacade.cs` (`XamlLoader`): runtime parsing and string
+- `UserApi/XamlLoader.cs`: runtime parsing and string
   property application;
 - `Internal/Compatibility/UiBindingRuntime.cs`: reflection path walking and
   per-binding closure execution;
