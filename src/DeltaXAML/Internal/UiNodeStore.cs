@@ -11,6 +11,7 @@ namespace DeltaXAML.Internal;
 internal sealed class UiNodeStore
 {
     private UiNodeRecord[] _records = Array.Empty<UiNodeRecord>();
+    private int[] _activePositions = Array.Empty<int>();
     private readonly List<RegistrationVisit> _registrationQueue = new();
     private readonly List<int> _activeIndices = new();
     private readonly List<UiNodeId> _layoutChildIds = new();
@@ -253,7 +254,9 @@ internal sealed class UiNodeStore
     {
         for (var i = 0; i < _activeIndices.Count; i++)
         {
-            _records[_activeIndices[i]] = default;
+            var index = _activeIndices[i];
+            _records[index] = default;
+            _activePositions[index] = -1;
         }
 
         _activeIndices.Clear();
@@ -273,6 +276,7 @@ internal sealed class UiNodeStore
             if (index >= _records.Length)
             {
                 Array.Resize(ref _records, Math.Max(index + 1, Math.Max(8, _records.Length * 2)));
+                Array.Resize(ref _activePositions, _records.Length);
             }
 
             var parentId = visit.Parent is null ? default : ToNodeId(visit.Parent);
@@ -290,6 +294,7 @@ internal sealed class UiNodeStore
                 element.DirtyFlags);
             _records[index] = record;
             _activeIndices.Add(index);
+            _activePositions[index] = _activeIndices.Count - 1;
             if (visit.PreviousSibling is not null && TryGetRecord(ToNodeId(visit.PreviousSibling), out var previousRecord))
             {
                 previousRecord.NextLogicalSibling = record.Id;
@@ -347,14 +352,23 @@ internal sealed class UiNodeStore
 
     private void RemoveActiveIndex(int index)
     {
-        for (var i = 0; i < _activeIndices.Count; i++)
+        if ((uint)index >= (uint)_activePositions.Length)
         {
-            if (_activeIndices[i] == index)
-            {
-                _activeIndices.RemoveAt(i);
-                return;
-            }
+            return;
         }
+
+        var position = _activePositions[index];
+        if ((uint)position >= (uint)_activeIndices.Count || _activeIndices[position] != index)
+        {
+            return;
+        }
+
+        var lastPosition = _activeIndices.Count - 1;
+        var lastIndex = _activeIndices[lastPosition];
+        _activeIndices[position] = lastIndex;
+        _activeIndices.RemoveAt(lastPosition);
+        _activePositions[lastIndex] = position;
+        _activePositions[index] = -1;
     }
 
     private void EnsureCurrentVersionBeforeMutation(UiElement parent)
