@@ -21,6 +21,7 @@ internal sealed class UiRuntime
     private float _appliedScale = float.NaN;
     private uint _scaledTreeVersion;
     private uint _bindingTreeVersion;
+    private bool _disposed;
 
     public UiRuntime(IUiElement root)
     {
@@ -40,6 +41,17 @@ internal sealed class UiRuntime
     public int PendingMutationCount => _mutations.Count;
     internal int PendingInputCount => _inputQueue.Count;
     internal int NodeCount => _nodes.Count;
+
+    internal void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _retainedRoot.DisposeRuntime();
+    }
 
     public void Enqueue(in UiMutation mutation) => _mutations.Add(mutation);
 

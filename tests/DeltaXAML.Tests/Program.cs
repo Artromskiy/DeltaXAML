@@ -259,6 +259,7 @@ internal static partial class Program
         ResourceBackedPrecedenceAndXaml();
         ResourceDependencyInvalidation();
         PublicResourcesStylesTemplatesAndTypes();
+        DocumentDisposesBindingSubscriptions();
         TypeCatalogUsesStableIds();
         LibraryFacadeSmoke();
         FrameContractAndBatchedMutations();
@@ -633,6 +634,33 @@ internal static partial class Program
         using var textDocumentOwner = new Library.UiDocument(textRoot, textDocument);
         textDocumentOwner.Layout(new Delta.Maths.float2(80, 20), 1);
         Assert.True(!textDocumentOwner.TryBuildDisplayList(out _, out var textDiagnostic) && textDiagnostic is { } unsupported && unsupported.Code.Value == "XAML_TEXT_FONT_NOT_FOUND", "unregistered text font returns a diagnostic");
+    }
+
+    private static void DocumentDisposesBindingSubscriptions()
+    {
+        var model = new BindingModel { Name = "before" };
+        var text = new Library.UiTextBlock { BindingContext = model };
+        text.SetBinding("Text", new Library.UiBindingExpression("Name"));
+        using var textService = new EmptyTextService();
+        var document = new Library.UiDocument(text, textService);
+        Assert.Equal("before", text.Text, "document binding initializes before disposal");
+
+        document.Dispose();
+        model.Name = "after";
+        Assert.Equal("before", text.Text, "disposed document unsubscribes expression bindings");
+
+        var disposed = false;
+        try
+        {
+            document.Layout(new Delta.Maths.float2(100, 20), 1);
+        }
+        catch (ObjectDisposedException)
+        {
+            disposed = true;
+        }
+
+        Assert.True(disposed, "disposed document rejects further layout");
+        document.Dispose();
     }
 
     private static void TypeCatalogUsesStableIds()

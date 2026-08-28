@@ -29,6 +29,7 @@ internal sealed class UiPropertyStore : IUiPropertyStore
     private readonly Dictionary<string, EventHandler> _bindingHandlers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResourceBinding> _resourceBindings = new(StringComparer.Ordinal);
     private readonly UiElement _owner;
+    private bool _disposed;
     private static readonly UiValueSource[] Precedence =
     [
         UiValueSource.Animation,
@@ -39,6 +40,34 @@ internal sealed class UiPropertyStore : IUiPropertyStore
         UiValueSource.Default,
     ];
     public UiPropertyStore(UiElement owner) { ArgumentNullException.ThrowIfNull(owner); _owner = owner; }
+    internal void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        foreach (var pair in _bindings)
+        {
+            if (_bindingHandlers.TryGetValue(pair.Key, out var handler))
+            {
+                pair.Value.Changed -= handler;
+            }
+        }
+
+        foreach (var binding in _resourceBindings.Values)
+        {
+            if (binding.Handler is { } handler)
+            {
+                binding.Resources.Changed -= handler;
+            }
+        }
+
+        _bindingHandlers.Clear();
+        _resourceBindings.Clear();
+        _bindings.Clear();
+    }
     void IUiPropertyStore.SetDefault(string name, object? value, UiDirtyFlags invalidation) => SetDefault(name, value, invalidation);
     void IUiPropertyStore.SetLocal(string name, object? value, UiDirtyFlags invalidation) => SetLocal(name, value, invalidation);
     void IUiPropertyStore.SetStyle(string name, object? value, UiDirtyFlags invalidation) => SetStyle(name, value, invalidation);
@@ -273,6 +302,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private UiRect _arrangedBounds;
     private bool _hasMeasured;
     private bool _hasArranged;
+    private bool _runtimeDisposed;
     private int _displayClipIndex = -1;
     private int _displayVisualIndex = -1;
     private int _displayTextIndex = -1;
@@ -811,6 +841,35 @@ internal class UiElement : IUiElement, IUiPropertyStore
     }
 
     internal void ClearStyleValue(string name) => _properties.Clear(name, UiValueSource.Style);
+
+    internal void DisposeRuntime()
+    {
+        if (_runtimeDisposed)
+        {
+            return;
+        }
+
+        _runtimeDisposed = true;
+        var traversal = new List<UiElement> { this };
+        for (var i = 0; i < traversal.Count; i++)
+        {
+            var element = traversal[i];
+            element._properties.Dispose();
+            foreach (var binding in element._bindingRuntimes.Values)
+            {
+                binding.Dispose();
+            }
+
+            element._bindingRuntimes.Clear();
+            for (var childIndex = 0; childIndex < element._children.Count; childIndex++)
+            {
+                if (element._children[childIndex] is UiElement child)
+                {
+                    traversal.Add(child);
+                }
+            }
+        }
+    }
 
     private static UiDirtyFlags BindingInvalidation(string propertyName) => propertyName switch
     {

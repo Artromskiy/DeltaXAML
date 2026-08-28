@@ -940,6 +940,7 @@ public sealed class UiDocument : IDisposable
     private uint _displayListTreeVersion;
     private float2 _displayListViewport;
     private bool _hasDisplayList;
+    private bool _disposed;
 
     public UiDocument(UiElement root, ITextService textService)
         : this(root, textService, EmptyFontResolver.Instance)
@@ -966,11 +967,13 @@ public sealed class UiDocument : IDisposable
 
     public void Dispose()
     {
-        if (_fontInstances.Count == 0)
+        if (_disposed)
         {
             return;
         }
 
+        _disposed = true;
+        _runtime.Dispose();
         foreach (var font in _fontInstances.Values)
         {
             _textService.CloseFont(font);
@@ -982,6 +985,7 @@ public sealed class UiDocument : IDisposable
 
     public void Dispatch(in UiInputEvent input)
     {
+        ThrowIfDisposed();
         switch (input.Kind)
         {
             case UiInputEventKind.PointingDevice:
@@ -1034,7 +1038,11 @@ public sealed class UiDocument : IDisposable
         for (var i = 0; i < input.Length; i++) { Dispatch(input[i]); }
     }
 
-    public void Layout(float2 viewport, float dpiScale) => _runtime.Layout(new(viewport.x, viewport.y), dpiScale, _theme, Root);
+    public void Layout(float2 viewport, float dpiScale)
+    {
+        ThrowIfDisposed();
+        _runtime.Layout(new(viewport.x, viewport.y), dpiScale, _theme, Root);
+    }
 
     public UiDisplayList BuildDisplayList()
     {
@@ -1053,6 +1061,7 @@ public sealed class UiDocument : IDisposable
 
     public bool TryBuildDisplayList(out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
+        ThrowIfDisposed();
         diagnostic = null;
         var retainedRoot = Root.RetainedElement;
         var rootId = new Retained.UiNodeId(retainedRoot.Id.Value, retainedRoot.Generation);
@@ -1521,4 +1530,8 @@ public sealed class UiDocument : IDisposable
     private static float4 ToFloat4(Retained.UiRect value) => new(value.X, value.Y, value.Width, value.Height);
     private static float4 ToColor(Retained.UiColor value) => new(value.R / 255f, value.G / 255f, value.B / 255f, value.A / 255f);
     private static void EnsureCapacity<T>(ref T[] storage, int count) { if (storage.Length < count) { Array.Resize(ref storage, Math.Max(8, count)); } }
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, nameof(UiDocument));
+    }
 }
