@@ -1096,10 +1096,13 @@ a compact dependency list from resource slot to affected property slots; a
 resource change queues only those writes. Visual states use the same property
 precedence resolver as styles and do not form a second property engine.
 
-Templates are generated factories. A template creates visual nodes in the
-same `UiDocumentState`, assigns their visual parent and templated owner, and
-does not create another `UiDocument`. Replacing a template destroys only that
-visual subtree and invalidates the affected layout/visual queues.
+Templates are generated factories. The compiler assigns each template a stable
+`UiTemplateId`; generated registration and selection use that identity instead
+of a runtime template-key lookup. A template creates visual nodes in the same
+`UiDocumentState`, assigns their visual parent and templated owner, and does
+not create another `UiDocument`. Replacing a template destroys only that
+visual subtree and invalidates the affected layout/visual queues. The string
+registration/selection overloads remain cold loader/tooling compatibility.
 
 ### `DXAML-RUNTIME-1`: one node store
 

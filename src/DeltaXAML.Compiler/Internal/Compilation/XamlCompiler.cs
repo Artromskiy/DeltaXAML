@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using Delta.Diagnostics;
 using Delta.XAML;
 using Delta.XAML.Contract;
@@ -603,9 +605,15 @@ internal static class XamlCompiler
                 }
                 else
                 {
-                    _templates.Add(new(key, root, Range(elementStart, _offset)));
+                    _templates.Add(new(key, CreateTemplateId(key), root, Range(elementStart, _offset)));
                 }
             }
+        }
+
+        private static UiTemplateId CreateTemplateId(string key)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("DeltaXAML.Template/" + key));
+            return new UiTemplateId(new Guid(bytes.AsSpan(0, 16)));
         }
 
         private int RegisterResourceSlot(UiResourceId id, string key, bool isDynamic)

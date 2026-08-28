@@ -189,6 +189,7 @@ internal sealed record XamlVisualStatePlan(
 
 internal sealed record XamlTemplatePlan(
     string Key,
+    UiTemplateId Id,
     XamlObjectPlan Root,
     SourceRange Range);
 

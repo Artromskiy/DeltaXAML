@@ -13,6 +13,12 @@ namespace Delta.XAML;
 
 public readonly record struct UiPropertyId(Guid Value) { public bool IsValid => Value != Guid.Empty; }
 public readonly record struct UiTypeId(Guid Value) { public bool IsValid => Value != Guid.Empty; }
+public readonly record struct UiTemplateId(Guid Value)
+{
+    public static UiTemplateId Empty => default;
+
+    public bool IsValid => Value != Guid.Empty;
+}
 public readonly record struct XamlQualifiedName(string Namespace, string LocalName);
 public readonly record struct UiColor(byte R, byte G, byte B, byte A = 255);
 public readonly record struct UiThickness(float Left, float Top, float Right, float Bottom)
@@ -155,6 +161,17 @@ public abstract class UiElement
     {
         get => _retained.TemplateKey;
         set => _retained.TemplateKey = value;
+    }
+
+    /// <summary>Attaches a generated template by stable identity.</summary>
+    public void SetCompiledTemplate(UiTemplateId template)
+    {
+        if (!template.IsValid)
+        {
+            throw new ArgumentException("A stable template identity is required.", nameof(template));
+        }
+
+        _retained.SetCompiledTemplate(template);
     }
 
     public bool IsEnabled

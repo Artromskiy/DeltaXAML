@@ -353,6 +353,7 @@ internal class UiElement
     private Delta.XAML.UiStyle? _appliedStyle;
     private Delta.XAML.UiStyleState _appliedStyleState;
     private int _appliedStyleVersion = -1;
+    private Delta.XAML.UiTemplateId _compiledTemplateId;
     private string? _styleKey;
     private string? _templateKey;
     private UiSize _measuredAvailable;
@@ -428,6 +429,7 @@ internal class UiElement
             }
 
             _templateKey = value;
+            _compiledTemplateId = default;
             InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         }
     }
@@ -783,6 +785,7 @@ internal class UiElement
     internal Delta.XAML.UiStyle? AppliedStyle => _appliedStyle;
     internal Delta.XAML.UiStyleState AppliedStyleState => _appliedStyleState;
     internal int AppliedStyleVersion => _appliedStyleVersion;
+    internal Delta.XAML.UiTemplateId CompiledTemplateId => _compiledTemplateId;
     public float LayoutScale => _layoutScale;
     public float DpiScale => _dpiScale;
     public void SetLayoutScale(float scale) => ApplyLayoutScale(scale);
@@ -1016,6 +1019,17 @@ internal class UiElement
     }
 
     internal void ClearStyleValue(string name) => _properties.Clear(name, UiValueSource.Style);
+
+    internal void SetCompiledTemplate(Delta.XAML.UiTemplateId template)
+    {
+        if (!template.IsValid || _compiledTemplateId == template)
+        {
+            return;
+        }
+
+        _compiledTemplateId = template;
+        InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+    }
 
     internal void DisposeRuntime()
     {

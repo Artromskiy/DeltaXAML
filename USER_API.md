@@ -165,6 +165,11 @@ over `Guid`. Human-readable XAML keys are source aliases, not runtime identity.
 - compiled selector/state plans;
 - exact invalidation of dependent retained values.
 
+Compiled artifacts use `UiTemplateId` with the typed
+`UiTheme.RegisterTemplate(UiTemplateId, UiTemplate)` and
+`UiElement.SetCompiledTemplate(UiTemplateId)` methods. The string template
+key overloads remain for cold loader/tooling composition.
+
 Templates receive an `IUiTemplateFactory`; its `Create` method returns the
 template subtree for the existing owner and resource catalog. This keeps
 compiled template construction typed and avoids a per-template delegate in the

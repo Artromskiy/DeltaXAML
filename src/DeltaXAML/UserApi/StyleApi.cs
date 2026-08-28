@@ -543,6 +543,7 @@ public sealed class UiTheme
 {
     private readonly List<UiStyle> _styles = new();
     private readonly Dictionary<string, UiTemplate> _templates = new(StringComparer.Ordinal);
+    private readonly Dictionary<UiTemplateId, UiTemplate> _compiledTemplates = new();
     private readonly List<UiElement> _stateTraversal = new();
     private readonly Dictionary<string, List<UiElement>> _styleDependents = new(StringComparer.Ordinal);
     private readonly List<UiStyle> _changedStyles = new();
@@ -574,10 +575,34 @@ public sealed class UiTheme
         _templateGeneration++;
     }
 
+    /// <summary>Registers a generated template under its stable identity.</summary>
+    public void RegisterTemplate(UiTemplateId id, UiTemplate template)
+    {
+        if (!id.IsValid)
+        {
+            throw new ArgumentException("A stable template identity is required.", nameof(id));
+        }
+
+        ArgumentNullException.ThrowIfNull(template);
+        _compiledTemplates[id] = template;
+        _templateGeneration++;
+    }
+
     public bool TryGetTemplate(string key, [NotNullWhen(true)] out UiTemplate? template)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         return _templates.TryGetValue(key, out template);
+    }
+
+    public bool TryGetTemplate(UiTemplateId id, [NotNullWhen(true)] out UiTemplate? template)
+    {
+        if (!id.IsValid)
+        {
+            template = null;
+            return false;
+        }
+
+        return _compiledTemplates.TryGetValue(id, out template);
     }
 
     public void Apply(UiElement root)
@@ -735,7 +760,17 @@ public sealed class UiTheme
 
     private void ApplyTemplate(UiElement element)
     {
-        if (element.TemplateKey is not { } templateKey || !TryGetTemplate(templateKey, out var template))
+        UiTemplate? template = null;
+        if (element.RetainedElement.CompiledTemplateId.IsValid)
+        {
+            _compiledTemplates.TryGetValue(element.RetainedElement.CompiledTemplateId, out template);
+        }
+        else if (element.TemplateKey is { } templateKey)
+        {
+            _templates.TryGetValue(templateKey, out template);
+        }
+
+        if (template is null)
         {
             if (element.HasTemplateContent)
             {

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Delta.Diagnostics;
 using Delta.XAML;
@@ -314,6 +315,23 @@ internal static class CSharpArtifactEmitter
             for (var memberIndex = 0; memberIndex < nodes[i].Members.Length; memberIndex++)
             {
                 EmitMember(writer, i, nodes[i].Members[memberIndex], "node", plan.ResourceSlots);
+            }
+        }
+
+        for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
+        {
+            var members = nodes[nodeIndex].Members;
+            for (var memberIndex = 0; memberIndex < members.Length; memberIndex++)
+            {
+                var member = members[memberIndex];
+                if (member.Name != "TemplateKey" || member.Value.Kind != XamlValueKind.String ||
+                    !TryFindTemplate(plan.Templates, member.Value.Literal.CanonicalText, out var template))
+                {
+                    continue;
+                }
+
+                writer.Append("        node").Append(nodeIndex).Append(".SetCompiledTemplate(")
+                    .Append(TemplateIdExpression(template.Id)).AppendLine(");");
             }
         }
 
@@ -804,9 +822,27 @@ internal static class CSharpArtifactEmitter
     {
         for (var templateIndex = 0; templateIndex < templates.Count; templateIndex++)
         {
-            writer.Append("        Theme.RegisterTemplate(").Append(Quote(templates[templateIndex].Key))
+            writer.Append("        Theme.RegisterTemplate(").Append(TemplateIdExpression(templates[templateIndex].Id))
                 .Append(", new global::Delta.XAML.UiTemplate(new TemplateFactory").Append(templateIndex).AppendLine("()));");
         }
+    }
+
+    private static bool TryFindTemplate(
+        IReadOnlyList<XamlTemplatePlan> templates,
+        string key,
+        [NotNullWhen(true)] out XamlTemplatePlan? template)
+    {
+        for (var i = 0; i < templates.Count; i++)
+        {
+            if (string.Equals(templates[i].Key, key, StringComparison.Ordinal))
+            {
+                template = templates[i];
+                return true;
+            }
+        }
+
+        template = null;
+        return false;
     }
 
     private static bool TryEmitAttachment(
@@ -927,6 +963,16 @@ internal static class CSharpArtifactEmitter
         }
 
         return "new global::Delta.XAML.Contract.UiResourceId(new global::System.Guid(" + Quote(resource.Value.ToString("D")) + "))";
+    }
+
+    private static string TemplateIdExpression(UiTemplateId template)
+    {
+        if (!template.IsValid)
+        {
+            throw new InvalidOperationException("A generated template identity is required.");
+        }
+
+        return "new global::Delta.XAML.UiTemplateId(new global::System.Guid(" + Quote(template.Value.ToString("D")) + "))";
     }
 
     private static string TypeIdExpression(UiTypeId type)

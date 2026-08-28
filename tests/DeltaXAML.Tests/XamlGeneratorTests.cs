@@ -55,7 +55,7 @@ internal static partial class Program
         var compositionRegistry = XamlSemanticRegistry.CreateBuiltIns();
         var compositionPlan = XamlCompiler.Compile(
             sourceId,
-            "<Panel><TextBlock StyleKey=\"Title\" /><Style x:Key=\"Title\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><VisualState Name=\"Pressed\"><Setter Property=\"FontSize\" Value=\"18\" /></VisualState></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></Panel>",
+            "<Panel><TextBlock StyleKey=\"Title\" TemplateKey=\"ButtonTemplate\" /><Style x:Key=\"Title\" TargetType=\"TextBlock\"><Setter Property=\"FontSize\" Value=\"16\" /><VisualState Name=\"Pressed\"><Setter Property=\"FontSize\" Value=\"18\" /></VisualState></Style><Template x:Key=\"ButtonTemplate\"><Border><TextBlock Text=\"Template\" /></Border></Template></Panel>",
             compositionRegistry);
         Assert.True(compositionPlan.Success, "styles and templates remain in the compiled semantic plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(compositionPlan, compositionRegistry, "Generated", "CompositionArtifact", out var compositionSource, out var compositionDiagnostic), "styles and templates emit through the companion path");
@@ -63,7 +63,8 @@ internal static partial class Program
         Assert.True(compositionSource.Contains("Set(global::Delta.XAML.UiTextBlockProperties.FontSize, 16f)", StringComparison.Ordinal), "compiled style uses a typed property descriptor");
         Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, global::Delta.XAML.UiTextBlockProperties.FontSize, 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
         Assert.True(!compositionSource.Contains("Set(\"FontSize\"", StringComparison.Ordinal), "compiled style does not use string property dispatch");
-        Assert.True(compositionSource.Contains("Theme.RegisterTemplate(\"ButtonTemplate\"", StringComparison.Ordinal), "compiled template registration is direct");
+        Assert.True(compositionSource.Contains("Theme.RegisterTemplate(new global::Delta.XAML.UiTemplateId", StringComparison.Ordinal), "compiled template registration uses a stable identity");
+        Assert.True(compositionSource.Contains("SetCompiledTemplate(new global::Delta.XAML.UiTemplateId", StringComparison.Ordinal), "compiled template selection uses a stable identity");
         Assert.True(compositionSource.Contains("IUiTemplateFactory", StringComparison.Ordinal), "compiled templates use a typed factory boundary");
         Assert.True(!compositionSource.Contains("UiTemplate(owner =>", StringComparison.Ordinal), "compiled templates do not retain delegate construction");
         Assert.True(compositionSource.Contains("Theme.Apply(node0);", StringComparison.Ordinal), "compiled style/template state is applied after attachment");
@@ -84,6 +85,13 @@ internal static partial class Program
         styledText.RetainedElement.SetFocused(true);
         typedTheme.RefreshStates(styledText);
         Assert.Equal(20f, styledText.FontSize, "typed visual-state descriptor applies its value");
+
+        var typedTemplateId = new Library.UiTemplateId(new Guid("D5A5E3D7-0B26-4A5A-A9D7-1E8F768A7E02"));
+        typedTheme.RegisterTemplate(typedTemplateId, new Library.UiTemplate(new LabelTemplateFactory()));
+        var typedTemplateHost = new Library.UiContentControl();
+        typedTemplateHost.SetCompiledTemplate(typedTemplateId);
+        typedTheme.Apply(typedTemplateHost);
+        Assert.True(typedTemplateHost.Content is Library.UiTextBlock typedTemplateContent && typedTemplateContent.Text == "templated", "typed template identity selects a retained template");
 
         var bindingRegistry = XamlSemanticRegistry.CreateBuiltIns();
         bindingRegistry.RegisterBinding(new(
