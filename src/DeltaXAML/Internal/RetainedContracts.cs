@@ -153,7 +153,6 @@ internal readonly record struct UiRoutedEvent(
     UiPointerEventKind Kind,
     UiPoint Position,
     float WheelDelta = 0);
-internal interface IUiInputDispatcher { void Dispatch(in UiInputPacket packet); }
 internal interface IUiInputRouter
 {
     UiElementId? Focused { get; }

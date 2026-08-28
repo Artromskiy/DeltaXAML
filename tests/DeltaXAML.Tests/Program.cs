@@ -451,25 +451,25 @@ internal static partial class Program
         button.Click += (_, _) => clicked = true;
         frame.Input.Focus(box.Id);
         Assert.True(box.IsFocused, "explicit focus updates the focused visual state");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiTextInput("12".AsMemory())));
+        frame.Input.RouteText(new UiTextInput("12".AsMemory()));
         Assert.Equal("12", box.Text, "UTF text is separate input");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiKeyEvent(8, true)));
+        frame.Input.RouteKey(new UiKeyEvent(8, true));
         Assert.Equal("1", box.Text, "physical backspace");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Move, new(10, 65))));
+        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Move, new(10, 65)));
         Assert.True(button.IsHovered && !box.IsHovered, "pointer move updates only the current hovered visual state");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Down, new(10, 65), 1)));
+        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Down, new(10, 65), 1));
         if (frame.Input.Captured is not { } captured)
         {
             throw new InvalidOperationException("Pointer capture was not set.");
         }
 
         Assert.Equal(button.Id, captured, "pointer capture");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Up, new(10, 65), 1)));
+        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Up, new(10, 65), 1));
         Assert.True(clicked, "button bubble click");
         Assert.True(!probe.IsHovered && !probe.IsFocused, "route does not include unrelated sibling nodes");
         Assert.True(frame.Input.Focused == button.Id, "pointer focuses control");
         Assert.True(button.IsFocused && !box.IsFocused, "pointer focus clears the previous focused visual state");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiKeyEvent(9, true)));
+        frame.Input.RouteKey(new UiKeyEvent(9, true));
         Assert.True(frame.Input.Focused == probe.Id || frame.Input.Focused == box.Id, "tab focus traversal");
         Assert.True(!button.IsFocused, "tab focus clears the previous focused visual state");
     }
@@ -1410,7 +1410,7 @@ internal static partial class Program
         Assert.Equal(2, frame.NodeCount, "node store clears only the removed element slot after a tree refresh");
         frame.Layout(new(100, 20), 1);
         Assert.Equal(new UiRect(0, 0, 100, 20), text.Bounds, "frame layout boundary");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Down, new(10, 10), 1)));
+        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Down, new(10, 10), 1));
         if (frame.Input.Focused is not { } focused || frame.Input.Captured is not { } captured)
         {
             throw new InvalidOperationException("Frame input did not focus and capture element.");
@@ -1418,7 +1418,7 @@ internal static partial class Program
 
         Assert.Equal(text.Id, focused, "frame input focuses element");
         Assert.Equal(text.Id, captured, "frame input captures pointer");
-        ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Up, new(10, 10), 1)));
+        frame.Input.RoutePointer(new UiPointerEvent(UiPointerEventKind.Up, new(10, 10), 1));
         Assert.True(frame.Input.Captured is null, "frame input releases capture");
         frame.Input.Focus(text.Id);
         text.IsEnabled = false;
