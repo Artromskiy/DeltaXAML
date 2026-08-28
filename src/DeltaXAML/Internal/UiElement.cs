@@ -1517,16 +1517,16 @@ internal sealed class NumericEditor : TextBox
     public void Initialize(double value) { SetLocalProperty("Value", value, UiDirtyFlags.Binding | UiDirtyFlags.Visual); }
     public bool TryCommit()
     {
-        if (!UiNumericEditorGenerated.TryParse(Text, Min, Max, out var value, out var diagnostic))
+        if (!UiNumericEditorGenerated.TryCommit(ref _state, Text, Min, Max, out var formatted, out var diagnostic))
         {
             Diagnostic = diagnostic;
+            SetInvalid(true);
             return false;
         }
 
-        _state.Value = value;
-        _state.CommittedText = Format(value);
-        SetText(_state.CommittedText, false);
+        SetText(formatted, false);
         Diagnostic = null;
+        SetInvalid(false);
         return true;
     }
     public void CancelEdit() { SetText(_state.CommittedText ?? string.Empty, false); Diagnostic = null; }
@@ -1550,11 +1550,9 @@ internal sealed class NumericEditor : TextBox
     }
     public bool TryApplyValue(string text, out string? error)
     {
-        if (UiNumericEditorGenerated.TryParse(text, Min, Max, out var value, out var diagnostic))
+        if (UiNumericEditorGenerated.TryCommit(ref _state, text, Min, Max, out var formatted, out var diagnostic))
         {
-            _state.Value = value;
-            _state.CommittedText = Format(value);
-            SetText(_state.CommittedText, false);
+            SetText(formatted, false);
             Diagnostic = null;
             SetInvalid(false);
             error = null;
@@ -1572,7 +1570,7 @@ internal sealed class NumericEditor : TextBox
         switch (key)
         {
             case UiPropertyKey.Value when value is double numeric:
-                return TryApplyValue(Format(numeric), out _);
+                return TryApplyValue(UiNumericEditorGenerated.Format(numeric), out _);
             case UiPropertyKey.Minimum when value is double minimum:
                 UiNumericEditorGenerated.TrySetMinimum(ref _state, minimum);
                 return true;
@@ -1594,13 +1592,12 @@ internal sealed class NumericEditor : TextBox
             return false;
         }
 
-        _state.CommittedText = Format(_state.Value);
+        _state.CommittedText = UiNumericEditorGenerated.Format(_state.Value);
         SetText(_state.CommittedText, false);
         Diagnostic = null;
         SetInvalid(false);
         return true;
     }
-    private static string Format(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
     protected override string GetAutomationValueText() => Value.ToString(CultureInfo.InvariantCulture);
     internal override Type BindingTargetType(string propertyName) => propertyName == "Value" ? typeof(double) : base.BindingTargetType(propertyName);
 }

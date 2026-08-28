@@ -35,6 +35,17 @@ internal static class UiNumericEditorGenerated
         out string? diagnostic) =>
         NumericValidationMixin.TryParse(text, min, max, out value, out diagnostic);
 
+    internal static bool TryCommit(
+        ref NumericEditorState state,
+        string text,
+        double min,
+        double max,
+        out string formatted,
+        out string? diagnostic) =>
+        NumericValidationMixin.TryCommit(ref state, text, min, max, out formatted, out diagnostic);
+
+    internal static string Format(double value) => NumericValidationMixin.Format(value);
+
     internal static bool TryAdjust(ref NumericEditorState state, double delta, out string? diagnostic) =>
         NumericValidationMixin.TryAdjust(ref state, delta, out diagnostic);
 

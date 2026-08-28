@@ -209,6 +209,26 @@ internal readonly struct NumericEditorInputMixin : ITextBoxInputMixin<NumericEdi
 
 internal readonly struct NumericValidationMixin
 {
+    internal static bool TryCommit(
+        ref NumericEditorState state,
+        string text,
+        double min,
+        double max,
+        out string formatted,
+        out string? diagnostic)
+    {
+        if (!TryParse(text, min, max, out var value, out diagnostic))
+        {
+            formatted = string.Empty;
+            return false;
+        }
+
+        state.Value = value;
+        formatted = Format(value);
+        state.CommittedText = formatted;
+        return true;
+    }
+
     public static bool TryParse(
         string text,
         double min,
@@ -232,6 +252,9 @@ internal readonly struct NumericValidationMixin
             ".";
         return false;
     }
+
+    internal static string Format(double value) =>
+        value.ToString("G17", System.Globalization.CultureInfo.InvariantCulture);
 
     public static bool TryAdjust(
         ref NumericEditorState state,
