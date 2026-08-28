@@ -228,9 +228,35 @@ internal static class UiMeasureStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.ExecuteMeasure(node.RuntimeType, request.Available, nodes, queue);
+                ExecuteMeasure(nodes, element, node.RuntimeType, request.Available, queue);
             }
         }
+    }
+
+    private static void ExecuteMeasure(
+        UiNodeStore nodes,
+        UiElement element,
+        UiRuntimeTypeIndex runtimeType,
+        UiSize available,
+        UiMeasureQueueBuffer requests)
+    {
+        if (element.CanSkipMeasure(available))
+        {
+            return;
+        }
+
+        if (!element.ParticipatesIn(Delta.XAML.UiParticipation.Layout))
+        {
+            element.CompleteMeasure(available, default);
+            return;
+        }
+
+        var children = nodes.GetLogicalChildren(new(element.Id.Value, element.Generation));
+        var measured = UiDescriptorCatalog.Measure(runtimeType, element, new(available, element.LayoutScale, children, true, requests, nodes));
+        UiSize desired = new(
+            float.IsNaN(element.Width) ? measured.Width : element.Width,
+            float.IsNaN(element.Height) ? measured.Height : element.Height);
+        element.CompleteMeasure(available, desired);
     }
 }
 
@@ -254,9 +280,35 @@ internal static class UiArrangeStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                element.ExecuteArrange(node.RuntimeType, request.Bounds, request.Clip, queue, nodes);
+                ExecuteArrange(nodes, element, node.RuntimeType, request.Bounds, request.Clip, queue);
             }
         }
+    }
+
+    private static void ExecuteArrange(
+        UiNodeStore nodes,
+        UiElement element,
+        UiRuntimeTypeIndex runtimeType,
+        UiRect bounds,
+        UiRect clip,
+        UiArrangeQueueBuffer requests)
+    {
+        if (element.CanSkipArrange(bounds, clip))
+        {
+            return;
+        }
+
+        if (!element.ParticipatesIn(Delta.XAML.UiParticipation.Layout))
+        {
+            element.SetNonParticipatingArrange(clip);
+            element.CompleteArrange(bounds, clip);
+            return;
+        }
+
+        element.SetArrangeFrame(bounds, clip);
+        var children = nodes.GetLogicalChildren(new(element.Id.Value, element.Generation));
+        UiDescriptorCatalog.Arrange(runtimeType, element, new(bounds, clip, children, requests, nodes));
+        element.CompleteArrange(bounds, clip);
     }
 }
 

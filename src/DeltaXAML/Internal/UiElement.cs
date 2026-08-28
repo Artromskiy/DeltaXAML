@@ -647,69 +647,38 @@ internal class UiElement
         Participation = value;
         InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.HitTest);
     }
-    internal void ExecuteMeasure(UiRuntimeTypeIndex runtimeType, UiSize available, UiNodeStore nodes, UiMeasureQueueBuffer requests)
-    {
-        ArgumentNullException.ThrowIfNull(nodes);
-        ArgumentNullException.ThrowIfNull(requests);
-        if (CanSkipMeasure(available))
-        {
-            return;
-        }
-
-        if ((Participation & Delta.XAML.UiParticipation.Layout) == 0)
-        {
-            DesiredSize = default;
-            CompleteMeasure(available);
-            return;
-        }
-
-        var children = nodes.GetLogicalChildren(new(Id.Value, Generation));
-        DesiredSize = RequestedSize(UiDescriptorCatalog.Measure(runtimeType, this, new(available, LayoutScale, children, true, requests, nodes)));
-        CompleteMeasure(available);
-    }
-
-    internal void ExecuteArrange(UiRuntimeTypeIndex runtimeType, UiRect bounds, UiRect clip, UiArrangeQueueBuffer requests, UiNodeStore nodes)
-    {
-        ArgumentNullException.ThrowIfNull(requests);
-        ArgumentNullException.ThrowIfNull(nodes);
-        if (CanSkipArrange(bounds, clip))
-        {
-            return;
-        }
-
-        if ((Participation & Delta.XAML.UiParticipation.Layout) == 0)
-        {
-            Bounds = default;
-            Clip = clip;
-            CompleteArrange(bounds, clip);
-            return;
-        }
-
-        Bounds = bounds;
-        Clip = clip;
-        var children = nodes.GetLogicalChildren(new(Id.Value, Generation));
-        UiDescriptorCatalog.Arrange(runtimeType, this, new(bounds, clip, children, requests, nodes));
-        CompleteArrange(bounds, clip);
-    }
-    protected bool CanSkipMeasure(UiSize available) =>
+    internal bool CanSkipMeasure(UiSize available) =>
         _hasMeasured && (DirtyFlags & UiDirtyFlags.Measure) == 0 && _measuredAvailable == available;
 
     internal bool NeedsMeasure(UiSize available) => !CanSkipMeasure(available);
 
-    protected void CompleteMeasure(UiSize available)
+    internal void CompleteMeasure(UiSize available, UiSize desired)
     {
+        DesiredSize = desired;
         _measuredAvailable = available;
         _hasMeasured = true;
         DirtyFlags &= ~UiDirtyFlags.Measure;
         DirtyFlags |= UiDirtyFlags.Arrange;
     }
 
-    protected bool CanSkipArrange(UiRect bounds, UiRect clip) =>
+    internal bool CanSkipArrange(UiRect bounds, UiRect clip) =>
         _hasArranged && (DirtyFlags & UiDirtyFlags.Arrange) == 0 && _arrangedBounds == bounds && _arrangedClip == clip;
 
     internal bool NeedsArrange(UiRect bounds, UiRect clip) => !CanSkipArrange(bounds, clip);
 
-    protected void CompleteArrange(UiRect bounds, UiRect clip)
+    internal void SetArrangeFrame(UiRect bounds, UiRect clip)
+    {
+        Bounds = bounds;
+        Clip = clip;
+    }
+
+    internal void SetNonParticipatingArrange(UiRect clip)
+    {
+        Bounds = default;
+        Clip = clip;
+    }
+
+    internal void CompleteArrange(UiRect bounds, UiRect clip)
     {
         _arrangedBounds = bounds;
         _arrangedClip = clip;
@@ -744,7 +713,6 @@ internal class UiElement
         SetDisplayRange(-1, -1, -1);
         SetDisplaySubtreeCounts(0, 0, 0);
     }
-    protected UiSize RequestedSize(UiSize measured) => new(float.IsNaN(Width) ? measured.Width : Width, float.IsNaN(Height) ? measured.Height : Height);
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) => _properties.TryGet(name, out value);
     internal virtual bool TryApplyTypedProperty(UiPropertyKey key, object? value)
     {

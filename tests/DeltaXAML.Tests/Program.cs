@@ -315,6 +315,7 @@ internal static partial class Program
         NodeStoreRejectsCrossDocumentReparenting();
         DisplayExtractionFollowsNodeLinksAfterTreeMutation();
         DescriptorLayoutDispatch();
+        LegacyLayoutEntryPointsAreGone();
     }
 
     private static void PropertyInvalidation()
@@ -1832,5 +1833,14 @@ internal static partial class Program
         var textRuntime = new UiRuntime(text);
         textRuntime.Layout(new(100, 40), 1);
         Assert.True(text.DesiredSize.Width > 0 && text.DesiredSize.Height > 0, "text descriptor dispatch produces desired size");
+    }
+
+    private static void LegacyLayoutEntryPointsAreGone()
+    {
+        var flags = System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.Public |
+            System.Reflection.BindingFlags.NonPublic;
+        Assert.True(typeof(UiElement).GetMethod("ExecuteMeasure", flags) is null, "layout enters through the stateless measure stage");
+        Assert.True(typeof(UiElement).GetMethod("ExecuteArrange", flags) is null, "arrange enters through the stateless arrange stage");
     }
 }
