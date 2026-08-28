@@ -243,6 +243,7 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private UiElementState _state = new() { Width = float.NaN, Height = float.NaN, IsEnabled = true };
     private object? _bindingContext;
     private bool _hasExplicitBindingContext;
+    private bool _bindingStageManaged;
     private float _layoutScale = 1f;
     private float _dpiScale = 1f;
     private uint _layoutVersion;
@@ -542,6 +543,11 @@ internal class UiElement : IUiElement, IUiPropertyStore
         }
 
         _bindingRuntimes.Add(binding.PropertyName, binding);
+        if (_bindingStageManaged)
+        {
+            binding.EnableStageManagement();
+        }
+
         binding.Attach(this, BindingInvalidation(binding.PropertyName));
         binding.SetContext(_bindingContext);
     }
@@ -550,6 +556,23 @@ internal class UiElement : IUiElement, IUiPropertyStore
         AttachBinding(new UiBindingRuntime(propertyName, binding));
 
     internal bool HasBinding(string propertyName) => _bindingRuntimes.ContainsKey(propertyName);
+
+    internal void ApplyBindingStage()
+    {
+        foreach (var binding in _bindingRuntimes.Values)
+        {
+            binding.ApplyPending();
+        }
+    }
+
+    internal void EnableBindingStage()
+    {
+        _bindingStageManaged = true;
+        foreach (var binding in _bindingRuntimes.Values)
+        {
+            binding.EnableStageManagement();
+        }
+    }
 
     internal void NotifyBindingTargetChanged(string propertyName, object? value)
     {

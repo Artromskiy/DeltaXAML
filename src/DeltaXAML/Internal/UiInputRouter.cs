@@ -44,6 +44,8 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
     public void Focus(UiElementId? element) =>
         _focused = element is { } id && _runtime.TryResolve(id, out var resolved) ? resolved : null;
 
+    internal void RepairFocusAndCapture() => PruneDetachedState();
+
     public void RoutePointer(in UiPointerEvent input)
     {
         PruneDetachedState();
@@ -111,17 +113,17 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 
     private void PruneDetachedState()
     {
-        if (_focused is not null && !_runtime.Contains(_focused))
+        if (_focused is not null && (!_runtime.Contains(_focused) || !_focused.IsEnabled || _focused.Visibility != UiVisibility.Visible))
         {
             _focused = null;
         }
 
-        if (_captured is not null && !_runtime.Contains(_captured))
+        if (_captured is not null && (!_runtime.Contains(_captured) || !_captured.IsEnabled || _captured.Visibility != UiVisibility.Visible))
         {
             _captured = null;
         }
 
-        if (_hovered is not null && !_runtime.Contains(_hovered))
+        if (_hovered is not null && (!_runtime.Contains(_hovered) || !_hovered.IsEnabled || _hovered.Visibility != UiVisibility.Visible))
         {
             _hovered = null;
         }

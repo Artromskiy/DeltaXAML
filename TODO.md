@@ -77,13 +77,14 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
 
 ### P1 — retained stages and game use
 
-- [ ] Split retained execution into explicit mutation, binding, style, measure,
+- [x] Split retained execution into explicit mutation, binding, style, measure,
   arrange, input/focus and visual stages. Keep `UiDocument` as the small public
-  owner; do not create a service-locator facade or allow stages to invoke one
-  another recursively.
-- [ ] Store logical and visual relations under one generation-safe `UiNodeId`.
-  Template expansion may create a visual subtree but not a second logical
-  document or per-frame translated tree.
+  owner; `UiRuntimeStages` sequences stateless stage algorithms without a
+  service locator or stage-to-stage recursion.
+- [x] Store logical and visual relations under one generation-safe `UiNodeId`.
+  `UiNodeStore` also retains the compact runtime descriptor index. Template
+  expansion may create a visual subtree but not a second logical document or
+  per-frame translated tree.
 - [ ] Add precise property invalidation and dirty-subtree processing. Layout
   must not invoke bindings, perform reflection, allocate child collections or
   reshape unchanged text.
@@ -117,8 +118,8 @@ in [INTERNAL.md#remaining-implementation-specification](INTERNAL.md#remaining-im
   converters, typed compiled bindings and two-way source updates.
 - [x] Add named resources, dynamic resource references, style precedence,
   templates and collection-row reuse on the single retained tree.
-- [ ] Replace the current O(n) frame mutation lookup with a neutral retained
-  index only after profiling shows that mutation volume justifies its upkeep.
+- [x] Replace the removed O(n) frame mutation lookup with the neutral retained
+  `UiNodeStore` index; handle generation validation remains O(1).
 - [ ] Expand the dialect toward practical XAML capability coverage in staged
   slices: resources/styles/templates, property systems, bindings, custom
   controls, input, and markup extensions. Track unsupported standard features

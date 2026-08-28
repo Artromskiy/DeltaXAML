@@ -14,6 +14,7 @@ internal sealed class UiRuntime
     private readonly UiNodeStore _nodes;
     private readonly UiInputRouter _input;
     private readonly List<UiTraversalEntry> _traversal = new();
+    private readonly List<UiElement> _stageTraversal = new();
 
     public UiRuntime(IUiElement root)
     {
@@ -22,6 +23,7 @@ internal sealed class UiRuntime
         Root = _retainedRoot;
         _nodes = new(_retainedRoot);
         _input = new(this);
+        UiBindingStage.Run(_retainedRoot, _stageTraversal);
     }
 
     public IUiElement Root { get; }
@@ -37,22 +39,9 @@ internal sealed class UiRuntime
 
     public void ApplyMutations()
     {
-        AppliedMutationCount = 0;
-        RejectedMutationCount = 0;
-        for (var i = 0; i < _mutations.Count; i++)
-        {
-            var mutation = _mutations[i];
-            if (TryResolve(mutation.Target, out var element) && element.TrySet(mutation.Target, mutation.Value, mutation.Invalidation, out _))
-            {
-                AppliedMutationCount++;
-            }
-            else
-            {
-                RejectedMutationCount++;
-            }
-        }
-
-        _mutations.Clear();
+        UiMutationStage.Run(_nodes, _retainedRoot, _mutations, out var applied, out var rejected);
+        AppliedMutationCount = applied;
+        RejectedMutationCount = rejected;
     }
 
     public void Layout(UiSize viewport, float dpiScale)
@@ -66,17 +55,21 @@ internal sealed class UiRuntime
         Delta.XAML.UiTheme? theme,
         Delta.XAML.UiElement? publicRoot)
     {
-        ApplyInput();
-        ApplyMutations();
+        UiInputStage.Run(_input, _inputQueue);
+        UiMutationStage.Run(_nodes, _retainedRoot, _mutations, out var applied, out var rejected);
+        AppliedMutationCount = applied;
+        RejectedMutationCount = rejected;
+        UiBindingStage.Run(_retainedRoot, _stageTraversal);
         if (theme is not null && publicRoot is not null)
         {
-            theme.RefreshStates(publicRoot);
+            UiStyleStage.Run(theme, publicRoot);
         }
 
         _retainedRoot.SetLayoutScale(dpiScale);
         var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
-        Root.Measure(scaled);
-        Root.Arrange(new(0, 0, viewport.Width, viewport.Height));
+        UiMeasureStage.Run(_retainedRoot, scaled);
+        UiArrangeStage.Run(_retainedRoot, new(0, 0, viewport.Width, viewport.Height));
+        UiFocusStage.Run(_input);
     }
 
     internal bool TryResolve(UiPropertyHandle handle, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out UiElement? element)
@@ -166,16 +159,6 @@ internal sealed class UiRuntime
                 }
             }
         }
-    }
-
-    private void ApplyInput()
-    {
-        for (var i = 0; i < _inputQueue.Count; i++)
-        {
-            _input.Dispatch(_inputQueue[i]);
-        }
-
-        _inputQueue.Clear();
     }
 
     private readonly record struct UiTraversalEntry(UiElement Element, bool Exit);

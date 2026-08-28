@@ -21,6 +21,8 @@ internal sealed class UiBindingRuntime : IDisposable
     private object? _context;
     private INotifyPropertyChanged? _observable;
     private int _disposed;
+    private int _pendingRefresh;
+    private bool _stageManaged;
 
     internal UiBindingRuntime(string propertyName, PublicBindingExpression expression)
     {
@@ -91,6 +93,33 @@ internal sealed class UiBindingRuntime : IDisposable
         }
 
         _binding.NotifyChanged();
+    }
+
+    internal void ApplyPending()
+    {
+        if (Interlocked.Exchange(ref _pendingRefresh, 0) != 0)
+        {
+            Refresh();
+        }
+    }
+
+    internal void EnableStageManagement() => _stageManaged = true;
+
+    private void QueueRefresh()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            return;
+        }
+
+        if (!_stageManaged)
+        {
+            Refresh();
+            return;
+        }
+
+        Interlocked.Exchange(ref _pendingRefresh, 1);
+        _owner?.Invalidate(UiDirtyFlags.Binding);
     }
 
     internal void WriteTarget(object? value)
@@ -280,13 +309,13 @@ internal sealed class UiBindingRuntime : IDisposable
         }
     }
 
-    private void OnExternalChanged(object? sender, EventArgs args) => Refresh();
+    private void OnExternalChanged(object? sender, EventArgs args) => QueueRefresh();
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (string.IsNullOrEmpty(args.PropertyName) || args.PropertyName == _segments[0])
         {
-            Refresh();
+            QueueRefresh();
         }
     }
 }

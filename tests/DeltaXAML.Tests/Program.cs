@@ -216,6 +216,7 @@ internal static partial class Program
         BindingExpressionsAndContexts();
         EditorShellLibrarySlice();
         HandlesCompiledBindingsAndCustomTypes();
+        RuntimeStagesAreOrdered();
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
         PublicResourcesStylesTemplatesAndTypes();
@@ -579,6 +580,23 @@ internal static partial class Program
         Assert.True(editText.Text == "Bob" && editModel.Name == "Bob", "two-way text edit writes the source");
     }
 
+    private static void RuntimeStagesAreOrdered()
+    {
+        var model = new BindingModel { Name = "before" };
+        var text = new Library.UiTextBlock { Width = 100, Height = 20 };
+        var root = new Library.UiPanel();
+        root.Add(text);
+        using var binding = new Library.UiCompiledBinding<BindingModel, string>(model, source => source.Name);
+        text.SetBinding("Text", binding);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(root, textService);
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        model.Name = "after";
+        Assert.Equal("before", text.Text, "binding notifications wait for the document binding stage");
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        Assert.Equal("after", text.Text, "binding stage applies queued source changes before measure");
+    }
+
     private static void EditorShellLibrarySlice()
     {
         var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "EditorShell.xaml"));
@@ -807,6 +825,10 @@ internal static partial class Program
         Assert.Equal(text.Id, captured, "frame input captures pointer");
         ((IUiInputDispatcher)frame.Input).Dispatch(UiInputPacket.From(new UiPointerEvent(UiPointerEventKind.Up, new(10, 10), 1)));
         Assert.True(frame.Input.Captured is null, "frame input releases capture");
+        frame.Input.Focus(text.Id);
+        text.IsEnabled = false;
+        frame.Layout(new(100, 20), 1);
+        Assert.True(frame.Input.Focused is null, "focus stage releases disabled focus");
     }
 
     private static void ParticipationBoundary()
