@@ -373,14 +373,14 @@ public abstract class UiElement
     internal void ApplyStyleValue(string propertyName, object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
-        _retained.SetStyle(propertyName, ToRetainedValue(value), RetainedDirty.Measure | RetainedDirty.Visual);
+        _retained.SetStyle(propertyName, ToRetainedValue(value), StyleInvalidation(propertyName));
     }
 
     internal void ApplyStyleResource(string propertyName, UiResourceCatalog resources, string resourceKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentNullException.ThrowIfNull(resources);
-        _retained.SetStyleResource(propertyName, resources.Store, new(resourceKey), RetainedDirty.Measure | RetainedDirty.Visual);
+        _retained.SetStyleResource(propertyName, resources.Store, new(resourceKey), StyleInvalidation(propertyName));
     }
 
     /// <summary>Assigns a resource-backed style value that follows later catalog changes.</summary>
@@ -485,6 +485,13 @@ public abstract class UiElement
         UiThickness thickness => new Retained.UiThickness(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
         UiResourceReference reference => new Retained.UiResourceReference(reference.Key),
         _ => value,
+    };
+
+    private static RetainedDirty StyleInvalidation(string propertyName) => propertyName switch
+    {
+        "Text" or "FontKey" or "FontSize" or "Width" or "Height" or "Padding" or
+        "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
+        _ => RetainedDirty.Visual,
     };
 }
 

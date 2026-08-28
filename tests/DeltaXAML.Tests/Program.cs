@@ -820,6 +820,7 @@ internal static partial class Program
         styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
         resources.Set("TextColor", secondColor);
         Assert.Equal(secondColor, text.Foreground, "resource change updates the dependent style value");
+        Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Measure) == 0, "foreground resource change does not invalidate measure");
         Assert.Equal(new Library.UiColor(255, 255, 255), other.Foreground, "unrelated element is not changed by a resource update");
 
         using var stateTextService = new EmptyTextService();
