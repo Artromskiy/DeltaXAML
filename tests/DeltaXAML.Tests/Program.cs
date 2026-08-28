@@ -248,6 +248,7 @@ internal static partial class Program
         TextDisplayListUsesDeltaText();
         DisplayListDirtySubtreeReusesStableText();
         TextCacheDropsRemovedNodes();
+        TextVersionTracksTextInputsOnly();
         DpiInvalidatesLayoutWithoutCompoundingScale();
         CustomVisualsRemainNeutral();
         PublicDisplayListWarmFrameHasNoAllocations();
@@ -895,6 +896,52 @@ internal static partial class Program
         Assert.Equal(stableLayoutVersion, text.LayoutVersion, "unchanged DPI does not repeat layout invalidation");
         Assert.Equal(second.Version, third.Version, "unchanged DPI keeps the text-run version");
         Assert.Equal(second.FontSize, third.FontSize, "unchanged DPI does not compound text scaling");
+    }
+
+    private static void TextVersionTracksTextInputsOnly()
+    {
+        var root = new Panel();
+        var text = new TextBlock { Text = "stable", Width = 100, Height = 20 };
+        root.Add(text);
+        var runtime = new UiRuntime(root);
+        runtime.Layout(new(100, 40), 1);
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                new UiRuntimeTypeIndex(1),
+                text,
+                new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
+                out var first),
+            "text fixture emits an initial run");
+
+        text.Background = new UiColor(1, 2, 3);
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                new UiRuntimeTypeIndex(1),
+                text,
+                new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
+                out var background),
+            "background update keeps the text run available");
+        Assert.Equal(first.Version, background.Version, "background-only updates preserve text identity");
+
+        root.Background = new UiColor(4, 5, 6);
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                new UiRuntimeTypeIndex(1),
+                text,
+                new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
+                out var parentVisual),
+            "parent visual update keeps the child text run available");
+        Assert.Equal(first.Version, parentVisual.Version, "parent visual updates preserve child text identity");
+
+        text.Foreground = new UiColor(10, 11, 12);
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                new UiRuntimeTypeIndex(1),
+                text,
+                new(text.Id, text.Generation, text.LayoutScale, text.TextRunVersion),
+                out var foreground),
+            "foreground update keeps the text run available");
+        Assert.True(foreground.Version != first.Version, "foreground updates invalidate text identity");
     }
 
     private static void PublicDisplayListWarmFrameHasNoAllocations()

@@ -508,14 +508,18 @@ public abstract class UiElement
 
     private static RetainedDirty PropertyInvalidation(string propertyName) => propertyName switch
     {
-        "Text" or "FontKey" or "FontSize" or "Width" or "Height" or "Padding" or
+        "Text" or "FontKey" or "FontSize" => RetainedDirty.Measure | RetainedDirty.Visual | RetainedDirty.Text,
+        "Foreground" => RetainedDirty.Visual | RetainedDirty.Text,
+        "Width" or "Height" or "Padding" or
         "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
         _ => RetainedDirty.Visual,
     };
 
     private static RetainedDirty StyleInvalidation(string propertyName) => propertyName switch
     {
-        "Text" or "FontKey" or "FontSize" or "Width" or "Height" or "Padding" or
+        "Text" or "FontKey" or "FontSize" => RetainedDirty.Measure | RetainedDirty.Visual | RetainedDirty.Text,
+        "Foreground" => RetainedDirty.Visual | RetainedDirty.Text,
+        "Width" or "Height" or "Padding" or
         "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
         _ => RetainedDirty.Visual,
     };

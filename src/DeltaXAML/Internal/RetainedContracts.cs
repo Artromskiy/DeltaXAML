@@ -3,7 +3,7 @@ using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 namespace DeltaXAML.Internal;
 
-[Flags] internal enum UiDirtyMask { None = 0, Tree = 1, Style = 2, Binding = 4, Measure = 8, Arrange = 16, Visual = 32, HitTest = 64, Resource = 128, BindingSubtree = 256 }
+[Flags] internal enum UiDirtyMask { None = 0, Tree = 1, Style = 2, Binding = 4, Measure = 8, Arrange = 16, Visual = 32, HitTest = 64, Resource = 128, BindingSubtree = 256, Text = 512 }
 internal enum UiVisibility { Visible, Hidden, Collapsed }
 internal enum UiOrientation { Horizontal, Vertical }
 internal enum UiValueSource { Default, Local, Style, Binding, Handle, Animation }
