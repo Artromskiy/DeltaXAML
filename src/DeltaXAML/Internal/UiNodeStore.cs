@@ -23,6 +23,11 @@ internal sealed class UiNodeStore
     internal UiNodeStore(UiElement root)
     {
         ArgumentNullException.ThrowIfNull(root);
+        if (root.Parent is not null)
+        {
+            throw new InvalidOperationException("A node store requires a detached retained document root.");
+        }
+
         _root = root;
         _layoutChildren = new(this, _layoutChildIds);
         root.AttachNodeStore(this);

@@ -311,6 +311,7 @@ internal static partial class Program
         RuntimeLayoutQueuesAreNonRecursive();
         NodeStagesFollowStructuralMutations();
         NodeStoreHasSingleOwner();
+        NodeStoreOwnsDetachedRoot();
         DisplayExtractionFollowsNodeLinksAfterTreeMutation();
         DescriptorLayoutDispatch();
     }
@@ -1652,6 +1653,46 @@ internal static partial class Program
 
         var replacement = new UiNodeStore(root);
         replacement.Detach();
+    }
+
+    private static void NodeStoreOwnsDetachedRoot()
+    {
+        var parent = new Panel();
+        var nested = new Panel();
+        parent.Add(nested);
+        var nestedRejected = false;
+        try
+        {
+            _ = new UiNodeStore(nested);
+        }
+        catch (InvalidOperationException)
+        {
+            nestedRejected = true;
+        }
+
+        Assert.True(nestedRejected, "a node store rejects an element nested below another retained root");
+
+        var ownedRoot = new Panel();
+        var store = new UiNodeStore(ownedRoot);
+        try
+        {
+            var reparentRejected = false;
+            try
+            {
+                parent.Add(ownedRoot);
+            }
+            catch (InvalidOperationException)
+            {
+                reparentRejected = true;
+            }
+
+            Assert.True(reparentRejected, "an attached document root cannot be reparented");
+            Assert.True(ownedRoot.Parent is null, "rejected reparenting leaves the document root detached");
+        }
+        finally
+        {
+            store.Detach();
+        }
     }
 
     private static void DisplayExtractionFollowsNodeLinksAfterTreeMutation()

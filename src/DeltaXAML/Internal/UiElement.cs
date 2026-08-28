@@ -454,6 +454,11 @@ internal class UiElement
             }
         }
 
+        if (child._nodeStore is not null)
+        {
+            throw new InvalidOperationException("A retained document root cannot be reparented while its node store is attached.");
+        }
+
         if (child.Parent is { } parent)
         {
             parent.Remove(child);
