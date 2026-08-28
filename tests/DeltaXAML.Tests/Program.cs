@@ -242,6 +242,7 @@ internal static partial class Program
         TextClipboardUndoAndValidation();
         PointerFocusAndDispatch();
         PublicInputPreservesKeyModifiers();
+        PublicWheelScrollsScrollViewer();
         ScrollAndClips();
         TextDisplayListUsesDeltaText();
         DisplayListDirtySubtreeReusesStableText();
@@ -504,6 +505,32 @@ internal static partial class Program
         document.Layout(new Delta.Maths.float2(100, 20), 1);
 
         Assert.Equal("z", text.Text, "public input preserves Ctrl+A for text editing");
+    }
+
+    private static void PublicWheelScrollsScrollViewer()
+    {
+        var scroll = new Library.UiScrollViewer { Width = 100, Height = 40 };
+        var content = new Library.UiStackPanel { Height = 120 };
+        content.Add(new Library.UiPanel { Height = 120 });
+        scroll.SetContent(content);
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(scroll, textService);
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+
+        document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(new LibraryContract.UiPointerEvent(
+            LibraryContract.UiPointerEventKind.Wheel,
+            LibraryContract.UiPointerDeviceKind.Mouse,
+            1,
+            new Delta.Maths.float2(10, 10),
+            default,
+            new Delta.Maths.float2(0, -20),
+            LibraryContract.UiPointerButton.None,
+            default,
+            0,
+            default)));
+        document.Layout(new Delta.Maths.float2(100, 40), 1);
+
+        Assert.Equal(20f, scroll.OffsetY, "public wheel input scrolls the retained viewport");
     }
 
     private static void ScrollAndClips()

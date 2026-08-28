@@ -147,7 +147,12 @@ internal readonly record struct UiInputPacket(UiPointerEvent Spatial, UiKeyEvent
     public static UiInputPacket From(UiImeComposition input) => new(default, default, default, input, UiInputPacketKind.Ime);
 }
 internal enum UiRoutedEventPhase { Preview, Bubble }
-internal readonly record struct UiRoutedEvent(UiElementId Target, UiRoutedEventPhase Phase, UiPointerEventKind Kind, UiPoint Position);
+internal readonly record struct UiRoutedEvent(
+    UiElementId Target,
+    UiRoutedEventPhase Phase,
+    UiPointerEventKind Kind,
+    UiPoint Position,
+    float WheelDelta = 0);
 internal interface IUiInputDispatcher { void Dispatch(in UiInputPacket packet); }
 internal interface IUiInputRouter
 {

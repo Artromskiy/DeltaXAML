@@ -1327,7 +1327,7 @@ internal sealed class NumericEditor : TextBox
     internal override Type BindingTargetType(string propertyName) => propertyName == "Value" ? typeof(double) : base.BindingTargetType(propertyName);
 }
 
-internal class ScrollViewer : ContentControl
+internal class ScrollViewer : ContentControl, IUiRoutedEventSink
 {
     private ScrollViewerState _state;
 
@@ -1340,6 +1340,14 @@ internal class ScrollViewer : ContentControl
         if (UiScrollViewerGenerated.TryScrollBy(ref _state, x, y))
         {
             InvalidateChanged(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        }
+    }
+
+    public void OnRoutedEvent(in UiRoutedEvent routedEvent)
+    {
+        if (routedEvent.Phase == UiRoutedEventPhase.Bubble && routedEvent.Kind == UiPointerEventKind.Wheel)
+        {
+            ScrollBy(0, -routedEvent.WheelDelta);
         }
     }
 }

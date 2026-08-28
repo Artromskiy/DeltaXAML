@@ -77,8 +77,8 @@ internal sealed class UiInputRouter : IUiInputRouter, IUiInputDispatcher
 
         if (target is not null)
         {
-            Raise(target, new UiRoutedEvent(target.Id, UiRoutedEventPhase.Preview, input.Kind, input.Position));
-            Raise(target, new UiRoutedEvent(target.Id, UiRoutedEventPhase.Bubble, input.Kind, input.Position));
+            Raise(target, new UiRoutedEvent(target.Id, UiRoutedEventPhase.Preview, input.Kind, input.Position, input.WheelDelta));
+            Raise(target, new UiRoutedEvent(target.Id, UiRoutedEventPhase.Bubble, input.Kind, input.Position, input.WheelDelta));
         }
 
         if (input.Kind == UiPointerEventKind.Up)
