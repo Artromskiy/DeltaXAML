@@ -1018,6 +1018,8 @@ public sealed class UiDocument : IDisposable
                 _textCount++;
             }
 
+            current.CompleteVisualExtraction();
+
             for (var i = current.Children.Count - 1; i >= 0; i--)
             {
                 if (current.Children[i] is RetainedElement child)

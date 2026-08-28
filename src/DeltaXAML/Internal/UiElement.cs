@@ -250,6 +250,10 @@ internal class UiElement : IUiElement, IUiPropertyStore
     private uint _textVersion;
     private uint _treeVersion;
     private uint _outputVersion;
+    private UiSize _measuredAvailable;
+    private UiRect _arrangedBounds;
+    private bool _hasMeasured;
+    private bool _hasArranged;
     public UiElement()
     {
         Id = new(++_nextId);
@@ -379,10 +383,15 @@ internal class UiElement : IUiElement, IUiPropertyStore
     }
     public virtual void Measure(UiSize available)
     {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
         if ((Participation & Delta.XAML.UiParticipation.Layout) == 0)
         {
             DesiredSize = default;
-            DirtyFlags &= ~UiDirtyFlags.Measure;
+            CompleteMeasure(available);
             return;
         }
 
@@ -400,15 +409,20 @@ internal class UiElement : IUiElement, IUiPropertyStore
         }
 
         DesiredSize = RequestedSize(new(0, 0));
-        DirtyFlags &= ~UiDirtyFlags.Measure;
+        CompleteMeasure(available);
     }
     public virtual void Arrange(UiRect bounds)
     {
+        if (CanSkipArrange(bounds))
+        {
+            return;
+        }
+
         if ((Participation & Delta.XAML.UiParticipation.Layout) == 0)
         {
             Bounds = default;
             Clip = default;
-            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            CompleteArrange(bounds);
             return;
         }
 
@@ -427,8 +441,30 @@ internal class UiElement : IUiElement, IUiPropertyStore
             }
         }
 
+        CompleteArrange(bounds);
+    }
+    protected bool CanSkipMeasure(UiSize available) =>
+        _hasMeasured && (DirtyFlags & UiDirtyFlags.Measure) == 0 && _measuredAvailable == available;
+
+    protected void CompleteMeasure(UiSize available)
+    {
+        _measuredAvailable = available;
+        _hasMeasured = true;
+        DirtyFlags &= ~UiDirtyFlags.Measure;
+        DirtyFlags |= UiDirtyFlags.Arrange;
+    }
+
+    protected bool CanSkipArrange(UiRect bounds) =>
+        _hasArranged && (DirtyFlags & UiDirtyFlags.Arrange) == 0 && _arrangedBounds == bounds;
+
+    protected void CompleteArrange(UiRect bounds)
+    {
+        _arrangedBounds = bounds;
+        _hasArranged = true;
         DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
     }
+
+    internal void CompleteVisualExtraction() => DirtyFlags &= ~UiDirtyFlags.Visual;
     protected UiSize RequestedSize(UiSize measured) => new(float.IsNaN(Width) ? measured.Width : Width, float.IsNaN(Height) ? measured.Height : Height);
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetBinding(string name, IUiBinding binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out IUiValue? value) => _properties.TryGet(name, out value);
     internal virtual bool TryApplyTypedProperty(UiPropertyKey key, object? value)
@@ -464,7 +500,14 @@ internal class UiElement : IUiElement, IUiPropertyStore
     public float DpiScale => _dpiScale;
     public void SetLayoutScale(float scale)
     {
-        if (Math.Abs(_dpiScale - scale) > float.Epsilon) { _dpiScale = scale; _dpiVersion++; _outputVersion++; }
+        if (Math.Abs(_dpiScale - scale) > float.Epsilon)
+        {
+            _dpiScale = scale;
+            _dpiVersion++;
+            _outputVersion++;
+            DirtyFlags |= UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual;
+        }
+
         _layoutScale = scale; foreach (var child in _children)
         {
             if (child is UiElement element)
@@ -563,27 +606,37 @@ internal class Panel : UiElement, IUiPanel
     public override string TypeName => "Panel";
     public override void Measure(UiSize available)
     {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
             _state.DesiredSize = default;
-            DirtyFlags &= ~UiDirtyFlags.Measure;
+            CompleteMeasure(available);
             return;
         }
 
         UiPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children));
         DesiredSize = RequestedSize(_state.DesiredSize);
-        DirtyFlags &= ~UiDirtyFlags.Measure;
+        CompleteMeasure(available);
     }
     public override void Arrange(UiRect bounds)
     {
+        if (CanSkipArrange(bounds))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             Bounds = default;
             Clip = default;
             _state.Bounds = default;
             _state.Clip = default;
-            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            CompleteArrange(bounds);
             return;
         }
 
@@ -591,7 +644,7 @@ internal class Panel : UiElement, IUiPanel
         Bounds = _state.Bounds;
         Clip = _state.Clip;
 
-        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        CompleteArrange(bounds);
     }
 }
 
@@ -623,27 +676,37 @@ internal sealed class StackPanel : UiElement, IUiPanel
 
     public override void Measure(UiSize available)
     {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
             _state.DesiredSize = default;
-            DirtyFlags &= ~UiDirtyFlags.Measure;
+            CompleteMeasure(available);
             return;
         }
 
         UiStackPanelGenerated.Measure(ref _state, new(available, LayoutScale, Children));
         DesiredSize = RequestedSize(_state.DesiredSize);
-        DirtyFlags &= ~UiDirtyFlags.Measure;
+        CompleteMeasure(available);
     }
     public override void Arrange(UiRect bounds)
     {
+        if (CanSkipArrange(bounds))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             Bounds = default;
             Clip = default;
             _state.Bounds = default;
             _state.Clip = default;
-            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            CompleteArrange(bounds);
             return;
         }
 
@@ -651,7 +714,7 @@ internal sealed class StackPanel : UiElement, IUiPanel
         Bounds = _state.Bounds;
         Clip = _state.Clip;
 
-        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        CompleteArrange(bounds);
     }
 }
 
@@ -716,10 +779,15 @@ internal class Border : UiElement, IUiPanel
     public IUiElement? Child => Children.Count == 0 ? null : Children[0];
     public override void Measure(UiSize available)
     {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
-            DirtyFlags &= ~UiDirtyFlags.Measure;
+            CompleteMeasure(available);
             return;
         }
 
@@ -727,15 +795,20 @@ internal class Border : UiElement, IUiPanel
         UiBorderGenerated.Measure(ref _state, new(available, LayoutScale, Children));
         DesiredSize = RequestedSize(_state.DesiredSize);
 
-        DirtyFlags &= ~UiDirtyFlags.Measure;
+        CompleteMeasure(available);
     }
     public override void Arrange(UiRect bounds)
     {
+        if (CanSkipArrange(bounds))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             Bounds = default;
             Clip = default;
-            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            CompleteArrange(bounds);
             return;
         }
 
@@ -743,7 +816,7 @@ internal class Border : UiElement, IUiPanel
         UiBorderGenerated.Arrange(ref _state, new(bounds, bounds, Children));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
-        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        CompleteArrange(bounds);
     }
 }
 
@@ -796,27 +869,37 @@ internal sealed class Grid : UiElement, IUiPanel
 
     public override void Measure(UiSize available)
     {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
             _state.DesiredSize = default;
-            DirtyFlags &= ~UiDirtyFlags.Measure;
+            CompleteMeasure(available);
             return;
         }
 
         UiGridGenerated.Measure(ref _state, new(available, LayoutScale, Children));
         DesiredSize = RequestedSize(_state.DesiredSize);
-        DirtyFlags &= ~UiDirtyFlags.Measure;
+        CompleteMeasure(available);
     }
     public override void Arrange(UiRect bounds)
     {
+        if (CanSkipArrange(bounds))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             Bounds = default;
             Clip = default;
             _state.Bounds = default;
             _state.Clip = default;
-            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            CompleteArrange(bounds);
             return;
         }
 
@@ -824,7 +907,7 @@ internal sealed class Grid : UiElement, IUiPanel
         Bounds = _state.Bounds;
         Clip = _state.Clip;
 
-        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        CompleteArrange(bounds);
     }
 }
 
@@ -837,31 +920,41 @@ internal class ContentControl : UiElement
     public override string TypeName => "ContentControl"; public IUiElement? Content { get => Children.Count == 0 ? null : Children[0]; set { ClearChildren(); if (value is not null) { Add(value); } } }
     public override void Measure(UiSize available)
     {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
-            DirtyFlags &= ~UiDirtyFlags.Measure;
+            CompleteMeasure(available);
             return;
         }
 
         UiContentControlGenerated.Measure(ref _state, new(available, LayoutScale, Children));
         DesiredSize = RequestedSize(_state.DesiredSize);
-        DirtyFlags &= ~UiDirtyFlags.Measure;
+        CompleteMeasure(available);
     }
     public override void Arrange(UiRect bounds)
     {
+        if (CanSkipArrange(bounds))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             Bounds = default;
             Clip = default;
-            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            CompleteArrange(bounds);
             return;
         }
 
         UiContentControlGenerated.Arrange(ref _state, new(bounds, bounds, Children));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
-        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        CompleteArrange(bounds);
     }
 }
 
@@ -954,33 +1047,43 @@ internal class TextBlock : UiElement
 
     public override void Measure(UiSize available)
     {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
-            DirtyFlags &= ~UiDirtyFlags.Measure;
+            CompleteMeasure(available);
             return;
         }
 
         UiTextBlockGenerated.Measure(ref _state, new(available, LayoutScale));
         DesiredSize = RequestedSize(_state.Layout.DesiredSize);
-        DirtyFlags &= ~UiDirtyFlags.Measure;
+        CompleteMeasure(available);
     }
 
     public override void Arrange(UiRect bounds)
     {
+        if (CanSkipArrange(bounds))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             Bounds = default;
             Clip = default;
             UiTextBlockGenerated.Arrange(ref _state, new(default, default));
-            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            CompleteArrange(bounds);
             return;
         }
 
         Bounds = bounds;
         Clip = bounds;
         UiTextBlockGenerated.Arrange(ref _state, new(bounds, bounds));
-        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        CompleteArrange(bounds);
     }
 
     internal override bool TryGetTextRun(out UiTextRun run)
@@ -1235,34 +1338,44 @@ internal class ScrollViewer : ContentControl
 
     public override void Measure(UiSize available)
     {
+        if (CanSkipMeasure(available))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             DesiredSize = default;
             _state.DesiredSize = default;
-            DirtyFlags &= ~UiDirtyFlags.Measure;
+            CompleteMeasure(available);
             return;
         }
 
         UiScrollViewerGenerated.Measure(ref _state, new(available, LayoutScale, Children));
         DesiredSize = RequestedSize(_state.DesiredSize);
-        DirtyFlags &= ~UiDirtyFlags.Measure;
+        CompleteMeasure(available);
     }
 
     public override void Arrange(UiRect bounds)
     {
+        if (CanSkipArrange(bounds))
+        {
+            return;
+        }
+
         if (!ParticipatesIn(Delta.XAML.UiParticipation.Layout))
         {
             Bounds = default;
             Clip = default;
             _state.Bounds = default;
             _state.Clip = default;
-            DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+            CompleteArrange(bounds);
             return;
         }
 
         UiScrollViewerGenerated.Arrange(ref _state, new(bounds, bounds, Children));
         Bounds = _state.Bounds;
         Clip = _state.Clip;
-        DirtyFlags &= ~(UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        CompleteArrange(bounds);
     }
 }
