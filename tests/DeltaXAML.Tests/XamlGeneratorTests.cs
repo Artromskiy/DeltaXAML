@@ -47,6 +47,7 @@ internal static partial class Program
         Assert.True(resourceDocumentPlan.Success && resourceDocumentPlan.Root?.Name.LocalName == "ResourceDictionary", "resource-only XAML gets a semantic resource root");
         Assert.True(CSharpArtifactEmitter.TryEmit(resourceDocumentPlan, resourceRegistry, "Generated", "ResourceDictionaryArtifact", out var resourceDocumentSource, out _), "resource-only XAML emits a catalog artifact");
         Assert.True(resourceDocumentSource.Contains("Resources.Set(\"Accent\", resource0);", StringComparison.Ordinal), "resource-only artifact registers its generated value");
+        Assert.True(!resourceDocumentSource.Contains("Document.Dispose();", StringComparison.Ordinal), "resource-only artifact does not dispose a missing document");
 
         var compositionRegistry = XamlSemanticRegistry.CreateBuiltIns();
         var compositionPlan = XamlCompiler.Compile(

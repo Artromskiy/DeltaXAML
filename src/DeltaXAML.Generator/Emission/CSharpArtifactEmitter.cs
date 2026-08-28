@@ -376,7 +376,10 @@ internal static class CSharpArtifactEmitter
             writer.Append("        _binding").Append(i).AppendLine(".Dispose();");
         }
 
-        writer.AppendLine("        Document.Dispose();");
+        if (hasVisualRoot)
+        {
+            writer.AppendLine("        Document.Dispose();");
+        }
         writer.AppendLine("    }");
         writer.AppendLine("}");
         source = writer.ToString();
