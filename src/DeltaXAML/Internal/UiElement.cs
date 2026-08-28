@@ -1159,6 +1159,7 @@ internal class TextBlock : UiElement
 
     public TextBlock()
     {
+        AutomationRole = UiAutomationRole.Text;
         _state.Text = string.Empty;
         _state.Visual.FontKey = "default";
         _state.Visual.GlyphRunKey = "default";
@@ -1210,6 +1211,12 @@ internal class TextBox : TextBlock
     private readonly List<string> _undo = new();
     private readonly List<string> _redo = new();
     internal new ref TextBoxState State => ref _state;
+
+    public TextBox()
+    {
+        Focusable = true;
+        AutomationRole = UiAutomationRole.TextBox;
+    }
 
     public override string TypeName => "TextBox";
     public int CaretIndex => _state.CaretIndex;
@@ -1337,6 +1344,7 @@ internal sealed class NumericEditor : TextBox
 
     public NumericEditor()
     {
+        AutomationRole = UiAutomationRole.NumericEditor;
         SetDefaultProperty("Value", _state.Value, UiDirtyFlags.Binding | UiDirtyFlags.Visual);
         SetDefaultProperty("Minimum", _state.Min, UiDirtyFlags.Visual);
         SetDefaultProperty("Maximum", _state.Max, UiDirtyFlags.Visual);

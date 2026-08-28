@@ -52,6 +52,8 @@ internal sealed class UiRuntime
         }
 
         _disposed = true;
+        _inputQueue.Clear();
+        _inputTextCount = 0;
         _retainedRoot.DisposeRuntime();
     }
 

@@ -535,6 +535,24 @@ internal static partial class Program
         chars[0] = 'B';
         document.Layout(new Delta.Maths.float2(100, 20), 1);
         Assert.Equal("A", text.Text, "queued text input owns a snapshot until the next layout");
+
+        var keyboardRoot = new Library.UiPanel();
+        var keyboardText = new Library.UiTextBox { Width = 100, Height = 20 };
+        keyboardRoot.Add(keyboardText);
+        keyboardRoot.Add(new Library.UiButton { Width = 100, Height = 20 });
+        using var keyboardTextService = new EmptyTextService();
+        using var keyboardDocument = new Library.UiDocument(keyboardRoot, keyboardTextService);
+        keyboardDocument.Layout(new Delta.Maths.float2(100, 40), 1);
+        keyboardDocument.Dispatch(LibraryContract.UiInputEvent.FromKey(new LibraryContract.UiKeyEvent(
+            LibraryContract.UiKeyEventKind.Down,
+            new LibraryContract.UiPhysicalKey(9),
+            default,
+            default,
+            false)));
+        keyboardDocument.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("T".AsMemory())));
+        keyboardDocument.Layout(new Delta.Maths.float2(100, 40), 1);
+        Assert.Equal("T", keyboardText.Text, "text boxes participate in keyboard focus traversal");
+        Assert.Equal(UiAutomationRole.TextBox, keyboardText.RetainedElement.Automation.Role, "text box exposes text-box automation metadata");
     }
 
     private static void PublicWheelScrollsScrollViewer()
