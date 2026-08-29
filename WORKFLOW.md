@@ -187,11 +187,11 @@ vulnerability feed. A successful restore with feed access should clear it; when
 the feed is unavailable, record the count and keep it separate from analyzer
 warnings. Do not disable package auditing merely to hide a feed outage.
 
-The six frozen `Delta.XAML.Contract` packet/visual enums intentionally retain
-their byte ABI. `CA1028` for those exact declarations is a frozen-contract
-advisory and cannot be changed from an implementation pass; record it
-separately. New non-contract enums must either use `int` or carry a targeted,
-reviewed compact-metadata justification.
+Compact byte enums are explicitly allowed by the repository `.editorconfig`:
+`CA1028` is disabled so ABI and metadata enums do not need repetitive
+per-declaration suppressions. Use `byte` only where the compact representation
+is deliberate (for example frozen packet/visual metadata); new enums that are
+not size-sensitive should keep the default `int` representation.
 
 For local application run `./eng/format.sh`; for a non-mutating check use
 `FORMAT_CHECK=1 ./eng/format.sh`. The script uses `dotnet format whitespace

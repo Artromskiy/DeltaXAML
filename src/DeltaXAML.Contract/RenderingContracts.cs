@@ -25,10 +25,6 @@ public readonly record struct UiClipId(int Value)
 public readonly record struct UiClipRegion(float4 Bounds, UiClipId Parent);
 
 /// <summary>Payload kind referenced by a <see cref="UiDrawRef"/>.</summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage(
-    "Design",
-    "CA1028:Enum Storage should be Int32",
-    Justification = "Display-list references use a compact byte kind at the renderer-neutral boundary.")]
 public enum UiDrawKind : byte
 {
     Unknown = 0,
