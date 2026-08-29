@@ -6,6 +6,9 @@ Runnable sample projects:
   that runs headlessly through `UiDocument` and the canonical display list.
 - [`RoundedRectangle.Render`](RoundedRectangle.Render/README.md) — a minimal
   native DeltaRender sample for a four-corner rounded rectangle.
+- [`RoundedRectangle.Headless`](RoundedRectangle.Headless/README.md) — a
+  headless retained/display-list sample with 100 rounded rectangles and
+  bounded invalidation measurements.
 
 The executable sample acceptance lives in
 `tests/DeltaXAML.Tests/Fixtures/Samples`. All twenty fixtures enter the same

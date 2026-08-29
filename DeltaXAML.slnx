@@ -5,5 +5,6 @@
   <Project Path="src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" />
   <Project Path="samples/TipCalc/DeltaXAML.Samples.TipCalc.csproj" />
   <Project Path="samples/TipCalc.Render/DeltaXAML.Samples.TipCalc.Render.csproj" />
+  <Project Path="samples/RoundedRectangle.Headless/DeltaXAML.Samples.RoundedRectangle.Headless.csproj" />
   <Project Path="tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj" />
 </Solution>

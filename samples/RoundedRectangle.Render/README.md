@@ -16,3 +16,14 @@ dotnet run --project samples/RoundedRectangle.Render/DeltaXAML.Samples.RoundedRe
 Use `--frames N` for a bounded run. The host requires an SDL3
 display, Vulkan/MoltenVK and compatible checked-out DeltaRender/DeltaShader
 artifacts. DeltaXAML itself remains renderer-neutral.
+
+Add `--profile` to print post-warmup averages/minimums/maximums for
+`UiDocument.Layout`, `BuildDisplayList`, `UiDisplayListGraphFeature.Consume`,
+`IRenderGraph.Build` and `IRenderGraph.Execute`. The execute value includes CPU
+command recording/submission and the wait for the previous-frame fence; it is a
+GPU-completion proxy, not a hardware GPU timestamp. For a bounded measurement:
+
+```bash
+dotnet run --project samples/RoundedRectangle.Render/DeltaXAML.Samples.RoundedRectangle.Render.csproj \
+  -c Release -r osx-arm64 --no-build -- --headless --frames 300 --profile
+```

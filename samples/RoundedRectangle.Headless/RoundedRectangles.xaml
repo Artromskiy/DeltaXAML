@@ -1,0 +1,122 @@
+<StackPanel xmlns="urn:delta-xaml" Orientation="Vertical" Fill="true">
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#2878D0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="4,8,12,16" />
+    <Border Width="80" Height="32" Background="#3080D8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="6,10,14,18" />
+    <Border Width="80" Height="32" Background="#3888E0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="8,12,16,20" />
+    <Border Width="80" Height="32" Background="#4090E8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="10,14,18,22" />
+    <Border Width="80" Height="32" Background="#4898F0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="12,16,20,24" />
+    <Border Width="80" Height="32" Background="#50A0F8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="14,18,22,26" />
+    <Border Width="80" Height="32" Background="#58A8F0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,20,24,28" />
+    <Border Width="80" Height="32" Background="#60B0E8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="18,22,26,30" />
+    <Border Width="80" Height="32" Background="#68B8E0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#70C0D8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#3068C0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="6,10,14,18" />
+    <Border Width="80" Height="32" Background="#3870C8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="8,12,16,20" />
+    <Border Width="80" Height="32" Background="#4078D0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="10,14,18,22" />
+    <Border Width="80" Height="32" Background="#4880D8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="12,16,20,24" />
+    <Border Width="80" Height="32" Background="#5088E0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="14,18,22,26" />
+    <Border Width="80" Height="32" Background="#5890E8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,20,24,28" />
+    <Border Width="80" Height="32" Background="#6098F0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="18,22,26,30" />
+    <Border Width="80" Height="32" Background="#68A0F8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#70A8F0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#78B0E8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#3858B0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="8,12,16,20" />
+    <Border Width="80" Height="32" Background="#4060B8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="10,14,18,22" />
+    <Border Width="80" Height="32" Background="#4868C0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="12,16,20,24" />
+    <Border Width="80" Height="32" Background="#5070C8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="14,18,22,26" />
+    <Border Width="80" Height="32" Background="#5878D0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,20,24,28" />
+    <Border Width="80" Height="32" Background="#6080D8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="18,22,26,30" />
+    <Border Width="80" Height="32" Background="#6888E0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#7090E8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#7898F0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+    <Border Width="80" Height="32" Background="#80A0F8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="26,30,16,24" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#5048A0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="10,14,18,22" />
+    <Border Width="80" Height="32" Background="#5850A8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="12,16,20,24" />
+    <Border Width="80" Height="32" Background="#6058B0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="14,18,22,26" />
+    <Border Width="80" Height="32" Background="#6860B8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,20,24,28" />
+    <Border Width="80" Height="32" Background="#7068C0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="18,22,26,30" />
+    <Border Width="80" Height="32" Background="#7870C8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#8078D0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#8880D8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+    <Border Width="80" Height="32" Background="#9088E0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="26,30,16,24" />
+    <Border Width="80" Height="32" Background="#9890E8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="28,32,20,26" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#683890" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="12,16,20,24" />
+    <Border Width="80" Height="32" Background="#704098" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="14,18,22,26" />
+    <Border Width="80" Height="32" Background="#7848A0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,20,24,28" />
+    <Border Width="80" Height="32" Background="#8050A8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="18,22,26,30" />
+    <Border Width="80" Height="32" Background="#8858B0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#9060B8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#9868C0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+    <Border Width="80" Height="32" Background="#A070C8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="26,30,16,24" />
+    <Border Width="80" Height="32" Background="#A878D0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="28,32,20,26" />
+    <Border Width="80" Height="32" Background="#B080D8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="30,16,24,28" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#802878" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="14,18,22,26" />
+    <Border Width="80" Height="32" Background="#883080" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,20,24,28" />
+    <Border Width="80" Height="32" Background="#903888" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="18,22,26,30" />
+    <Border Width="80" Height="32" Background="#984090" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#A04898" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#A850A0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+    <Border Width="80" Height="32" Background="#B058A8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="26,30,16,24" />
+    <Border Width="80" Height="32" Background="#B860B0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="28,32,20,26" />
+    <Border Width="80" Height="32" Background="#C068B8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="30,16,24,28" />
+    <Border Width="80" Height="32" Background="#C870C0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="32,20,26,30" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#982860" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,20,24,28" />
+    <Border Width="80" Height="32" Background="#A03068" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="18,22,26,30" />
+    <Border Width="80" Height="32" Background="#A83870" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#B04078" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#B84880" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+    <Border Width="80" Height="32" Background="#C05088" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="26,30,16,24" />
+    <Border Width="80" Height="32" Background="#C85890" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="28,32,20,26" />
+    <Border Width="80" Height="32" Background="#D06098" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="30,16,24,28" />
+    <Border Width="80" Height="32" Background="#D868A0" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="32,20,26,30" />
+    <Border Width="80" Height="32" Background="#E070A8" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,24,28,32" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#B05048" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="18,22,26,30" />
+    <Border Width="80" Height="32" Background="#B85850" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#C06058" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#C86860" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+    <Border Width="80" Height="32" Background="#D07068" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="26,30,16,24" />
+    <Border Width="80" Height="32" Background="#D87870" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="28,32,20,26" />
+    <Border Width="80" Height="32" Background="#E08078" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="30,16,24,28" />
+    <Border Width="80" Height="32" Background="#E88880" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="32,20,26,30" />
+    <Border Width="80" Height="32" Background="#F09088" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,24,28,32" />
+    <Border Width="80" Height="32" Background="#F89890" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,26,30,16" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#B07838" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,24,28,32" />
+    <Border Width="80" Height="32" Background="#B88040" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#C08848" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+    <Border Width="80" Height="32" Background="#C89050" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="26,30,16,24" />
+    <Border Width="80" Height="32" Background="#D09858" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="28,32,20,26" />
+    <Border Width="80" Height="32" Background="#D8A060" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="30,16,24,28" />
+    <Border Width="80" Height="32" Background="#E0A868" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="32,20,26,30" />
+    <Border Width="80" Height="32" Background="#E8B070" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,24,28,32" />
+    <Border Width="80" Height="32" Background="#F0B878" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,26,30,16" />
+    <Border Width="80" Height="32" Background="#F8C080" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,30,16,20" />
+  </StackPanel>
+  <StackPanel Orientation="Horizontal" Height="40">
+    <Border Width="80" Height="32" Background="#709030" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="22,26,30,16" />
+    <Border Width="80" Height="32" Background="#789838" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,28,32,20" />
+    <Border Width="80" Height="32" Background="#80A040" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="26,30,16,24" />
+    <Border Width="80" Height="32" Background="#88A848" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="28,32,20,26" />
+    <Border Width="80" Height="32" Background="#90B050" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="30,16,24,28" />
+    <Border Width="80" Height="32" Background="#98B858" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="32,20,26,30" />
+    <Border Width="80" Height="32" Background="#A0C060" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="16,24,28,32" />
+    <Border Width="80" Height="32" Background="#A8C868" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="20,26,30,16" />
+    <Border Width="80" Height="32" Background="#B0D070" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="24,30,16,20" />
+    <Border Width="80" Height="32" Background="#B8D878" BorderColor="#D9EEFF" BorderWidth="1" CornerRadius="28,16,20,24" />
+  </StackPanel>
+</StackPanel>
