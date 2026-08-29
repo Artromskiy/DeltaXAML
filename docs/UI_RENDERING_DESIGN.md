@@ -114,11 +114,11 @@ Shader source belongs to DeltaShader:
 
 ```text
 DeltaShader/src/DeltaShader.Text/
-DeltaShader/src/DeltaShader.UI/
+DeltaShader/src/DeltaShader.Ui/
 ```
 
 `DeltaShader.Text` owns Coverage/SDF/MSDF text entry points and their ABI.
-`DeltaShader.UI` should own solid/rounded rectangles, borders, gradients,
+`DeltaShader.Ui` should own solid/rounded rectangles, borders, gradients,
 image tinting and clip/mask algorithms. `DeltaShader` publishes validated
 SPIR-V plus binary `ShaderAbi` artifacts. DeltaRender consumes those artifacts
 and owns pipeline/cache construction. Generated artifacts are build/package
@@ -155,7 +155,7 @@ XAML runtime.
    smoke without a native window.
 3. Add producer extraction for the new paint/clip values and verify that style
    changes do not reshape unchanged text.
-4. Add `DeltaShader.UI` and complete common SDF/MSDF text fill-plus-outline
+4. Add `DeltaShader.Ui` and complete common SDF/MSDF text fill-plus-outline
    artifacts.
 5. Add rounded rectangles, borders and gradients, then rounded clip/mask.
 6. Add custom visual registration keyed by `UiVisualTypeId`, with explicit
