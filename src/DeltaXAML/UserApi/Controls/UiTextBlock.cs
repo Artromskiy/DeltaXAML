@@ -21,12 +21,8 @@ public class UiTextBlock : UiElement
 
     public UiColor Foreground
     {
-        get
-        {
-            var value = TextElement.Foreground;
-            return new UiColor(value.R, value.G, value.B, value.A);
-        }
-        set => TextElement.Foreground = new Retained.UiColor(value.R, value.G, value.B, value.A);
+        get => ToPublicColor(TextElement.Foreground);
+        set => TextElement.Foreground = ToRetainedColor(value);
     }
 
     public UiColor OutlineColor { get => ToPublicColor(TextElement.OutlineColor); set => TextElement.OutlineColor = ToRetainedColor(value); }

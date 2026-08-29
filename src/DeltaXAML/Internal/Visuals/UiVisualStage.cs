@@ -245,13 +245,12 @@ internal sealed class UiVisualStage : IDisposable
                 visualCount++;
             }
 
-            Retained.UiTextRun run = default;
-            var hasText = (current.Participation & UiParticipation.Rendering) != 0 &&
-                          Retained.UiDescriptorCatalog.TryGetTextRun(
-                              node.RuntimeType,
-                              current,
-                              new(current.Id, current.Generation, current.LayoutScale, current.TextRunVersion),
-                              out run);
+            var hasText = TryGetElementTextRun(
+                node.RuntimeType,
+                current,
+                effective,
+                new UiClipId(current.DisplayClipIndex),
+                out var run);
             if (hasText != (current.DisplayTextIndex >= 0) ||
                 (hasText && current.DisplayTextIndex != textCount))
             {
@@ -260,12 +259,6 @@ internal sealed class UiVisualStage : IDisposable
 
             if (hasText)
             {
-                run = run with
-                {
-                    Bounds = current.Bounds,
-                    Clip = effective,
-                    ClipId = new Retained.UiClipId((uint)current.DisplayClipIndex + 1),
-                };
                 if (!TryBuildTextDraw(run, out var draw, out diagnostic))
                 {
                     return false;
@@ -389,16 +382,15 @@ internal sealed class UiVisualStage : IDisposable
                     }
                 }
             }
-            else if ((current.Participation & UiParticipation.Rendering) != 0 &&
-                Retained.UiDescriptorCatalog.TryGetTextRun(
+            else if (TryGetElementTextRun(
                     node.RuntimeType,
                     current,
-                    new(current.Id, current.Generation, current.LayoutScale, current.TextRunVersion),
+                    effective,
+                    clipId,
                     out var run))
             {
                 EnsureCapacity(ref _storage.Text, _storage.TextCount + 1);
                 textIndex = _storage.TextCount;
-                run = run with { Bounds = current.Bounds, Clip = effective, ClipId = new Retained.UiClipId((uint)clipId.Value + 1) };
                 if (!TryBuildTextDraw(run, out _storage.Text[_storage.TextCount], out diagnostic))
                 {
                     return false;
@@ -425,6 +417,37 @@ internal sealed class UiVisualStage : IDisposable
             }
         }
 
+        return true;
+    }
+
+    private static bool TryGetElementTextRun(
+        Retained.UiRuntimeTypeIndex runtimeType,
+        RetainedElement element,
+        Retained.UiRect clip,
+        UiClipId clipId,
+        out Retained.UiTextRun run)
+    {
+        run = default;
+        if ((element.Participation & UiParticipation.Rendering) == 0 || element is Retained.RichTextBlock)
+        {
+            return false;
+        }
+
+        if (!Retained.UiDescriptorCatalog.TryGetTextRun(
+                runtimeType,
+                element,
+                new(element.Id, element.Generation, element.LayoutScale, element.TextRunVersion),
+                out run))
+        {
+            return false;
+        }
+
+        run = run with
+        {
+            Bounds = element.Bounds,
+            Clip = clip,
+            ClipId = new Retained.UiClipId((uint)clipId.Value + 1),
+        };
         return true;
     }
 

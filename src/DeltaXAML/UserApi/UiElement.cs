@@ -249,19 +249,15 @@ public abstract class UiElement
 
     public UiColor Background
     {
-        get
-        {
-            var value = _retained.Background;
-            return new UiColor(value.R, value.G, value.B, value.A);
-        }
-        set => _retained.Background = new Retained.UiColor(value.R, value.G, value.B, value.A);
+        get => ToPublicColor(_retained.Background);
+        set => _retained.Background = ToRetainedColor(value);
     }
 
     /// <summary>Renderer-neutral border color used with <see cref="BorderWidth"/>.</summary>
     public UiColor BorderColor
     {
-        get => UiColorFromRetained(_retained.BorderColor);
-        set => _retained.BorderColor = new Retained.UiColor(value.R, value.G, value.B, value.A);
+        get => ToPublicColor(_retained.BorderColor);
+        set => _retained.BorderColor = ToRetainedColor(value);
     }
 
     /// <summary>Uniform border width in logical units; zero disables the stroke.</summary>
@@ -302,7 +298,7 @@ public abstract class UiElement
                 : _retained.CustomVisualTypeId == UiKnownVisuals.RadialGradient.Value
                     ? UiBrushKind.RadialGradient
                     : UiBrushKind.Image;
-            return new(kind, UiColorFromRetained(_retained.CustomVisualColor), new UiResourceId(_retained.CustomVisualResourceId));
+            return new(kind, ToPublicColor(_retained.CustomVisualColor), new UiResourceId(_retained.CustomVisualResourceId));
         }
         set
         {
@@ -357,7 +353,7 @@ public abstract class UiElement
             throw new ArgumentException("A custom visual identity is required.", nameof(visualType));
         }
 
-        _retained.SetCustomVisual(visualType.Value, resource.Value, new Retained.UiColor(color.R, color.G, color.B, color.A));
+        _retained.SetCustomVisual(visualType.Value, resource.Value, ToRetainedColor(color));
     }
 
     /// <summary>Removes the custom visual and restores the normal visual participation path.</summary>
@@ -829,9 +825,6 @@ public abstract class UiElement
     }
 
     internal static UiColor ToPublicColor(Retained.UiColor value) =>
-        new(value.R, value.G, value.B, value.A);
-
-    private static UiColor UiColorFromRetained(Retained.UiColor value) =>
         new(value.R, value.G, value.B, value.A);
 
     private static UiSemanticRole ToPublicRole(Retained.UiAutomationRole value) => value switch

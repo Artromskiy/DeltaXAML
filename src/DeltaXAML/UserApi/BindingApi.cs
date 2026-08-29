@@ -830,12 +830,6 @@ public sealed class UiCompiledBinding<TSource, TValue> : IUiBinding<TValue>, IUi
 
     public bool TryWrite(object? value, [NotNullWhen(false)] out Diagnostic? diagnostic)
     {
-        if (value is null)
-        {
-            diagnostic = BindingDiagnostic($"Expected {typeof(TValue).Name}.");
-            return false;
-        }
-
         if (value is not TValue typed)
         {
             diagnostic = BindingDiagnostic($"Expected {typeof(TValue).Name}.");

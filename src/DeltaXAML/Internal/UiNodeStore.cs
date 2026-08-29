@@ -16,7 +16,7 @@ internal sealed class UiNodeStore
     private readonly List<int> _activeIndices = new();
     private readonly List<UiNodeId> _layoutChildIds = new();
     private readonly List<UiNodeId> _bindingContextQueue = new();
-    private readonly List<UiNodeId> _removalQueue = new();
+    private readonly List<UiNodeId> _subtreeQueue = new();
     private readonly NodeChildrenView _layoutChildren;
     private readonly UiElement _root;
     private uint _treeVersion;
@@ -219,26 +219,17 @@ internal sealed class UiNodeStore
     }
 
     internal bool TryResolve(UiPropertyHandle handle, [NotNullWhen(true)] out UiElement? element)
-    {
-        if (!TryGetRecord(new UiNodeId(handle.Element.Value, handle.Generation), out var record))
-        {
-            element = null;
-            return false;
-        }
-
-        if (record.Element is not { } resolved)
-        {
-            element = null;
-            return false;
-        }
-
-        element = resolved;
-        return true;
-    }
+        => TryResolve(new UiNodeId(handle.Element.Value, handle.Generation), out element);
 
     internal bool TryResolve(UiElementId id, [NotNullWhen(true)] out UiElement? element)
+        => TryResolve(new UiNodeId(id.Value, 0), out element, validateGeneration: false);
+
+    private bool TryResolve(
+        UiNodeId id,
+        [NotNullWhen(true)] out UiElement? element,
+        bool validateGeneration = true)
     {
-        if (!TryGetRecord(new UiNodeId(id.Value, 0), out var record, validateGeneration: false))
+        if (!TryGetRecord(id, out var record, validateGeneration))
         {
             element = null;
             return false;
@@ -271,31 +262,12 @@ internal sealed class UiNodeStore
         TryGetNextSibling(current, visual: true, out sibling);
 
     internal bool TryCopyLogicalChildren(UiNodeId parent, List<UiNodeId> destination)
-    {
-        ArgumentNullException.ThrowIfNull(destination);
-        destination.Clear();
-        if (!TryGetRecord(parent, out var parentRecord))
-        {
-            return false;
-        }
-
-        var childId = parentRecord.FirstLogicalChild;
-        while (childId.IsValid)
-        {
-            if (!TryGetRecord(childId, out var child))
-            {
-                destination.Clear();
-                return false;
-            }
-
-            destination.Add(child.Id);
-            childId = child.NextLogicalSibling;
-        }
-
-        return true;
-    }
+        => TryCopyChildren(parent, destination, visual: false);
 
     internal bool TryCopyVisualChildren(UiNodeId parent, List<UiNodeId> destination)
+        => TryCopyChildren(parent, destination, visual: true);
+
+    private bool TryCopyChildren(UiNodeId parent, List<UiNodeId> destination, bool visual)
     {
         ArgumentNullException.ThrowIfNull(destination);
         destination.Clear();
@@ -304,7 +276,7 @@ internal sealed class UiNodeStore
             return false;
         }
 
-        var childId = parentRecord.FirstVisualChild;
+        var childId = visual ? parentRecord.FirstVisualChild : parentRecord.FirstLogicalChild;
         while (childId.IsValid)
         {
             if (!TryGetRecord(childId, out var child))
@@ -314,7 +286,7 @@ internal sealed class UiNodeStore
             }
 
             destination.Add(child.Id);
-            childId = child.NextVisualSibling;
+            childId = visual ? child.NextVisualSibling : child.NextLogicalSibling;
         }
 
         return true;
@@ -420,11 +392,11 @@ internal sealed class UiNodeStore
 
     private void AttachSubtree(UiNodeId root)
     {
-        _removalQueue.Clear();
-        _removalQueue.Add(root);
-        for (var i = 0; i < _removalQueue.Count; i++)
+        _subtreeQueue.Clear();
+        _subtreeQueue.Add(root);
+        for (var i = 0; i < _subtreeQueue.Count; i++)
         {
-            var id = _removalQueue[i];
+            var id = _subtreeQueue[i];
             if (!TryGetRecord(id, out var record) || record.Element is not { } element)
             {
                 throw new InvalidOperationException("The newly registered subtree contains a stale node.");
@@ -433,7 +405,7 @@ internal sealed class UiNodeStore
             var child = record.FirstLogicalChild;
             while (child.IsValid)
             {
-                _removalQueue.Add(child);
+                _subtreeQueue.Add(child);
                 if (!TryGetRecord(child, out var childRecord))
                 {
                     throw new InvalidOperationException("The newly registered subtree contains a stale child relation.");
@@ -448,20 +420,20 @@ internal sealed class UiNodeStore
 
     private void RebuildDetachedRelations(UiNodeId root, bool detachWholeStore)
     {
-        _removalQueue.Clear();
+        _subtreeQueue.Clear();
         if (detachWholeStore)
         {
             for (var i = 0; i < _activeIndices.Count; i++)
             {
-                _removalQueue.Add(_records[_activeIndices[i]].Id);
+                _subtreeQueue.Add(_records[_activeIndices[i]].Id);
             }
         }
         else
         {
-            _removalQueue.Add(root);
-            for (var i = 0; i < _removalQueue.Count; i++)
+            _subtreeQueue.Add(root);
+            for (var i = 0; i < _subtreeQueue.Count; i++)
             {
-                if (!TryGetRecord(_removalQueue[i], out var record))
+                if (!TryGetRecord(_subtreeQueue[i], out var record))
                 {
                     continue;
                 }
@@ -469,7 +441,7 @@ internal sealed class UiNodeStore
                 var child = record.FirstLogicalChild;
                 while (child.IsValid)
                 {
-                    _removalQueue.Add(child);
+                    _subtreeQueue.Add(child);
                     if (!TryGetRecord(child, out var childRecord))
                     {
                         break;
@@ -480,17 +452,17 @@ internal sealed class UiNodeStore
             }
         }
 
-        for (var i = 0; i < _removalQueue.Count; i++)
+        for (var i = 0; i < _subtreeQueue.Count; i++)
         {
-            if (TryGetRecord(_removalQueue[i], out var record) && record.Element is { } element)
+            if (TryGetRecord(_subtreeQueue[i], out var record) && record.Element is { } element)
             {
                 element.PrepareNodeStoreDetachment(this);
             }
         }
 
-        for (var i = 0; i < _removalQueue.Count; i++)
+        for (var i = 0; i < _subtreeQueue.Count; i++)
         {
-            if (!TryGetRecord(_removalQueue[i], out var record) || record.Element is not { } parent)
+            if (!TryGetRecord(_subtreeQueue[i], out var record) || record.Element is not { } parent)
             {
                 continue;
             }
@@ -508,9 +480,9 @@ internal sealed class UiNodeStore
             }
         }
 
-        for (var i = 0; i < _removalQueue.Count; i++)
+        for (var i = 0; i < _subtreeQueue.Count; i++)
         {
-            if (TryGetRecord(_removalQueue[i], out var record) && record.Element is { } element)
+            if (TryGetRecord(_subtreeQueue[i], out var record) && record.Element is { } element)
             {
                 element.CompleteNodeStoreDetachment(this);
             }
@@ -574,13 +546,13 @@ internal sealed class UiNodeStore
 
     private void RemoveSubtree(UiNodeId root)
     {
-        _removalQueue.Clear();
-        _removalQueue.Add(root);
-        while (_removalQueue.Count != 0)
+        _subtreeQueue.Clear();
+        _subtreeQueue.Add(root);
+        while (_subtreeQueue.Count != 0)
         {
-            var last = _removalQueue.Count - 1;
-            var id = _removalQueue[last];
-            _removalQueue.RemoveAt(last);
+            var last = _subtreeQueue.Count - 1;
+            var id = _subtreeQueue[last];
+            _subtreeQueue.RemoveAt(last);
             if (!TryGetRecord(id, out var record))
             {
                 continue;
@@ -589,7 +561,7 @@ internal sealed class UiNodeStore
             var child = record.FirstLogicalChild;
             while (child.IsValid)
             {
-                _removalQueue.Add(child);
+                _subtreeQueue.Add(child);
                 if (!TryGetRecord(child, out var childRecord))
                 {
                     break;

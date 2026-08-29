@@ -36,14 +36,7 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
     public bool TryResolve(string key, out object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        if (!_store.TryResolve(key, out var retainedValue, out _))
-        {
-            value = null;
-            return false;
-        }
-
-        value = ToPublicValue(retainedValue);
-        return true;
+        return TryResolve(new Retained.UiResourceReference(key), out value);
     }
 
     public bool TryResolve(UiResourceId resource, out object? value)
@@ -54,7 +47,12 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
             return false;
         }
 
-        if (!_store.TryResolve(resource.Value, out var retainedValue, out _))
+        return TryResolve(new Retained.UiResourceReference(resource.Value), out value);
+    }
+
+    private bool TryResolve(Retained.UiResourceReference reference, out object? value)
+    {
+        if (!_store.TryResolve(reference, out var retainedValue, out _))
         {
             value = null;
             return false;
@@ -174,11 +172,7 @@ public sealed class UiStyle
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-        if (_resources is null)
-        {
-            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
-        }
-
+        RequireResources();
         SetValue(_values, new(propertyName, null, new UiResourceReference(resourceKey)));
     }
 
@@ -187,11 +181,7 @@ public sealed class UiStyle
     {
         ArgumentNullException.ThrowIfNull(property);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-        if (_resources is null)
-        {
-            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
-        }
-
+        RequireResources();
         SetValue(_values, new(property.Name, property, new UiResourceReference(resourceKey)));
     }
 
@@ -206,11 +196,7 @@ public sealed class UiStyle
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-        if (_resources is null)
-        {
-            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
-        }
-
+        RequireResources();
         SetValue(_values, new(propertyName, null, new StaticResourceReference(resourceKey)));
     }
 
@@ -219,11 +205,7 @@ public sealed class UiStyle
     {
         ArgumentNullException.ThrowIfNull(property);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-        if (_resources is null)
-        {
-            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
-        }
-
+        RequireResources();
         SetValue(_values, new(property.Name, property, new StaticResourceReference(resourceKey)));
     }
 
@@ -254,11 +236,7 @@ public sealed class UiStyle
         ValidateState(state);
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-        if (_resources is null)
-        {
-            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
-        }
-
+        RequireResources();
         SetValue(GetStateValues(state), new(propertyName, null, new UiResourceReference(resourceKey)));
     }
 
@@ -268,11 +246,7 @@ public sealed class UiStyle
         ValidateState(state);
         ArgumentNullException.ThrowIfNull(property);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-        if (_resources is null)
-        {
-            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
-        }
-
+        RequireResources();
         SetValue(GetStateValues(state), new(property.Name, property, new UiResourceReference(resourceKey)));
     }
 
@@ -289,11 +263,7 @@ public sealed class UiStyle
         ValidateState(state);
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-        if (_resources is null)
-        {
-            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
-        }
-
+        RequireResources();
         SetValue(GetStateValues(state), new(propertyName, null, new StaticResourceReference(resourceKey)));
     }
 
@@ -303,11 +273,7 @@ public sealed class UiStyle
         ValidateState(state);
         ArgumentNullException.ThrowIfNull(property);
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-        if (_resources is null)
-        {
-            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
-        }
-
+        RequireResources();
         SetValue(GetStateValues(state), new(property.Name, property, new StaticResourceReference(resourceKey)));
     }
 
@@ -476,6 +442,14 @@ public sealed class UiStyle
         values[value.Name] = value;
         _version++;
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RequireResources()
+    {
+        if (_resources is null)
+        {
+            throw new InvalidOperationException("A resource catalog is required for resource-backed style values.");
+        }
     }
 
     private Dictionary<string, StyleValue> GetStateValues(UiStyleState state) =>
