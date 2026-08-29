@@ -9,20 +9,26 @@ project.
 
 - [x] Emit `UiVisualPaint` and `UiClipRegion` shape data from retained visual
   state where the corresponding XAML properties are present; preserve old
-  fill-only behavior for controls that do not use effects. Current producer
-  coverage is explicit fill paint plus rectangular clip data; rounded/stroke
-  data remains pending until those properties exist in retained state.
+  fill-only behavior for controls that do not use effects. Producer coverage
+  includes fill, uniform stroke and per-corner radius data plus the
+  existing rectangular clip hierarchy. Corner radius does not implicitly clip
+  child content; rounded clip masks remain a consumer concern.
 - [x] Emit `UiTextPaint` for text fill/outline/effect-resource values without
-  reshaping when only paint changes. Current producer coverage is fill paint;
-  text outline/effect properties remain pending. Text shaping remains delegated to
-  `DeltaText.Contract.ITextService`.
+  reshaping when only paint changes. Producer coverage includes fill, outline
+  and optional effect resource identity. DeltaRender may still report outline
+  or effect as unsupported until its text effect shader path is registered;
+  text shaping remains delegated to `DeltaText.Contract.ITextService`.
 - [x] Preserve `UiDisplayList.Order`, clip parent links, resource identities
   and borrowed lifetime in producer tests, including `visual -> text -> visual`.
-- [ ] Add explicit diagnostics for unsupported effect/resource combinations;
-  never replace them with a solid rectangle or silently discard paint data.
-- [ ] Keep the retained tree, property store, invalidation and frame storage
-  as the only XAML runtime path. No Vulkan, SDL, DeltaRender, DeltaEngine or
-  ECS reference is allowed.
+- [x] Add explicit `XAML010` diagnostics for incompatible resource values in
+  the interpreted loader and runtime dynamic-resource stage; a brush used as a
+  color is rejected instead of being silently discarded. `UiDocument` reports
+  the same diagnostic from `TryBuildDisplayList` until the resource is fixed.
+- [x] Keep the retained tree, property store, invalidation and frame storage
+  as the only XAML runtime path. `UiRuntime` owns the single generation-safe
+  node store and `UiDocument` owns the reusable display storage; architecture,
+  node-store and display-list tests prove the boundary. No Vulkan, SDL,
+  DeltaRender, DeltaEngine or ECS reference is allowed.
 
 Cross-project integration and consumer cleanup remain tracked in
 [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md). Shared editor acceptance

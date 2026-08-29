@@ -1,4 +1,5 @@
 using Retained = DeltaXAML.Internal;
+using Delta.XAML.Contract;
 
 namespace Delta.XAML;
 
@@ -22,6 +23,12 @@ public class UiTextBox : UiElement
         get => ToPublicColor(StateOwner.Foreground);
         set => StateOwner.Foreground = ToRetainedColor(value);
     }
+
+    public UiColor OutlineColor { get => ToPublicColor(StateOwner.OutlineColor); set => StateOwner.OutlineColor = ToRetainedColor(value); }
+
+    public float OutlineWidth { get => StateOwner.OutlineWidth; set => StateOwner.OutlineWidth = value; }
+
+    public UiResourceId TextEffect { get => new(StateOwner.TextEffectResource); set => StateOwner.TextEffect = value; }
 
     public IUiClipboard? Clipboard
     {

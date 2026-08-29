@@ -114,6 +114,9 @@ public static class UiElementProperties
     public static UiProperty<string?> StyleKey { get; } = Create<string?>("10000000-0000-4000-8000-000000000008", "StyleKey", null);
     public static UiProperty<string?> TemplateKey { get; } = Create<string?>("10000000-0000-4000-8000-000000000009", "TemplateKey", null);
     public static UiProperty<UiBrush> BackgroundBrush { get; } = Create("10000000-0000-4000-8000-00000000000A", "BackgroundBrush", UiBrush.None);
+    public static UiProperty<UiColor> BorderColor { get; } = Create<UiColor>("10000000-0000-4000-8000-000000000011", "BorderColor", default);
+    public static UiProperty<float> BorderWidth { get; } = Create<float>("10000000-0000-4000-8000-000000000012", "BorderWidth", 0f);
+    public static UiProperty<UiCornerRadii> CornerRadius { get; } = Create("10000000-0000-4000-8000-000000000013", "CornerRadius", UiCornerRadii.Zero);
     public static UiProperty<string> AutomationName { get; } = Create("10000000-0000-4000-8000-00000000000B", "AutomationName", string.Empty);
     public static UiProperty<UiSemanticRole> AutomationRole { get; } = Create("10000000-0000-4000-8000-00000000000C", "AutomationRole", UiSemanticRole.Generic);
     public static UiProperty<UiGestureKind> Gestures { get; } = Create("10000000-0000-4000-8000-00000000000D", "Gestures", UiGestureKind.None);
@@ -132,6 +135,9 @@ public static class UiTextBlockProperties
     public static UiProperty<string> FontKey { get; } = Create("20000000-0000-4000-8000-000000000002", "FontKey", "default");
     public static UiProperty<float> FontSize { get; } = Create("20000000-0000-4000-8000-000000000003", "FontSize", 14f);
     public static UiProperty<UiColor> Foreground { get; } = Create("20000000-0000-4000-8000-000000000004", "Foreground", new UiColor(255, 255, 255));
+    public static UiProperty<UiColor> OutlineColor { get; } = Create<UiColor>("20000000-0000-4000-8000-000000000005", "OutlineColor", default);
+    public static UiProperty<float> OutlineWidth { get; } = Create<float>("20000000-0000-4000-8000-000000000006", "OutlineWidth", 0f);
+    public static UiProperty<Delta.XAML.Contract.UiResourceId> TextEffect { get; } = Create<Delta.XAML.Contract.UiResourceId>("20000000-0000-4000-8000-000000000007", "TextEffect", Delta.XAML.Contract.UiResourceId.Empty);
 
     private static UiProperty<T> Create<T>(string id, string name, T defaultValue) =>
         new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);

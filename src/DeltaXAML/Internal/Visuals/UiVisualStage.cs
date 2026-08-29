@@ -466,17 +466,28 @@ internal sealed class UiVisualStage : IDisposable
             return true;
         }
 
-        if (element.Background.A <= 0)
+        var hasFill = element.Background.A > 0;
+        var hasStroke = element.BorderWidth > 0;
+        if (!hasFill && !hasStroke)
         {
             visual = default;
             return false;
         }
 
+        var radii = element.CornerRadius;
+        var rounded = radii != Delta.XAML.UiCornerRadii.Zero;
+        var kind = rounded
+            ? hasStroke ? UiVisualKind.Border : UiVisualKind.RoundedRectangle
+            : hasStroke ? UiVisualKind.Border : UiVisualKind.SolidRectangle;
         visual = UiVisualDraw.WithPaint(
-            UiVisualKind.SolidRectangle,
+            kind,
             default,
             ToFloat4(element.Bounds),
-            UiVisualPaint.Solid(ToColor(element.Background)),
+            new UiVisualPaint(
+                ToColor(element.Background),
+                ToColor(element.BorderColor),
+                element.BorderWidth,
+                new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft)),
             clip,
             UiResourceId.Empty);
         return true;
@@ -532,7 +543,15 @@ internal sealed class UiVisualStage : IDisposable
         var bounds = ShapedBounds(cache.Shaped);
         var baseline = new float2(run.Bounds.X - bounds.Left, run.Bounds.Y - bounds.Top);
         var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
-        draw = UiTextDraw.WithPaint(cache.Shaped, baseline, UiTextPaint.Solid(ToColor(run.Color)), clip);
+        draw = UiTextDraw.WithPaint(
+            cache.Shaped,
+            baseline,
+            new UiTextPaint(
+                ToColor(run.Color),
+                ToColor(run.OutlineColor),
+                run.OutlineWidth,
+                new UiResourceId(run.TextEffectResource)),
+            clip);
         diagnostic = null;
         return true;
     }

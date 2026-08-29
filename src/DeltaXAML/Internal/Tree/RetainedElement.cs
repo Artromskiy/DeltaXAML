@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
+using Delta.Diagnostics;
 using Delta.XAML.Contract;
 
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
@@ -85,6 +86,7 @@ internal sealed class UiPropertyStore
     private readonly Dictionary<string, UiBindingValue> _bindings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, EventHandler> _bindingHandlers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResourceBinding> _resourceBindings = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ResourceDiagnostic> _resourceDiagnostics = new(StringComparer.Ordinal);
     private readonly UiElement _owner;
     private bool _disposed;
     private static readonly UiValueSource[] Precedence =
@@ -124,6 +126,7 @@ internal sealed class UiPropertyStore
 
         _bindingHandlers.Clear();
         _resourceBindings.Clear();
+        _resourceDiagnostics.Clear();
         _bindings.Clear();
     }
     public void InitializeDefault(string name, object? value, UiDirtyFlags invalidation)
@@ -168,7 +171,7 @@ internal sealed class UiPropertyStore
             _owner.InvalidateChanged(UiDirtyFlags.Resource | UiDirtyFlags.Style);
         };
         resources.Changed += binding.Handler;
-        SetSource(name, new(ResolveResource(binding), UiValueSource.Style, invalidation));
+        ApplyResourceBinding(name, binding);
     }
     public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation)
     {
@@ -237,6 +240,21 @@ internal sealed class UiPropertyStore
             pair.Value.Pending = false;
             ApplyResourceBinding(pair.Key, pair.Value);
         }
+    }
+    internal bool TryGetResourceDiagnostic(
+        [NotNullWhen(true)] out string? code,
+        [NotNullWhen(true)] out string? message)
+    {
+        foreach (var diagnostic in _resourceDiagnostics.Values)
+        {
+            code = diagnostic.Code;
+            message = diagnostic.Message;
+            return true;
+        }
+
+        code = null;
+        message = null;
+        return false;
     }
     private void RemoveBinding(string name)
     {
@@ -365,13 +383,42 @@ internal sealed class UiPropertyStore
         };
         return true;
     }
-    private object? ResolveResource(ResourceBinding binding) => binding.Resources.TryResolve(binding.Reference, out var value, out _) ? value : null;
     private void ApplyResourceBinding(string name, ResourceBinding binding)
     {
         var slots = GetSlots(name);
-        SetValue(slots, UiValueSource.Style, new UiValue(ResolveResource(binding), UiValueSource.Style, binding.Invalidation));
+        if (!binding.Resources.TryResolve(binding.Reference, out var value, out var resourceDiagnostic))
+        {
+            _resourceDiagnostics[name] = new(
+                "XAML006",
+                resourceDiagnostic ?? $"Resource '{ResourceIdentity(binding.Reference)}' was not resolved.");
+            SetValue(slots, UiValueSource.Style, new(null, UiValueSource.Style, binding.Invalidation));
+            ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
+            return;
+        }
+
+        if (!IsCompatibleValue(name, value))
+        {
+            _resourceDiagnostics[name] = new(
+                "XAML010",
+                $"Resource '{ResourceIdentity(binding.Reference)}' is not compatible with property '{name}'.");
+            SetValue(slots, UiValueSource.Style, new(null, UiValueSource.Style, binding.Invalidation));
+            ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
+            return;
+        }
+
+        _resourceDiagnostics.Remove(name);
+        SetValue(slots, UiValueSource.Style, new(value, UiValueSource.Style, binding.Invalidation));
         ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
     }
+    private bool IsCompatibleValue(string name, object? value)
+    {
+        var valueType = UiPropertyKeys.ValueType(_owner, name);
+        return value is not null
+            ? valueType.IsInstanceOfType(value)
+            : !valueType.IsValueType || Nullable.GetUnderlyingType(valueType) is not null;
+    }
+    private static string ResourceIdentity(UiResourceReference reference) =>
+        reference.HasResourceId ? reference.ResourceId.ToString("D") : reference.Key;
     private static bool Same(in UiValue left, in UiValue right) =>
         left.Source == right.Source && Equals(left.UntypedValue, right.UntypedValue);
     private static byte SourceBit(UiValueSource source) => (byte)(1 << (int)source);
@@ -393,6 +440,8 @@ internal sealed class UiPropertyStore
         public EventHandler<UiResourceChangedEventArgs>? Handler { get; set; }
         public bool Pending { get; set; }
     }
+
+    private readonly record struct ResourceDiagnostic(string Code, string Message);
 }
 
 /// <summary>Canonical retained state owner addressed by the document node store.</summary>
@@ -460,6 +509,9 @@ internal class UiElement
         _properties.InitializeDefault("Width", _state.Width, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         _properties.InitializeDefault("Height", _state.Height, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         _properties.InitializeDefault("Background", _state.Background, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("BorderColor", _state.BorderColor, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("BorderWidth", _state.BorderWidth, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("CornerRadius", _state.CornerRadius, UiDirtyFlags.Visual);
         _properties.InitializeDefault("Padding", _state.Padding, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         _properties.InitializeDefault("Fill", _state.Fill, UiDirtyFlags.Visual);
         _properties.InitializeDefault("IsEnabled", _state.IsEnabled, UiDirtyFlags.Visual);
@@ -485,6 +537,25 @@ internal class UiElement
     public UiRect Clip { get; protected set; }
     public UiSize DesiredSize { get; protected set; }
     public UiColor Background { get => _state.Background; set => SetLocalProperty("Background", value, UiDirtyFlags.Visual); }
+    public UiColor BorderColor { get => _state.BorderColor; set => SetLocalProperty("BorderColor", value, UiDirtyFlags.Visual); }
+    public float BorderWidth
+    {
+        get => _state.BorderWidth;
+        set
+        {
+            if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
+            SetLocalProperty("BorderWidth", value, UiDirtyFlags.Visual);
+        }
+    }
+    public Delta.XAML.UiCornerRadii CornerRadius
+    {
+        get => _state.CornerRadius;
+        set
+        {
+            if (!value.IsFiniteNonNegative) { throw new ArgumentOutOfRangeException(nameof(value)); }
+            SetLocalProperty("CornerRadius", value, UiDirtyFlags.Visual);
+        }
+    }
     internal bool HasCustomVisual => _state.CustomVisualType != Guid.Empty;
     internal Guid CustomVisualTypeId => _state.CustomVisualType;
     internal Guid CustomVisualResourceId => _state.CustomVisualResource;
@@ -920,6 +991,9 @@ internal class UiElement
         SetDisplaySubtreeCounts(0, 0, 0);
     }
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetTrigger(string name, object? value, UiDirtyFlags invalidation) => _properties.SetTrigger(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, out UiValue value) => _properties.TryGet(name, out value);
+    internal bool TryGetResourceDiagnostic(
+        [NotNullWhen(true)] out string? code,
+        [NotNullWhen(true)] out string? message) => _properties.TryGetResourceDiagnostic(out code, out message);
     public UiPropertyHandle GetHandle(string name) => _properties.GetHandle(name);
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic) => _properties.TrySet(handle, value, invalidation, out diagnostic);
     private string GetAutomationValueText() => UiDescriptorCatalog.GetAutomationValueText(this);
@@ -1304,7 +1378,8 @@ internal class UiElement
     {
         "Text" or "FontKey" or "FontSize" => UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "Width" or "Height" or "Padding" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
-        "Foreground" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "BorderColor" or "BorderWidth" or "CornerRadius" => UiDirtyFlags.Visual,
         _ => UiDirtyFlags.Visual,
     };
 
@@ -2036,6 +2111,22 @@ internal class TextBlock : UiElement
     public string GlyphRunKey { get => _state.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.GlyphRunKey == value) { return; } _state.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _state.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _state.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public UiColor OutlineColor { get => _state.Visual.OutlineColor; set => SetLocalProperty("OutlineColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public float OutlineWidth
+    {
+        get => _state.Visual.OutlineWidth;
+        set
+        {
+            if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
+            SetLocalProperty("OutlineWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        }
+    }
+    public Guid TextEffectResource => _state.Visual.TextEffectResource;
+    public UiResourceId TextEffect
+    {
+        get => new(_state.Visual.TextEffectResource);
+        set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+    }
 
 }
 
@@ -2068,6 +2159,22 @@ internal class TextBox : UiElement, ITextEditorStateOwner
     public string GlyphRunKey { get => _textState.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_textState.Visual.GlyphRunKey == value) { return; } _textState.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _textState.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _textState.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public UiColor OutlineColor { get => _textState.Visual.OutlineColor; set => SetLocalProperty("OutlineColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public float OutlineWidth
+    {
+        get => _textState.Visual.OutlineWidth;
+        set
+        {
+            if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
+            SetLocalProperty("OutlineWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        }
+    }
+    public Guid TextEffectResource => _textState.Visual.TextEffectResource;
+    public UiResourceId TextEffect
+    {
+        get => new(_textState.Visual.TextEffectResource);
+        set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+    }
     public int CaretIndex => _state.CaretIndex;
     public int SelectionStart => _state.SelectionStart;
     public int SelectionLength => _state.SelectionLength;
@@ -2127,6 +2234,22 @@ internal sealed class NumericEditor : UiElement, ITextEditorStateOwner
     public string GlyphRunKey { get => _textState.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_textState.Visual.GlyphRunKey == value) { return; } _textState.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _textState.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _textState.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public UiColor OutlineColor { get => _textState.Visual.OutlineColor; set => SetLocalProperty("OutlineColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public float OutlineWidth
+    {
+        get => _textState.Visual.OutlineWidth;
+        set
+        {
+            if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
+            SetLocalProperty("OutlineWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        }
+    }
+    public Guid TextEffectResource => _textState.Visual.TextEffectResource;
+    public UiResourceId TextEffect
+    {
+        get => new(_textState.Visual.TextEffectResource);
+        set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+    }
     public int CaretIndex => _editorState.CaretIndex;
     public int SelectionStart => _editorState.SelectionStart;
     public int SelectionLength => _editorState.SelectionLength;

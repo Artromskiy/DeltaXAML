@@ -264,10 +264,16 @@ internal readonly struct TextEditorBehaviorMixin
         text.Visual.GlyphRunKey = "default";
         text.Visual.FontSize = 14;
         text.Visual.Foreground = new(255, 255, 255);
+        text.Visual.OutlineColor = default;
+        text.Visual.OutlineWidth = 0;
+        text.Visual.TextEffectResource = Guid.Empty;
         owner.SetDefault("Text", text.Text, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
         owner.SetDefault("FontKey", text.Visual.FontKey, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
         owner.SetDefault("FontSize", text.Visual.FontSize, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
         owner.SetDefault("Foreground", text.Visual.Foreground, UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("OutlineColor", text.Visual.OutlineColor, UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("OutlineWidth", text.Visual.OutlineWidth, UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("TextEffect", new UiResourceId(text.Visual.TextEffectResource), UiDirtyMask.Visual | UiDirtyMask.Text);
     }
 
     internal static void SetText<T>(T owner, string text, bool recordUndo = true)

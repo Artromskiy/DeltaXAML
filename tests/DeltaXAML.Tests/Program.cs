@@ -298,6 +298,7 @@ internal static partial class Program
         ScrollAndClips();
         DocumentOwnsReusableDisplayListStorage();
         TextDisplayListUsesDeltaText();
+        PaintPropertiesReachDisplayList();
         DisplayListDirtySubtreeReusesStableText();
         TextCacheDropsRemovedNodes();
         TextVersionTracksTextInputsOnly();
@@ -316,6 +317,7 @@ internal static partial class Program
         ResourceLookupDiagnostics();
         ResourceBackedPrecedenceAndXaml();
         ResourceDependencyInvalidation();
+        RuntimeResourceDiagnostics();
         PublicResourcesStylesTemplatesAndTypes();
         DocumentDisposesBindingSubscriptions();
         TypeCatalogUsesStableIds();
@@ -914,6 +916,15 @@ internal static partial class Program
         var missingResource = loader.Load($"<TextBlock ForegroundResource=\"{resourceId.Value:D}\" />", in context);
         Assert.True(!missingResource.Success && missingResource.Diagnostics.Length == 1 && missingResource.Diagnostics.Span[0].Code.Value == "XAML006", "missing canonical resource is diagnostic");
 
+        var brushCatalog = new Library.UiResourceCatalog();
+        var gradientId = new LibraryContract.UiResourceId(new Guid("F0D89E84-B5B4-45B8-9230-2F6B1AAE1D41"));
+        brushCatalog.Set("AccentBrush", Library.UiBrush.LinearGradient(gradientId));
+        var brushContext = new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), brushCatalog);
+        var brush = loader.Load("<Panel BackgroundBrush=\"{DynamicResource AccentBrush}\" />", in brushContext);
+        Assert.True(brush.Success && brush.Root is not null, "resource-backed BackgroundBrush uses the canonical retained brush path");
+        var incompatibleBrush = loader.Load("<Panel Background=\"{StaticResource AccentBrush}\" />", in brushContext);
+        Assert.True(!incompatibleBrush.Success && incompatibleBrush.Diagnostics.Length == 1 && incompatibleBrush.Diagnostics.Span[0].Code.Value == "XAML010", "incompatible resource/effect combinations are diagnosed");
+
         using var textDocument = new EmptyTextService();
         var textRoot = loader.Load("<TextBlock Text=\"Hello\" />", in context).Root;
         if (textRoot is null) { throw new InvalidOperationException("library text root missing"); }
@@ -1026,6 +1037,26 @@ internal static partial class Program
         Assert.Equal(new Library.UiColor(32, 42, 52), typedResourceText.Foreground, "style/resource stage applies the queued dependency update");
     }
 
+    private static void RuntimeResourceDiagnostics()
+    {
+        var resources = new Library.UiResourceCatalog();
+        resources.Set("Accent", new Library.UiColor(10, 20, 30));
+        var panel = new Library.UiPanel();
+        panel.SetDynamicResource("Background", resources, "Accent");
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(panel, textService);
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        Assert.True(document.TryBuildDisplayList(out _, out var diagnostic) && diagnostic is null, $"a compatible dynamic resource has no runtime diagnostic: {diagnostic?.Code.Value} {diagnostic?.Message}");
+
+        resources.Set("Accent", Library.UiBrush.Solid(new Library.UiColor(40, 50, 60)));
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        Assert.True(!document.TryBuildDisplayList(out _, out diagnostic) && diagnostic is { Code.Value: "XAML010" }, "an incompatible dynamic resource is reported at display-list build");
+
+        resources.Set("Accent", new Library.UiColor(70, 80, 90));
+        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        Assert.True(document.TryBuildDisplayList(out _, out diagnostic) && diagnostic is null, "a corrected dynamic resource clears the runtime diagnostic");
+    }
+
     private static void TextDisplayListUsesDeltaText()
     {
         var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
@@ -1062,6 +1093,80 @@ internal static partial class Program
         Assert.Equal(3, textService.ShapeCount, "value-only visual update does not reshape unchanged text");
         Assert.True(ReferenceEquals(first.Text[1].Text, third.Text[1].Text), "value-only visual update preserves unchanged shaped text");
         Assert.Equal(first.Text[0].Clip, third.Text[0].Clip, "text clip identity remains canonical");
+    }
+
+    private static void PaintPropertiesReachDisplayList()
+    {
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
+        var fonts = new Library.UiFontCatalog();
+        fonts.Register(
+            "default",
+            new TextContract.FontSourceId(new Guid("4B1E8A67-CE40-4B5C-9E76-2AA4B58E1F45")),
+            File.ReadAllBytes(fontPath));
+        var effect = new LibraryContract.UiResourceId(new Guid("A82B3F7C-5D09-43F1-9DB5-1A377E4B2401"));
+        var border = new Library.UiBorder
+        {
+            Width = 120,
+            Height = 40,
+            Background = new(20, 30, 40),
+            BorderColor = new(200, 210, 220),
+            BorderWidth = 2,
+            CornerRadius = new Library.UiCornerRadii(2, 4, 6, 8),
+        };
+        var text = new Library.UiTextBlock
+        {
+            Text = "Outlined",
+            Width = 120,
+            Height = 40,
+            OutlineColor = new(255, 80, 40),
+            OutlineWidth = 1.5f,
+            TextEffect = effect,
+        };
+        border.SetChild(text);
+        using var textService = new CountingTextService();
+        using var document = new Library.UiDocument(border, textService, fonts);
+        document.Layout(new(120, 40), 1);
+        var display = document.BuildDisplayList();
+
+        Assert.Equal(LibraryContract.UiVisualKind.Border, display.Visuals[0].Kind, "border paint selects the border visual kind");
+        Assert.Equal(new float4(20 / 255f, 30 / 255f, 40 / 255f, 1), display.Visuals[0].Paint.FillColor, "border fill reaches the canonical paint");
+        Assert.Equal(new float4(200 / 255f, 210 / 255f, 220 / 255f, 1), display.Visuals[0].Paint.StrokeColor, "border color reaches the canonical paint");
+        Assert.Equal(2f, display.Visuals[0].Paint.StrokeWidth, "border width reaches the canonical paint");
+        Assert.Equal(new float4(2, 4, 6, 8), display.Visuals[0].Paint.CornerRadii, "per-corner radii reach the canonical paint in contract order");
+        Assert.Equal(new LibraryContract.UiTextPaint(
+            new float4(1, 1, 1, 1),
+            new float4(1, 80 / 255f, 40 / 255f, 1),
+            1.5f,
+            effect), display.Text[0].Paint, "text outline and effect identity reach the canonical paint");
+        var shaped = display.Text[0].Text;
+        text.OutlineWidth = 2;
+        document.Layout(new(120, 40), 1);
+        var recolored = document.BuildDisplayList();
+        Assert.True(ReferenceEquals(shaped, recolored.Text[0].Text), "paint-only text changes reuse the shaped text cache");
+        Assert.Equal(2f, recolored.Text[0].Paint.OutlineWidth, "paint-only text changes update the neutral request");
+
+        var resources = new Library.UiResourceCatalog();
+        resources.Set("TextEffect", effect);
+        var loader = new Library.XamlLoader();
+        var context = new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), resources);
+        var loaded = loader.Load(
+            "<TextBlock Text=\"A\" TextEffect=\"{DynamicResource TextEffect}\" OutlineColor=\"#FF8040\" OutlineWidth=\"1\" />",
+            in context);
+        Assert.True(loaded.Success && loaded.Root is Library.UiTextBlock, "XAML accepts text paint properties and dynamic effect resources");
+        if (loaded.Root is Library.UiTextBlock loadedText)
+        {
+            Assert.Equal(effect, loadedText.TextEffect, "dynamic text effect resolves to the resource identity");
+            Assert.Equal(1f, loadedText.OutlineWidth, "XAML preserves outline width");
+        }
+
+        var cornerMarkup = loader.Load(
+            "<Border Width=\"100\" Height=\"40\" CornerRadius=\"2,4,6,8\" Background=\"#FFFFFF\" />",
+            in context);
+        Assert.True(cornerMarkup.Success && cornerMarkup.Root is Library.UiBorder, "XAML accepts four corner radii");
+        if (cornerMarkup.Root is Library.UiBorder loadedBorder)
+        {
+            Assert.Equal(new Library.UiCornerRadii(2, 4, 6, 8), loadedBorder.CornerRadius, "XAML preserves per-corner radius order");
+        }
     }
 
     private static void DisplayListDirtySubtreeReusesStableText()

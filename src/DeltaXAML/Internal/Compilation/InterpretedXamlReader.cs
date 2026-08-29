@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Xml;
+using Delta.XAML.Contract;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 namespace DeltaXAML.Internal;
 
@@ -95,14 +96,20 @@ internal static class InterpretedXamlReader
                 return;
             }
 
+            resources.TryResolve(resourceKey, out var resolvedResource, out _);
+            if (!IsResourceValueCompatible(name, resolvedResource))
+            {
+                d.Add(new("XAML010", $"Resource '{resourceKey}' is not compatible with property '{name}' on '{e.TypeName}'.", line, 1));
+                return;
+            }
+
             if (dynamicResource)
             {
                 e.SetStyleResource(name, resources, new(resourceKey), InvalidationFor(name));
             }
             else
             {
-                resources.TryResolve(resourceKey, out var resolved, out _);
-                e.SetStyle(name, resolved, InvalidationFor(name));
+                e.SetStyle(name, resolvedResource, InvalidationFor(name));
             }
 
             return;
@@ -120,6 +127,10 @@ internal static class InterpretedXamlReader
             case "Height" when TryFloat(value, out var h): e.Height = h; break;
             case "Fill" when bool.TryParse(value, out var fill): e.Fill = fill; break;
             case "Background" when TryColor(value, out var color): e.Background = color; break;
+            case "BorderColor" when TryColor(value, out var borderColor): e.BorderColor = borderColor; break;
+            case "BorderWidth" when TryFloat(value, out var borderWidth): e.BorderWidth = borderWidth; break;
+            case "CornerRadius" when TryCornerRadii(value, out var cornerRadii): e.CornerRadius = cornerRadii; break;
+            case "CornerRadius": d.Add(new("XAML003", $"Invalid CornerRadius '{value}'. Expected one value or four comma-separated values.", line, 1)); break;
             case "Orientation" when e is StackPanel s && Enum.TryParse(value, true, out UiOrientation orientation): s.Orientation = orientation; break;
             case "Columns" when e is Grid grid && TryGridLengths(value, out var columns): grid.SetColumns(columns); break;
             case "Rows" when e is Grid grid && TryGridLengths(value, out var rows): grid.SetRows(rows); break;
@@ -130,6 +141,9 @@ internal static class InterpretedXamlReader
             case "Maximum" when e is NumericEditor numeric && TryFloat(value, out var maximum): numeric.Max = maximum; break;
             case "Value" when e is NumericEditor numeric && TryFloat(value, out var numericValue): numeric.Initialize(numericValue); break;
             case "Foreground" when TryColor(value, out var fg): e.SetLocal("Foreground", fg, InvalidationFor("Foreground")); break;
+            case "OutlineColor" when TryColor(value, out var outlineColor): e.SetLocal("OutlineColor", outlineColor, InvalidationFor("OutlineColor")); break;
+            case "OutlineWidth" when TryFloat(value, out var outlineWidth): e.SetLocal("OutlineWidth", outlineWidth, InvalidationFor("OutlineWidth")); break;
+            case "TextEffect" when Guid.TryParse(value, out var effect): e.SetLocal("TextEffect", new UiResourceId(effect), InvalidationFor("TextEffect")); break;
             case "ForegroundResource" when resources is not null: e.SetStyleResource("Foreground", resources, new(NormalizeResourceKey(value)), InvalidationFor("Foreground")); break;
             case "ForegroundResource": d.Add(new("XAML004", "ForegroundResource requires a resource store.", line, 1)); break;
             case "Padding" when TryThickness(value, out var padding): e.Padding = padding; break;
@@ -145,15 +159,15 @@ internal static class InterpretedXamlReader
 
     private static bool SupportsProperty(UiElement element, string name)
     {
-        if (name is "Width" or "Height" or "Fill" or "Background" or "Padding" or
+        if (name is "Width" or "Height" or "Fill" or "Background" or "BorderColor" or "BorderWidth" or "CornerRadius" or "Padding" or
             "StyleKey" or "TemplateKey" or "AutomationName" or "AutomationRole" or
-            "IsEnabled" or "IsSelected")
+            "IsEnabled" or "IsSelected" or "BackgroundBrush")
         {
             return true;
         }
 
         if (element is TextBlock or TextBox or NumericEditor &&
-            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundResource")
+            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundResource" or "OutlineColor" or "OutlineWidth" or "TextEffect")
         {
             return true;
         }
@@ -162,6 +176,22 @@ internal static class InterpretedXamlReader
                (element is Grid && name is "Columns" or "Rows") ||
                (element is NumericEditor && name is "Minimum" or "Maximum" or "Value");
     }
+
+    private static bool IsResourceValueCompatible(string property, object? value) => property switch
+    {
+        "Background" or "BorderColor" or "Foreground" or "OutlineColor" => value is UiColor or Delta.XAML.UiColor,
+        "BorderWidth" or "OutlineWidth" => value is
+            byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
+        "CornerRadius" => value is Delta.XAML.UiCornerRadii,
+        "TextEffect" => value is UiResourceId,
+        "BackgroundBrush" => value is Delta.XAML.UiBrush,
+        "Padding" => value is UiThickness or Delta.XAML.UiThickness,
+        "Width" or "Height" or "FontSize" or "Minimum" or "Maximum" or "Value" => value is
+            byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
+        "Fill" or "IsEnabled" or "IsSelected" => value is bool,
+        "Text" or "FontKey" or "StyleKey" or "TemplateKey" or "AutomationName" => value is string,
+        _ => true,
+    };
     internal static bool TryParseResourceReference(string value, out string key, out bool dynamicResource)
     {
         key = string.Empty;
@@ -190,12 +220,39 @@ internal static class InterpretedXamlReader
     private static UiDirtyFlags InvalidationFor(string name) => name switch
     {
         "Text" or "FontKey" or "FontSize" => UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text,
-        "Foreground" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "BorderColor" or "BorderWidth" or "CornerRadius" => UiDirtyFlags.Visual,
         "Width" or "Height" or "Padding" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
         _ => UiDirtyFlags.Visual,
     };
     private static string NormalizeResourceKey(string value) => Guid.TryParse(value, out var resourceId) ? resourceId.ToString("D") : value;
     private static bool TryFloat(string value, out float result) => float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+    private static bool TryCornerRadii(string value, out Delta.XAML.UiCornerRadii result)
+    {
+        var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        result = default;
+        if (parts.Length == 1 && TryFloat(parts[0], out var uniform))
+        {
+            result = Delta.XAML.UiCornerRadii.Uniform(uniform);
+            return result.IsFiniteNonNegative;
+        }
+
+        if (parts.Length != 4)
+        {
+            return false;
+        }
+
+        if (!TryFloat(parts[0], out var topLeft) ||
+            !TryFloat(parts[1], out var topRight) ||
+            !TryFloat(parts[2], out var bottomRight) ||
+            !TryFloat(parts[3], out var bottomLeft))
+        {
+            return false;
+        }
+
+        result = new(topLeft, topRight, bottomRight, bottomLeft);
+        return result.IsFiniteNonNegative;
+    }
     private static bool TryGridLengths(string value, out GridLength[] result)
     {
         var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

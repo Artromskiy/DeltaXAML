@@ -3,7 +3,7 @@ using Delta.Maths;
 using Delta.Render;
 using Delta.Render.Platform.SDL3;
 using Delta.Render.RenderGraph;
-using Delta.Render.UiShaders;
+using Delta.Render.UIShaders;
 using Delta.Render.Vulkan;
 using Delta.Shader.Contract;
 using Delta.Text;

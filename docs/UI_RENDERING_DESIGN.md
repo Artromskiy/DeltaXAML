@@ -1,8 +1,9 @@
 # UI rendering design
 
-This document defines the intended cross-project design for rendering a
-DeltaXAML display list. It does not add a renderer dependency to DeltaXAML and
-does not claim that the future adapter or effect payloads are implemented.
+This document defines the cross-project design for rendering a DeltaXAML
+display list. It does not add a renderer dependency to DeltaXAML. The producer
+currently emits fill/stroke/corner-radius visual paint and text fill/outline/
+effect identities; consumer shader support remains a separate concern.
 
 ## Ownership
 
@@ -76,6 +77,10 @@ public readonly record struct UiVisualPaint(
     float4 CornerRadii);
 ```
 
+The user-facing `CornerRadius` property stores four values in top-left,
+top-right, bottom-right, bottom-left order. A scalar XAML value is shorthand
+for four equal values; it does not create a second storage path.
+
 Gradient stops, image data, shadows and other variable payloads should be
 immutable resources addressed by `UiResourceId`, with resolution performed by
 the renderer adapter. Animation time remains host/render state and never
@@ -114,11 +119,11 @@ Shader source belongs to DeltaShader:
 
 ```text
 DeltaShader/src/DeltaShader.Text/
-DeltaShader/src/DeltaShader.Ui/
+DeltaShader/src/DeltaShader.UI/
 ```
 
 `DeltaShader.Text` owns Coverage/SDF/MSDF text entry points and their ABI.
-`DeltaShader.Ui` should own solid/rounded rectangles, borders, gradients,
+`DeltaShader.UI` should own solid/rounded rectangles, borders, gradients,
 image tinting and clip/mask algorithms. `DeltaShader` publishes validated
 SPIR-V plus binary `ShaderAbi` artifacts. DeltaRender consumes those artifacts
 and owns pipeline/cache construction. Generated artifacts are build/package
@@ -126,10 +131,11 @@ outputs owned by DeltaShader; they are not hand-authored files in DeltaXAML.
 
 The current text shader already has `TextColor`, `OutlineColor` and
 `OutlineWidth` in its shader-visible parameters, and the MSDF fragment applies
-outline coverage. The next text pass must carry equivalent paint data from
-the UI draw request and make SDF/MSDF behavior consistent. DeltaText itself
-does not need to know about outline shaders; it only needs to produce a valid
-distance field with the requested range.
+outline coverage. DeltaXAML now carries equivalent paint data from the UI draw
+request. The adapter still needs to register and validate the matching text
+effect artifact before non-zero outline/effect values can be submitted to the
+GPU. DeltaText itself does not need to know about outline shaders; it only
+needs to produce a valid distance field with the requested range.
 
 ## Clipping and effects
 
@@ -153,11 +159,12 @@ XAML runtime.
    text fill and rectangular clips.
 2. Add headless order/clip/resource/lifetime tests and a RenderGraph adapter
    smoke without a native window.
-3. Add producer extraction for the new paint/clip values and verify that style
-   changes do not reshape unchanged text.
-4. Add `DeltaShader.Ui` and complete common SDF/MSDF text fill-plus-outline
+3. Add consumer validation/submission for producer paint values and verify that
+   style changes do not reshape unchanged text.
+4. Add `DeltaShader.UI` and complete common SDF/MSDF text fill-plus-outline
    artifacts.
-5. Add rounded rectangles, borders and gradients, then rounded clip/mask.
+5. Add rounded clip/mask submission; rounded rectangles and borders are already
+   represented by the producer paint values.
 6. Add custom visual registration keyed by `UiVisualTypeId`, with explicit
    unsupported diagnostics and no fallback rectangle.
 7. Measure dirty uploads, atlas reuse, batching and unchanged-frame behavior

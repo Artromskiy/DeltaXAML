@@ -1,4 +1,5 @@
 using Retained = DeltaXAML.Internal;
+using Delta.XAML.Contract;
 
 namespace Delta.XAML;
 
@@ -27,4 +28,10 @@ public class UiTextBlock : UiElement
         }
         set => TextElement.Foreground = new Retained.UiColor(value.R, value.G, value.B, value.A);
     }
+
+    public UiColor OutlineColor { get => ToPublicColor(TextElement.OutlineColor); set => TextElement.OutlineColor = ToRetainedColor(value); }
+
+    public float OutlineWidth { get => TextElement.OutlineWidth; set => TextElement.OutlineWidth = value; }
+
+    public UiResourceId TextEffect { get => new(TextElement.TextEffectResource); set => TextElement.TextEffect = value; }
 }

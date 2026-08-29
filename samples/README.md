@@ -4,6 +4,8 @@ Runnable sample projects:
 
 - [`TipCalc`](TipCalc/README.md) — a generated-XAML, typed-binding adaptation
   that runs headlessly through `UiDocument` and the canonical display list.
+- [`RoundedRectangle.Render`](RoundedRectangle.Render/README.md) — a minimal
+  native DeltaRender sample for a four-corner rounded rectangle.
 
 The executable sample acceptance lives in
 `tests/DeltaXAML.Tests/Fixtures/Samples`. All twenty fixtures enter the same

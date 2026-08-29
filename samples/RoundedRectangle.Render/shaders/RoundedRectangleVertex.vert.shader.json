@@ -1,0 +1,127 @@
+{
+  "Stage": 1,
+  "SourceEntryPointName": "rounded-rectangle",
+  "EntryPointName": "main",
+  "TargetProfile": "vulkan1.2",
+  "GlslVersion": "460",
+  "SpirvVersion": "1.5",
+  "StorageLayout": "std430",
+  "LocalSizeX": 0,
+  "LocalSizeY": 0,
+  "LocalSizeZ": 0,
+  "Resources": [],
+  "Inputs": [
+    {
+      "Name": "vertexIndex",
+      "ParameterName": "vertexIndex",
+      "GlslName": "gl_VertexIndex",
+      "GlslType": "uint",
+      "Location": 0,
+      "Builtin": "VertexIndex"
+    }
+  ],
+  "VertexInputs": [],
+  "VertexBufferBindings": [],
+  "Outputs": [
+    {
+      "Name": "Position",
+      "ParameterName": "Position",
+      "GlslName": "gl_Position",
+      "GlslType": "vec4",
+      "Location": 0,
+      "Builtin": "Position"
+    },
+    {
+      "Name": "Uv",
+      "ParameterName": "Uv",
+      "GlslName": "Uv",
+      "GlslType": "vec2",
+      "Location": 0,
+      "Builtin": null
+    }
+  ],
+  "PushConstants": [
+    {
+      "Name": "DeltaPushConstants",
+      "ParameterName": "Parameters",
+      "GlslType": "DeltaStruct_Delta_Shader_UI_RoundedRectangleParameters",
+      "Alignment": 16,
+      "Size": 96,
+      "ArrayStride": 96,
+      "Members": [
+        {
+          "Name": "Resolution",
+          "GlslName": "member_Resolution",
+          "GlslType": "vec2",
+          "Offset": 0,
+          "Alignment": 8,
+          "Size": 8,
+          "ArrayStride": 8,
+          "MatrixStride": null,
+          "HostRepresentation": "std430",
+          "Members": []
+        },
+        {
+          "Name": "Rect",
+          "GlslName": "member_Rect",
+          "GlslType": "vec4",
+          "Offset": 16,
+          "Alignment": 16,
+          "Size": 16,
+          "ArrayStride": 16,
+          "MatrixStride": null,
+          "HostRepresentation": "std430",
+          "Members": []
+        },
+        {
+          "Name": "FillColor",
+          "GlslName": "member_FillColor",
+          "GlslType": "vec4",
+          "Offset": 32,
+          "Alignment": 16,
+          "Size": 16,
+          "ArrayStride": 16,
+          "MatrixStride": null,
+          "HostRepresentation": "std430",
+          "Members": []
+        },
+        {
+          "Name": "BorderColor",
+          "GlslName": "member_BorderColor",
+          "GlslType": "vec4",
+          "Offset": 48,
+          "Alignment": 16,
+          "Size": 16,
+          "ArrayStride": 16,
+          "MatrixStride": null,
+          "HostRepresentation": "std430",
+          "Members": []
+        },
+        {
+          "Name": "CornerRadii",
+          "GlslName": "member_CornerRadii",
+          "GlslType": "vec4",
+          "Offset": 64,
+          "Alignment": 16,
+          "Size": 16,
+          "ArrayStride": 16,
+          "MatrixStride": null,
+          "HostRepresentation": "std430",
+          "Members": []
+        },
+        {
+          "Name": "BorderWidth",
+          "GlslName": "member_BorderWidth",
+          "GlslType": "float",
+          "Offset": 80,
+          "Alignment": 4,
+          "Size": 4,
+          "ArrayStride": 4,
+          "MatrixStride": null,
+          "HostRepresentation": "std430",
+          "Members": []
+        }
+      ]
+    }
+  ]
+}

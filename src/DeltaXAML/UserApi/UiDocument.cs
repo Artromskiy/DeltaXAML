@@ -162,6 +162,13 @@ public sealed class UiDocument : IDisposable
     public bool TryBuildDisplayList(out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
         ThrowIfDisposed();
+        if (Root.RetainedElement.TryGetResourceDiagnostic(out var code, out var message))
+        {
+            displayList = default;
+            diagnostic = new(new DiagnosticCode(code), DiagnosticSeverity.Error, message, null);
+            return false;
+        }
+
         return _visuals.TryBuild(Root.RetainedElement, out displayList, out diagnostic);
     }
 

@@ -129,6 +129,15 @@ Default < Style/Trigger < Binding < Local < Handle < Animation
 Property metadata determines whether a change affects measure, arrange,
 visual extraction or hit testing.
 
+Common elements expose renderer-neutral paint values through `BorderColor`,
+`BorderWidth` and four-corner `CornerRadius` values ordered top-left, top-right,
+bottom-right, bottom-left. A scalar XAML value is expanded uniformly. A radius
+changes the visual primitive to `RoundedRectangle` (or `Border` when a stroke is
+present); it does not implicitly clip child content. Text controls expose `OutlineColor`,
+`OutlineWidth` and an optional `TextEffect` resource identity. These values are
+carried into `UiVisualPaint`/`UiTextPaint`; shaping, effect shader selection and
+GPU resource resolution remain outside DeltaXAML.
+
 `UiElement.GetHandle` returns a generation-safe `UiPropertyHandle` for direct
 host writes through `UiElement.TrySet`. A host may group several writes before
 the next `Layout`; each write still resolves through the one retained property

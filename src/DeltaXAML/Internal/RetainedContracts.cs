@@ -16,6 +16,9 @@ internal enum UiPropertyKey
     Height,
     Background,
     BackgroundBrush,
+    BorderColor,
+    BorderWidth,
+    CornerRadius,
     Padding,
     Fill,
     IsEnabled,
@@ -24,6 +27,9 @@ internal enum UiPropertyKey
     FontKey,
     FontSize,
     Foreground,
+    OutlineColor,
+    OutlineWidth,
+    TextEffect,
     Orientation,
     Columns,
     Rows,
@@ -54,6 +60,9 @@ internal static class UiPropertyKeys
         "Height" => UiPropertyKey.Height,
         "Background" => UiPropertyKey.Background,
         "BackgroundBrush" => UiPropertyKey.BackgroundBrush,
+        "BorderColor" => UiPropertyKey.BorderColor,
+        "BorderWidth" => UiPropertyKey.BorderWidth,
+        "CornerRadius" => UiPropertyKey.CornerRadius,
         "Padding" => UiPropertyKey.Padding,
         "Fill" => UiPropertyKey.Fill,
         "IsEnabled" => UiPropertyKey.IsEnabled,
@@ -62,6 +71,9 @@ internal static class UiPropertyKeys
         "FontKey" => UiPropertyKey.FontKey,
         "FontSize" => UiPropertyKey.FontSize,
         "Foreground" => UiPropertyKey.Foreground,
+        "OutlineColor" => UiPropertyKey.OutlineColor,
+        "OutlineWidth" => UiPropertyKey.OutlineWidth,
+        "TextEffect" => UiPropertyKey.TextEffect,
         "Orientation" => UiPropertyKey.Orientation,
         "Columns" => UiPropertyKey.Columns,
         "Rows" => UiPropertyKey.Rows,
@@ -103,7 +115,10 @@ internal static class UiPropertyKeys
         {
             "Width" or "Height" or "FontSize" => typeof(float),
             "Fill" or "IsEnabled" or "IsSelected" => typeof(bool),
-            "Background" or "Foreground" => typeof(UiColor),
+            "Background" or "BorderColor" or "Foreground" or "OutlineColor" => typeof(UiColor),
+            "BorderWidth" or "OutlineWidth" => typeof(float),
+            "CornerRadius" => typeof(Delta.XAML.UiCornerRadii),
+            "TextEffect" => typeof(UiResourceId),
             "BackgroundBrush" => typeof(Delta.XAML.UiBrush),
             "AutomationName" => typeof(string),
             "AutomationRole" => typeof(Delta.XAML.UiSemanticRole),
@@ -163,7 +178,7 @@ internal readonly record struct UiStateSnapshot(UiVisualState State, bool IsEnab
 internal readonly record struct UiClipId(uint Value);
 /// <summary>Renderer-neutral text request; it is not shaped glyph data.</summary>
 /// <remarks>DeltaXAML owns content, style, layout bounds, DPI-dependent text metrics and identity. Owner plus OwnerGeneration identify retained lifetime; Version identifies text/style/DPI dirtiness. Layout changes are represented by Bounds, Clip and draw-list deltas. Shaping and glyph pixels remain external.</remarks>
-internal readonly record struct UiTextRun(string FontKey, float FontSize, string Text, string GlyphRunKey, UiColor Color, UiRect Bounds, UiRect Clip, UiElementId Owner, uint OwnerGeneration, uint Version, UiClipId ClipId = default);
+internal readonly record struct UiTextRun(string FontKey, float FontSize, string Text, string GlyphRunKey, UiColor Color, UiRect Bounds, UiRect Clip, UiElementId Owner, uint OwnerGeneration, uint Version, UiClipId ClipId = default, UiColor OutlineColor = default, float OutlineWidth = 0, Guid TextEffectResource = default);
 internal readonly record struct UiMeasureContext(
     UiSize Available,
     float DpiScale,

@@ -36,6 +36,29 @@ internal static class UiElementPropertiesGenerated
         return true;
     }
 
+    internal static bool TrySetBorderColor(ref UiElementState state, UiColor value)
+    {
+        if (state.BorderColor == value) { return false; }
+        state.BorderColor = value;
+        return true;
+    }
+
+    internal static bool TrySetBorderWidth(ref UiElementState state, float value)
+    {
+        if (!float.IsFinite(value) || value < 0) { return false; }
+        if (state.BorderWidth.Equals(value)) { return false; }
+        state.BorderWidth = value;
+        return true;
+    }
+
+    internal static bool TrySetCornerRadius(ref UiElementState state, Delta.XAML.UiCornerRadii value)
+    {
+        if (!value.IsFiniteNonNegative) { return false; }
+        if (state.CornerRadius.Equals(value)) { return false; }
+        state.CornerRadius = value;
+        return true;
+    }
+
     internal static bool TrySetPadding(ref UiElementState state, UiThickness value)
     {
         if (state.Padding == value)

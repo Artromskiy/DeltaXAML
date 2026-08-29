@@ -31,6 +31,28 @@ public readonly record struct UiThickness(float Left, float Top, float Right, fl
     public static UiThickness Zero => default;
 }
 
+/// <summary>Four logical corner radii in top-left, top-right, bottom-right, bottom-left order.</summary>
+public readonly record struct UiCornerRadii(
+    float TopLeft,
+    float TopRight,
+    float BottomRight,
+    float BottomLeft)
+{
+    public static UiCornerRadii Zero => default;
+
+    public static UiCornerRadii Uniform(float radius) => new(radius, radius, radius, radius);
+
+    public static UiCornerRadii FromSingle(float radius) => Uniform(radius);
+
+    public bool IsFiniteNonNegative =>
+        float.IsFinite(TopLeft) && TopLeft >= 0 &&
+        float.IsFinite(TopRight) && TopRight >= 0 &&
+        float.IsFinite(BottomRight) && BottomRight >= 0 &&
+        float.IsFinite(BottomLeft) && BottomLeft >= 0;
+
+    public static implicit operator UiCornerRadii(float radius) => Uniform(radius);
+}
+
 /// <summary>Opaque generation-safe property target for low-boilerplate host writes.</summary>
 public readonly struct UiPropertyHandle : IEquatable<UiPropertyHandle>
 {
@@ -233,6 +255,36 @@ public abstract class UiElement
             return new UiColor(value.R, value.G, value.B, value.A);
         }
         set => _retained.Background = new Retained.UiColor(value.R, value.G, value.B, value.A);
+    }
+
+    /// <summary>Renderer-neutral border color used with <see cref="BorderWidth"/>.</summary>
+    public UiColor BorderColor
+    {
+        get => UiColorFromRetained(_retained.BorderColor);
+        set => _retained.BorderColor = new Retained.UiColor(value.R, value.G, value.B, value.A);
+    }
+
+    /// <summary>Uniform border width in logical units; zero disables the stroke.</summary>
+    public float BorderWidth
+    {
+        get => _retained.BorderWidth;
+        set
+        {
+            ValidatePaintDimension(value, nameof(value));
+            _retained.BorderWidth = value;
+        }
+    }
+
+    /// <summary>Four corner radii in logical units; they do not implicitly clip children.</summary>
+    /// <remarks>The XAML property name remains <c>CornerRadius</c>; a scalar value is expanded uniformly.</remarks>
+    public UiCornerRadii CornerRadius
+    {
+        get => _retained.CornerRadius;
+        set
+        {
+            ValidateCornerRadii(value, nameof(value));
+            _retained.CornerRadius = value;
+        }
     }
 
     /// <summary>Renderer-neutral paint. Gradients and images remain stable resource references.</summary>
@@ -898,12 +950,29 @@ public abstract class UiElement
     private static RetainedDirty PropertyInvalidation(string propertyName) => propertyName switch
     {
         "Text" or "FontKey" or "FontSize" => RetainedDirty.Measure | RetainedDirty.Visual | RetainedDirty.Text,
-        "Foreground" => RetainedDirty.Visual | RetainedDirty.Text,
+        "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
+        "BorderColor" or "BorderWidth" or "CornerRadius" => RetainedDirty.Visual,
         "Width" or "Height" or "Padding" or
         "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
         _ => RetainedDirty.Visual,
     };
+
+    private static void ValidatePaintDimension(float value, string parameterName)
+    {
+        if (!float.IsFinite(value) || value < 0)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, "Paint dimensions must be finite and non-negative.");
+        }
+    }
+
+    private static void ValidateCornerRadii(UiCornerRadii value, string parameterName)
+    {
+        if (!value.IsFiniteNonNegative)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, "Corner radii must be finite and non-negative.");
+        }
+    }
 
     private sealed class UiClipboardBridge(IUiClipboard source) : Retained.IUiClipboard
     {

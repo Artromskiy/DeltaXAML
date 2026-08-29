@@ -21,7 +21,7 @@
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender/DeltaRender.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Platform.SDL3/DeltaRender.Platform.SDL3.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Vulkan/DeltaRender.Vulkan.csproj" />
-    <ProjectReference Include="../../../DeltaRender/tools/DeltaRender.UiShaders/DeltaRender.UiShaders.csproj" />
+    <ProjectReference Include="../../../DeltaRender/tools/DeltaRender.UIShaders/DeltaRender.UIShaders.csproj" />
     <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
     <PackageReference Include="Silk.NET.MoltenVK.Native" Version="2.23.0" GeneratePathProperty="true" />
   </ItemGroup>

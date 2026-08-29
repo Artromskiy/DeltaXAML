@@ -190,6 +190,13 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.Background when value.UntypedValue is UiColor background:
                 UiElementPropertiesGenerated.TrySetBackground(ref element.CommonState, background);
                 return true;
+            case UiPropertyKey.BorderColor when value.UntypedValue is UiColor borderColor:
+                UiElementPropertiesGenerated.TrySetBorderColor(ref element.CommonState, borderColor);
+                return true;
+            case UiPropertyKey.BorderWidth when value.UntypedValue is float borderWidth:
+                return UiElementPropertiesGenerated.TrySetBorderWidth(ref element.CommonState, borderWidth);
+            case UiPropertyKey.CornerRadius when value.UntypedValue is Delta.XAML.UiCornerRadii cornerRadius:
+                return UiElementPropertiesGenerated.TrySetCornerRadius(ref element.CommonState, cornerRadius);
             case UiPropertyKey.BackgroundBrush when value.UntypedValue is Delta.XAML.UiBrush brush:
                 return TrySetBrush(element, brush);
             case UiPropertyKey.Padding when value.UntypedValue is UiThickness padding:
@@ -222,7 +229,8 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.IsFocusScope when value.UntypedValue is bool isFocusScope:
                 element.IsFocusScope = isFocusScope;
                 return true;
-            case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Background or UiPropertyKey.Padding or
+            case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Background or UiPropertyKey.BorderColor or
+                UiPropertyKey.BorderWidth or UiPropertyKey.CornerRadius or UiPropertyKey.Padding or
                 UiPropertyKey.Fill or UiPropertyKey.IsEnabled or UiPropertyKey.IsSelected or UiPropertyKey.BackgroundBrush or
                 UiPropertyKey.AutomationName or UiPropertyKey.AutomationRole or UiPropertyKey.Gestures or UiPropertyKey.Command or
                 UiPropertyKey.CommandKey or UiPropertyKey.IsFocusScope:
@@ -343,7 +351,15 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.Foreground when value.UntypedValue is UiColor foreground:
                 UiTextBlockGenerated.TrySetForeground(ref state, foreground);
                 return true;
-            case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground:
+            case UiPropertyKey.OutlineColor when value.UntypedValue is UiColor outlineColor:
+                UiTextBlockGenerated.TrySetOutlineColor(ref state, outlineColor);
+                return true;
+            case UiPropertyKey.OutlineWidth when value.UntypedValue is float outlineWidth:
+                return UiTextBlockGenerated.TrySetOutlineWidth(ref state, outlineWidth);
+            case UiPropertyKey.TextEffect when value.UntypedValue is UiResourceId textEffect:
+                return UiTextBlockGenerated.TrySetTextEffect(ref state, textEffect);
+            case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground or
+                UiPropertyKey.OutlineColor or UiPropertyKey.OutlineWidth or UiPropertyKey.TextEffect:
                 return false;
             default:
                 return true;
@@ -905,6 +921,28 @@ internal static class UiTextBlockGenerated
         }
 
         state.Visual.Foreground = value;
+        return true;
+    }
+
+    internal static bool TrySetOutlineColor(ref TextBlockState state, UiColor value)
+    {
+        if (state.Visual.OutlineColor == value) { return false; }
+        state.Visual.OutlineColor = value;
+        return true;
+    }
+
+    internal static bool TrySetOutlineWidth(ref TextBlockState state, float value)
+    {
+        if (!float.IsFinite(value) || value < 0) { return false; }
+        if (state.Visual.OutlineWidth.Equals(value)) { return false; }
+        state.Visual.OutlineWidth = value;
+        return true;
+    }
+
+    internal static bool TrySetTextEffect(ref TextBlockState state, UiResourceId value)
+    {
+        if (state.Visual.TextEffectResource == value.Value) { return false; }
+        state.Visual.TextEffectResource = value.Value;
         return true;
     }
 }

@@ -5,6 +5,9 @@ internal struct UiElementState
     public float Width;
     public float Height;
     public UiColor Background;
+    public UiColor BorderColor;
+    public float BorderWidth;
+    public Delta.XAML.UiCornerRadii CornerRadius;
     public UiThickness Padding;
     public bool Fill;
     public bool IsEnabled;

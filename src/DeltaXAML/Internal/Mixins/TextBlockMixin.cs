@@ -52,5 +52,19 @@ internal readonly struct TextBlockInputMixin : IInputMixin<TextBlockState>
 internal readonly struct TextBlockVisualMixin : IVisualMixin<TextBlockState>
 {
     public static UiTextRun EmitVisual(ref TextBlockState state, in UiTextVisualContext context) =>
-        new(state.Visual.FontKey, state.Visual.FontSize * context.LayoutScale, state.Text, state.Visual.GlyphRunKey, state.Visual.Foreground, state.Layout.Bounds, state.Layout.Clip, context.Owner, context.OwnerGeneration, context.Version);
+        new(
+            state.Visual.FontKey,
+            state.Visual.FontSize * context.LayoutScale,
+            state.Text,
+            state.Visual.GlyphRunKey,
+            state.Visual.Foreground,
+            state.Layout.Bounds,
+            state.Layout.Clip,
+            context.Owner,
+            context.OwnerGeneration,
+            context.Version,
+            default,
+            state.Visual.OutlineColor,
+            state.Visual.OutlineWidth,
+            state.Visual.TextEffectResource);
 }
