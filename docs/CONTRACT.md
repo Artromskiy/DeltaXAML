@@ -60,17 +60,27 @@ committed text arrives through `UiTextInput`.
 
 `UiDisplayList` is a stack-only borrowed view. Its storage remains owned by the
 producing document and is valid only until the next mutation or display-list
-build. `UiClipId` is a frame-local list index and therefore remains an integer.
+build. It contains `UiVisualDraw` values for renderer-neutral visual requests,
+`UiTextDraw` values for already shaped text requests and `UiClipRegion` values
+for nested clipping. `UiClipId` is a frame-local list index and therefore
+remains an integer.
 
-Built-in visuals describe renderer-neutral primitives. A custom visual carries
-a stable semantic `UiVisualTypeId`; DeltaRender resolves that identity to its
-registered shader and pipeline. DeltaXAML never exposes a Vulkan pipeline ID or
-a `ShaderArtifact` in this boundary.
+`UiVisualDraw` describes a renderer-neutral primitive through its kind, logical
+bounds, linear color, optional semantic `UiVisualTypeId`, optional
+`UiResourceId` and clip reference. A custom visual carries a stable semantic
+`UiVisualTypeId`; DeltaRender resolves that identity to its registered shader
+and pipeline. DeltaXAML never exposes a Vulkan pipeline ID or a
+`ShaderArtifact` in this boundary.
 
 Text does not duplicate the DeltaText font contract. `UiTextDraw` transports an
 already shaped `ShapedText` plus baseline placement, linear color and clip.
 Exact font instances, variations, direction, script, language, OpenType
 features, glyph IDs, advances and clusters remain owned by DeltaText.
+
+`UiClipRegion` describes logical bounds and an optional parent region. The
+renderer resolves the parent chain into its effective clip; rectangular clips
+may use scissor, while non-rectangular clip behavior requires a separately
+approved contract extension.
 
 ## Resource identity rule
 

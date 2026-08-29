@@ -9,8 +9,8 @@ namespace Delta.XAML;
 /// </remarks>
 internal sealed class UiDisplayListStorage
 {
-    internal UiVisualCommand[] Visuals = Array.Empty<UiVisualCommand>();
-    internal UiClip[] Clips = Array.Empty<UiClip>();
+    internal UiVisualDraw[] Visuals = Array.Empty<UiVisualDraw>();
+    internal UiClipRegion[] Clips = Array.Empty<UiClipRegion>();
     internal UiTextDraw[] Text = Array.Empty<UiTextDraw>();
     internal int VisualCount;
     internal int ClipCount;

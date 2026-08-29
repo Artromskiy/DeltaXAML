@@ -19,9 +19,10 @@ public readonly record struct UiClipId(int Value)
     public bool IsValid => Value >= 0;
 }
 
+/// <summary>Renderer-neutral clipping region in logical coordinates.</summary>
 /// <param name="Bounds">Logical X, Y, Width and Height.</param>
-/// <param name="Parent">Parent clip for nested clipping, or <see cref="UiClipId.None"/>.</param>
-public readonly record struct UiClip(float4 Bounds, UiClipId Parent);
+/// <param name="Parent">Parent region for nested clipping, or <see cref="UiClipId.None"/>.</param>
+public readonly record struct UiClipRegion(float4 Bounds, UiClipId Parent);
 
 /// <summary>Stable semantic identity of a custom visual, not a pipeline or shader handle.</summary>
 public readonly record struct UiVisualTypeId(Guid Value)
@@ -42,7 +43,7 @@ public enum UiVisualKind : byte
 /// <param name="Color">Linear RGBA tint.</param>
 /// <param name="VisualType">Semantic custom-visual identity; empty for built-in kinds.</param>
 /// <param name="Resource">Stable image or visual resource identity; empty when unused.</param>
-public readonly record struct UiVisualCommand(
+public readonly record struct UiVisualDraw(
     UiVisualKind Kind,
     UiVisualTypeId VisualType,
     float4 Bounds,
@@ -64,8 +65,8 @@ public readonly record struct UiTextDraw(
 public readonly ref struct UiDisplayList
 {
     public UiDisplayList(
-        ReadOnlySpan<UiVisualCommand> visuals,
-        ReadOnlySpan<UiClip> clips,
+        ReadOnlySpan<UiVisualDraw> visuals,
+        ReadOnlySpan<UiClipRegion> clips,
         ReadOnlySpan<UiTextDraw> text)
     {
         Visuals = visuals;
@@ -73,9 +74,9 @@ public readonly ref struct UiDisplayList
         Text = text;
     }
 
-    public ReadOnlySpan<UiVisualCommand> Visuals { get; }
+    public ReadOnlySpan<UiVisualDraw> Visuals { get; }
 
-    public ReadOnlySpan<UiClip> Clips { get; }
+    public ReadOnlySpan<UiClipRegion> Clips { get; }
 
     public ReadOnlySpan<UiTextDraw> Text { get; }
 }

@@ -1277,7 +1277,7 @@ resource by name or shapes text.
 
 ### `DXAML-RUNTIME-3`: canonical extraction and text cache
 
-The visual stage writes `UiVisualCommand`, `UiClip` and `UiTextDraw` directly
+The visual stage writes `UiVisualDraw`, `UiClipRegion` and `UiTextDraw` directly
 into reusable document-owned arrays. `UiDocument.TryBuildDisplayList` returns
 spans over those arrays. It does not first build `IUiDrawList`, compare a full
 duplicate previous list and translate every item into the contract types.

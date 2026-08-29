@@ -203,7 +203,7 @@ internal sealed class UiVisualStage : IDisposable
             }
 
             var effective = Retained.UiRect.Intersect(visit.Clip, current.Bounds);
-            var expectedClip = new UiClip(ToFloat4(effective), new UiClipId(visit.ParentClip.Value));
+            var expectedClip = new UiClipRegion(ToFloat4(effective), new UiClipId(visit.ParentClip.Value));
             if (!current.NeedsVisualExtraction && expectedClip.Equals(_storage.Clips[current.DisplayClipIndex]))
             {
                 clipCount += current.DisplayClipCount;
@@ -228,7 +228,7 @@ internal sealed class UiVisualStage : IDisposable
             }
 
             clipCount++;
-            var hasVisual = TryGetVisualCommand(current, new UiClipId(current.DisplayClipIndex), out var visual);
+            var hasVisual = TryGetVisualDraw(current, new UiClipId(current.DisplayClipIndex), out var visual);
             if (hasVisual != (current.DisplayVisualIndex >= 0) ||
                 (hasVisual && current.DisplayVisualIndex != visualCount))
             {
@@ -360,7 +360,7 @@ internal sealed class UiVisualStage : IDisposable
             var textIndex = -1;
             var ownTextCount = 0;
 
-            if (TryGetVisualCommand(current, clipId, out var visual))
+            if (TryGetVisualDraw(current, clipId, out var visual))
             {
                 EnsureCapacity(ref _storage.Visuals, _storage.VisualCount + 1);
                 visualIndex = _storage.VisualCount;
@@ -418,7 +418,7 @@ internal sealed class UiVisualStage : IDisposable
         return true;
     }
 
-    private static bool TryGetVisualCommand(RetainedElement element, UiClipId clip, out UiVisualCommand visual)
+    private static bool TryGetVisualDraw(RetainedElement element, UiClipId clip, out UiVisualDraw visual)
     {
         if ((element.Participation & UiParticipation.Rendering) == 0)
         {
