@@ -71,9 +71,8 @@ that span. Consumers must iterate `Order` to preserve retained traversal order;
 they must not assume that all visuals precede all text. The span is borrowed with
 the other display-list spans. A producer must emit one reference for every visual
 or text payload and must not emit an invalid kind or index. The compatibility
-three-span constructor leaves `Order` empty and represents the legacy
-visuals-then-text convention; canonical producers use the constructor that
-receives `Order`.
+boundary always supplies `Order`; there is no implicit visuals-first or
+visuals-then-text fallback.
 
 The top-level types are intentionally small:
 

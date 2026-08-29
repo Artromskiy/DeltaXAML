@@ -1323,9 +1323,6 @@ internal static partial class Program
         Assert.True(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 0).IsValid, "text draw reference is well formed");
         Assert.True(!new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Unknown, 0).IsValid, "unknown draw kind is rejected");
         Assert.True(!new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, -1).IsValid, "negative draw index is rejected");
-
-        var legacy = new LibraryContract.UiDisplayList(visuals, clips, text);
-        Assert.True(legacy.Order.IsEmpty, "legacy constructor preserves its documented empty-order marker");
     }
 
     private static void CustomVisualsRemainNeutral()
