@@ -11,6 +11,8 @@ Authoritative documents:
   element/property contract;
 - [CONTRACT.md](CONTRACT.md) — cross-project input and borrowed
   display-list contract;
+- [UI_RENDERING_DESIGN.md](UI_RENDERING_DESIGN.md) — cross-project UI
+  rendering ownership, adapter and shader design;
 - [INTERNAL.md](INTERNAL.md) — authoritative typed-state, static-mixin,
   generated-descriptor and compiled-XAML implementation architecture;
 - [TODO.md](../TODO.md) — currently selected project work;
