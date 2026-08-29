@@ -7,9 +7,14 @@ using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 namespace DeltaXAML.Internal;
 
-internal sealed class UiValue
+internal readonly struct UiValue
 {
-    public UiValue(object? value, UiValueSource source, UiDirtyFlags invalidation) { UntypedValue = value; Source = source; Invalidation = invalidation; }
+    public UiValue(object? value, UiValueSource source, UiDirtyFlags invalidation)
+    {
+        UntypedValue = value;
+        Source = source;
+        Invalidation = invalidation;
+    }
     public object? UntypedValue { get; }
     public UiValueSource Source { get; }
     public UiDirtyFlags Invalidation { get; }
@@ -126,7 +131,7 @@ internal sealed class UiPropertyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var slots = GetSlots(name);
         var defaultValue = new UiValue(value, UiValueSource.Default, invalidation);
-        slots.DefaultValue = defaultValue;
+        SetValue(slots, UiValueSource.Default, defaultValue);
         _values[name] = defaultValue;
     }
     public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => SetSource(name, new(value, UiValueSource.Default, invalidation));
@@ -172,11 +177,11 @@ internal sealed class UiPropertyStore
         RemoveBinding(name);
         _bindings[name] = binding;
         var slots = GetSlots(name);
-        slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
+        SetValue(slots, UiValueSource.Binding, new UiValue(binding.Read(), UiValueSource.Binding, invalidation));
         ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
         EventHandler handler = (_, _) =>
         {
-            slots.BindingValue = new UiValue(binding.Read(), UiValueSource.Binding, invalidation);
+            SetValue(slots, UiValueSource.Binding, new UiValue(binding.Read(), UiValueSource.Binding, invalidation));
             ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
         };
         _bindingHandlers[name] = handler;
@@ -187,7 +192,7 @@ internal sealed class UiPropertyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var slots = GetSlots(name);
-        slots.BindingValue = new UiValue(value, UiValueSource.Binding, invalidation);
+        SetValue(slots, UiValueSource.Binding, new UiValue(value, UiValueSource.Binding, invalidation));
         ApplyEffective(name, slots, property);
     }
     public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => SetSource(name, new(value, UiValueSource.Handle, invalidation));
@@ -200,11 +205,11 @@ internal sealed class UiPropertyStore
         if (source == UiValueSource.Style) { RemoveResourceBinding(name); }
         if (_slots.TryGetValue(name, out var slots))
         {
-            SetValue(slots, source, null);
+            ClearValue(slots, source);
             ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
         }
     }
-    public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) { ArgumentException.ThrowIfNullOrWhiteSpace(name); return _values.TryGetValue(name, out value); }
+    public bool TryGet(string name, out UiValue value) { ArgumentException.ThrowIfNullOrWhiteSpace(name); return _values.TryGetValue(name, out value); }
     public UiPropertyHandle GetHandle(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -239,7 +244,7 @@ internal sealed class UiPropertyStore
         {
             binding.Changed -= handler;
         }
-        if (_slots.TryGetValue(name, out var slots)) { slots.BindingValue = null; }
+        if (_slots.TryGetValue(name, out var slots)) { ClearValue(slots, UiValueSource.Binding); }
     }
     private void RemoveResourceBinding(string name)
     {
@@ -253,30 +258,41 @@ internal sealed class UiPropertyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var slots = GetSlots(name);
         SetValue(slots, value.Source, value);
+        if (_values.TryGetValue(name, out var current) && Same(in current, in value))
+        {
+            return;
+        }
+
         ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
     }
-    private static void SetValue(SourceSlots slots, UiValueSource source, UiValue? value)
+    private static void SetValue(SourceSlots slots, UiValueSource source, UiValue value)
     {
         switch (source)
         {
-            case UiValueSource.Default: slots.DefaultValue = value; break;
-            case UiValueSource.Style: slots.StyleValue = value; break;
-            case UiValueSource.Trigger: slots.TriggerValue = value; break;
-            case UiValueSource.Binding: slots.BindingValue = value; break;
-            case UiValueSource.Local: slots.LocalValue = value; break;
-            case UiValueSource.Handle: slots.HandleValue = value; break;
-            case UiValueSource.Animation: slots.AnimationValue = value; break;
+            case UiValueSource.Default: slots.DefaultValue = value.UntypedValue; slots.DefaultInvalidation = value.Invalidation; break;
+            case UiValueSource.Style: slots.StyleValue = value.UntypedValue; slots.StyleInvalidation = value.Invalidation; break;
+            case UiValueSource.Trigger: slots.TriggerValue = value.UntypedValue; slots.TriggerInvalidation = value.Invalidation; break;
+            case UiValueSource.Binding: slots.BindingValue = value.UntypedValue; slots.BindingInvalidation = value.Invalidation; break;
+            case UiValueSource.Local: slots.LocalValue = value.UntypedValue; slots.LocalInvalidation = value.Invalidation; break;
+            case UiValueSource.Handle: slots.HandleValue = value.UntypedValue; slots.HandleInvalidation = value.Invalidation; break;
+            case UiValueSource.Animation: slots.AnimationValue = value.UntypedValue; slots.AnimationInvalidation = value.Invalidation; break;
         }
+
+        slots.Present |= SourceBit(source);
+    }
+    private static void ClearValue(SourceSlots slots, UiValueSource source)
+    {
+        slots.Present &= (byte)~SourceBit(source);
     }
     private SourceSlots GetSlots(string name) => _slots.TryGetValue(name, out var slots) ? slots : AddSlots(name);
     private SourceSlots AddSlots(string name) { var slots = new SourceSlots(); _slots.Add(name, slots); return slots; }
     private void ApplyEffective(string name, SourceSlots slots, UiPropertyKey property)
     {
-        _values.TryGetValue(name, out var previous);
-        var effective = Resolve(slots);
-        if (Same(previous, effective))
+        var hasPrevious = _values.TryGetValue(name, out var previous);
+        var hasEffective = TryResolve(slots, out var effective);
+        if (hasPrevious == hasEffective && (!hasEffective || Same(in previous, in effective)))
         {
-            if (effective is null)
+            if (!hasEffective)
             {
                 _values.Remove(name);
             }
@@ -287,20 +303,24 @@ internal sealed class UiPropertyStore
 
             return;
         }
-        while (effective is not null && !UiDescriptorCatalog.TrySetProperty(_owner, property, effective))
+        while (hasEffective && !UiDescriptorCatalog.TrySetProperty(_owner, property, effective))
         {
-            SetValue(slots, effective.Source, null);
-            effective = Resolve(slots);
+            ClearValue(slots, effective.Source);
+            hasEffective = TryResolve(slots, out effective);
         }
 
-        if (Same(previous, effective))
+        if (hasPrevious == hasEffective && (!hasEffective || Same(in previous, in effective)))
         {
             return;
         }
 
-        var invalidation = effective?.Invalidation ?? previous?.Invalidation ?? UiDirtyFlags.Visual;
+        var invalidation = hasEffective
+            ? effective.Invalidation
+            : hasPrevious
+                ? previous.Invalidation
+                : UiDirtyFlags.Visual;
         _owner.InvalidateChanged(invalidation);
-        if (effective is null)
+        if (!hasEffective)
         {
             _values.Remove(name);
         }
@@ -311,43 +331,55 @@ internal sealed class UiPropertyStore
 
         _owner.NotifyEffectivePropertyChanged(name);
     }
-    private static UiValue? Resolve(SourceSlots slots)
+    private static bool TryResolve(SourceSlots slots, out UiValue value)
     {
         foreach (var source in Precedence)
         {
-            var value = source switch
+            if (TryGetValue(slots, source, out value))
             {
-                UiValueSource.Animation => slots.AnimationValue,
-                UiValueSource.Handle => slots.HandleValue,
-                UiValueSource.Local => slots.LocalValue,
-                UiValueSource.Binding => slots.BindingValue,
-                UiValueSource.Trigger => slots.TriggerValue,
-                UiValueSource.Style => slots.StyleValue,
-                UiValueSource.Default => slots.DefaultValue,
-                _ => null,
-            };
-            if (value is not null)
-            {
-                return value;
+                return true;
             }
         }
 
-        return null;
+        value = default;
+        return false;
+    }
+    private static bool TryGetValue(SourceSlots slots, UiValueSource source, out UiValue value)
+    {
+        if ((slots.Present & SourceBit(source)) == 0)
+        {
+            value = default;
+            return false;
+        }
+
+        value = source switch
+        {
+            UiValueSource.Animation => new UiValue(slots.AnimationValue, source, slots.AnimationInvalidation),
+            UiValueSource.Handle => new UiValue(slots.HandleValue, source, slots.HandleInvalidation),
+            UiValueSource.Local => new UiValue(slots.LocalValue, source, slots.LocalInvalidation),
+            UiValueSource.Binding => new UiValue(slots.BindingValue, source, slots.BindingInvalidation),
+            UiValueSource.Trigger => new UiValue(slots.TriggerValue, source, slots.TriggerInvalidation),
+            UiValueSource.Style => new UiValue(slots.StyleValue, source, slots.StyleInvalidation),
+            UiValueSource.Default => new UiValue(slots.DefaultValue, source, slots.DefaultInvalidation),
+            _ => default,
+        };
+        return true;
     }
     private object? ResolveResource(ResourceBinding binding) => binding.Resources.TryResolve(binding.Reference, out var value, out _) ? value : null;
     private void ApplyResourceBinding(string name, ResourceBinding binding)
     {
         var slots = GetSlots(name);
-        slots.StyleValue = new UiValue(ResolveResource(binding), UiValueSource.Style, binding.Invalidation);
+        SetValue(slots, UiValueSource.Style, new UiValue(ResolveResource(binding), UiValueSource.Style, binding.Invalidation));
         ApplyEffective(name, slots, UiPropertyKeys.Resolve(name));
     }
-    private static bool Same(UiValue? left, UiValue? right) =>
-        (left is null && right is null) ||
-        (left is not null && right is not null &&
-         left.Source == right.Source && Equals(left.UntypedValue, right.UntypedValue));
+    private static bool Same(in UiValue left, in UiValue right) =>
+        left.Source == right.Source && Equals(left.UntypedValue, right.UntypedValue);
+    private static byte SourceBit(UiValueSource source) => (byte)(1 << (int)source);
     private sealed class SourceSlots
     {
-        public UiValue? DefaultValue, StyleValue, TriggerValue, BindingValue, LocalValue, HandleValue, AnimationValue;
+        public object? DefaultValue, StyleValue, TriggerValue, BindingValue, LocalValue, HandleValue, AnimationValue;
+        public UiDirtyFlags DefaultInvalidation, StyleInvalidation, TriggerInvalidation, BindingInvalidation, LocalInvalidation, HandleInvalidation, AnimationInvalidation;
+        public byte Present;
     }
     private sealed class ResourceBinding
     {
@@ -887,7 +919,7 @@ internal class UiElement
         SetDisplayRange(-1, -1, -1, 0);
         SetDisplaySubtreeCounts(0, 0, 0);
     }
-    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetTrigger(string name, object? value, UiDirtyFlags invalidation) => _properties.SetTrigger(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, [NotNullWhen(true)] out UiValue? value) => _properties.TryGet(name, out value);
+    public void SetDefault(string name, object? value, UiDirtyFlags invalidation) => _properties.SetDefault(name, value, invalidation); public void SetLocal(string name, object? value, UiDirtyFlags invalidation) => _properties.SetLocal(name, value, invalidation); public void SetStyle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetStyle(name, value, invalidation); public void SetTrigger(string name, object? value, UiDirtyFlags invalidation) => _properties.SetTrigger(name, value, invalidation); public void SetBinding(string name, UiBindingValue binding, UiDirtyFlags invalidation) => _properties.SetBinding(name, binding, invalidation); public void SetHandle(string name, object? value, UiDirtyFlags invalidation) => _properties.SetHandle(name, value, invalidation); public void SetAnimation(string name, object? value, UiDirtyFlags invalidation) => _properties.SetAnimation(name, value, invalidation); public void SetStyleResource(string name, UiResourceStore resources, UiResourceReference reference, UiDirtyFlags invalidation) => _properties.SetStyleResource(name, resources, reference, invalidation); public void Clear(string name, UiValueSource source) => _properties.Clear(name, source); public bool TryGet(string name, out UiValue value) => _properties.TryGet(name, out value);
     public UiPropertyHandle GetHandle(string name) => _properties.GetHandle(name);
     public bool TrySet(UiPropertyHandle handle, object? value, UiDirtyFlags invalidation, [NotNullWhen(false)] out string? diagnostic) => _properties.TrySet(handle, value, invalidation, out diagnostic);
     private string GetAutomationValueText() => UiDescriptorCatalog.GetAutomationValueText(this);

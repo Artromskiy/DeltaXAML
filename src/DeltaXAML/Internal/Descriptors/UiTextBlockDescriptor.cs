@@ -179,7 +179,6 @@ internal static class UiDescriptorCatalog
     internal static bool TrySetProperty(UiElement element, UiPropertyKey key, UiValue value)
     {
         ArgumentNullException.ThrowIfNull(element);
-        ArgumentNullException.ThrowIfNull(value);
         switch (key)
         {
             case UiPropertyKey.Width when value.UntypedValue is float width:
