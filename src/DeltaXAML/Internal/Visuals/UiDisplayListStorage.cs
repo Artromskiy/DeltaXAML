@@ -12,17 +12,24 @@ internal sealed class UiDisplayListStorage
     internal UiVisualDraw[] Visuals = Array.Empty<UiVisualDraw>();
     internal UiClipRegion[] Clips = Array.Empty<UiClipRegion>();
     internal UiTextDraw[] Text = Array.Empty<UiTextDraw>();
+    internal UiDrawRef[] Order = Array.Empty<UiDrawRef>();
     internal int VisualCount;
     internal int ClipCount;
     internal int TextCount;
+    internal int OrderCount;
 
     internal void ClearCounts()
     {
         VisualCount = 0;
         ClipCount = 0;
         TextCount = 0;
+        OrderCount = 0;
     }
 
     internal UiDisplayList BorrowedView() =>
-        new(Visuals.AsSpan(0, VisualCount), Clips.AsSpan(0, ClipCount), Text.AsSpan(0, TextCount));
+        new(
+            Visuals.AsSpan(0, VisualCount),
+            Clips.AsSpan(0, ClipCount),
+            Text.AsSpan(0, TextCount),
+            Order.AsSpan(0, OrderCount));
 }

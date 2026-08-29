@@ -831,7 +831,17 @@ classDiagram
     class UiPipeline
     class UiDisplayList {
         <<borrowed view>>
+        +Visuals
+        +Clips
+        +Text
+        +Order
     }
+    class UiDrawRef {
+        +Kind
+        +Index
+    }
+
+    UiDisplayList --> UiDrawRef
 
     UiDocument *-- UiPipeline
     UiDocument *-- UiElement
@@ -1277,10 +1287,13 @@ resource by name or shapes text.
 
 ### `DXAML-RUNTIME-3`: canonical extraction and text cache
 
-The visual stage writes `UiVisualDraw`, `UiClipRegion` and `UiTextDraw` directly
-into reusable document-owned arrays. `UiDocument.TryBuildDisplayList` returns
-spans over those arrays. It does not first build `IUiDrawList`, compare a full
-duplicate previous list and translate every item into the contract types.
+The visual stage writes `UiVisualDraw`, `UiClipRegion`, `UiTextDraw` and
+`UiDrawRef` directly into reusable document-owned arrays. `UiDrawRef` is the
+only cross-kind ordering channel: its kind selects the visual or text array and
+its index selects the payload. `UiDocument.TryBuildDisplayList` returns spans
+over those arrays. It does not first build a second intermediate draw list,
+compare a full duplicate previous list or translate every item into the
+contract types.
 
 Only dirty node ranges are rewritten; a structural or ordering change may
 compact the affected suffix. The returned view is invalid after the next

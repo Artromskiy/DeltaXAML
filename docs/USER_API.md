@@ -227,6 +227,8 @@ texture uploads and Vulkan execution.
 Its backing storage remains owned by the document and is valid only until the
 next document mutation or display-list build. Consumers must add its contents
 to their render work before that invalidation point and must not retain spans.
+Iterate `UiDisplayList.Order` for the canonical mixed visual/text sequence;
+each `UiDrawRef` indexes either `Visuals` or `Text` according to its `Kind`.
 
 ## Custom controls
 

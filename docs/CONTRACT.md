@@ -9,15 +9,15 @@ The ordinary loader/document/element/property API is specified separately in
 mechanics into this cross-project packet contract.
 
 ```text
-DeltaEngine input -> DeltaXAML.Contract input packets -> DeltaXAML.Core
-DeltaXAML.Core -> UiDisplayList -> DeltaRender adapter -> Vulkan render graph
+DeltaEngine input -> DeltaXAML.Contract input packets -> DeltaXAML
+DeltaXAML -> UiDisplayList -> DeltaRender adapter -> Vulkan render graph
 DeltaText ShapedText ------------------^
 ```
 
 ## Ownership
 
 The contract owns only platform-neutral packets and borrowed display-list
-values. `DeltaXAML.Core` owns XAML loading, the retained tree, properties,
+values. `DeltaXAML` owns XAML loading, the retained tree, properties,
 controls, bindings, layout, focus, hit testing and input semantics. DeltaText
 owns font instances and shaping. DeltaRender owns Vulkan resources, shaders,
 pipelines, batching and submission. DeltaEngine owns the event loop and call
@@ -65,6 +65,27 @@ build. It contains `UiVisualDraw` values for renderer-neutral visual requests,
 for nested clipping. `UiClipId` is a frame-local list index and therefore
 remains an integer.
 
+`UiDisplayList.Order` is the canonical mixed draw sequence. Each
+`UiDrawRef.Kind` selects either `Visuals` or `Text`, and its `Index` addresses
+that span. Consumers must iterate `Order` to preserve retained traversal order;
+they must not assume that all visuals precede all text. The span is borrowed with
+the other display-list spans. A producer must emit one reference for every visual
+or text payload and must not emit an invalid kind or index. The compatibility
+three-span constructor leaves `Order` empty and represents the legacy
+visuals-then-text convention; canonical producers use the constructor that
+receives `Order`.
+
+The top-level types are intentionally small:
+
+```csharp
+public enum UiDrawKind : byte { Unknown = 0, Visual = 1, Text = 2 }
+public readonly record struct UiDrawRef(UiDrawKind Kind, int Index);
+public ReadOnlySpan<UiDrawRef> Order { get; }
+```
+
+`UiDrawRef` is a payload reference, not a second command representation. Clips
+remain in `Clips` and are reached through the selected visual or text payload.
+
 `UiVisualDraw` describes a renderer-neutral primitive through its kind, logical
 bounds, linear color, optional semantic `UiVisualTypeId`, optional
 `UiResourceId` and clip reference. A custom visual carries a stable semantic
@@ -88,8 +109,3 @@ Durable resource and semantic identities crossing project boundaries are typed
 wrappers over `Guid`. Runtime-local slots, generations, frame-local clip
 indices, pointer IDs and GPU handles are not resources and remain compact
 integer values.
-
-The existing `DeltaXAML.Abstractions` assembly is a temporary migration surface
-for the current implementation and consumers. It is not the source of truth for
-new cross-project API. Migrate consumers to `DeltaXAML.Contract` before
-removing the legacy assembly.

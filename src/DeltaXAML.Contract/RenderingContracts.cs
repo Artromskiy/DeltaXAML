@@ -24,6 +24,30 @@ public readonly record struct UiClipId(int Value)
 /// <param name="Parent">Parent region for nested clipping, or <see cref="UiClipId.None"/>.</param>
 public readonly record struct UiClipRegion(float4 Bounds, UiClipId Parent);
 
+/// <summary>Payload kind referenced by a <see cref="UiDrawRef"/>.</summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Design",
+    "CA1028:Enum Storage should be Int32",
+    Justification = "Display-list references use a compact byte kind at the renderer-neutral boundary.")]
+public enum UiDrawKind : byte
+{
+    Unknown = 0,
+    Visual = 1,
+    Text = 2,
+}
+
+/// <summary>Compact reference to one payload in a <see cref="UiDisplayList"/>.</summary>
+/// <param name="Kind">Payload span selected by <see cref="Kind"/>.</param>
+/// <param name="Index">Zero-based index into the selected payload span.</param>
+public readonly record struct UiDrawRef(UiDrawKind Kind, int Index)
+{
+    /// <summary>
+    /// Gets whether the fields form a supported non-negative reference. The selected display
+    /// list still owns range validation because only it knows the payload span length.
+    /// </summary>
+    public bool IsValid => (Kind is UiDrawKind.Visual or UiDrawKind.Text) && Index >= 0;
+}
+
 /// <summary>Stable semantic identity of a custom visual, not a pipeline or shader handle.</summary>
 public readonly record struct UiVisualTypeId(Guid Value)
 {
@@ -64,19 +88,44 @@ public readonly record struct UiTextDraw(
 /// </summary>
 public readonly ref struct UiDisplayList
 {
+    /// <summary>
+    /// Creates a display list using the legacy visuals-then-text ordering. New producers should
+    /// pass the canonical mixed-kind order to the four-argument constructor.
+    /// </summary>
     public UiDisplayList(
         ReadOnlySpan<UiVisualDraw> visuals,
         ReadOnlySpan<UiClipRegion> clips,
         ReadOnlySpan<UiTextDraw> text)
+        : this(visuals, clips, text, default)
+    {
+    }
+
+    /// <summary>Creates a borrowed display list with its canonical mixed payload order.</summary>
+    public UiDisplayList(
+        ReadOnlySpan<UiVisualDraw> visuals,
+        ReadOnlySpan<UiClipRegion> clips,
+        ReadOnlySpan<UiTextDraw> text,
+        ReadOnlySpan<UiDrawRef> order)
     {
         Visuals = visuals;
         Clips = clips;
         Text = text;
+        Order = order;
     }
 
+    /// <summary>Gets renderer-neutral visual payloads indexed by visual draw references.</summary>
     public ReadOnlySpan<UiVisualDraw> Visuals { get; }
 
+    /// <summary>Gets nested clip regions referenced by visual and text payloads.</summary>
     public ReadOnlySpan<UiClipRegion> Clips { get; }
 
+    /// <summary>Gets renderer-neutral shaped text payloads indexed by text draw references.</summary>
     public ReadOnlySpan<UiTextDraw> Text { get; }
+
+    /// <summary>
+    /// Gets the canonical draw sequence. Each entry selects one item from <see cref="Visuals"/>
+    /// or <see cref="Text"/>; the span is borrowed with the rest of this display list.
+    /// An empty span denotes the legacy visuals-then-text constructor semantics.
+    /// </summary>
+    public ReadOnlySpan<UiDrawRef> Order { get; }
 }

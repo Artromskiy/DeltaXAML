@@ -291,7 +291,8 @@ internal sealed class UiVisualStage : IDisposable
             }
         }
 
-        if (clipCount != _storage.ClipCount || visualCount != _storage.VisualCount || textCount != _storage.TextCount)
+        if (clipCount != _storage.ClipCount || visualCount != _storage.VisualCount || textCount != _storage.TextCount ||
+            _storage.OrderCount != visualCount + textCount)
         {
             return true;
         }
@@ -365,6 +366,7 @@ internal sealed class UiVisualStage : IDisposable
                 EnsureCapacity(ref _storage.Visuals, _storage.VisualCount + 1);
                 visualIndex = _storage.VisualCount;
                 _storage.Visuals[_storage.VisualCount++] = visual;
+                AppendOrder(new UiDrawRef(UiDrawKind.Visual, visualIndex));
             }
 
             if ((current.Participation & UiParticipation.Rendering) != 0 && current is Retained.RichTextBlock richText)
@@ -378,6 +380,13 @@ internal sealed class UiVisualStage : IDisposable
                 if (ownTextCount == 0)
                 {
                     textIndex = -1;
+                }
+                else
+                {
+                    for (var i = 0; i < ownTextCount; i++)
+                    {
+                        AppendOrder(new UiDrawRef(UiDrawKind.Text, textIndex + i));
+                    }
                 }
             }
             else if ((current.Participation & UiParticipation.Rendering) != 0 &&
@@ -397,6 +406,7 @@ internal sealed class UiVisualStage : IDisposable
 
                 _storage.TextCount++;
                 ownTextCount = 1;
+                AppendOrder(new UiDrawRef(UiDrawKind.Text, textIndex));
             }
 
             current.SetDisplayRange(clipId.Value, visualIndex, textIndex, ownTextCount);
@@ -416,6 +426,12 @@ internal sealed class UiVisualStage : IDisposable
         }
 
         return true;
+    }
+
+    private void AppendOrder(UiDrawRef drawRef)
+    {
+        EnsureCapacity(ref _storage.Order, _storage.OrderCount + 1);
+        _storage.Order[_storage.OrderCount++] = drawRef;
     }
 
     private static bool TryGetVisualDraw(RetainedElement element, UiClipId clip, out UiVisualDraw visual)

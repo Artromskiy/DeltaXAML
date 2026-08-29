@@ -302,6 +302,7 @@ internal static partial class Program
         TextVersionTracksTextInputsOnly();
         DpiInvalidatesLayoutWithoutCompoundingScale();
         CustomVisualsRemainNeutral();
+        DisplayListOrderContract();
         PublicDisplayListWarmFrameHasNoAllocations();
         BindingExpressionsAndContexts();
         GeneratedEditorAndGameHostPaths();
@@ -1035,7 +1036,7 @@ internal static partial class Program
             File.ReadAllBytes(fontPath));
         var text = new Library.UiTextBlock { Text = "A", Width = 240, Height = 40 };
         var unchangedText = new Library.UiTextBlock { Text = "unchanged", Width = 240, Height = 40 };
-        var root = new Library.UiPanel();
+        var root = new Library.UiPanel { Background = new(1, 2, 3) };
         root.Add(text);
         root.Add(unchangedText);
         using var textService = new CountingTextService();
@@ -1043,6 +1044,10 @@ internal static partial class Program
         document.Layout(new Delta.Maths.float2(240, 40), 1);
         var first = document.BuildDisplayList();
         Assert.Equal(2, first.Text.Length, "facade emits canonical text draws");
+        Assert.Equal(3, first.Order.Length, "mixed display output emits one ordered reference per payload");
+        Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, 0), first.Order[0], "visual payload is ordered before its text children");
+        Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 0), first.Order[1], "first text payload keeps traversal order");
+        Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 1), first.Order[2], "second text payload keeps traversal order");
         Assert.Equal(2, textService.ShapeCount, "initial text output shapes each retained text node");
         var firstShaped = first.Text[0].Text;
         Assert.True(firstShaped.Runs.Length > 0, "DeltaText returns positioned shaped runs");
@@ -1284,12 +1289,43 @@ internal static partial class Program
         var visuals = storage.Visuals;
         var clips = storage.Clips;
         var text = storage.Text;
+        var order = storage.Order;
         _ = document.BuildDisplayList();
 
         Assert.True(ReferenceEquals(storage, document.DisplayListStorage), "document keeps one display-list owner");
         Assert.True(ReferenceEquals(visuals, storage.Visuals), "unchanged visual output keeps its backing storage");
         Assert.True(ReferenceEquals(clips, storage.Clips), "unchanged clip output keeps its backing storage");
         Assert.True(ReferenceEquals(text, storage.Text), "unchanged text output keeps its backing storage");
+        Assert.True(ReferenceEquals(order, storage.Order), "unchanged draw order keeps its backing storage");
+    }
+
+    private static void DisplayListOrderContract()
+    {
+        var visuals = new[]
+        {
+            new LibraryContract.UiVisualDraw(
+                LibraryContract.UiVisualKind.SolidRectangle,
+                default,
+                new(0, 0, 10, 10),
+                new(1, 1, 1, 1),
+                LibraryContract.UiClipId.None,
+                LibraryContract.UiResourceId.Empty),
+        };
+        var clips = Array.Empty<LibraryContract.UiClipRegion>();
+        var order = new[]
+        {
+            new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, 0),
+        };
+        var text = Array.Empty<LibraryContract.UiTextDraw>();
+        var display = new LibraryContract.UiDisplayList(visuals, clips, text, order);
+        Assert.Equal(1, display.Order.Length, "explicit display-list order is exposed");
+        Assert.True(display.Order[0].IsValid, "visual draw reference is well formed");
+        Assert.True(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 0).IsValid, "text draw reference is well formed");
+        Assert.True(!new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Unknown, 0).IsValid, "unknown draw kind is rejected");
+        Assert.True(!new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, -1).IsValid, "negative draw index is rejected");
+
+        var legacy = new LibraryContract.UiDisplayList(visuals, clips, text);
+        Assert.True(legacy.Order.IsEmpty, "legacy constructor preserves its documented empty-order marker");
     }
 
     private static void CustomVisualsRemainNeutral()
