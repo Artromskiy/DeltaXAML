@@ -22,8 +22,9 @@ controls, layout, hit testing, input routing and renderer-neutral primitives.
 - [docs/API_REVIEW.md](docs/API_REVIEW.md) — public API and type-policy migration review;
   required for API-shape work.
 - [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) — shared inspector acceptance.
-- [../HIGH_PRIORITY_TODO.md](../HIGH_PRIORITY_TODO.md) — canonical UI/text/render
-  contract order.
+- [../CONTRACTS.md](../CONTRACTS.md) — canonical UI/text/render contract
+  ownership; [../EDITOR_UI_TODO.md](../EDITOR_UI_TODO.md) tracks shared
+  acceptance.
 
 The external [maui-skills](https://github.com/davidortinau/maui-skills)
 reference may be consulted for basic .NET MAUI/XAML capabilities, terminology,
