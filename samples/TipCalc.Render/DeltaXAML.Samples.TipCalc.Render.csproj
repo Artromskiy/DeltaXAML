@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DeltaXaml.Samples.TipCalc.Render</RootNamespace>
+    <AssemblyName>DeltaXAML.Samples.TipCalc.Render</AssemblyName>
+    <RuntimeIdentifiers>osx-arm64;win-x64;linux-x64</RuntimeIdentifiers>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DeltaXAML/DeltaXAML.csproj" />
+    <ProjectReference Include="../../src/DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" />
+    <ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" OutputItemType="Analyzer" />
+    <ProjectReference Include="../../src/DeltaXAML.Contract/DeltaXAML.Contract.csproj" />
+    <ProjectReference Include="../../../DeltaDiagnostics/src/Delta.Diagnostics.Contract/Delta.Diagnostics.Contract.csproj" />
+    <ProjectReference Include="../../../DeltaMaths/src/DeltaMaths/DeltaMaths.csproj" />
+    <ProjectReference Include="../../../DeltaText/src/DeltaText/DeltaText.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender/DeltaRender.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Platform.SDL3/DeltaRender.Platform.SDL3.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Vulkan/DeltaRender.Vulkan.csproj" />
+    <ProjectReference Include="../../../DeltaRender/tools/DeltaRender.UiShaders/DeltaRender.UiShaders.csproj" />
+    <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
+    <PackageReference Include="Silk.NET.MoltenVK.Native" Version="2.23.0" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Compiler.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/Delta.Diagnostics.Contract.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Contract.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaMaths.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaText.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../TipCalc/TipCalcModel.cs" Link="TipCalcModel.cs" />
+    <Compile Include="../TipCalc/TipCalcConverters.cs" Link="TipCalcConverters.cs" />
+    <AdditionalFiles Include="../TipCalc/TipCalc.xaml"
+                     DeltaXamlClassName="TipCalcArtifact"
+                     DeltaXamlNamespace="DeltaXaml.Samples.TipCalc.Render.Generated" />
+    <None Include="../TipCalc/TipCalc.xaml" Link="TipCalc.xaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
+          Link="Assets/NotoSans-Regular.ttf"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
+             Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
+      <Link>libMoltenVK.dylib</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/MoltenVK_icd.json"
+             Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
+      <Link>MoltenVK_icd.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="../../../DeltaRender/samples/DeltaRender.Smoke/shaders/ui-panel.vert.spv"
+             Link="shaders/ui-panel.vert.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../DeltaRender/samples/DeltaRender.Smoke/shaders/ui-panel.frag.spv"
+             Link="shaders/ui-panel.frag.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

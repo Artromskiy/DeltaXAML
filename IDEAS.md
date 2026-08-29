@@ -14,3 +14,59 @@ compatibility is not assumed.
   object-valued runtime content slot, implicit runtime conversion or a second
   text path; whitespace, localization, binding and inherited-style semantics
   must be specified before selection.
+
+## Renderer-neutral geometry, effects and custom visuals
+
+The current display contract already names `RoundedRectangle` and `Border`, but
+does not carry corner radii, stroke parameters or paint references. The current
+`UiClip` is rectangular, and `UiTextDraw` carries a solid color rather than a
+text paint. Record the following as one future contract revision; do not add
+renderer or shader objects to the DeltaXAML user API.
+
+- Add typed neutral geometry for rectangles, rounded rectangles and compiled
+  path/resource geometry. A rounded rectangle should support four corner
+  radii, with normalization against the arranged bounds.
+- Add separate stroke data: paint/resource identity, thickness and later, if
+  needed, line join/cap. Stroke and background remain independent properties.
+- Add resource-backed paint for solid, linear/radial gradient, image and
+  pattern fills. Keep resource data immutable and use resource dependency
+  invalidation rather than rebuilding the retained tree.
+- Add a compact shadow/glow effect descriptor. The first version should cover
+  offset, blur, spread and color; multiple effects, backdrop blur and complex
+  filters remain renderer-specific until their ordering and cost are proven.
+- Extend clip data with a geometry kind and parent relationship. Rectangular
+  clips stay the scissor fast path; rounded/path clips are expressed as
+  semantic masks and executed by the renderer with stencil, mask or an
+  off-screen pass.
+- Allow text paint references for gradient or effect-painted glyphs. Changing
+  text paint must preserve shaped text and layout identity, and must invalidate
+  only paint/visual output.
+- Keep animation host-driven through typed mutations or a renderer parameter;
+  DeltaXAML owns no clock. Radius, paint and effect changes must preserve stable
+  element identity and avoid per-frame replacement arrays.
+
+Clipping ownership is deliberately split: DeltaXAML computes declarative clip
+  geometry, clip hierarchy, hit-test semantics and invalidation; DeltaRender
+  maps rectangular clips to scissor and non-rectangular clips to GPU masks or
+  stencil. `CornerRadius` must not implicitly clip child content; an explicit
+  clip-to-bounds/geometry decision is required.
+
+The existing semantic custom-visual hook (`UiVisualTypeId` plus
+`UiResourceId`) is sufficient for a renderer registry, but it is not yet an
+arbitrary shader API. A future adapter may map a stable visual identity to a
+validated DeltaShader artifact, pipeline and typed parameter layout. XAML may
+select that identity and provide neutral typed resources/parameters, but must
+not accept GLSL, SPIR-V, Vulkan handles or renderer pipeline objects. Define
+the parameter payload and lifetime in a separate contract revision before
+implementing custom effects.
+
+Candidate acceptance coverage:
+
+- rounded background/stroke rendering with zero, uniform and per-corner radii;
+- separate rounded child clipping and nested clip hierarchy;
+- gradient fill, gradient text and shadow/glow paint-only invalidation;
+- unchanged shaped text across color, gradient and effect animation changes;
+- deterministic resize/DPI normalization and no-allocation warm frames;
+- unsupported geometry/effect diagnostics without a solid-rectangle fallback;
+- semantic custom visual registration and typed-parameter validation at the
+  DeltaRender adapter boundary.
