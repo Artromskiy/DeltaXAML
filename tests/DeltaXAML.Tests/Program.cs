@@ -1046,6 +1046,7 @@ internal static partial class Program
         var first = document.BuildDisplayList();
         Assert.Equal(2, first.Text.Length, "facade emits canonical text draws");
         Assert.Equal(3, first.Order.Length, "mixed display output emits one ordered reference per payload");
+        Assert.Equal(LibraryContract.UiTextPaint.Solid(new float4(1, 1, 1, 1)), first.Text[0].Paint, "text extraction emits explicit fill-only paint");
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, 0), first.Order[0], "visual payload is ordered before its text children");
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 0), first.Order[1], "first text payload keeps traversal order");
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 1), first.Order[2], "second text payload keeps traversal order");
@@ -1361,6 +1362,7 @@ internal static partial class Program
         var display = document.BuildDisplayList();
         Assert.Equal(1, display.Visuals.Length, "custom visual emits one neutral visual command");
         Assert.Equal(LibraryContract.UiVisualKind.Custom, display.Visuals[0].Kind, "custom visual kind is preserved");
+        Assert.Equal(LibraryContract.UiVisualPaint.Solid(new float4(12 / 255f, 34 / 255f, 56 / 255f, 1)), display.Visuals[0].Paint, "custom visual extraction emits explicit fill-only paint");
         Assert.Equal(visualType, display.Visuals[0].VisualType, "custom visual identity is preserved");
         Assert.Equal(resource, display.Visuals[0].Resource, "custom resource identity is preserved");
         element.ClearCustomVisual();

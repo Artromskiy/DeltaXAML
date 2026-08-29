@@ -444,11 +444,11 @@ internal sealed class UiVisualStage : IDisposable
 
         if (element.HasCustomVisual)
         {
-            visual = new(
+            visual = UiVisualDraw.WithPaint(
                 UiVisualKind.Custom,
                 new UiVisualTypeId(element.CustomVisualTypeId),
                 ToFloat4(element.Bounds),
-                ToColor(element.CustomVisualColor),
+                UiVisualPaint.Solid(ToColor(element.CustomVisualColor)),
                 clip,
                 new UiResourceId(element.CustomVisualResourceId));
             return true;
@@ -456,11 +456,11 @@ internal sealed class UiVisualStage : IDisposable
 
         if (element is Retained.Image image && image.DisplaySource != Guid.Empty)
         {
-            visual = new(
+            visual = UiVisualDraw.WithPaint(
                 UiVisualKind.Image,
                 default,
                 ToFloat4(image.ImageBounds),
-                ToColor(image.Tint),
+                UiVisualPaint.Solid(ToColor(image.Tint)),
                 clip,
                 new UiResourceId(image.DisplaySource));
             return true;
@@ -472,11 +472,11 @@ internal sealed class UiVisualStage : IDisposable
             return false;
         }
 
-        visual = new(
+        visual = UiVisualDraw.WithPaint(
             UiVisualKind.SolidRectangle,
             default,
             ToFloat4(element.Bounds),
-            ToColor(element.Background),
+            UiVisualPaint.Solid(ToColor(element.Background)),
             clip,
             UiResourceId.Empty);
         return true;
@@ -532,7 +532,7 @@ internal sealed class UiVisualStage : IDisposable
         var bounds = ShapedBounds(cache.Shaped);
         var baseline = new float2(run.Bounds.X - bounds.Left, run.Bounds.Y - bounds.Top);
         var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
-        draw = new UiTextDraw(cache.Shaped, baseline, ToColor(run.Color), clip);
+        draw = UiTextDraw.WithPaint(cache.Shaped, baseline, UiTextPaint.Solid(ToColor(run.Color)), clip);
         diagnostic = null;
         return true;
     }
@@ -606,10 +606,10 @@ internal sealed class UiVisualStage : IDisposable
         for (var i = 0; i < spans.Length; i++)
         {
             var origin = cache.Origins[i];
-            _storage.Text[_storage.TextCount++] = new(
+            _storage.Text[_storage.TextCount++] = UiTextDraw.WithPaint(
                 cache.Shaped[i],
                 new float2(owner.Bounds.X + origin.x, owner.Bounds.Y + origin.y),
-                ToColor(spans[i].Color),
+                UiTextPaint.Solid(ToColor(spans[i].Color)),
                 clip);
             if (spans[i].Link.IsValid)
             {

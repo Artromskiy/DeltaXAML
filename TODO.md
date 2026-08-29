@@ -7,13 +7,16 @@ contract revision is recorded in `v0.0.8`; implementation must not add a
 renderer dependency to DeltaXAML or move shaping/GPU ownership into this
 project.
 
-- [ ] Emit `UiVisualPaint` and `UiClipRegion` shape data from retained visual
+- [x] Emit `UiVisualPaint` and `UiClipRegion` shape data from retained visual
   state where the corresponding XAML properties are present; preserve old
-  fill-only behavior for controls that do not use effects.
-- [ ] Emit `UiTextPaint` for text fill/outline/effect-resource values without
-  reshaping when only paint changes. Text shaping remains delegated to
+  fill-only behavior for controls that do not use effects. Current producer
+  coverage is explicit fill paint plus rectangular clip data; rounded/stroke
+  data remains pending until those properties exist in retained state.
+- [x] Emit `UiTextPaint` for text fill/outline/effect-resource values without
+  reshaping when only paint changes. Current producer coverage is fill paint;
+  text outline/effect properties remain pending. Text shaping remains delegated to
   `DeltaText.Contract.ITextService`.
-- [ ] Preserve `UiDisplayList.Order`, clip parent links, resource identities
+- [x] Preserve `UiDisplayList.Order`, clip parent links, resource identities
   and borrowed lifetime in producer tests, including `visual -> text -> visual`.
 - [ ] Add explicit diagnostics for unsupported effect/resource combinations;
   never replace them with a solid rectangle or silently discard paint data.
