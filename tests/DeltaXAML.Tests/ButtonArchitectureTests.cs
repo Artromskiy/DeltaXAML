@@ -5,6 +5,8 @@ internal static class ButtonArchitectureTests
 {
     public static void Run()
     {
+        Assert.True(typeof(Delta.XAML.UiButton).GetProperty("Text") is null, "UiButton has no separate text property");
+
         var state = new ButtonState();
         var target = new UiElementId(10);
         var down = new UiRoutedEvent(target, UiRoutedEventPhase.Bubble, UiPointerEventKind.ButtonDown, default, default);

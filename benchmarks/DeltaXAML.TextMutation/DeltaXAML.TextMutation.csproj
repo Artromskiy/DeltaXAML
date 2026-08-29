@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DeltaXAML.TextMutationBenchmark</RootNamespace>
+    <AssemblyName>DeltaXAML.TextMutation</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DeltaXAML/DeltaXAML.csproj" />
+    <ProjectReference Include="../../../DeltaText/src/DeltaText/DeltaText.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
+          Link="Fixtures/NotoSans-Regular.ttf"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -87,7 +87,7 @@ heterogeneous retained tree.
 ### No runtime state lookup by `Type`
 
 Generic state is not retrieved through `Dictionary<Type, object>`. The source
-generator resolves `UiButton -> ButtonState -> ButtonMeasureMixin` at compile
+generator resolves `UiButton -> ButtonState -> ButtonInputMixin` at compile
 time and emits a direct typed thunk. The hot path performs at most one
 descriptor operation call per element and stage; the algorithm then receives
 `ref ButtonState` directly.
@@ -182,18 +182,15 @@ internal struct InteractionState
 
 internal struct ButtonState
 {
-    public LayoutState Layout;
-    public VisualState Visual;
-    public InteractionState Interaction;
-    public string Text;
-    public UiCommand Command;
+    public bool IsPressed;
 }
 ```
 
 Each concrete control has one aggregate state type. Common state components
 are embedded by value. This keeps access direct and makes the state required by
 each capability visible without introducing an entity-component store inside
-the UI library.
+the UI library. A button's label is content, normally a `UiTextBlock`; it is
+not duplicated as button state.
 
 ## Static generic mixins
 
@@ -234,17 +231,25 @@ internal interface IVisualMixin<TState>
         in UiTextVisualContext context);
 }
 
-internal readonly struct ButtonMeasureMixin : IMeasureMixin<ButtonState>
+internal readonly struct ButtonInputMixin : IButtonInputMixin<ButtonState>
 {
-    public static void Measure(
+    public static bool Process(
         ref ButtonState state,
-        ref UiMeasureContext context)
+        in UiRoutedEvent routedEvent)
     {
-        float2 contentSize = context.MeasureText(state.Text);
-        state.Layout.DesiredSize =
-            contentSize +
-            state.Layout.Padding.XY +
-            state.Layout.Padding.ZW;
+        if (routedEvent.Kind == UiPointerEventKind.ButtonDown)
+        {
+            state.IsPressed = true;
+            return false;
+        }
+
+        if (routedEvent.Kind == UiPointerEventKind.ButtonUp)
+        {
+            state.IsPressed = false;
+            return true;
+        }
+
+        return false;
     }
 }
 ```
@@ -308,25 +313,25 @@ explicit state component or a typed stage context.
 Control classes are flat composition shells:
 
 ```csharp
-public sealed class UiButton : UiElement
+public class UiButton : UiElement
 {
-    private ButtonState _state;
+    private Button StateOwner => (Button)RetainedElement;
 
-    internal ref ButtonState State => ref _state;
+    public UiElement? Content => Children.Count == 0 ? null : Children[0];
 
-    public string Text
+    public event EventHandler? Click
     {
-        get => _state.Text;
-        set => SetValue(UiButtonProperties.Text, value);
+        add => StateOwner.Click += value;
+        remove => StateOwner.Click -= value;
     }
 
-    public UiCommand Command
-    {
-        get => _state.Command;
-        set => SetValue(UiButtonProperties.Command, value);
-    }
+    public void SetContent(UiElement? content) => this.SetSingleChild(content);
 }
 ```
+
+`UiButton` has no separate `Text` property. Explicit composition uses a
+`UiTextBlock` child so text has one owner, one property path and one visual
+extraction path.
 
 A control may declare:
 
@@ -349,28 +354,20 @@ The source generator emits a companion type rather than requiring user
 controls to be `partial`.
 
 ```csharp
-internal static unsafe class UiButtonGenerated
+internal static class UiButtonGenerated
 {
     internal static readonly UiTypeDescriptor Descriptor =
         new(
-            UiButtonType.Id,
-            new UiTypeOperations(
-                &Measure,
-                &ProcessInput,
-                &EmitVisual),
-            UiButtonProperties.All);
+            new UiRuntimeTypeIndex(7),
+            UiDescriptorCapabilities.Factory |
+            UiDescriptorCapabilities.Input);
 
-    internal static UiElement Create() => new UiButton();
+    internal static Button Create() => new();
 
-    private static void Measure(
-        UiElement element,
-        ref UiMeasureContext context)
-    {
-        UiButton button = (UiButton)element;
-        MixinRunner.Measure<ButtonState, ButtonMeasureMixin>(
-            ref button.State,
-            ref context);
-    }
+    internal static bool Process(
+        ref ButtonState state,
+        in UiRoutedEvent routedEvent) =>
+        ButtonInputMixin.Process(ref state, in routedEvent);
 }
 ```
 
@@ -794,26 +791,23 @@ classDiagram
     }
 
     class UiButton {
-        -ButtonState state
-        +string Text
-        +UiCommand Command
-        ~State ButtonState&
+        +UiElement Content
+        +event Click
+        +SetContent(UiElement)
     }
 
     class ButtonState {
-        +LayoutState Layout
-        +VisualState Visual
-        +InteractionState Interaction
+        +bool IsPressed
     }
 
-    class IMeasureMixin~TState~ {
+    class IButtonInputMixin~TState~ {
         <<static capability>>
-        +Measure(TState&, UiMeasureContext&)
+        +Process(TState&, UiRoutedEvent&) bool
     }
 
-    class ButtonMeasureMixin {
+    class ButtonInputMixin {
         <<readonly struct>>
-        +Measure(ButtonState&, UiMeasureContext&)
+        +Process(ButtonState&, UiRoutedEvent&) bool
     }
 
     class UiTypeDescriptor {
@@ -826,9 +820,7 @@ classDiagram
         <<generated>>
         +Descriptor
         +Create()
-        +MeasureThunk()
-        +InputThunk()
-        +VisualThunk()
+        +Process()
     }
 
     class CompiledXamlArtifact {
@@ -844,9 +836,8 @@ classDiagram
     UiDocument *-- UiPipeline
     UiDocument *-- UiElement
     UiButton --|> UiElement
-    UiButton *-- ButtonState
-    ButtonMeasureMixin ..|> IMeasureMixin~ButtonState~
-    UiButtonGenerated --> ButtonMeasureMixin
+    ButtonInputMixin ..|> IButtonInputMixin~ButtonState~
+    UiButtonGenerated --> ButtonInputMixin
     UiButtonGenerated --> UiTypeDescriptor
     UiButton --> UiButtonGenerated
     CompiledXamlArtifact --> UiDocument

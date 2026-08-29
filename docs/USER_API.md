@@ -260,6 +260,11 @@ Generated XAML supports the built-in elements `Panel`, `StackPanel`, `Grid`,
 with `Span` declarations. The following source features compile to typed
 artifacts:
 
+`UiButton` and `UiToggleButton` are single-content controls and do not expose a
+separate `Text` property. A text label is an explicit `UiTextBlock` content
+child, so it uses the same text properties, bindings and renderer-neutral text
+path as every other text element.
+
 - common size, background, padding, fill, enabled/selected, style and template
   properties;
 - text/font/foreground and numeric editor properties;

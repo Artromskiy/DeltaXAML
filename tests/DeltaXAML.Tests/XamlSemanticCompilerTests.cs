@@ -69,6 +69,12 @@ internal static partial class Program
         Assert.True(HasCode(errors.Diagnostics, "XAML003"), "unknown properties are diagnosed");
         Assert.True(errors.Root is not null && errors.Root.Members.Any(static member => member.Name == "Height"), "attribute recovery continues after a local error");
 
+        var buttonTextProperty = XamlCompiler.Compile(sourceId, "<Button Text=\"Save\" />", registry);
+        Assert.True(HasCode(buttonTextProperty.Diagnostics, "XAML003"), "Button does not expose a separate Text property");
+
+        var buttonTextContent = XamlCompiler.Compile(sourceId, "<Button>Save</Button>", registry);
+        Assert.True(HasCode(buttonTextContent.Diagnostics, "XAML004"), "implicit Button text content remains compiler sugar, not runtime behavior");
+
         var unsupported = XamlCompiler.Compile(sourceId, "<Panel><Missing><TextBlock /></Missing><Button /></Panel>", registry);
         Assert.True(HasCode(unsupported.Diagnostics, "XAML002"), "unknown element is diagnosed");
         Assert.True(unsupported.Root is not null && unsupported.Root.Children.Length == 2, "sibling recovery preserves later elements");
