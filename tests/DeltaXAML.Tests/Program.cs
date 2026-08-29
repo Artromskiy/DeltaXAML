@@ -1,3 +1,4 @@
+using Delta.Maths;
 using Delta.Text;
 using DeltaXaml.Tests;
 using DeltaXAML.Internal;
@@ -1323,6 +1324,29 @@ internal static partial class Program
         Assert.True(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 0).IsValid, "text draw reference is well formed");
         Assert.True(!new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Unknown, 0).IsValid, "unknown draw kind is rejected");
         Assert.True(!new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, -1).IsValid, "negative draw index is rejected");
+
+        var paint = new LibraryContract.UiVisualPaint(
+            new float4(1, 1, 1, 1),
+            new float4(0, 0, 0, 1),
+            2,
+            new float4(4, 4, 4, 4));
+        var visualWithPaint = LibraryContract.UiVisualDraw.WithPaint(
+            LibraryContract.UiVisualKind.RoundedRectangle,
+            default,
+            new float4(0, 0, 100, 40),
+            paint,
+            LibraryContract.UiClipId.None,
+            LibraryContract.UiResourceId.Empty);
+        Assert.Equal(paint, visualWithPaint.Paint, "visual paint remains in the neutral command");
+        Assert.Equal(paint.FillColor, visualWithPaint.Color, "visual compatibility color maps to fill");
+
+        var clip = new LibraryContract.UiClipRegion(
+            new float4(0, 0, 100, 40),
+            LibraryContract.UiClipId.None,
+            LibraryContract.UiClipKind.RoundedRectangle,
+            new float4(4, 4, 4, 4));
+        Assert.Equal(LibraryContract.UiClipKind.RoundedRectangle, clip.Kind, "rounded clip shape remains semantic");
+        Assert.Equal(new float4(4, 4, 4, 4), clip.CornerRadii, "rounded clip radii remain neutral data");
     }
 
     private static void CustomVisualsRemainNeutral()

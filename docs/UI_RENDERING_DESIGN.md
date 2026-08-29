@@ -52,19 +52,15 @@ staging storage before the producer mutates the document.
 
 ## Current contract and next extension
 
-The current `DeltaXAML.Contract` is sufficient for solid rectangles, images,
-text fill, rectangular nested clips and canonical ordering. `UiVisualDraw`
-already carries a semantic `UiVisualTypeId` and `UiResourceId`; these are
-identities, not shader or Vulkan handles. `UiTextDraw` carries shaped text,
-baseline, fill color and clip.
+The current `DeltaXAML.Contract` carries solid rectangles, images, text fill,
+rectangular or rounded clip semantics and canonical ordering. `UiVisualDraw`
+has a semantic `UiVisualTypeId`, a `UiResourceId` and fixed-size
+`UiVisualPaint`; `UiTextDraw` has shaped text, baseline, fixed-size
+`UiTextPaint` and clip. These are identities and renderer-neutral values, not
+shader or Vulkan handles.
 
-The current contract is not sufficient to express text outline, per-corner
-radii, stroke width or gradient parameters as self-contained draw data. Those
-features require an explicit contract revision. They must not be hidden in a
-string, a pipeline ID or an undocumented interpretation of `UiResourceId`.
-
-The preferred vNext shape is compact value data for hot, fixed-size parameters
-and resource identities for variable immutable data:
+The paint-bearing form is intentionally compact for hot, fixed-size parameters;
+variable immutable data is addressed by resource identity:
 
 ```csharp
 public readonly record struct UiTextPaint(
@@ -77,21 +73,19 @@ public readonly record struct UiVisualPaint(
     float4 FillColor,
     float4 StrokeColor,
     float StrokeWidth,
-    float4 CornerRadii,
-    UiResourceId Brush);
+    float4 CornerRadii);
 ```
 
-The exact public shape requires the DeltaXAML contract-owner review. Gradient
-stops, image data, shadows and other variable payloads should be immutable
-resources addressed by `UiResourceId`, with resolution performed by the
-renderer adapter. Animation time remains host/render state and never enters
-DeltaXAML retained state.
+Gradient stops, image data, shadows and other variable payloads should be
+immutable resources addressed by `UiResourceId`, with resolution performed by
+the renderer adapter. Animation time remains host/render state and never
+enters DeltaXAML retained state.
 
 Rounded clipping is a separate semantic capability from rounded drawing. The
-current `UiClipRegion` describes rectangular bounds and parent links only. A
-future clip-shape extension may be implemented by scissor, stencil, mask or a
-shader discard; the choice belongs to DeltaRender.XAML/DeltaRender, while
-DeltaXAML owns only the logical clip description.
+current `UiClipRegion` carries bounds, parent links, a semantic clip kind and
+corner radii. The choice between scissor, stencil, mask or shader discard
+belongs to DeltaRender.XAML/DeltaRender, while DeltaXAML owns only the logical
+clip description.
 
 ## Adapter API shape
 
@@ -159,8 +153,8 @@ XAML runtime.
    text fill and rectangular clips.
 2. Add headless order/clip/resource/lifetime tests and a RenderGraph adapter
    smoke without a native window.
-3. Revise the XAML contract with explicit text/visual paint values and update
-   DeltaXAML producer tests.
+3. Add producer extraction for the new paint/clip values and verify that style
+   changes do not reshape unchanged text.
 4. Add `DeltaShader.UI` and complete common SDF/MSDF text fill-plus-outline
    artifacts.
 5. Add rounded rectangles, borders and gradients, then rounded clip/mask.

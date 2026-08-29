@@ -79,6 +79,12 @@ The top-level types are intentionally small:
 ```csharp
 public enum UiDrawKind : byte { Unknown = 0, Visual = 1, Text = 2 }
 public readonly record struct UiDrawRef(UiDrawKind Kind, int Index);
+public readonly record struct UiClipRegion(
+    float4 Bounds, UiClipId Parent, UiClipKind Kind, float4 CornerRadii);
+public readonly record struct UiVisualPaint(
+    float4 FillColor, float4 StrokeColor, float StrokeWidth, float4 CornerRadii);
+public readonly record struct UiTextPaint(
+    float4 FillColor, float4 OutlineColor, float OutlineWidth, UiResourceId Effect);
 public ReadOnlySpan<UiDrawRef> Order { get; }
 ```
 
@@ -97,10 +103,20 @@ already shaped `ShapedText` plus baseline placement, linear color and clip.
 Exact font instances, variations, direction, script, language, OpenType
 features, glyph IDs, advances and clusters remain owned by DeltaText.
 
-`UiClipRegion` describes logical bounds and an optional parent region. The
-renderer resolves the parent chain into its effective clip; rectangular clips
-may use scissor, while non-rectangular clip behavior requires a separately
-approved contract extension.
+`UiClipRegion` describes logical bounds, an optional parent region and a
+semantic shape. Rectangles may use scissor; rounded regions may use an analytic
+shader, stencil or mask selected by the renderer adapter. The contract carries
+corner radii but does not prescribe the GPU implementation.
+
+`UiVisualPaint` carries fixed-size fill, stroke and per-corner-radius values.
+`UiTextPaint` carries fill, outline width/color and an optional effect resource
+identity. Variable gradient stops, image data, shadow configuration and other
+large values remain immutable resources addressed by `UiResourceId`.
+
+The six-argument constructor of `UiVisualDraw` and the four-argument
+constructor of `UiTextDraw` remain the fill-only convenience forms. The
+paint-bearing constructors are the canonical form for effects; both forms
+carry the same semantic payload and do not expose shader or pipeline handles.
 
 ## Resource identity rule
 

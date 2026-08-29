@@ -19,10 +19,45 @@ public readonly record struct UiClipId(int Value)
     public bool IsValid => Value >= 0;
 }
 
+/// <summary>Shape used to clip a renderer-neutral region.</summary>
+public enum UiClipKind : byte
+{
+    None = 0,
+    Unknown = 1,
+    Rectangle = 2,
+    RoundedRectangle = 3,
+}
+
 /// <summary>Renderer-neutral clipping region in logical coordinates.</summary>
-/// <param name="Bounds">Logical X, Y, Width and Height.</param>
-/// <param name="Parent">Parent region for nested clipping, or <see cref="UiClipId.None"/>.</param>
-public readonly record struct UiClipRegion(float4 Bounds, UiClipId Parent);
+public readonly record struct UiClipRegion
+{
+    /// <summary>Creates a rectangular region with an optional parent region.</summary>
+    public UiClipRegion(float4 bounds, UiClipId parent)
+        : this(bounds, parent, UiClipKind.Rectangle, default)
+    {
+    }
+
+    /// <summary>Creates a region with an explicit shape and per-corner radii.</summary>
+    public UiClipRegion(float4 bounds, UiClipId parent, UiClipKind kind, float4 cornerRadii)
+    {
+        Bounds = bounds;
+        Parent = parent;
+        Kind = kind;
+        CornerRadii = cornerRadii;
+    }
+
+    /// <summary>Logical X, Y, Width and Height.</summary>
+    public float4 Bounds { get; init; }
+
+    /// <summary>Parent region for nested clipping, or <see cref="UiClipId.None"/>.</summary>
+    public UiClipId Parent { get; init; }
+
+    /// <summary>Gets the semantic clip shape selected by the producer.</summary>
+    public UiClipKind Kind { get; init; }
+
+    /// <summary>Per-corner radii in logical units, ordered top-left, top-right, bottom-right, bottom-left.</summary>
+    public float4 CornerRadii { get; init; }
+}
 
 /// <summary>Payload kind referenced by a <see cref="UiDrawRef"/>.</summary>
 public enum UiDrawKind : byte
@@ -59,24 +94,157 @@ public enum UiVisualKind : byte
     Custom,
 }
 
-/// <param name="Bounds">Logical X, Y, Width and Height.</param>
-/// <param name="Color">Linear RGBA tint.</param>
-/// <param name="VisualType">Semantic custom-visual identity; empty for built-in kinds.</param>
-/// <param name="Resource">Stable image or visual resource identity; empty when unused.</param>
-public readonly record struct UiVisualDraw(
-    UiVisualKind Kind,
-    UiVisualTypeId VisualType,
-    float4 Bounds,
-    float4 Color,
-    UiClipId Clip,
-    UiResourceId Resource);
+/// <summary>Fixed-size renderer-neutral paint data for a visual primitive.</summary>
+/// <param name="FillColor">Linear RGBA fill or tint.</param>
+/// <param name="StrokeColor">Linear RGBA stroke color.</param>
+/// <param name="StrokeWidth">Stroke width in logical units; zero disables the stroke.</param>
+/// <param name="CornerRadii">Per-corner radii in logical units.</param>
+public readonly record struct UiVisualPaint(
+    float4 FillColor,
+    float4 StrokeColor,
+    float StrokeWidth,
+    float4 CornerRadii)
+{
+    /// <summary>Creates a fill-only paint.</summary>
+    public static UiVisualPaint Solid(float4 color) => new(color, default, 0, default);
+}
+
+/// <summary>Renderer-neutral visual command with optional fixed paint parameters.</summary>
+public readonly record struct UiVisualDraw
+{
+    /// <summary>Creates a visual using a fill-only paint.</summary>
+    public UiVisualDraw(
+        UiVisualKind kind,
+        UiVisualTypeId visualType,
+        float4 bounds,
+        float4 color,
+        UiClipId clip,
+        UiResourceId resource)
+        : this(kind, visualType, bounds, UiVisualPaint.Solid(color), clip, resource)
+    {
+    }
+
+    /// <summary>Creates a visual with explicit fill, stroke and corner-radius data.</summary>
+    private UiVisualDraw(
+        UiVisualKind kind,
+        UiVisualTypeId visualType,
+        float4 bounds,
+        UiVisualPaint paint,
+        UiClipId clip,
+        UiResourceId resource)
+    {
+        Kind = kind;
+        VisualType = visualType;
+        Bounds = bounds;
+        Paint = paint;
+        Clip = clip;
+        Resource = resource;
+    }
+
+    /// <summary>Creates a visual with explicit fill, stroke and corner-radius data.</summary>
+    public static UiVisualDraw WithPaint(
+        UiVisualKind kind,
+        UiVisualTypeId visualType,
+        float4 bounds,
+        UiVisualPaint paint,
+        UiClipId clip,
+        UiResourceId resource) =>
+        new()
+        {
+            Kind = kind,
+            VisualType = visualType,
+            Bounds = bounds,
+            Paint = paint,
+            Clip = clip,
+            Resource = resource,
+        };
+
+    /// <summary>Gets the primitive kind.</summary>
+    public UiVisualKind Kind { get; init; }
+
+    /// <summary>Gets the semantic custom-visual identity; empty for built-in kinds.</summary>
+    public UiVisualTypeId VisualType { get; init; }
+
+    /// <summary>Gets logical X, Y, Width and Height.</summary>
+    public float4 Bounds { get; init; }
+
+    /// <summary>Gets fixed-size fill, stroke and corner-radius data.</summary>
+    public UiVisualPaint Paint { get; init; }
+
+    /// <summary>Gets or initializes the fill color for the simple visual path.</summary>
+    public float4 Color
+    {
+        get => Paint.FillColor;
+        init => Paint = Paint with { FillColor = value };
+    }
+
+    /// <summary>Gets the clip reference.</summary>
+    public UiClipId Clip { get; init; }
+
+    /// <summary>Gets the stable image, brush or custom-visual resource identity.</summary>
+    public UiResourceId Resource { get; init; }
+}
+
+/// <summary>Fixed-size renderer-neutral paint data for shaped text.</summary>
+/// <param name="FillColor">Linear RGBA glyph fill color.</param>
+/// <param name="OutlineColor">Linear RGBA outline color.</param>
+/// <param name="OutlineWidth">Outline width in glyph distance-field units; zero disables the outline.</param>
+/// <param name="Effect">Optional immutable effect resource resolved by the renderer adapter.</param>
+public readonly record struct UiTextPaint(
+    float4 FillColor,
+    float4 OutlineColor,
+    float OutlineWidth,
+    UiResourceId Effect)
+{
+    /// <summary>Creates fill-only text paint.</summary>
+    public static UiTextPaint Solid(float4 color) => new(color, default, 0, UiResourceId.Empty);
+}
 
 /// <summary>Positioned shaped text plus UI-only paint and clipping data.</summary>
-public readonly record struct UiTextDraw(
-    ShapedText Text,
-    float2 BaselineOrigin,
-    float4 Color,
-    UiClipId Clip);
+public readonly record struct UiTextDraw
+{
+    /// <summary>Creates a text draw using fill-only paint.</summary>
+    public UiTextDraw(ShapedText text, float2 baselineOrigin, float4 color, UiClipId clip)
+    {
+        Text = text;
+        BaselineOrigin = baselineOrigin;
+        Paint = UiTextPaint.Solid(color);
+        Clip = clip;
+    }
+
+    /// <summary>Creates a text draw with explicit fill, outline and effect data.</summary>
+    public static UiTextDraw WithPaint(
+        ShapedText text,
+        float2 baselineOrigin,
+        UiTextPaint paint,
+        UiClipId clip) =>
+        new()
+        {
+            Text = text,
+            BaselineOrigin = baselineOrigin,
+            Paint = paint,
+            Clip = clip,
+        };
+
+    /// <summary>Gets the already shaped text value.</summary>
+    public ShapedText Text { get; init; }
+
+    /// <summary>Gets the baseline origin in logical coordinates.</summary>
+    public float2 BaselineOrigin { get; init; }
+
+    /// <summary>Gets fixed-size fill, outline and effect data.</summary>
+    public UiTextPaint Paint { get; init; }
+
+    /// <summary>Gets or initializes the fill color for the simple text path.</summary>
+    public float4 Color
+    {
+        get => Paint.FillColor;
+        init => Paint = Paint with { FillColor = value };
+    }
+
+    /// <summary>Gets the clip reference.</summary>
+    public UiClipId Clip { get; init; }
+}
 
 /// <summary>
 /// Borrowed renderer-neutral output of one retained UI document. The spans are valid only
