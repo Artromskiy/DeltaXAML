@@ -1081,11 +1081,19 @@ internal static partial class Program
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, 0), first.Order[0], "visual payload is ordered before its text children");
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 0), first.Order[1], "first text payload keeps traversal order");
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 1), first.Order[2], "second text payload keeps traversal order");
+        var firstRunId = first.Text[0].RunId;
+        var firstVersion = first.Text[0].Version;
+        var unchangedRunId = first.Text[1].RunId;
+        var unchangedVersion = first.Text[1].Version;
+        Assert.True(firstRunId.IsValid, "canonical text output carries a retained owner identity");
+        Assert.True(firstVersion > 0, "canonical text output carries a producer version");
         Assert.Equal(2, textService.ShapeCount, "initial text output shapes each retained text node");
         var firstShaped = first.Text[0].Text;
         Assert.True(firstShaped.Runs.Length > 0, "DeltaText returns positioned shaped runs");
         var second = document.BuildDisplayList();
         Assert.True(ReferenceEquals(firstShaped, second.Text[0].Text), "unchanged text reuses shaped cache");
+        Assert.Equal(firstRunId, second.Text[0].RunId, "unchanged text preserves its retained identity");
+        Assert.Equal(firstVersion, second.Text[0].Version, "unchanged text preserves its producer version");
         text.Text = "B";
         document.Layout(new Delta.Maths.float2(240, 40), 1);
         var third = document.BuildDisplayList();
@@ -1093,6 +1101,10 @@ internal static partial class Program
         Assert.Equal(3, textService.ShapeCount, "value-only visual update does not reshape unchanged text");
         Assert.True(ReferenceEquals(first.Text[1].Text, third.Text[1].Text), "value-only visual update preserves unchanged shaped text");
         Assert.Equal(first.Text[0].Clip, third.Text[0].Clip, "text clip identity remains canonical");
+        Assert.Equal(firstRunId, third.Text[0].RunId, "text mutation preserves the retained owner identity");
+        Assert.True(third.Text[0].Version > firstVersion, "text mutation advances only the producer version");
+        Assert.Equal(unchangedRunId, third.Text[1].RunId, "unmodified text preserves its retained identity");
+        Assert.Equal(unchangedVersion, third.Text[1].Version, "unmodified text preserves its producer version");
     }
 
     private static void PaintPropertiesReachDisplayList()

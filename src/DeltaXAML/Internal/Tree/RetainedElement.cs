@@ -34,6 +34,7 @@ internal partial class UiElement
     private uint _layoutVersion;
     private uint _dpiVersion;
     private uint _textVersion;
+    private uint _textRunVersion;
     private uint _treeVersion;
     private uint _relationVersion;
     private uint _outputVersion;

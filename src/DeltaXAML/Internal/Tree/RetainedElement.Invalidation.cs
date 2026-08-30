@@ -84,6 +84,7 @@ internal partial class UiElement
                 if ((versionedFlags & UiDirtyFlags.Text) != 0)
                 {
                     current._textVersion++;
+                    current._textRunVersion++;
                 }
             }
 
@@ -269,6 +270,7 @@ internal partial class UiElement
         {
             _dpiScale = scale;
             _dpiVersion++;
+            _textRunVersion++;
             _outputVersion++;
             _layoutVersion++;
             DirtyFlags |= UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual;
@@ -276,5 +278,5 @@ internal partial class UiElement
 
         _layoutScale = scale;
     }
-    internal uint TextRunVersion => _textVersion ^ (_dpiVersion << 1);
+    internal uint TextRunVersion => _textRunVersion;
 }

@@ -200,31 +200,75 @@ public readonly record struct UiTextPaint(
     public static UiTextPaint Solid(float4 color) => new(color, default, 0, UiResourceId.Empty);
 }
 
+/// <summary>Stable lifetime identity of one retained text owner.</summary>
+/// <remarks>
+/// <see cref="Value"/> identifies the producer's retained slot and
+/// <see cref="Generation"/> distinguishes a later occupant of that slot. This is a
+/// producer identity, not a renderer, shaping or glyph-atlas handle.
+/// </remarks>
+public readonly record struct UiTextRunId(uint Value, uint Generation)
+{
+    /// <summary>Gets an empty identity.</summary>
+    public static UiTextRunId None => default;
+
+    /// <summary>Gets whether the identity can address a retained text owner.</summary>
+    public bool IsValid => Value != 0 && Generation != 0;
+}
+
 /// <summary>Positioned shaped text plus UI-only paint and clipping data.</summary>
 public readonly record struct UiTextDraw
 {
     /// <summary>Creates a text draw using fill-only paint.</summary>
+    [Obsolete("Use the identity-bearing UiTextDraw.WithPaint(UiTextRunId, uint, ShapedText, float2, UiTextPaint, UiClipId) overload.", error: false)]
     public UiTextDraw(ShapedText text, float2 baselineOrigin, float4 color, UiClipId clip)
+        : this(UiTextRunId.None, 0, text, baselineOrigin, UiTextPaint.Solid(color), clip)
     {
-        Text = text;
-        BaselineOrigin = baselineOrigin;
-        Paint = UiTextPaint.Solid(color);
-        Clip = clip;
     }
 
     /// <summary>Creates a text draw with explicit fill, outline and effect data.</summary>
+    [Obsolete("Use the identity-bearing UiTextDraw.WithPaint(UiTextRunId, uint, ShapedText, float2, UiTextPaint, UiClipId) overload.", error: false)]
     public static UiTextDraw WithPaint(
         ShapedText text,
         float2 baselineOrigin,
         UiTextPaint paint,
         UiClipId clip) =>
-        new()
-        {
-            Text = text,
-            BaselineOrigin = baselineOrigin,
-            Paint = paint,
-            Clip = clip,
-        };
+        new(UiTextRunId.None, 0, text, baselineOrigin, paint, clip);
+
+    /// <summary>Creates the canonical text draw with retained identity and version.</summary>
+    /// <param name="runId">Stable producer identity for the retained text owner.</param>
+    /// <param name="version">Monotonic producer version for text/style/DPI changes.</param>
+    public static UiTextDraw WithPaint(
+        UiTextRunId runId,
+        uint version,
+        ShapedText text,
+        float2 baselineOrigin,
+        UiTextPaint paint,
+        UiClipId clip) =>
+        new(runId, version, text, baselineOrigin, paint, clip);
+
+    private UiTextDraw(
+        UiTextRunId runId,
+        uint version,
+        ShapedText text,
+        float2 baselineOrigin,
+        UiTextPaint paint,
+        UiClipId clip)
+    {
+        RunId = runId;
+        Version = version;
+        Text = text;
+        BaselineOrigin = baselineOrigin;
+        Paint = paint;
+        Clip = clip;
+    }
+
+    /// <summary>Gets the retained producer identity of this text request.</summary>
+    /// <remarks>The identity remains stable until its retained owner is destroyed and the slot is reused.</remarks>
+    public UiTextRunId RunId { get; init; }
+
+    /// <summary>Gets the producer version for text/style/DPI changes.</summary>
+    /// <remarks>Geometry-only changes are represented by the draw-list bounds/order and do not require this version to change.</remarks>
+    public uint Version { get; init; }
 
     /// <summary>Gets the already shaped text value.</summary>
     public ShapedText Text { get; init; }

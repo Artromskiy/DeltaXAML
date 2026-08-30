@@ -567,6 +567,8 @@ internal sealed class UiVisualStage : IDisposable
         var baseline = new float2(run.Bounds.X - bounds.Left, run.Bounds.Y - bounds.Top);
         var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
         draw = UiTextDraw.WithPaint(
+            new UiTextRunId(run.Owner.Value, run.OwnerGeneration),
+            run.Version,
             cache.Shaped,
             baseline,
             new UiTextPaint(
@@ -649,6 +651,8 @@ internal sealed class UiVisualStage : IDisposable
         {
             var origin = cache.Origins[i];
             _storage.Text[_storage.TextCount++] = UiTextDraw.WithPaint(
+                new UiTextRunId(owner.Id.Value, owner.Generation),
+                owner.TextRunVersion,
                 cache.Shaped[i],
                 new float2(owner.Bounds.X + origin.x, owner.Bounds.Y + origin.y),
                 UiTextPaint.Solid(ToColor(spans[i].Color)),

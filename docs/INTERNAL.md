@@ -564,8 +564,9 @@ implementation.
 
 Text layout calls `DeltaText.Contract.ITextService`. DeltaText returns shaped
 positions and glyph images; DeltaXAML places shaped text and emits
-`UiTextDraw`; DeltaRender owns atlas packing, UV assignment, staging, shader
-selection and GPU lifetime.
+`UiTextDraw` with the retained owner slot and generation as `UiTextRunId` plus
+the monotonic text/style/DPI version; DeltaRender owns atlas packing, UV
+assignment, staging, shader selection and GPU lifetime.
 
 `UiDisplayList` is a borrowed view over document-owned storage and is invalid
 after the next mutation or extraction, as defined by the frozen contract.
