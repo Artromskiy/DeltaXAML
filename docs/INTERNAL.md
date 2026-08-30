@@ -562,6 +562,15 @@ does not create Vulkan resources or renderer pipelines. Custom visuals use the
 stable `UiVisualTypeId`; DeltaRender resolves that identity to its registered
 implementation.
 
+All extracted bounds, clips and text baselines use the canonical top-left
+logical UI space. Apart from the separate DPI conversion, the Vulkan consumer
+uses a top-left positive-height viewport and its fixed logical-pixel to clip
+projection is the only coordinate conversion. Visual extraction must not
+pre-flip Y for a backend, and texture UV orientation is an upload/atlas concern
+rather than a retained-state rule.
+Normal-map green-channel orientation is explicit material metadata and is
+independent of framebuffer orientation.
+
 Text layout calls `DeltaText.Contract.ITextService`. DeltaText returns shaped
 positions and glyph images; DeltaXAML places shaped text and emits
 `UiTextDraw` with the retained owner slot and generation as `UiTextRunId` plus

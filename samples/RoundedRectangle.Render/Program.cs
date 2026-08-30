@@ -11,6 +11,7 @@ using Delta.Shader.UI;
 using Delta.Text.Contract;
 using Delta.XAML;
 using Delta.XAML.Contract;
+using DeltaXaml.Samples.RoundedRectangle.Render.Generated;
 
 namespace DeltaXaml.Samples.RoundedRectangle.Render;
 
@@ -24,7 +25,12 @@ internal static class Program
             var profile = HasFlag(args, "--profile");
             if (HasFlag(args, "--headless"))
             {
-                return await RunHeadlessAsync(frameLimit, profile).ConfigureAwait(false);
+                return await RunHeadlessAsync(
+                    frameLimit,
+                    profile,
+                    ParsePath(args, "--xaml", "RoundedRectangle.xaml"),
+                    ParsePath(args, "--layout-json", "/tmp/delta-grid-two-rows-layout.json"),
+                    ParsePath(args, "--readback", "/tmp/delta-grid-two-rows.ppm")).ConfigureAwait(false);
             }
 
             var factory = new Sdl3WindowFactory();
@@ -38,7 +44,7 @@ internal static class Program
             }
 
             await using var windowLease = window.ConfigureAwait(false);
-            return await RunAsync(window, frameLimit, profile).ConfigureAwait(false);
+            return await RunAsync(window, frameLimit, profile, "RoundedRectangle.xaml").ConfigureAwait(false);
         }
 #pragma warning disable CA1031
         catch (Exception exception)
@@ -49,11 +55,15 @@ internal static class Program
 #pragma warning restore CA1031
     }
 
-    private static async Task<int> RunAsync(IRenderWindow window, int frameLimit, bool profile)
+    private static async Task<int> RunAsync(
+        IRenderWindow window,
+        int frameLimit,
+        bool profile,
+        string xamlPath)
     {
-        var root = LoadRoot();
         using var textService = new UnsupportedTextService();
-        using var document = new UiDocument(root, textService);
+        using var loaded = LoadDocument(xamlPath, textService);
+        var document = loaded.Document;
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateWindowSession(window);
 
@@ -63,11 +73,16 @@ internal static class Program
         return await RunFramesAsync(window, session, document, program, extent, frameLimit, profile).ConfigureAwait(false);
     }
 
-    private static async Task<int> RunHeadlessAsync(int frameLimit, bool profile)
+    private static async Task<int> RunHeadlessAsync(
+        int frameLimit,
+        bool profile,
+        string xamlPath,
+        string layoutJsonPath,
+        string readbackPath)
     {
-        var root = LoadRoot();
         using var textService = new UnsupportedTextService();
-        using var document = new UiDocument(root, textService);
+        using var loaded = LoadDocument(xamlPath, textService);
+        var document = loaded.Document;
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateHeadlessSession(800, 500);
         var program = LoadRoundedProgram();
@@ -78,7 +93,9 @@ internal static class Program
             program,
             new PixelExtent(800, 500),
             frameLimit,
-            profile).ConfigureAwait(false);
+            profile,
+            layoutJsonPath,
+            readbackPath).ConfigureAwait(false);
     }
 
     private static async Task<int> RunFramesAsync(
@@ -88,14 +105,19 @@ internal static class Program
         IGraphicsShaderProgram program,
         PixelExtent initialExtent,
         int frameLimit,
-        bool profile)
+        bool profile,
+        string? layoutJsonPath = null,
+        string? readbackPath = null)
     {
         var graph = session.CreateRenderGraph();
         var extent = initialExtent;
         session.ResizeTarget(in extent);
         using var ui = new UiDisplayListGraphFeature(session, program, extent);
         var clear = new ClearFeature(session.Target, extent, program);
-        IRenderFeature[] features = [clear, ui];
+        var readback = window is null && readbackPath is not null
+            ? new HeadlessReadbackFeature(session.Target, extent.Width, extent.Height)
+            : null;
+        IRenderFeature[] features = readback is null ? [clear, ui] : [clear, ui, readback];
         var renderedFrames = 0;
         var timings = new TimingSummary();
         while ((window is null || !window.IsClosed) && renderedFrames < frameLimit)
@@ -121,6 +143,11 @@ internal static class Program
             var layoutStart = Stopwatch.GetTimestamp();
             document.Layout(new float2(metrics.Width, metrics.Height), metrics.DpiScale);
             var layoutEnd = Stopwatch.GetTimestamp();
+            if (layoutJsonPath is not null && renderedFrames == 0)
+            {
+                File.WriteAllText(layoutJsonPath, document.BuildLayoutDiagnosticsJson());
+            }
+
             var displayList = document.BuildDisplayList();
             var displayListEnd = Stopwatch.GetTimestamp();
             if (!ui.Consume(displayList))
@@ -162,12 +189,44 @@ internal static class Program
             await Console.Out.WriteLineAsync(timings.ToReport()).ConfigureAwait(false);
         }
 
+        if (readback is not null && readbackPath is not null)
+        {
+            var pixels = new byte[checked((int)((ulong)extent.Width * extent.Height * 4))];
+            if (!readback.Readback.IsValid || graph.CopyReadback(readback.Readback, pixels) != pixels.Length)
+            {
+                await Console.Error.WriteLineAsync("Headless Vulkan readback did not complete.").ConfigureAwait(false);
+                return 1;
+            }
+
+            SavePpm(pixels, extent.Width, extent.Height, readbackPath);
+            await Console.Out.WriteLineAsync(
+                $"readback: path={readbackPath}, nonZeroPixels={CountNonZeroPixels(pixels)}, " +
+                $"center={FormatCenterPixel(pixels, extent)}").ConfigureAwait(false);
+        }
+
         return 0;
     }
 
-    private static UiBorder LoadRoot()
+    private static LoadedDocument LoadDocument(string xamlPath, ITextService textService)
     {
-        var sourcePath = Path.Combine(AppContext.BaseDirectory, "RoundedRectangle.xaml");
+        ArgumentNullException.ThrowIfNull(textService);
+        ArgumentException.ThrowIfNullOrWhiteSpace(xamlPath);
+        if (string.Equals(Path.GetFileName(xamlPath), "GridTwoRows.xaml", StringComparison.OrdinalIgnoreCase))
+        {
+            var artifact = new GridTwoRowsArtifact(textService);
+            return new LoadedDocument(artifact.Document, artifact);
+        }
+
+        var root = LoadRoot(xamlPath);
+        return new LoadedDocument(new UiDocument(root, textService), null);
+    }
+
+    private static UiElement LoadRoot(string xamlPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(xamlPath);
+        var sourcePath = Path.IsPathRooted(xamlPath)
+            ? xamlPath
+            : Path.Combine(AppContext.BaseDirectory, xamlPath);
         if (!File.Exists(sourcePath))
         {
             throw new FileNotFoundException($"Sample XAML was not found: {sourcePath}");
@@ -176,15 +235,68 @@ internal static class Program
         var loader = new XamlLoader();
         var context = new XamlLoadContext(new EmptyTypeResolver(), new EmptyResourceResolver());
         var result = loader.Load(File.ReadAllText(sourcePath), in context);
-        if (!result.Success || result.Root is not UiBorder root)
+        if (!result.Success || result.Root is not { } root)
         {
             var diagnostics = result.Diagnostics.IsEmpty
                 ? "unknown XAML load failure"
                 : string.Join(Environment.NewLine, result.Diagnostics.ToArray());
-            throw new InvalidOperationException($"RoundedRectangle.xaml failed to load: {diagnostics}");
+            throw new InvalidOperationException($"{xamlPath} failed to load: {diagnostics}");
         }
 
         return root;
+    }
+
+    private sealed class LoadedDocument(UiDocument document, IDisposable? owner) : IDisposable
+    {
+        internal UiDocument Document { get; } = document;
+
+        public void Dispose()
+        {
+            if (owner is not null)
+            {
+                owner.Dispose();
+            }
+            else
+            {
+                Document.Dispose();
+            }
+        }
+    }
+
+    private static void SavePpm(byte[] pixels, uint width, uint height, string path)
+    {
+        ArgumentNullException.ThrowIfNull(pixels);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        using var stream = File.Create(path);
+        using var writer = new StreamWriter(stream, leaveOpen: true);
+        writer.Write($"P6\n{width} {height}\n255\n");
+        writer.Flush();
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            stream.WriteByte(pixels[index]);
+            stream.WriteByte(pixels[index + 1]);
+            stream.WriteByte(pixels[index + 2]);
+        }
+    }
+
+    private static int CountNonZeroPixels(ReadOnlySpan<byte> pixels)
+    {
+        var count = 0;
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            if ((pixels[index] | pixels[index + 1] | pixels[index + 2] | pixels[index + 3]) != 0)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static string FormatCenterPixel(ReadOnlySpan<byte> pixels, PixelExtent extent)
+    {
+        var offset = checked(((int)extent.Height / 2 * (int)extent.Width + (int)extent.Width / 2) * 4);
+        return $"({pixels[offset]},{pixels[offset + 1]},{pixels[offset + 2]},{pixels[offset + 3]})";
     }
 
     private static IGraphicsShaderProgram LoadRoundedProgram()
@@ -228,6 +340,24 @@ internal static class Program
         }
 
         return false;
+    }
+
+    private static string ParsePath(string[] args, string option, string fallback)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentException.ThrowIfNullOrWhiteSpace(option);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fallback);
+        for (var index = 0; index + 1 < args.Length; index++)
+        {
+            if (string.Equals(args[index], option, StringComparison.OrdinalIgnoreCase))
+            {
+                return string.IsNullOrWhiteSpace(args[index + 1])
+                    ? throw new ArgumentException($"{option} requires a non-empty path.", nameof(args))
+                    : args[index + 1];
+            }
+        }
+
+        return fallback;
     }
 
     private sealed class EmptyTypeResolver : IXamlTypeResolver
@@ -393,5 +523,18 @@ internal static class Program
         }
 
         private static double ToMicroseconds(double ticks) => ticks * 1_000_000d / Stopwatch.Frequency;
+    }
+
+    private sealed class HeadlessReadbackFeature(RenderTargetHandle target, uint width, uint height) : IRenderFeature
+    {
+        internal RenderGraphReadbackHandle Readback { get; private set; }
+
+        public void AddPasses(IRenderGraphBuilder graph, ulong frameNumber)
+        {
+            var texture = graph.ImportTarget(target);
+            Readback = graph.ReadbackTexture(
+                texture,
+                new PixelRect(0, 0, checked((int)width), checked((int)height)));
+        }
     }
 }

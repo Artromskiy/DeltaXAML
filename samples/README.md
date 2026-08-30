@@ -4,6 +4,10 @@ Runnable sample projects:
 
 - [`TipCalc`](TipCalc/README.md) — a generated-XAML, typed-binding adaptation
   that runs headlessly through `UiDocument` and the canonical display list.
+- [`Game2048`](Game2048/README.md) — a generated-XAML 4×4 game sample with
+  deterministic moves, themed rounded tiles and retained display-list checks.
+- [`Game2048.Render`](Game2048.Render/README.md) — the same sample in a real
+  SDL3/Vulkan window with DeltaRender text and rounded-rectangle passes.
 - [`RoundedRectangle.Render`](RoundedRectangle.Render/README.md) — a minimal
   native DeltaRender sample for a four-corner rounded rectangle.
 - [`RoundedRectangle.Headless`](RoundedRectangle.Headless/README.md) — a

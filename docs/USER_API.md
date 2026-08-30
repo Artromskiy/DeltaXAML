@@ -31,6 +31,29 @@ xamlRenderer.AddToGraph(displayList, graph, target);
 The document remains retained between frames. Only changed bindings,
 properties, styles, layout subtrees and visuals are recomputed.
 
+For headless layout debugging, call `BuildLayoutDiagnosticsJson()` after
+`Layout`. It returns a detached, deterministic JSON snapshot of the actual
+retained hierarchy; it does not create another UI tree or affect rendering:
+
+```csharp
+string layoutJson = document.BuildLayoutDiagnosticsJson(indented: true);
+```
+
+The root object contains `schemaVersion`, `layoutCompleted`, `viewport`,
+`dpiScale` and `root`. Each node contains `type`, `id`, `generation`,
+`visibility`, `participation`, `bounds`, `clip`, `desiredSize`,
+`requestedSize`, `margin`, `padding` and an ordered `children` array.
+`requestedSize.width` and `.height` are `null` when the corresponding XAML
+dimension is automatic/unset. `bounds` and `clip` are the final logical layout
+values, so this snapshot is suitable for comparing authored dimensions with
+the result produced by the layout stages. It is a cold diagnostic string, not
+a borrowed frame buffer.
+
+Layout bounds, clips, hit-test points and text placement use a top-left origin
+with X increasing rightward and Y increasing downward. The corresponding
+Vulkan consumer owns conversion to device pixels and clip space; this library
+API does not expose backend coordinates.
+
 ## Game and editor use
 
 The same `UiDocument` can render an editor shell or an in-game UI. DeltaEditor

@@ -51,6 +51,43 @@ all text later. The display list is borrowed. The adapter either consumes it
 while the list is valid or copies the small payload values into its own reused
 staging storage before the producer mutates the document.
 
+## Canonical Vulkan coordinate convention
+
+DeltaXAML emits one top-left logical coordinate space for layout and visual
+output:
+
+```text
+UI origin:        top-left
+X:                right
+Y:                down
+viewport origin:  top-left
+texture UV:
+  (0,0)           top-left
+  (1,1)           bottom-right
+depth:            0..1
+```
+
+The Vulkan UI path uses a positive `VkViewport.height`. Visual and clip bounds
+are passed to the Vulkan adapter without a CPU Y flip. The screen-space vertex
+projection is the single backend conversion:
+
+```text
+clipX = 2 * pixelX / targetWidth  - 1
+clipY = 2 * pixelY / targetHeight - 1
+```
+
+The adapter must not combine that projection with a second Y inversion or an
+independent scissor inversion. `UiClipRegion` is encoded in the same top-left
+framebuffer coordinates as `UiVisualDraw.Bounds`; the exact scissor and
+render-pass implementation remains DeltaRender-owned. DPI conversion is
+deliberately not defined here and remains a separate backlog item.
+
+For UI textures and atlases, `(0,0)` is the top-left and `(1,1)` is the
+bottom-right. Asset upload, atlas construction and readback must state their
+row origin and perform at most one orientation conversion. Screen-space Y
+orientation must not be used to decide whether a normal map's green channel
+is Y+ or Y-; that is explicit tangent-space asset metadata.
+
 ## Current contract and next extension
 
 The current `DeltaXAML.Contract` carries solid rectangles, images, text fill,

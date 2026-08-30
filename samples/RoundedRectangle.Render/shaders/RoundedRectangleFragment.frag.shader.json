@@ -26,6 +26,46 @@
       "GlslType": "vec2",
       "Location": 0,
       "Builtin": null
+    },
+    {
+      "Name": "Rect",
+      "ParameterName": "Rect",
+      "GlslName": "Rect",
+      "GlslType": "vec4",
+      "Location": 1,
+      "Builtin": null
+    },
+    {
+      "Name": "FillColor",
+      "ParameterName": "FillColor",
+      "GlslName": "FillColor",
+      "GlslType": "vec4",
+      "Location": 2,
+      "Builtin": null
+    },
+    {
+      "Name": "BorderColor",
+      "ParameterName": "BorderColor",
+      "GlslName": "BorderColor",
+      "GlslType": "vec4",
+      "Location": 3,
+      "Builtin": null
+    },
+    {
+      "Name": "CornerRadii",
+      "ParameterName": "CornerRadii",
+      "GlslName": "CornerRadii",
+      "GlslType": "vec4",
+      "Location": 4,
+      "Builtin": null
+    },
+    {
+      "Name": "BorderWidth",
+      "ParameterName": "BorderWidth",
+      "GlslName": "BorderWidth",
+      "GlslType": "vec2",
+      "Location": 5,
+      "Builtin": null
     }
   ],
   "VertexInputs": [],
@@ -40,88 +80,5 @@
       "Builtin": "FragmentColor"
     }
   ],
-  "PushConstants": [
-    {
-      "Name": "DeltaPushConstants",
-      "ParameterName": "Parameters",
-      "GlslType": "DeltaStruct_Delta_Shader_UI_RoundedRectangleParameters",
-      "Alignment": 16,
-      "Size": 96,
-      "ArrayStride": 96,
-      "Members": [
-        {
-          "Name": "Resolution",
-          "GlslName": "member_Resolution",
-          "GlslType": "vec2",
-          "Offset": 0,
-          "Alignment": 8,
-          "Size": 8,
-          "ArrayStride": 8,
-          "MatrixStride": null,
-          "HostRepresentation": "std430",
-          "Members": []
-        },
-        {
-          "Name": "Rect",
-          "GlslName": "member_Rect",
-          "GlslType": "vec4",
-          "Offset": 16,
-          "Alignment": 16,
-          "Size": 16,
-          "ArrayStride": 16,
-          "MatrixStride": null,
-          "HostRepresentation": "std430",
-          "Members": []
-        },
-        {
-          "Name": "FillColor",
-          "GlslName": "member_FillColor",
-          "GlslType": "vec4",
-          "Offset": 32,
-          "Alignment": 16,
-          "Size": 16,
-          "ArrayStride": 16,
-          "MatrixStride": null,
-          "HostRepresentation": "std430",
-          "Members": []
-        },
-        {
-          "Name": "BorderColor",
-          "GlslName": "member_BorderColor",
-          "GlslType": "vec4",
-          "Offset": 48,
-          "Alignment": 16,
-          "Size": 16,
-          "ArrayStride": 16,
-          "MatrixStride": null,
-          "HostRepresentation": "std430",
-          "Members": []
-        },
-        {
-          "Name": "CornerRadii",
-          "GlslName": "member_CornerRadii",
-          "GlslType": "vec4",
-          "Offset": 64,
-          "Alignment": 16,
-          "Size": 16,
-          "ArrayStride": 16,
-          "MatrixStride": null,
-          "HostRepresentation": "std430",
-          "Members": []
-        },
-        {
-          "Name": "BorderWidth",
-          "GlslName": "member_BorderWidth",
-          "GlslType": "float",
-          "Offset": 80,
-          "Alignment": 4,
-          "Size": 4,
-          "ArrayStride": 4,
-          "MatrixStride": null,
-          "HostRepresentation": "std430",
-          "Members": []
-        }
-      ]
-    }
-  ]
+  "PushConstants": []
 }

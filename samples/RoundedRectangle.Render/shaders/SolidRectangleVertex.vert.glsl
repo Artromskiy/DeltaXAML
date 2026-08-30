@@ -27,7 +27,7 @@ void main()
             }
     vec2 pixel = vec2(pushConstants.member_Rect.x+ local.x* pushConstants.member_Rect.z, pushConstants.member_Rect.y+ local.y* pushConstants.member_Rect.w);
 
-    vec2 clip = vec2(            pixel.x/ pushConstants.member_Resolution.x* 2 - 1,             1 - pixel.y/ pushConstants.member_Resolution.y* 2);
+    vec2 clip = vec2(            pixel.x/ pushConstants.member_Resolution.x* 2 - 1,             pixel.y/ pushConstants.member_Resolution.y* 2 - 1);
 
     {gl_Position = vec4(clip.x, clip.y, 0, 1);
     return;

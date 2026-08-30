@@ -40,8 +40,39 @@ or application lifecycle in this contract.
 
 Geometry and color reuse `DeltaMaths`: `float2` represents positions, sizes
 and deltas; `float4` represents rectangles and colors. Rectangle properties
-document the `(X, Y, Width, Height)` convention. Colors are linear RGBA. UI
-coordinates use logical units until the consumer applies its DPI transform.
+document the `(X, Y, Width, Height)` convention. Colors are linear RGBA.
+
+The canonical UI coordinate convention is:
+
+```text
+origin:   top-left
+X:        right
+Y:        down
+viewport: top-left
+depth:    0..1
+```
+
+`UiVisualDraw`, `UiTextDraw`, `UiClipRegion`, hit-test points and layout JSON
+use the same top-left logical coordinate space. Rectangles are half-open:
+`[X, X + Width) x [Y, Y + Height)`. The Vulkan consumer uses a positive
+viewport height and keeps these bounds/scissors in top-left framebuffer
+coordinates; pixel-to-clip projection is a Vulkan adapter/shader detail, not
+part of this contract. Logical-to-device-pixel DPI policy remains a separate
+DeltaXAML backlog item; until it is specified, the producer values remain
+logical and the consumer owns that boundary.
+
+For 2D UI textures and atlases, normalized UVs use the same visual orientation:
+
+```text
+(0,0): top-left       (1,0): top-right
+(0,1): bottom-left    (1,1): bottom-right
+```
+
+Texture upload must canonicalize source row order once. Vulkan does not infer
+the orientation of a PNG, atlas or readback file from the UV values. Normal
+maps are tangent-space data and their Y+/Y- green-channel convention is an
+explicit asset/material property; it is not changed by the screen-space Y
+direction.
 
 ## Input
 

@@ -40,7 +40,7 @@ internal readonly struct RichTextHitTestMixin
         for (var i = 0; i < state.HitRangeCount; i++)
         {
             var bounds = state.HitRanges[i].Bounds;
-            if (point.X >= bounds.x && point.Y >= bounds.y && point.X <= bounds.x + bounds.z && point.Y <= bounds.y + bounds.w)
+            if (point.X >= bounds.x && point.Y >= bounds.y && point.X < bounds.x + bounds.z && point.Y < bounds.y + bounds.w)
             {
                 command = state.HitRanges[i].Command;
                 argument = state.HitRanges[i].Argument;

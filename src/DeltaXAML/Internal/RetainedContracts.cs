@@ -135,7 +135,7 @@ internal readonly record struct UiPoint(float X, float Y);
 internal readonly record struct UiThickness(float Left, float Top, float Right, float Bottom) { public static UiThickness Zero => default; public float Horizontal => Left + Right; public float Vertical => Top + Bottom; }
 internal readonly record struct UiRect(float X, float Y, float Width, float Height)
 {
-    public bool Contains(UiPoint p) => p.X >= X && p.Y >= Y && p.X <= X + Width && p.Y <= Y + Height;
+    public bool Contains(UiPoint p) => p.X >= X && p.Y >= Y && p.X < X + Width && p.Y < Y + Height;
     public bool IsInside(UiRect other) => X >= other.X && Y >= other.Y && X + Width <= other.X + other.Width && Y + Height <= other.Y + other.Height;
     public static UiRect Intersect(UiRect a, UiRect b) { var x = MathF.Max(a.X, b.X); var y = MathF.Max(a.Y, b.Y); var r = MathF.Min(a.X + a.Width, b.X + b.Width); var z = MathF.Min(a.Y + a.Height, b.Y + b.Height); return new(x, y, MathF.Max(0, r - x), MathF.Max(0, z - y)); }
 }

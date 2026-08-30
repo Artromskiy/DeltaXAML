@@ -279,6 +279,7 @@ internal static partial class Program
         GeneratedAttachedTests.Run();
         FullCapabilityGeneratedTests.Run();
         GeneratedSampleParityTests.Run();
+        LayoutDiagnosticsTests.Run();
         TypedPropertyStateTests();
         PropertyPrecedenceTests();
         HiddenBindingTests();
@@ -335,6 +336,7 @@ internal static partial class Program
         DescriptorLayoutEntryPointsAreExclusive();
         DisplayListBatcherWorkloadTests.Run();
         ControlStateOwnersAreFlat();
+        CoordinateConventionTests.Run();
     }
 
     private static void PropertyInvalidation()

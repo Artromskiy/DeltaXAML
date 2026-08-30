@@ -4,8 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>DeltaXaml.Samples.RoundedRectangle.Render</RootNamespace>
-    <AssemblyName>DeltaXAML.Samples.RoundedRectangle.Render</AssemblyName>
+    <RootNamespace>DeltaXaml.Samples.Game2048.Render</RootNamespace>
+    <AssemblyName>DeltaXAML.Samples.Game2048.Render</AssemblyName>
     <RuntimeIdentifiers>osx-arm64;win-x64;linux-x64</RuntimeIdentifiers>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -21,8 +21,10 @@
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender/DeltaRender.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Platform.SDL3/DeltaRender.Platform.SDL3.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Vulkan/DeltaRender.Vulkan.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Text/DeltaRender.Text.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.XAML/DeltaRender.XAML.csproj" />
     <ProjectReference Include="../../../DeltaShader/src/DeltaShader.UI/DeltaShader.UI.csproj" />
+    <ProjectReference Include="../../../DeltaShader/src/DeltaShader.Text/DeltaShader.Text.csproj" />
     <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
     <PackageReference Include="Silk.NET.MoltenVK.Native" Version="2.23.0" GeneratePathProperty="true" />
   </ItemGroup>
@@ -34,15 +36,31 @@
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Contract.dll" />
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaMaths.dll" />
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaText.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace" />
-    <AdditionalFiles Include="GridTwoRows.xaml"
-                     DeltaXamlClassName="GridTwoRowsArtifact"
-                     DeltaXamlNamespace="DeltaXaml.Samples.RoundedRectangle.Render.Generated" />
-    <None Include="RoundedRectangle.xaml" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="GridTwoRows.xaml" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="shaders/RoundedRectangleVertex.vert.spv" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="shaders/RoundedRectangleFragment.frag.spv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../Game2048/Game2048State.cs" Link="Game2048State.cs" />
+    <Compile Include="../Game2048/Game2048View.cs" Link="Game2048View.cs" />
+    <AdditionalFiles Include="../Game2048/Game2048.xaml"
+                     DeltaXamlClassName="Game2048Artifact"
+                     DeltaXamlNamespace="DeltaXaml.Samples.Game2048.Generated" />
+    <None Include="../Game2048/Game2048.xaml" Link="Game2048.xaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
+          Link="Assets/NotoSans-Regular.ttf"
+          CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../RoundedRectangle.Render/shaders/RoundedRectangleVertex.vert.spv"
+             Link="shaders/RoundedRectangleVertex.vert.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../RoundedRectangle.Render/shaders/RoundedRectangleFragment.frag.spv"
+             Link="shaders/RoundedRectangleFragment.frag.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="shaders/SdfTextVertex.vert.spv" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="shaders/SdfTextFragment.frag.spv" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
              Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
       <Link>libMoltenVK.dylib</Link>

@@ -326,7 +326,7 @@ internal static class Program
                 WriteFloat(constants, 0, _width);
                 WriteFloat(constants, 4, _height);
                 WriteFloat(constants, 16, quad.X);
-                WriteFloat(constants, 20, _height - quad.Y - quad.Height);
+                WriteFloat(constants, 20, quad.Y);
                 WriteFloat(constants, 24, quad.Width);
                 WriteFloat(constants, 28, quad.Height);
                 WriteFloat(constants, 32, quad.Red);

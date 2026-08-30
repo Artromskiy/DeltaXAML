@@ -1,21 +1,22 @@
 #version 460
-layout(push_constant, std430) uniform DeltaPushConstants
-{
-    layout(offset = 0) vec2 member_Resolution;
-    layout(offset = 16) vec4 member_Rect;
-    layout(offset = 32) vec4 member_FillColor;
-    layout(offset = 48) vec4 member_BorderColor;
-    layout(offset = 64) vec4 member_CornerRadii;
-    layout(offset = 80) float member_BorderWidth;
-} pushConstants;
-
 layout(location = 0) in vec2 Uv;
+layout(location = 1) in vec4 Rect;
+layout(location = 2) in vec4 FillColor;
+layout(location = 3) in vec4 BorderColor;
+layout(location = 4) in vec4 CornerRadii;
+layout(location = 5) in vec2 BorderWidth;
 layout(location = 0) out vec4 fragColor;
 
 
 void main()
 {
-    vec2 size = vec2(pushConstants.member_Rect.z, pushConstants.member_Rect.w);
+    vec4 rect = Rect;
+
+    vec2 size = vec2(rect.z, rect.w);
+
+    vec4 cornerRadii = CornerRadii;
+
+    float borderWidth = BorderWidth.x;
 
     vec2 pixel = Uv* size;
 
@@ -23,24 +24,24 @@ void main()
 
     vec2 centered = pixel - halfSize;
 
-    float radius = pushConstants.member_CornerRadii.x;
+    float radius = cornerRadii.x;
 
             if (centered.x> 0)
             {
                 if (centered.y> 0)
                 {
-                    radius = pushConstants.member_CornerRadii.z;
+                    radius = cornerRadii.z;
 
                 }
                 else
                 {
-                    radius = pushConstants.member_CornerRadii.y;
+                    radius = cornerRadii.y;
 
                 }
             }
             else if (centered.y> 0)
             {
-                radius = pushConstants.member_CornerRadii.w;
+                radius = cornerRadii.w;
 
             }
     vec2 q = abs(centered)- halfSize + vec2(radius, radius);
@@ -57,12 +58,12 @@ void main()
 
     float fillCoverage = 1 - smoothstep(-edge, edge, distance);
 
-    float innerCoverage = 1 - smoothstep(-edge, edge, distance + pushConstants.member_BorderWidth);
+    float innerCoverage = 1 - smoothstep(-edge, edge, distance + borderWidth);
 
     float borderCoverage = max(fillCoverage - innerCoverage, 0);
 
-    {fragColor = pushConstants.member_FillColor* innerCoverage +
-    pushConstants.member_BorderColor* borderCoverage;
+    {fragColor = FillColor* innerCoverage +
+    BorderColor* borderCoverage;
     return;
     }
 

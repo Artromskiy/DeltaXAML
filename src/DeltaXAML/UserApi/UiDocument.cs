@@ -16,6 +16,7 @@ public sealed class UiDocument : IDisposable
     private readonly IUiGeneratedDocumentProgram? _program;
     private readonly Retained.UiAccessibilityStage _accessibility = new();
     private UiLocalizationContext _localization = UiLocalizationContext.Invariant;
+    private bool _hasLayout;
     private bool _disposed;
 
     internal int TextCacheCount => _visuals.TextCacheCount;
@@ -142,6 +143,23 @@ public sealed class UiDocument : IDisposable
         Viewport = viewport;
         DpiScale = dpiScale;
         _runtime.Layout(new(viewport.x, viewport.y), dpiScale, _theme, Root, _imageMetadataResolver, _program, this);
+        _hasLayout = true;
+    }
+
+    /// <summary>
+    /// Returns a detached JSON snapshot of the retained hierarchy and its latest layout.
+    /// </summary>
+    /// <remarks>
+    /// This is a cold debug operation. Call it after <see cref="Layout"/> to inspect
+    /// the actual bounds and clips produced for the current viewport. Before the first
+    /// layout, <c>layoutCompleted</c> is <c>false</c> and layout fields contain defaults.
+    /// The returned string is independent of the document and remains valid after the
+    /// next layout or disposal.
+    /// </remarks>
+    public string BuildLayoutDiagnosticsJson(bool indented = true)
+    {
+        ThrowIfDisposed();
+        return Retained.UiLayoutDiagnosticsJson.Write(Root.RetainedElement, Viewport, DpiScale, _hasLayout, indented);
     }
 
     public UiDisplayList BuildDisplayList()
