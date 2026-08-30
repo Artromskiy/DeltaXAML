@@ -333,6 +333,7 @@ internal static partial class Program
         DescriptorLayoutDispatch();
         DescriptorPropertyDispatchIsNonVirtual();
         DescriptorLayoutEntryPointsAreExclusive();
+        DisplayListBatcherWorkloadTests.Run();
         ControlStateOwnersAreFlat();
     }
 
