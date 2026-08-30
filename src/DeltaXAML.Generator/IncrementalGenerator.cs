@@ -41,7 +41,9 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var xamlFiles = context.AdditionalTextsProvider
-            .Where(static file => Path.GetExtension(file.Path).Equals(".xaml", StringComparison.OrdinalIgnoreCase))
+            .Where(static file =>
+                Path.GetExtension(file.Path).Equals(".xaml", StringComparison.OrdinalIgnoreCase) ||
+                Path.GetExtension(file.Path).Equals(".axaml", StringComparison.OrdinalIgnoreCase))
             .Combine(context.AnalyzerConfigOptionsProvider)
             .Select(static (pair, cancellationToken) =>
             {
