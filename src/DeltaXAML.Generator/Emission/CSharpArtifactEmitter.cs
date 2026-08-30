@@ -2025,6 +2025,7 @@ internal static class CSharpArtifactEmitter
             "System.Int32" => XamlValueKind.Integer,
             "Delta.XAML.UiColor" => XamlValueKind.Color,
             "Delta.XAML.UiThickness" => XamlValueKind.Thickness,
+            "Delta.XAML.UiCornerRadii" => XamlValueKind.CornerRadii,
             _ => XamlValueKind.Invalid,
         };
         if (kind == XamlValueKind.Invalid)
@@ -2121,6 +2122,7 @@ internal static class CSharpArtifactEmitter
             XamlValueKind.Brush => "global::Delta.XAML.UiBrush",
             XamlValueKind.Color => "global::Delta.XAML.UiColor",
             XamlValueKind.Thickness => "global::Delta.XAML.UiThickness",
+            XamlValueKind.CornerRadii => "global::Delta.XAML.UiCornerRadii",
             XamlValueKind.Enum when property.Name == "Orientation" && type.Name.LocalName is "StackPanel" or "Slider" => "global::Delta.XAML.UiOrientation",
             _ => string.Empty,
         };
@@ -2734,6 +2736,7 @@ internal static class CSharpArtifactEmitter
         if (value.Kind != XamlValueKind.Invalid && value.Kind != XamlValueKind.String && value.Kind != XamlValueKind.Boolean &&
             value.Kind != XamlValueKind.Single && value.Kind != XamlValueKind.Double && value.Kind != XamlValueKind.Color &&
             value.Kind != XamlValueKind.Integer && value.Kind != XamlValueKind.ResourceId && value.Kind != XamlValueKind.Thickness &&
+            value.Kind != XamlValueKind.CornerRadii &&
             value.Kind != XamlValueKind.GridLengthList && value.Kind != XamlValueKind.Enum && value.Kind != XamlValueKind.Brush)
         {
             error = $"Property '{propertyName}' is not a literal value in this compile slice.";
@@ -2778,6 +2781,8 @@ internal static class CSharpArtifactEmitter
                 return TryColor(literal, out expression, out error);
             case XamlValueKind.Thickness:
                 return TryThickness(literal, out expression, out error);
+            case XamlValueKind.CornerRadii:
+                return TryCornerRadii(literal, out expression, out error);
             case XamlValueKind.GridLengthList:
                 return TryGridLengths(literal, out expression, out error);
             case XamlValueKind.Enum when propertyName == "Orientation" && (literal == "Horizontal" || literal == "Vertical"):
@@ -2813,6 +2818,7 @@ internal static class CSharpArtifactEmitter
             "StyleKey" => "global::Delta.XAML.UiElementProperties.StyleKey",
             "TemplateKey" => "global::Delta.XAML.UiElementProperties.TemplateKey",
             "BackgroundBrush" => "global::Delta.XAML.UiElementProperties.BackgroundBrush",
+            "CornerRadius" => "global::Delta.XAML.UiElementProperties.CornerRadius",
             "AutomationName" => "global::Delta.XAML.UiElementProperties.AutomationName",
             "AutomationRole" => "global::Delta.XAML.UiElementProperties.AutomationRole",
             "Gestures" => "global::Delta.XAML.UiElementProperties.Gestures",
@@ -3082,6 +3088,34 @@ internal static class CSharpArtifactEmitter
         }
 
         expression = $"new global::Delta.XAML.UiThickness({values[0].ToString("R", CultureInfo.InvariantCulture)}f, {values[1].ToString("R", CultureInfo.InvariantCulture)}f, {values[2].ToString("R", CultureInfo.InvariantCulture)}f, {values[3].ToString("R", CultureInfo.InvariantCulture)}f)";
+        return true;
+    }
+
+    private static bool TryCornerRadii(string value, out string expression, out string error)
+    {
+        expression = string.Empty;
+        error = string.Empty;
+        var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is not (1 or 4))
+        {
+            error = $"Corner radius literal '{value}' must contain one or four values.";
+            return false;
+        }
+
+        var values = new float[parts.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (!float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]) ||
+                !float.IsFinite(values[i]) || values[i] < 0)
+            {
+                error = $"Corner radius literal '{value}' is invalid.";
+                return false;
+            }
+        }
+
+        expression = values.Length == 1
+            ? $"global::Delta.XAML.UiCornerRadii.Uniform({values[0].ToString("R", CultureInfo.InvariantCulture)}f)"
+            : $"new global::Delta.XAML.UiCornerRadii({values[0].ToString("R", CultureInfo.InvariantCulture)}f, {values[1].ToString("R", CultureInfo.InvariantCulture)}f, {values[2].ToString("R", CultureInfo.InvariantCulture)}f, {values[3].ToString("R", CultureInfo.InvariantCulture)}f)";
         return true;
     }
 

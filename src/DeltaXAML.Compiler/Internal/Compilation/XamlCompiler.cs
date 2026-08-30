@@ -1301,6 +1301,9 @@ internal static class XamlCompiler
                 case XamlValueKind.Thickness when TryThickness(value, out var thickness):
                     literal = new(expected, thickness);
                     return true;
+                case XamlValueKind.CornerRadii when TryCornerRadii(value, out var cornerRadii):
+                    literal = new(expected, cornerRadii);
+                    return true;
                 case XamlValueKind.GridLengthList when TryGridLengths(value, out var lengths):
                     literal = new(expected, lengths);
                     return true;
@@ -1871,6 +1874,29 @@ internal static class XamlCompiler
             for (var i = 0; i < parsed.Length; i++)
             {
                 if (!float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out parsed[i]) || !float.IsFinite(parsed[i]))
+                {
+                    return false;
+                }
+            }
+
+            canonical = string.Join(',', parsed.Select(static value => value.ToString("R", CultureInfo.InvariantCulture)));
+            return true;
+        }
+
+        private static bool TryCornerRadii(string value, out string canonical)
+        {
+            var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            canonical = string.Empty;
+            if (parts.Length is not (1 or 4))
+            {
+                return false;
+            }
+
+            var parsed = new float[parts.Length];
+            for (var i = 0; i < parsed.Length; i++)
+            {
+                if (!float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out parsed[i]) ||
+                    !float.IsFinite(parsed[i]) || parsed[i] < 0)
                 {
                     return false;
                 }

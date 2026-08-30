@@ -18,6 +18,7 @@ internal enum XamlValueKind
     Brush,
     Color,
     Thickness,
+    CornerRadii,
     GridLengthList,
     Enum,
     Binding,
@@ -659,6 +660,7 @@ internal sealed class XamlSemanticRegistry
             Property("TemplateKey", "10000000-0000-4000-8000-000000000009", XamlValueKind.String));
         common = common.AddRange(ImmutableArray.Create(
             Property("BackgroundBrush", "10000000-0000-4000-8000-00000000000A", XamlValueKind.Brush),
+            Property("CornerRadius", "10000000-0000-4000-8000-000000000013", XamlValueKind.CornerRadii),
             Property("AutomationName", "10000000-0000-4000-8000-00000000000B", XamlValueKind.String),
             Property("AutomationRole", "10000000-0000-4000-8000-00000000000C", XamlValueKind.Enum),
             Property("Gestures", "10000000-0000-4000-8000-00000000000D", XamlValueKind.Enum),
