@@ -12,7 +12,18 @@ internal static class Program
     private static readonly FontSourceId SampleFontId =
         new(new Guid("B1BD4F0D-4A43-4A15-B5DF-DBF9A5A1A8E3"));
 
-    private static int Main()
+    private static async Task<int> Main(string[] args)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        if (!HasFlag(args, "--headless"))
+        {
+            return await SnakeWindowRunner.RunAsync(args).ConfigureAwait(false);
+        }
+
+        return RunHeadless(args);
+    }
+
+    private static int RunHeadless(string[] args)
     {
         var fonts = new UiFontCatalog();
         var fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "NotoSans-Regular.ttf");
@@ -26,6 +37,7 @@ internal static class Program
         using var page = new SnakeArtifact(textService, fonts);
         var game = new SnakeGame();
         var view = new SnakeView(page);
+        var layoutJsonPath = ParsePath(args, "--layout-json", "/tmp/delta-snake-layout.json");
 
         view.NewGameButton.Click += (_, _) =>
         {
@@ -41,6 +53,7 @@ internal static class Program
         game.StartNewGame();
         view.Render(game);
         var initial = LayoutAndBuild(page.Document);
+        File.WriteAllText(layoutJsonPath, page.Document.BuildLayoutDiagnosticsJson());
         Require(initial.Visuals.Length >= SnakeGame.CellCount, "Snake must emit one retained visual per board cell.");
         Require(initial.Text.Length >= 5, "Snake must emit its retained HUD text.");
 
@@ -59,6 +72,7 @@ internal static class Program
         Console.WriteLine("DeltaXAML Snake sample");
         Console.WriteLine($"score={game.Score}, best={game.BestScore}, status={game.StatusText}");
         Console.WriteLine($"display list: visuals={frame.Visuals.Length}, clips={frame.Clips.Length}, text={frame.Text.Length}, order={frame.Order.Length}");
+        Console.WriteLine($"layout json: {layoutJsonPath}");
         return 0;
     }
 
@@ -74,5 +88,36 @@ internal static class Program
         {
             throw new InvalidOperationException(message);
         }
+    }
+
+    private static bool HasFlag(string[] args, string option)
+    {
+        for (var index = 0; index < args.Length; index++)
+        {
+            if (string.Equals(args[index], option, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string ParsePath(string[] args, string option, string fallback)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentException.ThrowIfNullOrWhiteSpace(option);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fallback);
+        for (var index = 0; index + 1 < args.Length; index++)
+        {
+            if (string.Equals(args[index], option, StringComparison.OrdinalIgnoreCase))
+            {
+                return string.IsNullOrWhiteSpace(args[index + 1])
+                    ? throw new ArgumentException($"{option} requires a non-empty path.", nameof(args))
+                    : args[index + 1];
+            }
+        }
+
+        return fallback;
     }
 }

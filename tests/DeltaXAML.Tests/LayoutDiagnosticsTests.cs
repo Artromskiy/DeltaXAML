@@ -30,7 +30,7 @@ internal static class LayoutDiagnosticsTests
 
         using var parsed = JsonDocument.Parse(firstJson);
         var jsonRoot = parsed.RootElement;
-        Assert.Equal(1, jsonRoot.GetProperty("schemaVersion").GetInt32(), "layout diagnostics schema is versioned");
+        Assert.Equal(2, jsonRoot.GetProperty("schemaVersion").GetInt32(), "layout diagnostics schema is versioned");
         Assert.True(jsonRoot.GetProperty("layoutCompleted").GetBoolean(), "layout diagnostics mark a completed layout");
         Assert.Equal(100f, jsonRoot.GetProperty("viewport").GetProperty("width").GetSingle(), "viewport width is reported");
         Assert.Equal(80f, jsonRoot.GetProperty("viewport").GetProperty("height").GetSingle(), "viewport height is reported");
@@ -52,6 +52,11 @@ internal static class LayoutDiagnosticsTests
         var nestedNode = firstNode.GetProperty("children")[0];
         Assert.Equal(12f, nestedNode.GetProperty("requestedSize").GetProperty("width").GetSingle(), "nested requested width is reported");
         Assert.Equal(8f, nestedNode.GetProperty("desiredSize").GetProperty("height").GetSingle(), "nested desired height is reported");
+
+        using var textDocument = new UiDocument(new UiTextBlock { Text = "diagnostic text" }, new EmptyTextService());
+        textDocument.Layout(new float2(100, 30), 1);
+        using var textJson = JsonDocument.Parse(textDocument.BuildLayoutDiagnosticsJson(false));
+        Assert.Equal("diagnostic text", textJson.RootElement.GetProperty("root").GetProperty("text").GetString(), "text content is reported with its layout node");
     }
 
     private static void GridChildrenDoNotIntersectWhenPlacedInDistinctCells()

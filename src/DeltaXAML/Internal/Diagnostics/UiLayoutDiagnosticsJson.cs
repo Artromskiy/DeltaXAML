@@ -8,7 +8,7 @@ namespace DeltaXAML.Internal;
 /// <summary>Serializes the authoritative retained tree for cold layout diagnostics.</summary>
 internal static class UiLayoutDiagnosticsJson
 {
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
 
     internal static string Write(
         UiElement root,
@@ -45,6 +45,11 @@ internal static class UiLayoutDiagnosticsJson
         writer.WriteString("type", element.TypeName);
         writer.WriteNumber("id", element.Id.Value);
         writer.WriteNumber("generation", element.Generation);
+        if (element is TextBlock textBlock)
+        {
+            writer.WriteString("text", textBlock.Text);
+        }
+
         writer.WriteString("visibility", VisibilityName(element.Visibility));
         writer.WriteString("participation", element.Participation.ToString());
         WriteRect(writer, "bounds", element.Bounds);

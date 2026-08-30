@@ -50,6 +50,12 @@ def emit_node(node: dict, depth: int, output: list[str]) -> None:
         f'fill="none" stroke="#DC2626" stroke-opacity="0.7" '
         f'stroke-width="0.8" stroke-dasharray="4 3" />'
     )
+    if "text" in node:
+        text = html.escape(str(node["text"]))
+        output.append(
+            f'    <text x="{number(x + 4)}" y="{number(y + 16)}" '
+            f'font-family="sans-serif" font-size="12" fill="#111827">{text}</text>'
+        )
     for index, child in enumerate(node.get("children", ())):
         emit_node(child, depth + 1, output)
     output.append("  </g>")

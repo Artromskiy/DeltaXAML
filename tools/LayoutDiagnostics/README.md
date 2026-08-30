@@ -15,7 +15,9 @@ File.WriteAllText(
 ```
 
 The JSON contains the retained hierarchy, child order, requested dimensions,
-actual bounds, clips, desired sizes, margins and padding.
+actual bounds, clips, desired sizes, margins and padding. TextBlock nodes also
+carry their `text` content, so the corresponding label can be located directly
+from its layout bounds.
 
 ## 2. Render translucent boxes outside DeltaXAML
 
@@ -26,5 +28,6 @@ python3 tools/layout-json-to-svg.py layout.json layout.svg
 ```
 
 Solid translucent boxes represent `bounds`; red dashed boxes represent
-`clip`. The SVG uses the logical viewport coordinates from the JSON and does
-not use DeltaRender, Vulkan or SDL.
+`clip`; TextBlock contents are drawn as labels at the top of their bounds. The
+SVG uses the logical viewport coordinates from the JSON and does not use
+DeltaRender, Vulkan or SDL.

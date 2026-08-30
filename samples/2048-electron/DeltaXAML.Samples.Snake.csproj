@@ -1,11 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>osx-arm64;win-x64;linux-x64</RuntimeIdentifiers>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>DeltaXaml.Samples.Snake</RootNamespace>
     <AssemblyName>DeltaXAML.Samples.Snake</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +18,15 @@
     <ProjectReference Include="../../../DeltaDiagnostics/src/Delta.Diagnostics.Contract/Delta.Diagnostics.Contract.csproj" />
     <ProjectReference Include="../../../DeltaMaths/src/DeltaMaths/DeltaMaths.csproj" />
     <ProjectReference Include="../../../DeltaText/src/DeltaText/DeltaText.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender/DeltaRender.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Platform.SDL3/DeltaRender.Platform.SDL3.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Vulkan/DeltaRender.Vulkan.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Text/DeltaRender.Text.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.XAML/DeltaRender.XAML.csproj" />
+    <ProjectReference Include="../../../DeltaShader/src/DeltaShader.UI/DeltaShader.UI.csproj" />
+    <ProjectReference Include="../../../DeltaShader/src/DeltaShader.Text/DeltaShader.Text.csproj" />
+    <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
+    <PackageReference Include="Silk.NET.MoltenVK.Native" Version="2.23.0" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,5 +48,27 @@
     <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
           Link="Assets/NotoSans-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../RoundedRectangle.Render/shaders/RoundedRectangleVertex.vert.spv"
+             Link="shaders/RoundedRectangleVertex.vert.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../RoundedRectangle.Render/shaders/RoundedRectangleFragment.frag.spv"
+             Link="shaders/RoundedRectangleFragment.frag.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Game2048.Render/shaders/SdfTextVertex.vert.spv"
+             Link="shaders/SdfTextVertex.vert.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Game2048.Render/shaders/SdfTextFragment.frag.spv"
+             Link="shaders/SdfTextFragment.frag.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
+             Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
+      <Link>libMoltenVK.dylib</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/MoltenVK_icd.json"
+             Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
+      <Link>MoltenVK_icd.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
