@@ -1,0 +1,268 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SnakeAvalonia"
+        mc:Ignorable="d"
+        x:Class="SnakeAvalonia.MainWindow"
+        Title="SnakeXaml"
+        Width="980"
+        Height="760"
+        WindowStartupLocation="CenterScreen"
+        Background="Transparent"
+        FontFamily="Inter, 'Segoe UI', Arial, sans-serif"
+        KeyDown="OnWindowKeyDown"
+        PointerPressed="OnPointerPressed">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgStart" Color="#081325" />
+        <SolidColorBrush x:Key="BgEnd" Color="#0B1A2D" />
+        <SolidColorBrush x:Key="BoardBase" Color="#1A2338" />
+        <SolidColorBrush x:Key="BoardBorder" Color="#3A4D73" />
+        <SolidColorBrush x:Key="PanelBg" Color="#101A2F" />
+        <SolidColorBrush x:Key="BodyBrush" Color="#38A16F" />
+        <SolidColorBrush x:Key="HeadBrush" Color="#5BFFE3" />
+        <SolidColorBrush x:Key="FoodBrush" Color="#FF6B6B" />
+        <SolidColorBrush x:Key="WarningBrush" Color="#FFCB47" />
+        <LinearGradientBrush x:Key="PageGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#090E1B" Offset="0" />
+            <GradientStop Color="#0D1B33" Offset="0.5" />
+            <GradientStop Color="#060A14" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BoardShine" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#35508A" Offset="0" />
+            <GradientStop Color="#1C2A49" Offset="1" />
+        </LinearGradientBrush>
+        <local:TileToPixelConverter x:Key="TileToPixel" />
+    </Window.Resources>
+    
+    <Window.Styles>
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{StaticResource PageGradient}" />
+        </Style>
+
+        <Style Selector="Border.panel">
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Background" Value="{StaticResource PanelBg}" />
+            <Setter Property="BorderBrush" Value="#2F4368" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style Selector="Button.primaryBtn">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#3A5ACD" />
+            <Setter Property="BorderBrush" Value="#7AA4FF" />
+        </Style>
+
+        <Style Selector="Button.secondaryBtn">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Foreground" Value="#A4B8EA" />
+            <Setter Property="Background" Value="#152245" />
+            <Setter Property="BorderBrush" Value="#355083" />
+        </Style>
+
+        <Style Selector="TextBlock.stat">
+            <Setter Property="Foreground" Value="#E8EEFF" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <Style Selector="Border.game-board">
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="BorderBrush" Value="{StaticResource BoardBorder}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+
+        <Style Selector="Border.panel-title">
+            <Setter Property="BorderBrush" Value="#4C79D1" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Background" Value="#1D2A47" />
+        </Style>
+
+        <Style Selector="Border.snake-body">
+            <Setter Property="Background" Value="{StaticResource BodyBrush}" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Opacity" Value="0.92" />
+        </Style>
+
+        <Style Selector="Border.snake-head">
+            <Setter Property="Background" Value="{StaticResource HeadBrush}" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="ZIndex" Value="30" />
+        </Style>
+
+        <Style Selector="Border.food">
+            <Setter Property="Background" Value="{StaticResource FoodBrush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+        </Style>
+
+        <Style Selector="Border#statusOverlay">
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Background" Value="#CC000000" />
+            <Setter Property="BorderBrush" Value="#FFD86B" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="18" ColumnDefinitions="1.55*, 430" RowDefinitions="Auto,*" Background="Transparent">
+        <Grid.Styles>
+            <Style Selector="Grid > StackPanel">
+                <Setter Property="Spacing" Value="12" />
+            </Style>
+        </Grid.Styles>
+
+        <Border Grid.Column="0"
+                Grid.Row="0"
+                Grid.RowSpan="2"
+                Classes="game-board"
+                Background="{StaticResource BoardBase}"
+                BorderBrush="{StaticResource BoardBorder}"
+                BorderThickness="2"
+                Padding="12"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center">
+            <Canvas Width="{Binding BoardWidthPx}"
+                    Height="{Binding BoardHeightPx}"
+                    Background="{StaticResource BoardShine}">
+                <ItemsControl ItemsSource="{Binding SnakeBody}">
+                    <ItemsControl.Styles>
+                        <Style Selector="ContentPresenter">
+                            <Setter Property="Canvas.Left" Value="{Binding X, Converter={StaticResource TileToPixel}}" />
+                            <Setter Property="Canvas.Top" Value="{Binding Y, Converter={StaticResource TileToPixel}}" />
+                        </Style>
+                    </ItemsControl.Styles>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas Width="{Binding BoardWidthPx}" Height="{Binding BoardHeightPx}" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="snake-body"
+                                    Width="18"
+                                    Height="18" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Classes="snake-head"
+                        Width="18"
+                        Height="18"
+                        Canvas.Left="{Binding HeadX, Converter={StaticResource TileToPixel}}"
+                        Canvas.Top="{Binding HeadY, Converter={StaticResource TileToPixel}}" />
+
+                <Border Classes="food"
+                        Width="18"
+                        Height="18"
+                        Canvas.Left="{Binding FoodX, Converter={StaticResource TileToPixel}}"
+                        Canvas.Top="{Binding FoodY, Converter={StaticResource TileToPixel}}" />
+
+                <Border x:Name="statusOverlay"
+                        IsVisible="{Binding IsGameOver}"
+                        Width="{Binding BoardWidthPx}"
+                        Height="{Binding BoardHeightPx}"
+                        Canvas.Left="0"
+                        Canvas.Top="0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Classes="panel">
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="8">
+                        <TextBlock Text="GAME OVER"
+                                   FontSize="36"
+                                   FontWeight="Black"
+                                   Foreground="{StaticResource WarningBrush}" />
+                        <TextBlock Text="ENTER — новая игра"
+                                   FontSize="16"
+                                   Foreground="#F8F8F8" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="pauseOverlay"
+                        IsVisible="{Binding IsPaused}"
+                        Width="{Binding BoardWidthPx}"
+                        Height="{Binding BoardHeightPx}"
+                        Background="#B2000000"
+                        Canvas.Left="0"
+                        Canvas.Top="0">
+                    <TextBlock Text="Пауза"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="32"
+                               FontWeight="Bold"
+                               Foreground="#C7D9FF" />
+                </Border>
+            </Canvas>
+        </Border>
+
+        <StackPanel Grid.Column="1"
+                    Grid.Row="0"
+                    Grid.RowSpan="2"
+                    Spacing="12">
+            <Border Classes="panel">
+                <StackPanel>
+                    <Border Classes="panel-title">
+                        <TextBlock Text="SnakeXaml"
+                                   FontSize="34"
+                                   FontWeight="Bold"
+                                   Foreground="White" />
+                    </Border>
+                    <TextBlock Text="Avalonia + C#"
+                               FontSize="15"
+                               Foreground="#8FA6D1"
+                               Margin="0,8,0,16" />
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Счёт:" Classes="stat" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Margin="16,0,0,10" Text="{Binding Score}" FontSize="28" Foreground="#FFFFFF" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Рекорд:" Classes="stat" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Margin="16,0,0,10" Text="{Binding BestScore}" FontSize="28" Foreground="#FFFFFF" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Статус:" Classes="stat" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Margin="16,0,0,10" Text="{Binding StatusText}" FontSize="16" Foreground="#B7CCFF" TextWrapping="Wrap" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Размер ячейки:" Classes="stat" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Margin="16,0,0,0" Text="18 px" FontSize="16" Foreground="#D7E5FF" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="panel">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Управление"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Foreground="#DDE9FF" />
+                    <TextBlock Text="← → ↑ ↓  или  WASD"
+                               FontSize="14"
+                               Foreground="#A0B5DE" />
+                    <TextBlock Text="Space — пауза, Enter — старт новой игры"
+                               FontSize="14"
+                               Foreground="#A0B5DE" />
+                    <TextBlock Text="Цель: съесть максимально много еды."
+                               FontSize="13"
+                               Foreground="#C0D0F0"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button x:Name="RestartButton" Click="OnRestartClicked" Classes="primaryBtn" Content="Новая игра" Width="160" />
+                <Button x:Name="PauseButton" Click="OnPauseClicked" Classes="secondaryBtn" Content="{Binding PauseButtonText}" Width="120" />
+            </StackPanel>
+            <TextBlock Text="Нажми на поле, чтобы окно ловило клавиши."
+                       FontSize="12"
+                       Foreground="#8CA2D2"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+</Window>
