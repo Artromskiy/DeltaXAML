@@ -70,6 +70,10 @@ tests must cover original and resized viewports, clips and stable backing-array
 reuse. The real window command lives in
 [../DeltaEditor/WORKFLOW.md](../DeltaEditor/WORKFLOW.md).
 
+DeltaShader owns generated shader outputs. Run
+`./eng/check-shader-output-ownership.sh` to reject shader binaries and
+sidecars in DeltaXAML projects and samples.
+
 ## Descriptor/mixin architecture (mandatory)
 
 Read [docs/INTERNAL.md](docs/INTERNAL.md) before changing retained controls, properties,
