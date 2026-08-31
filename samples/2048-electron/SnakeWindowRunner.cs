@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Delta.Maths;
 using Delta.Render;
 using Delta.Render.Platform.SDL3;
@@ -39,7 +38,10 @@ internal static class SnakeWindowRunner
             }
 
             await using var windowLease = window.ConfigureAwait(false);
-            return await RunWindowAsync(window, ParseFrameLimit(args)).ConfigureAwait(false);
+            return await RunWindowAsync(
+                window,
+                ParseFrameLimit(args),
+                HasFlag(args, "--profile")).ConfigureAwait(false);
         }
 #pragma warning disable CA1031
         catch (Exception exception)
@@ -50,7 +52,10 @@ internal static class SnakeWindowRunner
 #pragma warning restore CA1031
     }
 
-    private static async Task<int> RunWindowAsync(IRenderWindow window, int frameLimit)
+    private static async Task<int> RunWindowAsync(
+        IRenderWindow window,
+        int frameLimit,
+        bool enableProfiling)
     {
         var fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "NotoSans-Regular.ttf");
         if (!File.Exists(fontPath))
@@ -70,7 +75,7 @@ internal static class SnakeWindowRunner
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateWindowSession(
             window,
-            new RenderSessionOptions(EnableProfiling: true));
+            new RenderSessionOptions(EnableProfiling: enableProfiling));
         var visualProgram = LoadRoundedProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(980, 760));
@@ -83,7 +88,6 @@ internal static class SnakeWindowRunner
         var graph = session.CreateRenderGraph();
         var renderedFrames = 0;
         var clipCount = 0;
-        var nextTick = Stopwatch.GetTimestamp();
         var running = true;
 
         try
@@ -102,13 +106,8 @@ internal static class SnakeWindowRunner
                     extent = nextExtent;
                 }
 
-                var now = Stopwatch.GetTimestamp();
-                if (now >= nextTick)
-                {
-                    game.Tick();
-                    view.Render(game);
-                    nextTick = now + Stopwatch.Frequency / 8;
-                }
+                game.Tick();
+                view.Render(game);
 
                 page.Document.Layout(new float2(metrics.Width, metrics.Height), metrics.DpiScale);
                 var displayList = page.Document.BuildDisplayList();
@@ -144,7 +143,6 @@ internal static class SnakeWindowRunner
                 }
 
                 renderedFrames++;
-                Thread.Sleep(16);
             }
 
             await Console.Out.WriteLineAsync(
@@ -273,6 +271,19 @@ internal static class SnakeWindowRunner
         return SdfTextGraphicsShaderProgram.CreateProgram(
             File.ReadAllBytes(vertexPath),
             File.ReadAllBytes(fragmentPath));
+    }
+
+    private static bool HasFlag(string[] args, string flag)
+    {
+        for (var index = 0; index < args.Length; index++)
+        {
+            if (string.Equals(args[index], flag, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int ParseFrameLimit(string[] args)

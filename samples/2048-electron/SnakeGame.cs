@@ -39,11 +39,13 @@ internal sealed class SnakeGame
 
     internal bool IsPaused { get; private set; }
 
+    internal int TickCount { get; private set; }
+
     internal string StatusText => IsGameOver
-        ? "Игра окончена — Enter: новая игра"
+        ? $"Игра окончена — Enter: новая игра · кадр {TickCount}"
         : IsPaused
-            ? "Пауза — Space: продолжить"
-            : "Игра идёт — стрелки или WASD";
+            ? $"Пауза — Space: продолжить · кадр {TickCount}"
+            : $"Игра идёт — стрелки или WASD · кадр {TickCount}";
 
     internal string PauseButtonText => IsPaused ? "Продолжить" : "Пауза";
 
@@ -65,6 +67,7 @@ internal sealed class SnakeGame
         Score = 0;
         IsGameOver = false;
         IsPaused = false;
+        TickCount = 0;
         SpawnFood();
     }
 
@@ -86,6 +89,7 @@ internal sealed class SnakeGame
 
     internal void Tick()
     {
+        TickCount++;
         if (IsGameOver || IsPaused)
         {
             return;
@@ -93,7 +97,7 @@ internal sealed class SnakeGame
 
         _direction = _nextDirection;
         var next = Move(_snake[0], _direction);
-        if (!IsInside(next) || (_occupied[ToIndex(next)] && next != _snake[_length - 1]))
+        if (_occupied[ToIndex(next)] && next != _snake[_length - 1])
         {
             IsGameOver = true;
             return;
@@ -167,14 +171,19 @@ internal sealed class SnakeGame
         return _random;
     }
 
-    private static SnakeCell Move(SnakeCell cell, Direction direction) => direction switch
+    private static SnakeCell Move(SnakeCell cell, Direction direction)
     {
-        Direction.Up => cell with { Row = cell.Row - 1 },
-        Direction.Down => cell with { Row = cell.Row + 1 },
-        Direction.Left => cell with { Column = cell.Column - 1 },
-        Direction.Right => cell with { Column = cell.Column + 1 },
-        _ => cell,
-    };
+        var moved = direction switch
+        {
+            Direction.Up => cell with { Row = cell.Row - 1 },
+            Direction.Down => cell with { Row = cell.Row + 1 },
+            Direction.Left => cell with { Column = cell.Column - 1 },
+            Direction.Right => cell with { Column = cell.Column + 1 },
+            _ => cell,
+        };
+
+        return new SnakeCell(Wrap(moved.Column, Columns), Wrap(moved.Row, Rows));
+    }
 
     private static bool IsOpposite(Direction first, Direction second) =>
         (first == Direction.Up && second == Direction.Down) ||
@@ -182,8 +191,11 @@ internal sealed class SnakeGame
         (first == Direction.Left && second == Direction.Right) ||
         (first == Direction.Right && second == Direction.Left);
 
-    private static bool IsInside(SnakeCell cell) =>
-        (uint)cell.Column < Columns && (uint)cell.Row < Rows;
+    private static int Wrap(int value, int length) => value < 0
+        ? length - 1
+        : value == length
+            ? 0
+            : value;
 
     private static int ToIndex(SnakeCell cell) => cell.Row * Columns + cell.Column;
 }
