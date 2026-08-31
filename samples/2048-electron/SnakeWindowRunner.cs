@@ -68,7 +68,9 @@ internal static class SnakeWindowRunner
         view.Render(game);
 
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
-        await using var session = renderer.CreateWindowSession(window);
+        await using var session = renderer.CreateWindowSession(
+            window,
+            new RenderSessionOptions(EnableProfiling: true));
         var visualProgram = LoadRoundedProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(980, 760));
@@ -125,12 +127,20 @@ internal static class SnakeWindowRunner
                     return 1;
                 }
 
+                var frameNumber = (ulong)renderedFrames;
                 var result = graph.Execute();
                 if (result.Status != RenderGraphExecutionStatus.Submitted)
                 {
                     await Console.Error.WriteLineAsync($"Graph execution failed: {result.Status}").ConfigureAwait(false);
                     await Console.Error.WriteLineAsync(result.Diagnostics.ToString()).ConfigureAwait(false);
                     return 1;
+                }
+
+                if (session.Profiler is { } profiler &&
+                    profiler.TryGetCompleted(frameNumber, out var profile) &&
+                    (renderedFrames == 0 || frameNumber % 60 == 0))
+                {
+                    WriteProfile(profile);
                 }
 
                 renderedFrames++;
@@ -145,6 +155,24 @@ internal static class SnakeWindowRunner
         finally
         {
             uiFeature.Dispose();
+        }
+    }
+
+    private static void WriteProfile(RenderProfileReport report)
+    {
+        var timing = report.Timing;
+        var capabilities = report.Capabilities;
+        Console.WriteLine(
+            $"Render profile: frame={report.FrameNumber}, status={report.Status}, " +
+            $"build={timing.Build}, acquire={timing.Acquire}, " +
+            $"record={timing.Record}, submit-present={timing.SubmitAndPresent}, " +
+            $"passes={report.Counters.PassCount}, gpu-timestamps={capabilities.GpuTimestamps}");
+
+        foreach (var pass in report.Passes)
+        {
+            Console.WriteLine(
+                $"  pass={pass.Name}, kind={pass.Kind}, cpu-record={pass.CpuRecordDuration}" +
+                (pass.GpuDuration is { } gpu ? $", gpu={gpu}" : ", gpu=unavailable"));
         }
     }
 
