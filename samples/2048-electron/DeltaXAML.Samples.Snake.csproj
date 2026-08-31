@@ -45,8 +45,8 @@
                      DeltaXamlClassName="SnakeArtifact"
                      DeltaXamlNamespace="DeltaXaml.Samples.Snake.Generated" />
     <None Update="MainWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
-          Link="Assets/NotoSans-Regular.ttf"
+    <None Include="Assets/LuckiestGuy-Regular.ttf"
+          Link="Assets/LuckiestGuy-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../RoundedRectangle.Render/shaders/RoundedRectangleVertex.vert.spv"
              Link="shaders/RoundedRectangleVertex.vert.spv"

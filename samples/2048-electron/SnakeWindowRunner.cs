@@ -20,7 +20,7 @@ namespace DeltaXaml.Samples.Snake;
 internal static class SnakeWindowRunner
 {
     private static readonly FontSourceId SampleFontId =
-        new(new Guid("B1BD4F0D-4A43-4A15-B5DF-DBF9A5A1A8E3"));
+        new(new Guid("8C1F6D6B-0F9A-4B3A-9D38-6C9D2B6E4F51"));
 
     internal static async Task<int> RunAsync(string[] args)
     {
@@ -57,7 +57,7 @@ internal static class SnakeWindowRunner
         int frameLimit,
         bool enableProfiling)
     {
-        var fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "NotoSans-Regular.ttf");
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "LuckiestGuy-Regular.ttf");
         if (!File.Exists(fontPath))
         {
             throw new FileNotFoundException($"Snake sample font was not found: {fontPath}");
