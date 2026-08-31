@@ -4,10 +4,13 @@ using Delta.Maths;
 using Delta.Render;
 using Delta.Render.Platform.SDL3;
 using Delta.Render.RenderGraph;
+using Delta.Render.Text;
 using Delta.Render.Vulkan;
 using Delta.Render.XAML;
 using Delta.Shader.Contract;
+using Delta.Shader.Text;
 using Delta.Shader.UI;
+using Delta.Text;
 using Delta.Text.Contract;
 using Delta.XAML;
 using Delta.XAML.Contract;
@@ -17,6 +20,9 @@ namespace DeltaXaml.Samples.RoundedRectangle.Render;
 
 internal static class Program
 {
+    private static readonly FontSourceId SampleFontId =
+        new(new Guid("B1BD4F0D-4A43-4A15-B5DF-DBF9A5A1A8E3"));
+
     private static async Task<int> Main(string[] args)
     {
         try
@@ -44,7 +50,11 @@ internal static class Program
             }
 
             await using var windowLease = window.ConfigureAwait(false);
-            return await RunAsync(window, frameLimit, profile, "RoundedRectangle.xaml").ConfigureAwait(false);
+            return await RunAsync(
+                window,
+                frameLimit,
+                profile,
+                ParsePath(args, "--xaml", "RoundedRectangle.xaml")).ConfigureAwait(false);
         }
 #pragma warning disable CA1031
         catch (Exception exception)
@@ -61,16 +71,19 @@ internal static class Program
         bool profile,
         string xamlPath)
     {
-        using var textService = new UnsupportedTextService();
-        using var loaded = LoadDocument(xamlPath, textService);
+        var fonts = LoadFonts();
+        using var textService = new SixLaborsTextService();
+        using var loaded = LoadDocument(xamlPath, textService, fonts);
         var document = loaded.Document;
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateWindowSession(window);
 
         var program = LoadRoundedProgram();
+        var textProgram = LoadTextProgram();
+        using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(800, 500));
         var metrics = window.Metrics;
         var extent = new PixelExtent(metrics.Width, metrics.Height);
-        return await RunFramesAsync(window, session, document, program, extent, frameLimit, profile).ConfigureAwait(false);
+        return await RunFramesAsync(window, session, document, program, textFeature, extent, frameLimit, profile).ConfigureAwait(false);
     }
 
     private static async Task<int> RunHeadlessAsync(
@@ -80,17 +93,21 @@ internal static class Program
         string layoutJsonPath,
         string readbackPath)
     {
-        using var textService = new UnsupportedTextService();
-        using var loaded = LoadDocument(xamlPath, textService);
+        var fonts = LoadFonts();
+        using var textService = new SixLaborsTextService();
+        using var loaded = LoadDocument(xamlPath, textService, fonts);
         var document = loaded.Document;
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateHeadlessSession(800, 500);
         var program = LoadRoundedProgram();
+        var textProgram = LoadTextProgram();
+        using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(800, 500));
         return await RunFramesAsync(
             null,
             session,
             document,
             program,
+            textFeature,
             new PixelExtent(800, 500),
             frameLimit,
             profile,
@@ -103,6 +120,7 @@ internal static class Program
         IRenderFrameSession session,
         UiDocument document,
         IGraphicsShaderProgram program,
+        TextRenderFeature textFeature,
         PixelExtent initialExtent,
         int frameLimit,
         bool profile,
@@ -112,7 +130,8 @@ internal static class Program
         var graph = session.CreateRenderGraph();
         var extent = initialExtent;
         session.ResizeTarget(in extent);
-        using var ui = new UiDisplayListGraphFeature(session, program, extent);
+        textFeature.Resize(extent);
+        using var ui = new UiDisplayListGraphFeature(session, program, extent, textFeature: textFeature);
         var clear = new ClearFeature(session.Target, extent, program);
         var readback = window is null && readbackPath is not null
             ? new HeadlessReadbackFeature(session.Target, extent.Width, extent.Height)
@@ -137,6 +156,7 @@ internal static class Program
             if (nextExtent != extent)
             {
                 session.ResizeTarget(in nextExtent);
+                textFeature.Resize(nextExtent);
                 extent = nextExtent;
             }
 
@@ -207,18 +227,35 @@ internal static class Program
         return 0;
     }
 
-    private static LoadedDocument LoadDocument(string xamlPath, ITextService textService)
+    private static LoadedDocument LoadDocument(
+        string xamlPath,
+        ITextService textService,
+        IUiFontResolver fontResolver)
     {
         ArgumentNullException.ThrowIfNull(textService);
+        ArgumentNullException.ThrowIfNull(fontResolver);
         ArgumentException.ThrowIfNullOrWhiteSpace(xamlPath);
         if (string.Equals(Path.GetFileName(xamlPath), "GridTwoRows.xaml", StringComparison.OrdinalIgnoreCase))
         {
-            var artifact = new GridTwoRowsArtifact(textService);
+            var artifact = new GridTwoRowsArtifact(textService, fontResolver);
             return new LoadedDocument(artifact.Document, artifact);
         }
 
         var root = LoadRoot(xamlPath);
-        return new LoadedDocument(new UiDocument(root, textService), null);
+        return new LoadedDocument(new UiDocument(root, textService, fontResolver), null);
+    }
+
+    private static UiFontCatalog LoadFonts()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "NotoSans-Regular.ttf");
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Rounded rectangle sample font was not found: {path}");
+        }
+
+        var fonts = new UiFontCatalog();
+        fonts.Register("default", SampleFontId, File.ReadAllBytes(path));
+        return fonts;
     }
 
     private static UiElement LoadRoot(string xamlPath)
@@ -313,6 +350,20 @@ internal static class Program
             File.ReadAllBytes(fragmentPath));
     }
 
+    private static IGraphicsShaderProgram LoadTextProgram()
+    {
+        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SdfTextVertex.vert.spv");
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SdfTextFragment.frag.spv");
+        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
+        {
+            throw new FileNotFoundException($"SDF text shader artifacts were not found: {vertexPath}");
+        }
+
+        return SdfTextGraphicsShaderProgram.CreateProgram(
+            File.ReadAllBytes(vertexPath),
+            File.ReadAllBytes(fragmentPath));
+    }
+
     private static int ParseFrameLimit(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);
@@ -382,26 +433,6 @@ internal static class Program
             value = null;
             return false;
         }
-    }
-
-    private sealed class UnsupportedTextService : ITextService
-    {
-        public FontInstanceId OpenFont(in FontOpenRequest request) => throw NotSupported();
-
-        public void CloseFont(FontInstanceId font) => throw NotSupported();
-
-        public FontMetrics GetFontMetrics(FontInstanceId font, float pixelsPerEm) => throw NotSupported();
-
-        public ShapedText Shape(in TextShapeRequest request) => throw NotSupported();
-
-        public GlyphImage GenerateGlyphImage(in GlyphImageRequest request) => throw NotSupported();
-
-        public void Dispose()
-        {
-        }
-
-        private static NotSupportedException NotSupported() =>
-            new("This sample contains no text; a text service is not expected to be called.");
     }
 
     private sealed class ClearFeature(RenderTargetHandle target, PixelExtent extent, IGraphicsShaderProgram program) : IRenderFeature

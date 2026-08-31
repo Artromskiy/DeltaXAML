@@ -21,8 +21,10 @@
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender/DeltaRender.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Platform.SDL3/DeltaRender.Platform.SDL3.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Vulkan/DeltaRender.Vulkan.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Text/DeltaRender.Text.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.XAML/DeltaRender.XAML.csproj" />
     <ProjectReference Include="../../../DeltaShader/src/DeltaShader.UI/DeltaShader.UI.csproj" />
+    <ProjectReference Include="../../../DeltaShader/src/DeltaShader.Text/DeltaShader.Text.csproj" />
     <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
     <PackageReference Include="Silk.NET.MoltenVK.Native" Version="2.23.0" GeneratePathProperty="true" />
   </ItemGroup>
@@ -39,10 +41,19 @@
     <AdditionalFiles Include="GridTwoRows.xaml"
                      DeltaXamlClassName="GridTwoRowsArtifact"
                      DeltaXamlNamespace="DeltaXaml.Samples.RoundedRectangle.Render.Generated" />
+    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
+          Link="Assets/NotoSans-Regular.ttf"
+          CopyToOutputDirectory="PreserveNewest" />
     <None Include="RoundedRectangle.xaml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="GridTwoRows.xaml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="shaders/RoundedRectangleVertex.vert.spv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="shaders/RoundedRectangleFragment.frag.spv" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Game2048.Render/shaders/SdfTextVertex.vert.spv"
+             Link="shaders/SdfTextVertex.vert.spv"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Game2048.Render/shaders/SdfTextFragment.frag.spv"
+             Link="shaders/SdfTextFragment.frag.spv"
+             CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
              Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
       <Link>libMoltenVK.dylib</Link>
