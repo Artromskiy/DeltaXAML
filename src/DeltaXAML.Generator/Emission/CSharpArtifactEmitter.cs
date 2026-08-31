@@ -2596,7 +2596,9 @@ internal static class CSharpArtifactEmitter
     {
         if (type.Name.Namespace.Length == 0)
         {
-            return "global::Delta.XAML.Ui" + type.Name.LocalName;
+            return type.Name.LocalName is "TextBlock" or "TextBox"
+                ? "global::Delta.XAML." + type.Name.LocalName
+                : "global::Delta.XAML.Ui" + type.Name.LocalName;
         }
 
         var factory = type.FactoryExpression ?? throw new InvalidOperationException("A generated public type requires a factory.");
@@ -2825,10 +2827,10 @@ internal static class CSharpArtifactEmitter
             "Command" => "global::Delta.XAML.UiElementProperties.Command",
             "CommandKey" => "global::Delta.XAML.UiElementProperties.CommandKey",
             "IsFocusScope" => "global::Delta.XAML.UiElementProperties.IsFocusScope",
-            "Text" => "global::Delta.XAML.UiTextBlockProperties.Text",
-            "FontKey" => "global::Delta.XAML.UiTextBlockProperties.FontKey",
-            "FontSize" => "global::Delta.XAML.UiTextBlockProperties.FontSize",
-            "Foreground" => "global::Delta.XAML.UiTextBlockProperties.Foreground",
+            "Text" => "global::Delta.XAML.TextBlockProperties.Text",
+            "FontKey" => "global::Delta.XAML.TextBlockProperties.FontKey",
+            "FontSize" => "global::Delta.XAML.TextBlockProperties.FontSize",
+            "Foreground" => "global::Delta.XAML.TextBlockProperties.Foreground",
             "Value" => "global::Delta.XAML.UiNumericEditorProperties.Value",
             "Minimum" => "global::Delta.XAML.UiNumericEditorProperties.Minimum",
             "Maximum" => "global::Delta.XAML.UiNumericEditorProperties.Maximum",

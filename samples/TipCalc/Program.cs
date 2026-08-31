@@ -35,12 +35,12 @@ internal static class Program
         Require(initial.Text.Length >= 8, "TipCalc must emit neutral shaped text requests.");
         var initialTextCount = initial.Text.Length;
 
-        var subTotalEditor = Find<UiTextBox>(page, "SubTotalEditor");
-        var postTaxEditor = Find<UiTextBox>(page, "PostTaxTotalEditor");
-        var tipEditor = Find<UiTextBox>(page, "TipPercentEditor");
+        var subTotalEditor = Find<TextBox>(page, "SubTotalEditor");
+        var postTaxEditor = Find<TextBox>(page, "PostTaxTotalEditor");
+        var tipEditor = Find<TextBox>(page, "TipPercentEditor");
         var slider = Find<UiSlider>(page, "TipPercentSlider");
-        var tipAmount = Find<UiTextBlock>(page, "TipAmountText");
-        var total = Find<UiTextBlock>(page, "TotalText");
+        var tipAmount = Find<TextBlock>(page, "TipAmountText");
+        var total = Find<TextBlock>(page, "TotalText");
 
         Require(tipAmount.Text == "$6.30", "Initial tip amount must be formatted by the generated binding.");
         Require(total.Text == "$51.25", "Initial total must be rounded to the nearest quarter.");

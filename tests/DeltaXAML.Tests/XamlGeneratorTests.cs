@@ -154,7 +154,7 @@ internal static partial class Program
         var resourcePlan = XamlCompiler.Compile(sourceId, "<TextBlock Foreground=\"{StaticResource Accent}\" />", resourceRegistry);
         Assert.True(resourcePlan.Success, "resource markup remains a valid semantic plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(resourcePlan, resourceRegistry, "Generated", "ResourceArtifact", out var resourceSource, out var resourceDiagnostic), "resource markup emits through the compiled resource path");
-        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(global::Delta.XAML.UiTextBlockProperties.Foreground, Resources, _resourceIds[0])", StringComparison.Ordinal), "static resource values use the typed descriptor and artifact-local resource slot");
+        Assert.True(resourceDiagnostic is null && resourceSource.Contains("SetStaticResource(global::Delta.XAML.TextBlockProperties.Foreground, Resources, _resourceIds[0])", StringComparison.Ordinal), "static resource values use the typed descriptor and artifact-local resource slot");
         Assert.True(resourceSource.Contains("private static readonly global::Delta.XAML.Contract.UiResourceId[] _resourceIds", StringComparison.Ordinal), "generated artifacts retain one stable resource identity table");
         Assert.True(!resourceSource.Contains("Resources, \"Accent\"", StringComparison.Ordinal), "generated resource values do not use name lookup");
         var resourceDocumentPlan = XamlCompiler.Compile(sourceId, "<Panel x:Key=\"Accent\" Background=\"#112233\" />", resourceRegistry);
@@ -180,25 +180,25 @@ internal static partial class Program
         Assert.True(compositionDiagnostic is null && compositionSource.Contains("new global::Delta.XAML.UiStyle(\"Title\", new global::Delta.XAML.UiTypeId", StringComparison.Ordinal), "compiled style initialization is direct and type-identity based");
         Assert.True(compositionSource.Contains("Theme.RegisterStyle(new global::Delta.XAML.UiStyleId", StringComparison.Ordinal), "compiled style registration uses its stable identity");
         Assert.True(compositionSource.Contains("node1.SetCompiledStyle(new global::Delta.XAML.UiStyleId", StringComparison.Ordinal), "compiled style selection uses its stable identity");
-        Assert.True(compositionSource.Contains("Set(global::Delta.XAML.UiTextBlockProperties.FontSize, 16f)", StringComparison.Ordinal), "compiled style uses a typed property descriptor");
-        Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, global::Delta.XAML.UiTextBlockProperties.FontSize, 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
+        Assert.True(compositionSource.Contains("Set(global::Delta.XAML.TextBlockProperties.FontSize, 16f)", StringComparison.Ordinal), "compiled style uses a typed property descriptor");
+        Assert.True(compositionSource.Contains("SetState(global::Delta.XAML.UiStyleState.Pressed, global::Delta.XAML.TextBlockProperties.FontSize, 18f)", StringComparison.Ordinal), "compiled visual state uses a typed state setter");
         Assert.True(!compositionSource.Contains("Set(\"FontSize\"", StringComparison.Ordinal), "compiled style does not use string property dispatch");
         Assert.True(compositionSource.Contains("Theme.RegisterTemplate(new global::Delta.XAML.UiTemplateId", StringComparison.Ordinal), "compiled template registration uses a stable identity");
         Assert.True(compositionSource.Contains("SetCompiledTemplate(new global::Delta.XAML.UiTemplateId", StringComparison.Ordinal), "compiled template selection uses a stable identity");
         Assert.True(compositionSource.Contains("IUiTemplateFactory", StringComparison.Ordinal), "compiled templates use a typed factory boundary");
         Assert.True(!compositionSource.Contains("UiTemplate(owner =>", StringComparison.Ordinal), "compiled templates do not retain delegate construction");
         Assert.True(compositionSource.Contains("owner.BindingContext is not global::Sample.BindingModel templateContext", StringComparison.Ordinal), "compiled template bindings use the owner's typed context");
-        Assert.True(compositionSource.Contains("template1.SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text, templateBinding0)", StringComparison.Ordinal), "compiled template bindings attach through the typed target");
+        Assert.True(compositionSource.Contains("template1.SetCompiledBinding(global::Delta.XAML.TextBlockProperties.Text, templateBinding0)", StringComparison.Ordinal), "compiled template bindings attach through the typed target");
         Assert.True(compositionSource.Contains("Theme.Apply(node0);", StringComparison.Ordinal), "compiled style/template state is applied after attachment");
 
         var typedResourceId = new UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D403"));
         var typedResources = new Library.UiResourceCatalog();
         typedResources.Set(typedResourceId, new Library.UiColor(12, 34, 56));
         var typedStyle = new Library.UiStyle("Typed", new Library.UiTypeId(new Guid("22222222-2222-2222-2222-22222222220A")), typedResources);
-        typedStyle.Set(Library.UiTextBlockProperties.FontSize, 18f);
-        typedStyle.SetResource(Library.UiTextBlockProperties.Foreground, typedResourceId);
-        typedStyle.SetState(Library.UiStyleState.Focused, Library.UiTextBlockProperties.FontSize, 20f);
-        var styledText = new Library.UiTextBlock { StyleKey = "Typed" };
+        typedStyle.Set(Library.TextBlockProperties.FontSize, 18f);
+        typedStyle.SetResource(Library.TextBlockProperties.Foreground, typedResourceId);
+        typedStyle.SetState(Library.UiStyleState.Focused, Library.TextBlockProperties.FontSize, 20f);
+        var styledText = new Library.TextBlock { StyleKey = "Typed" };
         var typedTheme = new Library.UiTheme();
         typedTheme.Add(typedStyle);
         typedTheme.Apply(styledText);
@@ -210,10 +210,10 @@ internal static partial class Program
 
         var compiledStyleId = new Library.UiStyleId(new Guid("E2D9B7AB-6F54-4FE4-8A3F-5F2F1F5E4701"));
         var compiledStyle = new Library.UiStyle("Compiled", new Library.UiTypeId(new Guid("22222222-2222-2222-2222-22222222220A")));
-        compiledStyle.Set(Library.UiTextBlockProperties.FontSize, 21f);
+        compiledStyle.Set(Library.TextBlockProperties.FontSize, 21f);
         var compiledTheme = new Library.UiTheme();
         compiledTheme.RegisterStyle(compiledStyleId, compiledStyle);
-        var compiledText = new Library.UiTextBlock();
+        var compiledText = new Library.TextBlock();
         compiledText.SetCompiledStyle(compiledStyleId);
         compiledTheme.Apply(compiledText);
         Assert.Equal(21f, compiledText.FontSize, "compiled style identity applies without a name lookup");
@@ -223,7 +223,7 @@ internal static partial class Program
         var typedTemplateHost = new Library.UiContentControl();
         typedTemplateHost.SetCompiledTemplate(typedTemplateId);
         typedTheme.Apply(typedTemplateHost);
-        Assert.True(typedTemplateHost.Content is Library.UiTextBlock typedTemplateContent && typedTemplateContent.Text == "templated", "typed template identity selects a retained template");
+        Assert.True(typedTemplateHost.Content is Library.TextBlock typedTemplateContent && typedTemplateContent.Text == "templated", "typed template identity selects a retained template");
 
         var bindingRegistry = XamlSemanticRegistry.CreateBuiltIns();
         bindingRegistry.RegisterBinding(new(
@@ -239,11 +239,11 @@ internal static partial class Program
         Assert.True(bindingSource.Contains("UiCompiledBinding<global::Sample.BindingModel, string>", StringComparison.Ordinal), "binding artifact preserves source and value types");
         Assert.True(bindingSource.Contains("static source => source.Name", StringComparison.Ordinal), "binding read accessor is direct and static");
         Assert.True(bindingSource.Contains("static (source, value) => source.Name = value", StringComparison.Ordinal), "two-way binding write accessor is direct and static");
-        Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text", StringComparison.Ordinal), "generated binding uses the typed target attachment");
+        Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.TextBlockProperties.Text", StringComparison.Ordinal), "generated binding uses the typed target attachment");
         Assert.True(!bindingSource.Contains("SetBinding(\"Text\"", StringComparison.Ordinal), "generated binding bypasses the cold interpreted path");
         Assert.True(bindingSource.Contains("RefreshBindings", StringComparison.Ordinal), "binding artifact exposes one direct refresh batch");
-        Assert.True(bindingSource.Contains("_bindingTarget0.QueueCompiledBindingRefresh(global::Delta.XAML.UiTextBlockProperties.Text, _binding0);", StringComparison.Ordinal), "binding batch queues the typed target for the binding stage");
-        Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.UiTextBlockProperties.Text, _binding0, true);", StringComparison.Ordinal), "generated binding marks source notifications as batch-managed");
+        Assert.True(bindingSource.Contains("_bindingTarget0.QueueCompiledBindingRefresh(global::Delta.XAML.TextBlockProperties.Text, _binding0);", StringComparison.Ordinal), "binding batch queues the typed target for the binding stage");
+        Assert.True(bindingSource.Contains("SetCompiledBinding(global::Delta.XAML.TextBlockProperties.Text, _binding0, true);", StringComparison.Ordinal), "generated binding marks source notifications as batch-managed");
         Assert.True(!bindingSource.Contains("_binding0.NotifyChanged();", StringComparison.Ordinal), "binding batch does not fan out through per-binding notifications");
         Assert.True(bindingSource.Contains("_bindingSource.PropertyChanged += OnContextPropertyChanged", StringComparison.Ordinal), "binding artifact uses one source notification boundary");
         Assert.True(bindingSource.Contains("UiBindingMode.TwoWay, false", StringComparison.Ordinal), "generated bindings disable per-binding source subscriptions");
@@ -325,13 +325,13 @@ internal static partial class Program
         Assert.Equal(1, batchedNotifications, "batched binding refreshes through the explicit batch boundary");
 
         var directModel = new BindingModel { Name = "Direct" };
-        var directText = new Library.UiTextBlock();
+        var directText = new Library.TextBlock();
         using var directBinding = new UiCompiledBinding<BindingModel, string>(
             directModel,
             static model => model.Name,
             mode: UiBindingMode.OneWay,
             subscribeToSource: false);
-        directText.SetCompiledBinding(Library.UiTextBlockProperties.Text, directBinding);
+        directText.SetCompiledBinding(Library.TextBlockProperties.Text, directBinding);
         Assert.Equal("Direct", directText.Text, "typed binding attachment applies its initial value");
         directModel.Name = "Queued";
         directBinding.NotifyChanged();
@@ -342,15 +342,15 @@ internal static partial class Program
         Assert.Equal("Queued", directText.Text, "typed binding stage applies the queued value");
 
         var sourceManagedModel = new BindingModel { Name = "ManagedInitial" };
-        var sourceManagedText = new Library.UiTextBlock();
+        var sourceManagedText = new Library.TextBlock();
         using var sourceManagedBinding = new UiCompiledBinding<BindingModel, string>(
             sourceManagedModel,
             static model => model.Name,
             mode: UiBindingMode.OneWay,
             subscribeToSource: false);
-        sourceManagedText.SetCompiledBinding(Library.UiTextBlockProperties.Text, sourceManagedBinding, true);
+        sourceManagedText.SetCompiledBinding(Library.TextBlockProperties.Text, sourceManagedBinding, true);
         sourceManagedModel.Name = "ManagedQueued";
-        sourceManagedText.QueueCompiledBindingRefresh(Library.UiTextBlockProperties.Text, sourceManagedBinding);
+        sourceManagedText.QueueCompiledBindingRefresh(Library.TextBlockProperties.Text, sourceManagedBinding);
         Assert.Equal("ManagedInitial", sourceManagedText.Text, "source-managed refresh waits for the binding stage");
         using var sourceManagedTextService = new EmptyTextService();
         using var sourceManagedDocument = new Library.UiDocument(sourceManagedText, sourceManagedTextService);
@@ -363,7 +363,7 @@ internal static partial class Program
             static model => model.Name,
             mode: UiBindingMode.OneWay,
             subscribeToSource: false);
-        directText.SetCompiledBinding(Library.UiTextBlockProperties.Text, replacementBinding);
+        directText.SetCompiledBinding(Library.TextBlockProperties.Text, replacementBinding);
         directModel.Name = "Stale";
         directBinding.NotifyChanged();
         directDocument.Layout(new Delta.Maths.float2(100, 30), 1);

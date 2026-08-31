@@ -53,7 +53,7 @@ internal static class LayoutDiagnosticsTests
         Assert.Equal(12f, nestedNode.GetProperty("requestedSize").GetProperty("width").GetSingle(), "nested requested width is reported");
         Assert.Equal(8f, nestedNode.GetProperty("desiredSize").GetProperty("height").GetSingle(), "nested desired height is reported");
 
-        using var textDocument = new UiDocument(new UiTextBlock { Text = "diagnostic text" }, new EmptyTextService());
+        using var textDocument = new UiDocument(new TextBlock { Text = "diagnostic text" }, new EmptyTextService());
         textDocument.Layout(new float2(100, 30), 1);
         using var textJson = JsonDocument.Parse(textDocument.BuildLayoutDiagnosticsJson(false));
         Assert.Equal("diagnostic text", textJson.RootElement.GetProperty("root").GetProperty("text").GetString(), "text content is reported with its layout node");

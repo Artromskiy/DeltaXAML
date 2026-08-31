@@ -23,8 +23,8 @@ internal static class GeneratedSampleParityTests
         using (var artifact = new SampleDataBindingArtifact(new BindingModel { Name = "Delta" }, text, fonts))
         {
             Validate(artifact.Document, "DataBinding");
-            Assert.Equal("Hello Delta", ((UiTextBlock)artifact.Document.Root.Children[2]).Text, "generated StringFormat uses its explicit culture");
-            Assert.Equal("Delta / Delta", ((UiTextBlock)artifact.Document.Root.Children[3]).Text, "generated multi-source StringFormat uses typed context inputs");
+            Assert.Equal("Hello Delta", ((TextBlock)artifact.Document.Root.Children[2]).Text, "generated StringFormat uses its explicit culture");
+            Assert.Equal("Delta / Delta", ((TextBlock)artifact.Document.Root.Children[3]).Text, "generated multi-source StringFormat uses typed context inputs");
         }
         using (var artifact = new SampleDataTemplatesArtifact(new CollectionModel(), text, fonts)) { Validate(artifact.Document, "DataTemplates"); }
         using (var artifact = new SampleHyperlinkArtifact(text, fonts)) { Validate(artifact.Document, "Hyperlink"); }

@@ -40,7 +40,7 @@ internal static partial class Program
         Assert.Equal("16", firstRoot.Children[0].Members[1].Value.Literal.CanonicalText, "numeric literal is canonical");
         Assert.Equal(XamlValueKind.ResourceReference, firstRoot.Children[0].Members[2].Value.Kind, "resource markup is semantic");
         Assert.Equal(accent, firstRoot.Children[0].Members[2].Value.Resource.Id, "resource identity is stable and resolved");
-        Assert.Equal(UiTextBlockProperties.Foreground.Id, firstRoot.Children[0].Members[2].Property, "text property identity matches the runtime descriptor");
+        Assert.Equal(TextBlockProperties.Foreground.Id, firstRoot.Children[0].Members[2].Property, "text property identity matches the runtime descriptor");
         Assert.Equal("Hello & world", firstRoot.Children[0].Members[0].Value.Literal.CanonicalText, "XML entities are decoded in typed literals");
 
         var resource = XamlCompiler.Compile(sourceId, "<Panel x:Key=\"PanelResource\" />", registry);

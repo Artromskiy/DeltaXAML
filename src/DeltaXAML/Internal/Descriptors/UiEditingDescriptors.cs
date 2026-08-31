@@ -2,7 +2,7 @@ using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
 
-internal static class UiTextBoxGenerated
+internal static class TextBoxGenerated
 {
     internal static readonly UiTypeDescriptor Descriptor = new(
         new(9),
@@ -83,7 +83,7 @@ internal static class UiNumericEditorGenerated
             return false;
         }
 
-        UiTextBlockGenerated.TrySetText(ref element.TextState, formatted);
+        TextBlockGenerated.TrySetText(ref element.TextState, formatted);
         return true;
     }
 }

@@ -82,7 +82,7 @@ internal static class Program
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(800, 500));
         var metrics = window.Metrics;
-        var extent = new PixelExtent(metrics.Width, metrics.Height);
+        var extent = metrics.DrawableExtent;
         return await RunFramesAsync(window, session, document, program, textFeature, extent, frameLimit, profile).ConfigureAwait(false);
     }
 
@@ -152,7 +152,9 @@ internal static class Program
                 metrics = new WindowMetrics(extent.Width, extent.Height, 1);
             }
 
-            var nextExtent = new PixelExtent(metrics.Width, metrics.Height);
+            var nextExtent = window is null
+                ? new PixelExtent(metrics.Width, metrics.Height)
+                : metrics.DrawableExtent;
             if (nextExtent != extent)
             {
                 session.ResizeTarget(in nextExtent);

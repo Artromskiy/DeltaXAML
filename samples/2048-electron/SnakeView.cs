@@ -12,12 +12,12 @@ internal sealed class SnakeView
     private static readonly UiColor FoodColor = new(255, 107, 107);
 
     private readonly UiBorder[] _cells = new UiBorder[SnakeGame.CellCount];
-    private readonly UiTextBlock _score;
-    private readonly UiTextBlock _best;
-    private readonly UiTextBlock _status;
+    private readonly TextBlock _score;
+    private readonly TextBlock _best;
+    private readonly TextBlock _status;
     private readonly UiButton _newGame;
     private readonly UiButton _pause;
-    private readonly UiTextBlock _pauseLabel;
+    private readonly TextBlock _pauseLabel;
 
     internal SnakeView(SnakeArtifact page)
     {
@@ -30,12 +30,12 @@ internal sealed class SnakeView
             }
         }
 
-        _score = Find<UiTextBlock>(page, "ScoreText");
-        _best = Find<UiTextBlock>(page, "BestText");
-        _status = Find<UiTextBlock>(page, "StatusText");
+        _score = Find<TextBlock>(page, "ScoreText");
+        _best = Find<TextBlock>(page, "BestText");
+        _status = Find<TextBlock>(page, "StatusText");
         _newGame = Find<UiButton>(page, "NewGameButton");
         _pause = Find<UiButton>(page, "PauseButton");
-        _pauseLabel = _pause.Content is UiTextBlock label
+        _pauseLabel = _pause.Content is TextBlock label
             ? label
             : throw new InvalidOperationException("The generated PauseButton content must be a TextBlock.");
     }

@@ -189,7 +189,7 @@ internal struct ButtonState
 Each concrete control has one aggregate state type. Common state components
 are embedded by value. This keeps access direct and makes the state required by
 each capability visible without introducing an entity-component store inside
-the UI library. A button's label is content, normally a `UiTextBlock`; it is
+the UI library. A button's label is content, normally a `TextBlock`; it is
 not duplicated as button state.
 
 ## Static generic mixins
@@ -258,7 +258,7 @@ The first migrated leaf uses the same shape in
 `Internal/State/TextBlockState.cs`: `TextBlockState` embeds
 `TextBlockLayoutState` and `TextBlockVisualState` and keeps text content as a
 field. `TextBlockMixin.cs` supplies the measure, arrange, input and visual
-capabilities; `UiTextBlockDescriptor.cs` is the direct typed companion used by
+capabilities; `TextBlockDescriptor.cs` is the direct typed companion used by
 the retained `TextBlock` path. The input capability intentionally returns
 `false` because a text display leaf does not consume input.
 
@@ -330,7 +330,7 @@ public class UiButton : UiElement
 ```
 
 `UiButton` has no separate `Text` property. Explicit composition uses a
-`UiTextBlock` child so text has one owner, one property path and one visual
+`TextBlock` child so text has one owner, one property path and one visual
 extraction path.
 
 A control may declare:

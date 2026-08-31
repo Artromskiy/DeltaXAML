@@ -10,12 +10,12 @@ internal static class GeneratedRelationTests
         using var artifact = new GeneratedRelationsArtifact(text);
         artifact.Document.Layout(new float2(240, 120), 1);
 
-        if (!artifact.TryFindName("Source", out var sourceElement) || sourceElement is not UiTextBlock source)
+        if (!artifact.TryFindName("Source", out var sourceElement) || sourceElement is not TextBlock source)
         {
             throw new InvalidOperationException("generated namescope source did not resolve");
         }
 
-        if (!artifact.TryFindName("Mirror", out var mirrorElement) || mirrorElement is not UiTextBlock mirror)
+        if (!artifact.TryFindName("Mirror", out var mirrorElement) || mirrorElement is not TextBlock mirror)
         {
             throw new InvalidOperationException("generated relation target did not resolve");
         }
@@ -23,7 +23,7 @@ internal static class GeneratedRelationTests
         source.Text = "beta";
         artifact.Document.Layout(new float2(240, 120), 1);
         Assert.Equal("beta", mirror.Text, "changed named source refreshes in the same fixed binding stage");
-        if (!artifact.TryFindName("Combined", out var combinedElement) || combinedElement is not UiTextBlock combined)
+        if (!artifact.TryFindName("Combined", out var combinedElement) || combinedElement is not TextBlock combined)
         {
             throw new InvalidOperationException("generated multi-binding target did not resolve");
         }
@@ -33,7 +33,7 @@ internal static class GeneratedRelationTests
         artifact.Document.Layout(new float2(240, 120), 1);
         Assert.Equal("gamma:right", combined.Text, "multi-source binding updates only after an input changes");
         if (!artifact.TryFindName("Toggle", out var toggleElement) || toggleElement is not UiToggleButton toggle ||
-            !artifact.TryFindName("TriggerTarget", out var triggerElement) || triggerElement is not UiTextBlock triggerTarget)
+            !artifact.TryFindName("TriggerTarget", out var triggerElement) || triggerElement is not TextBlock triggerTarget)
         {
             throw new InvalidOperationException("generated trigger elements did not resolve");
         }

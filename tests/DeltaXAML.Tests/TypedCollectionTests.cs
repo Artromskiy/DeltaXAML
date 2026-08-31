@@ -67,7 +67,7 @@ internal static class TypedCollectionTests
         Assert.Equal(1, RowTemplate.BindCount, "the typed template receives one changed item");
         Assert.True(ReferenceEquals(first, presenter.GetRealizedElement(0)), "the preceding retained row is stable");
         Assert.True(ReferenceEquals(third, presenter.GetRealizedElement(2)), "the following retained row is stable");
-        Assert.Equal("TWO", ((UiTextBlock)presenter.GetRealizedElement(1)).Text, "the changed typed value reaches its row");
+        Assert.Equal("TWO", ((TextBlock)presenter.GetRealizedElement(1)).Text, "the changed typed value reaches its row");
         Assert.Equal(0, result.Created, "a replace does not create a new row when the key and template are stable");
     }
 
@@ -117,7 +117,7 @@ internal static class TypedCollectionTests
         Assert.Equal(0, picker.SelectedIndex, "picker selects the retained row source index");
         Assert.True(!picker.IsOpen, "picker closes the overlay after selection");
         selection.Update();
-        Assert.True(picker.Header.Content is UiTextBlock { Text: "one" }, "picker header reuses the typed item template");
+        Assert.True(picker.Header.Content is TextBlock { Text: "one" }, "picker header reuses the typed item template");
 
         document.Dispatch(UiInputEvent.FromKey(new(
             UiKeyEventKind.Down,
@@ -128,7 +128,7 @@ internal static class TypedCollectionTests
         document.Layout(new float2(100, 60), 1);
         Assert.Equal(1, picker.SelectedIndex, "nested collection and picker synchronize one keyboard selection step");
         selection.Update();
-        Assert.True(picker.Header.Content is UiTextBlock { Text: "two" }, "keyboard selection rebinds the stable header presentation");
+        Assert.True(picker.Header.Content is TextBlock { Text: "two" }, "keyboard selection rebinds the stable header presentation");
     }
 
     private static void StructuralDeltasPreserveUnaffectedIdentity()
@@ -242,11 +242,11 @@ internal static class TypedCollectionTests
         public static UiTemplateId SelectTemplate(in Row item) => Template;
 
         public static UiElement Create(UiTemplateId templateId, in Row item, UiResourceCatalog resources) =>
-            new UiTextBlock { Width = 100, Height = 20 };
+            new TextBlock { Width = 100, Height = 20 };
 
         public static void Bind(UiElement element, UiTemplateId templateId, in Row item, UiResourceCatalog resources)
         {
-            ((UiTextBlock)element).Text = item.Label;
+            ((TextBlock)element).Text = item.Label;
             BindCount++;
         }
 

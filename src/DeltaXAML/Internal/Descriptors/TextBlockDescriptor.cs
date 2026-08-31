@@ -57,7 +57,7 @@ internal static class UiDescriptorCatalog
 
     private static readonly UiTypeDescriptor[] Entries =
     [
-        UiTextBlockGenerated.Descriptor,
+        TextBlockGenerated.Descriptor,
         UiStackPanelGenerated.Descriptor,
         UiBorderGenerated.Descriptor,
         UiContentControlGenerated.Descriptor,
@@ -65,7 +65,7 @@ internal static class UiDescriptorCatalog
         UiGridGenerated.Descriptor,
         UiButtonGenerated.Descriptor,
         UiToggleButtonGenerated.Descriptor,
-        UiTextBoxGenerated.Descriptor,
+        TextBoxGenerated.Descriptor,
         UiNumericEditorGenerated.Descriptor,
         UiItemsControlGenerated.Descriptor,
         UiScrollViewerGenerated.Descriptor,
@@ -340,24 +340,24 @@ internal static class UiDescriptorCatalog
         switch (key)
         {
             case UiPropertyKey.Text when value.UntypedValue is string textValue:
-                UiTextBlockGenerated.TrySetText(ref state, textValue);
+                TextBlockGenerated.TrySetText(ref state, textValue);
                 return true;
             case UiPropertyKey.FontKey when value.UntypedValue is string fontKey:
-                UiTextBlockGenerated.TrySetFontKey(ref state, fontKey);
+                TextBlockGenerated.TrySetFontKey(ref state, fontKey);
                 return true;
             case UiPropertyKey.FontSize when value.UntypedValue is float fontSize:
-                UiTextBlockGenerated.TrySetFontSize(ref state, fontSize);
+                TextBlockGenerated.TrySetFontSize(ref state, fontSize);
                 return true;
             case UiPropertyKey.Foreground when value.UntypedValue is UiColor foreground:
-                UiTextBlockGenerated.TrySetForeground(ref state, foreground);
+                TextBlockGenerated.TrySetForeground(ref state, foreground);
                 return true;
             case UiPropertyKey.OutlineColor when value.UntypedValue is UiColor outlineColor:
-                UiTextBlockGenerated.TrySetOutlineColor(ref state, outlineColor);
+                TextBlockGenerated.TrySetOutlineColor(ref state, outlineColor);
                 return true;
             case UiPropertyKey.OutlineWidth when value.UntypedValue is float outlineWidth:
-                return UiTextBlockGenerated.TrySetOutlineWidth(ref state, outlineWidth);
+                return TextBlockGenerated.TrySetOutlineWidth(ref state, outlineWidth);
             case UiPropertyKey.TextEffect when value.UntypedValue is UiResourceId textEffect:
-                return UiTextBlockGenerated.TrySetTextEffect(ref state, textEffect);
+                return TextBlockGenerated.TrySetTextEffect(ref state, textEffect);
             case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground or
                 UiPropertyKey.OutlineColor or UiPropertyKey.OutlineWidth or UiPropertyKey.TextEffect:
                 return false;
@@ -516,7 +516,7 @@ internal static class UiDescriptorCatalog
         switch (type.Value)
         {
             case 1 when element is TextBlock text:
-                UiTextBlockGenerated.Measure(ref text.State, in context);
+                TextBlockGenerated.Measure(ref text.State, in context);
                 return text.State.Layout.DesiredSize;
             case 2 when element is StackPanel stack:
                 UiStackPanelGenerated.Measure(ref stack.State, in context);
@@ -544,10 +544,10 @@ internal static class UiDescriptorCatalog
                 UiGridGenerated.Measure(ref grid.State, in context);
                 return grid.State.DesiredSize;
             case 9 when element is TextBox editor:
-                UiTextBlockGenerated.Measure(ref editor.TextState, in context);
+                TextBlockGenerated.Measure(ref editor.TextState, in context);
                 return editor.TextState.Layout.DesiredSize;
             case 10 when element is NumericEditor numeric:
-                UiTextBlockGenerated.Measure(ref numeric.TextState, in context);
+                TextBlockGenerated.Measure(ref numeric.TextState, in context);
                 return numeric.TextState.Layout.DesiredSize;
             case 12 when element is ScrollViewer scroll:
                 UiScrollViewerGenerated.Measure(ref scroll.State, in context);
@@ -602,7 +602,7 @@ internal static class UiDescriptorCatalog
         ArgumentNullException.ThrowIfNull(element);
         if (type.Value == 1 && element is TextBlock text)
         {
-            run = UiTextBlockGenerated.EmitVisual(ref text.State, in context);
+            run = TextBlockGenerated.EmitVisual(ref text.State, in context);
             return true;
         }
 
@@ -612,11 +612,11 @@ internal static class UiDescriptorCatalog
             {
                 var displayState = editor.TextState;
                 displayState.Text = editor.VisualText;
-                run = UiTextBlockGenerated.EmitVisual(ref displayState, in context);
+                run = TextBlockGenerated.EmitVisual(ref displayState, in context);
                 return true;
             }
 
-            run = UiTextBlockGenerated.EmitVisual(ref editor.TextState, in context);
+            run = TextBlockGenerated.EmitVisual(ref editor.TextState, in context);
             return true;
         }
 
@@ -626,11 +626,11 @@ internal static class UiDescriptorCatalog
             {
                 var displayState = numeric.TextState;
                 displayState.Text = numeric.VisualText;
-                run = UiTextBlockGenerated.EmitVisual(ref displayState, in context);
+                run = TextBlockGenerated.EmitVisual(ref displayState, in context);
                 return true;
             }
 
-            run = UiTextBlockGenerated.EmitVisual(ref numeric.TextState, in context);
+            run = TextBlockGenerated.EmitVisual(ref numeric.TextState, in context);
             return true;
         }
 
@@ -788,7 +788,7 @@ internal static class UiDescriptorCatalog
         switch (type.Value)
         {
             case 1 when element is TextBlock text:
-                UiTextBlockGenerated.Arrange(ref text.State, in context);
+                TextBlockGenerated.Arrange(ref text.State, in context);
                 return;
             case 2 when element is StackPanel stack:
                 UiStackPanelGenerated.Arrange(ref stack.State, in context);
@@ -816,10 +816,10 @@ internal static class UiDescriptorCatalog
                 UiGridGenerated.Arrange(ref grid.State, in context);
                 return;
             case 9 when element is TextBox editor:
-                UiTextBlockGenerated.Arrange(ref editor.TextState, in context);
+                TextBlockGenerated.Arrange(ref editor.TextState, in context);
                 return;
             case 10 when element is NumericEditor numeric:
-                UiTextBlockGenerated.Arrange(ref numeric.TextState, in context);
+                TextBlockGenerated.Arrange(ref numeric.TextState, in context);
                 return;
             case 12 when element is ScrollViewer scroll:
                 UiScrollViewerGenerated.Arrange(ref scroll.State, in context);
@@ -853,7 +853,7 @@ internal static class UiDescriptorCatalog
 }
 
 /// <summary>Typed companion for <see cref="TextBlock"/>; the generated path owns no instance state.</summary>
-internal static class UiTextBlockGenerated
+internal static class TextBlockGenerated
 {
     internal static readonly UiTypeDescriptor Descriptor = new(
         new(1),

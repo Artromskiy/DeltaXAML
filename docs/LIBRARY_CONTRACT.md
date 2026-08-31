@@ -210,7 +210,7 @@ platform-host concern and is not part of this minimal library contract.
 
 The implementation also exposes a compact, library-owned convenience layer:
 `UiPanel`, `UiStackPanel`, `UiBorder`, `UiGrid`, `UiContentControl`,
-`UiButton`, `UiTextBlock`, `UiTextBox`, `UiNumericEditor`, `UiScrollViewer`
+`UiButton`, `TextBlock`, `TextBox`, `UiNumericEditor`, `UiScrollViewer`
 and `UiItemsControl`. These facades preserve one retained tree and are not a
 WPF/Avalonia compatibility surface. `UiItemsControl.SetItems` reuses a row
 when the item at the same position is equal and creates a row only for a

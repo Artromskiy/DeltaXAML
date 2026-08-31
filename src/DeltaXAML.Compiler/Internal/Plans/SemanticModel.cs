@@ -774,5 +774,7 @@ internal sealed class XamlSemanticRegistry
             new XamlQualifiedName(string.Empty, name),
             contentKind,
             properties,
-            $"new global::Delta.XAML.Ui{name}()"));
+            name is "TextBlock" or "TextBox"
+                ? $"new global::Delta.XAML.{name}()"
+                : $"new global::Delta.XAML.Ui{name}()"));
 }

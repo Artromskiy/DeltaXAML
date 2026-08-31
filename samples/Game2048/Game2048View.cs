@@ -7,10 +7,10 @@ namespace DeltaXaml.Samples.Game2048;
 internal sealed class Game2048View
 {
     private readonly UiBorder[] _tiles = new UiBorder[16];
-    private readonly UiTextBlock[] _labels = new UiTextBlock[16];
-    private readonly UiTextBlock _score;
-    private readonly UiTextBlock _best;
-    private readonly UiTextBlock _status;
+    private readonly TextBlock[] _labels = new TextBlock[16];
+    private readonly TextBlock _score;
+    private readonly TextBlock _best;
+    private readonly TextBlock _status;
 
     internal Game2048View(Game2048Artifact page)
     {
@@ -18,12 +18,12 @@ internal sealed class Game2048View
         {
             var name = $"{index / 4}{index % 4}";
             _tiles[index] = Find<UiBorder>(page, $"Tile{name}");
-            _labels[index] = Find<UiTextBlock>(page, $"TileText{name}");
+            _labels[index] = Find<TextBlock>(page, $"TileText{name}");
         }
 
-        _score = Find<UiTextBlock>(page, "ScoreText");
-        _best = Find<UiTextBlock>(page, "BestText");
-        _status = Find<UiTextBlock>(page, "StatusText");
+        _score = Find<TextBlock>(page, "ScoreText");
+        _best = Find<TextBlock>(page, "BestText");
+        _status = Find<TextBlock>(page, "StatusText");
     }
 
     internal void Render(Game2048State state)
@@ -60,7 +60,7 @@ internal sealed class Game2048View
                 : "Use arrow keys to move");
     }
 
-    private static void SetText(UiTextBlock target, string value)
+    private static void SetText(TextBlock target, string value)
     {
         if (target.Text != value)
         {

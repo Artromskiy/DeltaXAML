@@ -29,7 +29,7 @@ internal static class InterpretedXamlReader
 
     private static UiElement? Read(XmlReader r, List<InterpretedXamlDiagnostic> d, UiResourceStore? resources, Func<string, string, UiElement?>? factory)
     {
-        var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => UiPanelGenerated.Create(), "StackPanel" => UiStackPanelGenerated.Create(), "ItemsControl" => UiItemsControlGenerated.Create(), "Border" => UiBorderGenerated.Create(), "Grid" => UiGridGenerated.Create(), "ContentControl" => UiContentControlGenerated.Create(), "Button" => UiButtonGenerated.Create(), "ToggleButton" => UiToggleButtonGenerated.Create(), "TextBlock" => UiTextBlockGenerated.Create(), "TextBox" => UiTextBoxGenerated.Create(), "NumericEditor" => UiNumericEditorGenerated.Create(), "ScrollViewer" => UiScrollViewerGenerated.Create(), _ => null };
+        var line = (r as IXmlLineInfo)?.LineNumber ?? 0; UiElement? e = r.LocalName switch { "Panel" => UiPanelGenerated.Create(), "StackPanel" => UiStackPanelGenerated.Create(), "ItemsControl" => UiItemsControlGenerated.Create(), "Border" => UiBorderGenerated.Create(), "Grid" => UiGridGenerated.Create(), "ContentControl" => UiContentControlGenerated.Create(), "Button" => UiButtonGenerated.Create(), "ToggleButton" => UiToggleButtonGenerated.Create(), "TextBlock" => TextBlockGenerated.Create(), "TextBox" => TextBoxGenerated.Create(), "NumericEditor" => UiNumericEditorGenerated.Create(), "ScrollViewer" => UiScrollViewerGenerated.Create(), _ => null };
         if (e is null && factory is not null)
         {
             e = factory(r.NamespaceURI, r.LocalName);

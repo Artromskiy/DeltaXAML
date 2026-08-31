@@ -123,7 +123,7 @@ sealed types over the same retained tree:
 - `UiPanel` and layout containers;
 - `UiBorder` and content presenters;
 - `UiButton`, `UiToggleButton` and command controls;
-- `UiTextBlock`, `UiTextBox` and numeric editors;
+- `TextBlock`, `TextBox` and numeric editors;
 - `UiScrollViewer` and item presentation controls.
 
 Their public inheritance is not the behavior-reuse mechanism. Reusable
@@ -135,8 +135,8 @@ custom control does not require choosing a deep framework base class.
 Typed access is the normal application path:
 
 ```csharp
-textBlock.SetValue(UiTextBlockProperties.Text, "Launch");
-string text = textBlock.GetValue(UiTextBlockProperties.Text);
+textBlock.SetValue(TextBlockProperties.Text, "Launch");
+string text = textBlock.GetValue(TextBlockProperties.Text);
 ```
 
 The untyped `IUiProperty` view exists for XAML loading, diagnostics and editor
@@ -215,7 +215,7 @@ generated artifact. A generated template binding reads the owner's typed
 `BindingContext`; an incompatible context is a load-time construction error.
 
 Generated style artifacts use the typed overloads on `UiStyle` with the
-`UiElementProperties`, `UiTextBlockProperties`, `UiNumericEditorProperties`,
+`UiElementProperties`, `TextBlockProperties`, `UiNumericEditorProperties`,
 `UiStackPanelProperties` and `UiGridProperties` descriptors. The existing
 string overloads remain a cold loader/tooling surface. Compiled
 resource setters use the registered `UiResourceId` directly; name-based
@@ -298,7 +298,7 @@ with `Span` declarations. The following source features compile to typed
 artifacts:
 
 `UiButton` and `UiToggleButton` are single-content controls and do not expose a
-separate `Text` property. A text label is an explicit `UiTextBlock` content
+separate `Text` property. A text label is an explicit `TextBlock` content
 child, so it uses the same text properties, bindings and renderer-neutral text
 path as every other text element.
 

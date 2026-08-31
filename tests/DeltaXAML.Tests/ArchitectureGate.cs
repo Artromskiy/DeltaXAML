@@ -174,7 +174,7 @@ internal static class ArchitectureGate
 
     private static void ValidateControl(TypeShape type, List<string> violations)
     {
-        if (type.Kind != "class" || !type.Name.StartsWith("Ui", StringComparison.Ordinal) || type.IsAbstract ||
+        if (type.Kind != "class" || !IsUserControlName(type.Name) || type.IsAbstract ||
             (type.BaseType is not null && !string.Equals(type.BaseType, "UiElement", StringComparison.Ordinal)))
         {
             violations.Add($"{type.Location}: '{type.Name}' must be a concrete flat Ui class with UiElement as its only base.");
@@ -202,6 +202,9 @@ internal static class ArchitectureGate
             }
         }
     }
+
+    private static bool IsUserControlName(string name) =>
+        name.StartsWith("Ui", StringComparison.Ordinal) || name is "TextBlock" or "TextBox";
 
     private static void InspectRuntimePaths(string root, List<string> violations)
     {

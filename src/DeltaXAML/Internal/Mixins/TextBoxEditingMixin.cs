@@ -321,7 +321,7 @@ internal readonly struct TextEditorBehaviorMixin
         where T : UiElement, ITextEditorStateOwner
     {
         ref var editor = ref owner.EditorState;
-        return UiTextBoxGenerated.ProcessKey(ref editor, in input, owner.TextState.Text.Length) switch
+        return TextBoxGenerated.ProcessKey(ref editor, in input, owner.TextState.Text.Length) switch
         {
             UiTextEditAction.SelectAll => true,
             UiTextEditAction.Copy => CopyAndConsume(owner),
@@ -474,7 +474,7 @@ internal readonly struct TextEditorBehaviorMixin
     {
         var bound = owner.HasBinding("Text");
         var changed = bound
-            ? UiTextBlockGenerated.TrySetText(ref owner.TextState, value)
+            ? TextBlockGenerated.TrySetText(ref owner.TextState, value)
             : SetLocalText(owner, value);
         if (bound && changed)
         {

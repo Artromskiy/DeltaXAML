@@ -60,7 +60,7 @@ internal static class PlatformBoundaryTests
     private static void AccessibilitySnapshotIsBorrowedAndRetained()
     {
         var root = new UiStackPanel { Width = 120, Height = 80 };
-        var label = new UiTextBlock { Text = "Volume", AutomationName = "Volume label" };
+        var label = new TextBlock { Text = "Volume", AutomationName = "Volume label" };
         var slider = new UiSlider { AutomationName = "Volume", Value = 0.5 };
         root.Add(label);
         root.Add(slider);
@@ -108,7 +108,7 @@ internal static class PlatformBoundaryTests
 
     private static void LocalizationIsExplicitAndInvalidatesText()
     {
-        var root = new UiTextBlock { Text = "مرحبا" };
+        var root = new TextBlock { Text = "مرحبا" };
         using var text = new EmptyTextService();
         using var document = new UiDocument(root, text);
         var before = root.RetainedElement.OutputVersion;
@@ -160,10 +160,10 @@ internal static class PlatformBoundaryTests
         public static UiTemplateId SelectTemplate(in CollectionRow item) => Template;
 
         public static UiElement Create(UiTemplateId templateId, in CollectionRow item, UiResourceCatalog resources) =>
-            new UiTextBlock { Text = item.Label };
+            new TextBlock { Text = item.Label };
 
         public static void Bind(UiElement element, UiTemplateId templateId, in CollectionRow item, UiResourceCatalog resources) =>
-            ((UiTextBlock)element).Text = item.Label;
+            ((TextBlock)element).Text = item.Label;
 
         public static void Unbind(UiElement element, UiTemplateId templateId)
         {

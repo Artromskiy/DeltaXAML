@@ -556,8 +556,8 @@ public abstract class UiElement
         UiElement created = element switch
         {
             Retained.NumericEditor numericEditor => new UiNumericEditor(numericEditor),
-            Retained.TextBox textBox => new UiTextBox(textBox),
-            Retained.TextBlock textBlock => new UiTextBlock(textBlock),
+            Retained.TextBox textBox => new TextBox(textBox),
+            Retained.TextBlock textBlock => new TextBlock(textBlock),
             Retained.StackPanel stackPanel => new UiStackPanel(stackPanel),
             Retained.ItemsControl itemsControl => new UiItemsControl(itemsControl),
             Retained.Panel panel => new UiPanel(panel),

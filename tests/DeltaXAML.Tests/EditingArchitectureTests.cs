@@ -13,18 +13,18 @@ internal static class EditingArchitectureTests
     {
         var state = new TextBoxState { CaretIndex = 3, SelectionStart = 3 };
         var selectAll = Key(65, UiModifierBits.Control);
-        var action = UiTextBoxGenerated.ProcessKey(ref state, in selectAll, 3);
+        var action = TextBoxGenerated.ProcessKey(ref state, in selectAll, 3);
         Assert.Equal(UiTextEditAction.SelectAll, action, "TextBox descriptor dispatches select-all to the typed editing mixin");
         Assert.Equal(0, state.SelectionStart, "select-all starts at the first character");
         Assert.Equal(3, state.SelectionLength, "select-all covers the text");
 
         var backspace = Key(8);
-        action = UiTextBoxGenerated.ProcessKey(ref state, in backspace, 3);
+        action = TextBoxGenerated.ProcessKey(ref state, in backspace, 3);
         Assert.Equal(UiTextEditAction.DeleteSelection, action, "TextBox editing reports a typed delete operation");
         Assert.Equal(0, state.SelectionStart, "delete operation keeps the selected range start");
         Assert.Equal(3, state.SelectionLength, "delete operation keeps the selected range for the owner");
 
-        var retained = UiTextBoxGenerated.Create();
+        var retained = TextBoxGenerated.Create();
         retained.SetText("abc", false);
         Assert.True(retained.ApplyKey(in selectAll), "retained TextBox handles select-all through the generated path");
         Assert.Equal(3, retained.SelectionLength, "retained TextBox stores selection in TextBoxState");
@@ -32,10 +32,10 @@ internal static class EditingArchitectureTests
         Assert.Equal("x", retained.Text, "retained TextBox edits through the existing text event boundary");
         Assert.Equal(1, retained.CaretIndex, "retained TextBox updates the typed caret state");
 
-        Assert.True(UiTextBoxGenerated.Descriptor.IsValid, "TextBox descriptor has a valid compact identity");
-        Assert.True(UiDescriptorCatalog.TryResolve(UiTextBoxGenerated.Descriptor.Index, out var descriptor), "TextBox descriptor resolves through the compact catalog");
-        Assert.Equal(UiTextBoxGenerated.Descriptor, descriptor, "TextBox catalog preserves generated metadata");
-        Assert.Equal((ushort)9, UiTextBoxGenerated.Descriptor.Index.Value, "TextBox has the ninth compact descriptor index");
+        Assert.True(TextBoxGenerated.Descriptor.IsValid, "TextBox descriptor has a valid compact identity");
+        Assert.True(UiDescriptorCatalog.TryResolve(TextBoxGenerated.Descriptor.Index, out var descriptor), "TextBox descriptor resolves through the compact catalog");
+        Assert.Equal(TextBoxGenerated.Descriptor, descriptor, "TextBox catalog preserves generated metadata");
+        Assert.Equal((ushort)9, TextBoxGenerated.Descriptor.Index.Value, "TextBox has the ninth compact descriptor index");
     }
 
     private static void NumericEditorUsesTypedValidation()

@@ -128,8 +128,8 @@ public static class UiElementProperties
         new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);
 }
 
-/// <summary>Typed text properties for <see cref="UiTextBlock"/> and text editors.</summary>
-public static class UiTextBlockProperties
+/// <summary>Typed text properties for <see cref="TextBlock"/> and text editors.</summary>
+public static class TextBlockProperties
 {
     public static UiProperty<string> Text { get; } = Create("20000000-0000-4000-8000-000000000001", "Text", string.Empty);
     public static UiProperty<string> FontKey { get; } = Create("20000000-0000-4000-8000-000000000002", "FontKey", "default");

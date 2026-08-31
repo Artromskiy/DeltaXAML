@@ -97,10 +97,10 @@ internal static class Program
             fontBytes);
         using IProbeTextService textService = new ReusingTextService();
         var root = new Library.UiStackPanel();
-        var textBoxes = new Library.UiTextBox[LargeTextBoxCount];
+        var textBoxes = new Library.TextBox[LargeTextBoxCount];
         for (var i = 0; i < textBoxes.Length; i++)
         {
-            var textBox = new Library.UiTextBox
+            var textBox = new Library.TextBox
             {
                 Text = "A",
                 Width = 240,
@@ -151,7 +151,7 @@ internal static class Program
         Console.WriteLine(FormattableString.Invariant($"warm layout/display: {pipeline.MicrosecondsPerOperation:F3} us/frame, {pipeline.BytesPerOperation:F1} B/frame, {pipeline.MicrosecondsPerElement:F4} us/element"));
     }
 
-    private static ManyMetric MeasureLargeTextBoxSetter(Library.UiTextBox[] textBoxes)
+    private static ManyMetric MeasureLargeTextBoxSetter(Library.TextBox[] textBoxes)
     {
         for (var i = 0; i < WarmupCount; i++)
         {
@@ -216,7 +216,7 @@ internal static class Program
         using IProbeTextService textService = reuseShapedText
             ? new ReusingTextService()
             : new CountingTextService();
-        var text = new Library.UiTextBlock { Text = "A", Width = 240, Height = 40 };
+        var text = new Library.TextBlock { Text = "A", Width = 240, Height = 40 };
         using var document = new Library.UiDocument(text, textService, fonts);
 
         document.Layout(new(240, 40), 1);
@@ -257,7 +257,7 @@ internal static class Program
 
     private static SetterMetric MeasureSetter()
     {
-        var text = new Library.UiTextBlock { Text = "A" };
+        var text = new Library.TextBlock { Text = "A" };
         for (var i = 0; i < WarmupCount; i++)
         {
             text.Text = (i & 1) == 0 ? "B" : "A";
@@ -342,12 +342,12 @@ internal static class Program
             GC.GetAllocatedBytesForCurrentThread() - allocatedBefore);
     }
 
-    private static Library.UiTextBlock[] CreateManyTextElements()
+    private static Library.TextBlock[] CreateManyTextElements()
     {
-        var texts = new Library.UiTextBlock[ManyTextElementCount];
+        var texts = new Library.TextBlock[ManyTextElementCount];
         for (var i = 0; i < texts.Length; i++)
         {
-            texts[i] = new Library.UiTextBlock
+            texts[i] = new Library.TextBlock
             {
                 Text = "A",
                 Width = 240,
