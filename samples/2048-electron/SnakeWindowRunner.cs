@@ -75,7 +75,7 @@ internal static class SnakeWindowRunner
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateWindowSession(
             window,
-            new RenderSessionOptions(EnableProfiling: enableProfiling));
+            new RenderSessionOptions(EnableProfiling: enableProfiling, FramesInFlight: 16));
         var visualProgram = LoadRoundedProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(980, 760));
@@ -136,8 +136,7 @@ internal static class SnakeWindowRunner
                 }
 
                 if (session.Profiler is { } profiler &&
-                    profiler.TryGetCompleted(frameNumber, out var profile) &&
-                    (renderedFrames == 0 || frameNumber % 60 == 0))
+                    profiler.TryGetCompleted(frameNumber, out var profile))
                 {
                     WriteProfile(profile);
                 }
@@ -164,7 +163,10 @@ internal static class SnakeWindowRunner
             $"Render profile: frame={report.FrameNumber}, status={report.Status}, " +
             $"build={timing.Build}, acquire={timing.Acquire}, " +
             $"record={timing.Record}, submit-present={timing.SubmitAndPresent}, " +
-            $"passes={report.Counters.PassCount}, gpu-timestamps={capabilities.GpuTimestamps}");
+            $"fence-wait={timing.FenceWait}, layout-shaping={timing.LayoutAndShapingCpu}, " +
+            $"passes={report.Counters.PassCount}, resources={report.Counters.ResourceCount}, " +
+            $"draws={report.Counters.DrawCallCount}, descriptor-binds={report.Counters.DescriptorBindCount}, " +
+            $"upload-bytes={report.Counters.UploadBytes}, gpu-timestamps={capabilities.GpuTimestamps}");
 
         foreach (var pass in report.Passes)
         {
