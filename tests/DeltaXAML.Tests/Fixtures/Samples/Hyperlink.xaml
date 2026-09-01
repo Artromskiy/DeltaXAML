@@ -1,5 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: UserInterface/HyperlinkDemo (MIT). -->
-<RichTextBlock>
-  <Span Text="Open " Foreground="#FFFFFF" />
-  <Span Text="documentation" Foreground="#3182CE" Command="56f86c2b-228e-4f9e-bb90-3145dd9cb103" Argument="https://learn.microsoft.com/dotnet/maui" />
-</RichTextBlock>

@@ -1,6 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: UserInterface/WorkingWithColors (MIT). -->
-<StackPanel>
-  <Border Background="#F2BB66" Height="24" />
-  <Border Background="#669EF2" Height="24" />
-  <Border Background="#E53E3E" Height="24" />
-</StackPanel>

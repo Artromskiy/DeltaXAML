@@ -1,6 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: Apps/TipCalc (MIT). -->
-<StackPanel>
-  <NumericEditor Value="42" Minimum="0" Maximum="10000" />
-  <Slider Value="15" Minimum="0" Maximum="30" Step="1" />
-  <TextBlock Text="Tip amount: 6.30" />
-</StackPanel>

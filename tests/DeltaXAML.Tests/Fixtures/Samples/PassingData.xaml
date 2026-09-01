@@ -1,5 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: Navigation/PassingData (MIT). -->
-<StackPanel>
-  <TextBox Text="Data for detail" />
-  <Button Command="56f86c2b-228e-4f9e-bb90-3145dd9cb105"><TextBlock Text="Next page" /></Button>
-</StackPanel>

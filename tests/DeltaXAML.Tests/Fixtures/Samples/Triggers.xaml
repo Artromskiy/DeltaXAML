@@ -1,5 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: Fundamentals/TriggersDemos (MIT). -->
-<StackPanel xmlns:x="urn:delta-xaml" x:DataType="DeltaXaml.Tests.FullCapabilityModel">
-  <TextBlock x:Name="Status" Text="inactive" />
-  <Trigger Target="Status" Sources="Context.Armed" Values="true" Property="Foreground" Set="#33CC66" Action="Command" Argument="active" />
-</StackPanel>

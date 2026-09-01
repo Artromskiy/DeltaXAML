@@ -1,5 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: UserInterface/WorkingWithFonts (MIT). -->
-<RichTextBlock>
-  <Span Text="Large" FontKey="default" FontSize="28" Foreground="#FFFFFF" />
-  <Span Text=" small" FontKey="default" FontSize="12" Foreground="#829AB1" />
-</RichTextBlock>

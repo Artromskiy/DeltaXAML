@@ -48,10 +48,10 @@
     <None Include="GridTwoRows.xaml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="shaders/RoundedRectangleVertex.vert.spv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="shaders/RoundedRectangleFragment.frag.spv" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../Game2048.Render/shaders/SdfTextVertex.vert.spv"
+    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.Text.SdfTextVertex.vert.spv"
              Link="shaders/SdfTextVertex.vert.spv"
              CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../Game2048.Render/shaders/SdfTextFragment.frag.spv"
+    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.Text.SdfTextFragment.frag.spv"
              Link="shaders/SdfTextFragment.frag.spv"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"

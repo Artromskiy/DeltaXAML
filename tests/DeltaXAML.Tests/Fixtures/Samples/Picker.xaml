@@ -1,7 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: UserInterface/PickerDemo (MIT). -->
-<StackPanel xmlns:x="urn:delta-xaml" x:DataType="DeltaXaml.Tests.CollectionModel">
-  <TextBlock Text="Choose an item" />
-  <Picker ItemsSource="{Binding Rows}" ItemTemplate="RowTemplate" ItemTemplateSelector="RowKind" VirtualizationCount="2" />
-  <Template x:Key="RowTemplate" x:DataType="DeltaXaml.Tests.CollectionRow"><TextBlock Text="{Binding Label}" /></Template>
-  <Template x:Key="AlternateRowTemplate" x:DataType="DeltaXaml.Tests.CollectionRow"><Border><TextBlock Text="{Binding Label}" /></Border></Template>
-</StackPanel>

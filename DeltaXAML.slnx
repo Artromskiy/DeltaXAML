@@ -3,11 +3,7 @@
   <Project Path="src/DeltaXAML/DeltaXAML.csproj" />
   <Project Path="src/DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" />
   <Project Path="src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" />
-  <Project Path="samples/TipCalc/DeltaXAML.Samples.TipCalc.csproj" />
-  <Project Path="samples/Game2048/DeltaXAML.Samples.Game2048.csproj" />
-  <Project Path="samples/Game2048.Render/DeltaXAML.Samples.Game2048.Render.csproj" />
   <Project Path="samples/2048-electron/DeltaXAML.Samples.Snake.csproj" />
-  <Project Path="samples/TipCalc.Render/DeltaXAML.Samples.TipCalc.Render.csproj" />
   <Project Path="samples/RoundedRectangle.Headless/DeltaXAML.Samples.RoundedRectangle.Headless.csproj" />
   <Project Path="tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj" />
 </Solution>

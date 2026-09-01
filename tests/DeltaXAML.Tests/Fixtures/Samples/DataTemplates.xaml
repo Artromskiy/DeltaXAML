@@ -1,6 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: Fundamentals/DataTemplateDemos (MIT). -->
-<StackPanel xmlns:x="urn:delta-xaml" x:DataType="DeltaXaml.Tests.CollectionModel">
-  <CollectionView ItemsSource="{Binding Rows}" ItemTemplate="RowTemplate" ItemTemplateSelector="RowKind" ItemExtent="18" Height="80" />
-  <Template x:Key="RowTemplate" x:DataType="DeltaXaml.Tests.CollectionRow"><TextBlock Text="{Binding Label}" /></Template>
-  <Template x:Key="AlternateRowTemplate" x:DataType="DeltaXaml.Tests.CollectionRow"><Border><TextBlock Text="{Binding Label}" /></Border></Template>
-</StackPanel>

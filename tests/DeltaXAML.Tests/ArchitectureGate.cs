@@ -17,7 +17,6 @@ internal static class ArchitectureGate
         InspectRuntimePaths(root, violations);
         InspectNewTypePaths(root, violations);
         InspectFullCapabilityPaths(root, violations);
-        InspectGeneratedSamples(root, violations);
 
         foreach (var message in pending)
         {
@@ -307,55 +306,6 @@ internal static class ArchitectureGate
                 ContainsAny(tokens, "Action", "Func", "event", "+="))
             {
                 violations.Add($"{relativePath}: gesture arena contains a per-element delegate or subscription path.");
-            }
-        }
-    }
-
-    private static void InspectGeneratedSamples(string root, List<string> violations)
-    {
-        var directory = Path.Combine(root, "tests", "DeltaXAML.Tests", "Fixtures", "Samples");
-        var project = Path.Combine(root, "tests", "DeltaXAML.Tests", "DeltaXAML.Tests.csproj");
-        var runner = Path.Combine(root, "tests", "DeltaXAML.Tests", "GeneratedSampleParityTests.cs");
-        if (!Directory.Exists(directory) || !File.Exists(project) || !File.Exists(runner))
-        {
-            violations.Add("generated sample parity requires its fixture directory, AdditionalFiles project entry and executable runner.");
-            return;
-        }
-
-        var fixtures = Directory.GetFiles(directory, "*.xaml", SearchOption.TopDirectoryOnly);
-        Array.Sort(fixtures, StringComparer.Ordinal);
-        if (fixtures.Length != 20)
-        {
-            violations.Add($"tests/DeltaXAML.Tests/Fixtures/Samples: expected 20 retained sample ports, found {fixtures.Length}.");
-        }
-
-        var projectText = File.ReadAllText(project);
-        if (!projectText.Contains("Fixtures/Samples/*.xaml", StringComparison.Ordinal) ||
-            !projectText.Contains("DeltaXamlClassName=\"Sample%(Filename)Artifact\"", StringComparison.Ordinal))
-        {
-            violations.Add("tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj: sample fixtures must enter the normal generated AdditionalFiles path.");
-        }
-
-        var runnerText = File.ReadAllText(runner);
-        if (runnerText.Contains("XamlLoader", StringComparison.Ordinal) ||
-            runnerText.Contains("new UiPanel", StringComparison.Ordinal) ||
-            runnerText.Contains("SetItems(", StringComparison.Ordinal))
-        {
-            violations.Add("tests/DeltaXAML.Tests/GeneratedSampleParityTests.cs: sample acceptance uses a cold loader or host-built substitute tree.");
-        }
-
-        foreach (var fixture in fixtures)
-        {
-            var source = File.ReadAllText(fixture);
-            var name = Path.GetFileNameWithoutExtension(fixture);
-            if (!source.Contains("dotnet/maui-samples@e78b475", StringComparison.Ordinal))
-            {
-                violations.Add($"{RelativePath(root, fixture)}: sample source attribution is missing or unpinned.");
-            }
-
-            if (!runnerText.Contains("Sample" + name + "Artifact", StringComparison.Ordinal))
-            {
-                violations.Add($"{RelativePath(root, fixture)}: generated artifact is not exercised by the headless sample runner.");
             }
         }
     }

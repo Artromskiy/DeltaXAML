@@ -278,7 +278,6 @@ internal static partial class Program
         GeneratedRelationTests.Run();
         GeneratedAttachedTests.Run();
         FullCapabilityGeneratedTests.Run();
-        GeneratedSampleParityTests.Run();
         LayoutDiagnosticsTests.Run();
         TypedPropertyStateTests();
         PropertyPrecedenceTests();

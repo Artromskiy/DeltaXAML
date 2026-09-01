@@ -8,9 +8,6 @@ SixLaborsLicenseFile=/path/to/sixlabors.lic \
 SixLaborsLicenseFile=/path/to/sixlabors.lic \
   dotnet run --project tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj \
   -c Release --no-build
-SixLaborsLicenseFile=/path/to/sixlabors.lic \
-  dotnet run --project samples/TipCalc/DeltaXAML.Samples.TipCalc.csproj \
-  -c Release --no-build --no-restore
 ```
 
 The headless harness references DeltaText and therefore SixLabors.Fonts. Local

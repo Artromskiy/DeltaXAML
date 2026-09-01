@@ -1,4 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: XAML/Fundamentals/XamlSamples (MIT). -->
-<Panel Background="#172033" Padding="16,12,16,12">
-  <StackPanel><TextBlock Text="Hello, XAML!" /><Button><TextBlock Text="Continue" /></Button></StackPanel>
-</Panel>

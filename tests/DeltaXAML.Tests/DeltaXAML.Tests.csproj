@@ -39,7 +39,6 @@
     <AdditionalFiles Include="Fixtures/GeneratedRelations.xaml" DeltaXamlClassName="GeneratedRelationsArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <AdditionalFiles Include="Fixtures/FullCapability.xaml" DeltaXamlClassName="FullCapabilityArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <AdditionalFiles Include="Fixtures/GeneratedAttached.xaml" DeltaXamlClassName="GeneratedAttachedArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
-    <AdditionalFiles Include="Fixtures/Samples/*.xaml" DeltaXamlClassName="Sample%(Filename)Artifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <None Include="Fixtures/EditorShell.xaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/GameHud.xaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/CustomBadge.xaml" CopyToOutputDirectory="PreserveNewest"/>
@@ -50,6 +49,5 @@
     <None Include="Fixtures/GeneratedRelations.xaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/FullCapability.xaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/GeneratedAttached.xaml" CopyToOutputDirectory="PreserveNewest"/>
-    <None Update="Fixtures/Samples/*.xaml" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 </Project>

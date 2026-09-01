@@ -1,5 +1,0 @@
-<!-- Ported from dotnet/maui-samples@e78b475: UserInterface/BrushesDemos (MIT). -->
-<Panel xmlns:x="urn:delta-xaml">
-  <Resource x:Key="Gradient" Type="Brush" Value="LinearGradient:56f86c2b-228e-4f9e-bb90-3145dd9cb101" />
-  <Border Width="180" Height="80" BackgroundBrush="{DynamicResource Gradient}" />
-</Panel>
