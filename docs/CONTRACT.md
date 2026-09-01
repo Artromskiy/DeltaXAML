@@ -101,9 +101,11 @@ remains an integer.
 that span. Consumers must iterate `Order` to preserve retained traversal order;
 they must not assume that all visuals precede all text. The span is borrowed with
 the other display-list spans. A producer must emit one reference for every visual
-or text payload and must not emit an invalid kind or index. The compatibility
-boundary always supplies `Order`; there is no implicit visuals-first or
-visuals-then-text fallback.
+or text payload and must not emit an invalid kind or index. `Identities` is
+aligned with `Order`, so `Identities[i]` describes the payload selected by
+`Order[i]`. Its length must always equal `Order.Length`. The compatibility
+boundary always supplies `Order` and `Identities`; there is no implicit
+visuals-first or visuals-then-text fallback.
 
 The top-level types are intentionally small:
 
@@ -116,12 +118,21 @@ public readonly record struct UiVisualPaint(
     float4 FillColor, float4 StrokeColor, float StrokeWidth, float4 CornerRadii);
 public readonly record struct UiTextPaint(
     float4 FillColor, float4 OutlineColor, float OutlineWidth, UiResourceId Effect);
-public readonly record struct UiTextRunId(uint Value, uint Generation);
+public readonly record struct UiElementIdentity(uint Value, uint Generation, uint Version);
 public readonly record struct UiTextDraw {
-    public UiTextRunId RunId { get; init; }
-    public uint Version { get; init; }
+    public ShapedText Text { get; init; }
+    public float2 BaselineOrigin { get; init; }
+    public UiTextPaint Paint { get; init; }
+    public UiClipId Clip { get; init; }
 }
+public UiDisplayList(
+    ReadOnlySpan<UiVisualDraw> visuals,
+    ReadOnlySpan<UiClipRegion> clips,
+    ReadOnlySpan<UiTextDraw> text,
+    ReadOnlySpan<UiDrawRef> order,
+    ReadOnlySpan<UiElementIdentity> identities);
 public ReadOnlySpan<UiDrawRef> Order { get; }
+public ReadOnlySpan<UiElementIdentity> Identities { get; }
 ```
 
 `UiDrawRef` is a payload reference, not a second command representation. Clips
@@ -136,13 +147,14 @@ and pipeline. DeltaXAML never exposes a Vulkan pipeline ID or a
 
 Text does not duplicate the DeltaText font contract. `UiTextDraw` transports an
 already shaped `ShapedText` plus baseline placement, linear color and clip.
-`RunId` is the stable producer identity: `Value` identifies the retained owner
-slot and `Generation` rejects a stale occupant after slot reuse. `Version` is a
-producer-owned monotonic version for text/style/DPI changes. Geometry-only
-changes are represented by the draw payload and display-list delta; they do not
-require a text version change. Exact font instances, variations, direction,
-script, language, OpenType features, glyph IDs, advances and clusters remain
-owned by DeltaText.
+`UiElementIdentity` is the stable producer identity and version for each
+ordered item: `Value` identifies the retained owner slot, `Generation` rejects
+a stale occupant after slot reuse, and `Version` identifies the current
+producer payload version. This identity is carried by `Identities`, not by the
+text payload. Geometry-only changes are represented by the draw payload and
+display-list delta; they do not require the text item's version to change.
+Exact font instances, variations, direction, script, language, OpenType
+features, glyph IDs, advances and clusters remain owned by DeltaText.
 
 `UiClipRegion` describes logical bounds, an optional parent region and a
 semantic shape. Rectangles may use scissor; rounded regions may use an analytic
@@ -155,12 +167,11 @@ identity. Variable gradient stops, image data, shadow configuration and other
 large values remain immutable resources addressed by `UiResourceId`.
 
 The six-argument constructor of `UiVisualDraw` and the four-argument
-constructor of `UiTextDraw` remain fill-only convenience forms. A draw created
-through the legacy text convenience form has `RunId == UiTextRunId.None` and
-`Version == 0`; both identity-less forms are marked `[Obsolete]` and producer
-extraction uses the identity-bearing paint form. The
-paint-bearing constructors are the canonical form for effects; both forms
-carry the same semantic payload and do not expose shader or pipeline handles.
+constructor of `UiTextDraw` remain fill-only convenience forms. Identity and
+version are supplied once per ordered payload through `UiDisplayList`, keeping
+the payload commands compact and allowing one consumer algorithm to process
+visual and text entries together. The paint-bearing constructors are the
+canonical form for effects; they do not expose shader or pipeline handles.
 
 ## Resource identity rule
 

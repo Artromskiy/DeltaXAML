@@ -19,13 +19,14 @@ borrowed until the next workload build, matching the contract lifetime.
 | --- | ---: | ---: | ---: | ---: | --- |
 | `Base` | 3,500 | 1,500 | 256 | 5,000 | initial add of 5,000 entries |
 | `Paint` | 3,500 | 1,500 | 256 | 5,000 | paint/material changes for 715 entries (500 visual, 215 text) |
-| `Clip` | 3,500 | 1,500 | 256 | 5,000 | 52 clip regions change; command order and text versions stay stable |
+| `Clip` | 3,500 | 1,500 | 256 | 5,000 | 52 clip regions change; command order and text identities stay stable |
 | `Reorder` | 3,500 | 1,500 | 256 | 5,000 | deterministic permutation moves 4,999 entries and repacks payload spans |
 | `Churn` | 3,527 | 1,509 | 256 | 5,036 | remove 264 entries (183 visual, 81 text), add 300 (210 visual, 90 text) |
 
-`Paint` increments `UiTextDraw.Version` for exactly 215 text entries. `Clip`
-does not increment text versions because clipping is separate draw data.
-Added entries use text generation `2`; retained base entries use generation `1`.
+`Paint` increments `UiElementIdentity.Version` for exactly 215 text entries.
+`Clip` does not increment text identities because clipping is separate draw
+data. Added entries use generation `2`; retained base entries use generation
+`1`. Identity entries are aligned with `Order`, including visual entries.
 
 ## Expected checksums
 

@@ -95,9 +95,10 @@ The current `DeltaXAML.Contract` carries solid rectangles, images, text fill,
 rectangular or rounded clip semantics and canonical ordering. `UiVisualDraw`
 has a semantic `UiVisualTypeId`, a `UiResourceId` and fixed-size
 `UiVisualPaint`; `UiTextDraw` has shaped text, baseline, fixed-size
-`UiTextPaint`, clip, `UiTextRunId` and producer `Version`. `UiTextRunId` is a
-`Value` plus lifetime `Generation`; `Version` changes for text/style/DPI data,
-not for geometry-only changes. These are producer identities and
+`UiTextPaint` and clip. `UiElementIdentity` is carried separately in the
+`UiDisplayList.Identities` span aligned with `Order`; its `Value` plus lifetime
+`Generation` is the producer identity and `Version` changes for text/style/DPI
+data, not for geometry-only changes. These are producer identities and
 renderer-neutral values, not shader or Vulkan handles.
 
 The paint-bearing form is intentionally compact for hot, fixed-size parameters;

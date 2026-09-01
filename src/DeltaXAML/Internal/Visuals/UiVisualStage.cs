@@ -174,6 +174,7 @@ internal sealed class UiVisualStage : IDisposable
         var clipCount = 0;
         var visualCount = 0;
         var textCount = 0;
+        var orderCount = 0;
         _visualTraversal.Clear();
         _visualTraversal.Add(new(root, clip, parentClip));
         while (_visualTraversal.Count != 0)
@@ -209,6 +210,7 @@ internal sealed class UiVisualStage : IDisposable
                 clipCount += current.DisplayClipCount;
                 visualCount += current.DisplayVisualCount;
                 textCount += current.DisplayTextCount;
+                orderCount += current.DisplayVisualCount + current.DisplayTextCount;
                 continue;
             }
 
@@ -242,6 +244,7 @@ internal sealed class UiVisualStage : IDisposable
                     _storage.Visuals[current.DisplayVisualIndex] = visual;
                 }
 
+                _storage.Identities[orderCount++] = VisualIdentity(current);
                 visualCount++;
             }
 
@@ -269,6 +272,7 @@ internal sealed class UiVisualStage : IDisposable
                     _storage.Text[current.DisplayTextIndex] = draw;
                 }
 
+                _storage.Identities[orderCount++] = TextIdentity(run);
                 textCount++;
             }
 
@@ -285,7 +289,7 @@ internal sealed class UiVisualStage : IDisposable
         }
 
         if (clipCount != _storage.ClipCount || visualCount != _storage.VisualCount || textCount != _storage.TextCount ||
-            _storage.OrderCount != visualCount + textCount)
+            orderCount != _storage.OrderCount || _storage.OrderCount != visualCount + textCount)
         {
             return true;
         }
@@ -359,7 +363,7 @@ internal sealed class UiVisualStage : IDisposable
                 EnsureCapacity(ref _storage.Visuals, _storage.VisualCount + 1);
                 visualIndex = _storage.VisualCount;
                 _storage.Visuals[_storage.VisualCount++] = visual;
-                AppendOrder(new UiDrawRef(UiDrawKind.Visual, visualIndex));
+                AppendOrder(new UiDrawRef(UiDrawKind.Visual, visualIndex), VisualIdentity(current));
             }
 
             if ((current.Participation & UiParticipation.Rendering) != 0 && current is Retained.RichTextBlock richText)
@@ -378,7 +382,9 @@ internal sealed class UiVisualStage : IDisposable
                 {
                     for (var i = 0; i < ownTextCount; i++)
                     {
-                        AppendOrder(new UiDrawRef(UiDrawKind.Text, textIndex + i));
+                        AppendOrder(
+                            new UiDrawRef(UiDrawKind.Text, textIndex + i),
+                            TextIdentity(current));
                     }
                 }
             }
@@ -398,7 +404,7 @@ internal sealed class UiVisualStage : IDisposable
 
                 _storage.TextCount++;
                 ownTextCount = 1;
-                AppendOrder(new UiDrawRef(UiDrawKind.Text, textIndex));
+                AppendOrder(new UiDrawRef(UiDrawKind.Text, textIndex), TextIdentity(run));
             }
 
             current.SetDisplayRange(clipId.Value, visualIndex, textIndex, ownTextCount);
@@ -451,10 +457,21 @@ internal sealed class UiVisualStage : IDisposable
         return true;
     }
 
-    private void AppendOrder(UiDrawRef drawRef)
+    private static UiElementIdentity VisualIdentity(RetainedElement element) =>
+        new(element.Id.Value, element.Generation, element.OutputVersion);
+
+    private static UiElementIdentity TextIdentity(Retained.UiTextRun run) =>
+        new(run.Owner.Value, run.OwnerGeneration, run.Version);
+
+    private static UiElementIdentity TextIdentity(RetainedElement element) =>
+        new(element.Id.Value, element.Generation, element.TextRunVersion);
+
+    private void AppendOrder(UiDrawRef drawRef, UiElementIdentity identity)
     {
         EnsureCapacity(ref _storage.Order, _storage.OrderCount + 1);
+        EnsureCapacity(ref _storage.Identities, _storage.OrderCount + 1);
         _storage.Order[_storage.OrderCount++] = drawRef;
+        _storage.Identities[_storage.OrderCount - 1] = identity;
     }
 
     private static bool TryGetVisualDraw(RetainedElement element, UiClipId clip, out UiVisualDraw visual)
@@ -568,8 +585,6 @@ internal sealed class UiVisualStage : IDisposable
         var baseline = new float2(textBounds.X - bounds.Left, textBounds.Y - bounds.Top);
         var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
         draw = UiTextDraw.WithPaint(
-            new UiTextRunId(run.Owner.Value, run.OwnerGeneration),
-            run.Version,
             cache.Shaped,
             baseline,
             new UiTextPaint(
@@ -652,8 +667,6 @@ internal sealed class UiVisualStage : IDisposable
         {
             var origin = cache.Origins[i];
             _storage.Text[_storage.TextCount++] = UiTextDraw.WithPaint(
-                new UiTextRunId(owner.Id.Value, owner.Generation),
-                owner.TextRunVersion,
                 cache.Shaped[i],
                 new float2(owner.Bounds.X + origin.x, owner.Bounds.Y + origin.y),
                 UiTextPaint.Solid(ToColor(spans[i].Color)),

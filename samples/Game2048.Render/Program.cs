@@ -502,6 +502,7 @@ internal static class Program
     private sealed class DisplayListProjection(DisplayListMode mode)
     {
         private UiDrawRef[] _order = [];
+        private UiElementIdentity[] _identities = [];
 
         internal UiDisplayList Project(UiDisplayList source)
         {
@@ -521,12 +522,13 @@ internal static class Program
                 if (draw.Kind == selectedKind)
                 {
                     _order[count++] = draw;
+                    _identities[count - 1] = source.Identities[index];
                 }
             }
 
             return mode == DisplayListMode.VisualOnly
-                ? new UiDisplayList(source.Visuals, source.Clips, ReadOnlySpan<UiTextDraw>.Empty, _order.AsSpan(0, count))
-                : new UiDisplayList(ReadOnlySpan<UiVisualDraw>.Empty, source.Clips, source.Text, _order.AsSpan(0, count));
+                ? new UiDisplayList(source.Visuals, source.Clips, ReadOnlySpan<UiTextDraw>.Empty, _order.AsSpan(0, count), _identities.AsSpan(0, count))
+                : new UiDisplayList(ReadOnlySpan<UiVisualDraw>.Empty, source.Clips, source.Text, _order.AsSpan(0, count), _identities.AsSpan(0, count));
         }
 
         private void EnsureCapacity(int required)
@@ -537,6 +539,7 @@ internal static class Program
             }
 
             _order = new UiDrawRef[required];
+            _identities = new UiElementIdentity[required];
         }
     }
 

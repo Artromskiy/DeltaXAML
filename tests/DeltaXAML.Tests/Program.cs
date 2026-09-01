@@ -1084,19 +1084,17 @@ internal static partial class Program
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, 0), first.Order[0], "visual payload is ordered before its text children");
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 0), first.Order[1], "first text payload keeps traversal order");
         Assert.Equal(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 1), first.Order[2], "second text payload keeps traversal order");
-        var firstRunId = first.Text[0].RunId;
-        var firstVersion = first.Text[0].Version;
-        var unchangedRunId = first.Text[1].RunId;
-        var unchangedVersion = first.Text[1].Version;
-        Assert.True(firstRunId.IsValid, "canonical text output carries a retained owner identity");
-        Assert.True(firstVersion > 0, "canonical text output carries a producer version");
+        Assert.Equal(first.Order.Length, first.Identities.Length, "each ordered payload has one aligned identity");
+        var firstIdentity = first.Identities[1];
+        var unchangedIdentity = first.Identities[2];
+        Assert.True(firstIdentity.Value != 0 && firstIdentity.Generation != 0, "canonical text output carries a retained owner identity");
+        Assert.True(firstIdentity.Version > 0, "canonical text output carries a producer version");
         Assert.Equal(2, textService.ShapeCount, "initial text output shapes each retained text node");
         var firstShaped = first.Text[0].Text;
         Assert.True(firstShaped.Runs.Length > 0, "DeltaText returns positioned shaped runs");
         var second = document.BuildDisplayList();
         Assert.True(ReferenceEquals(firstShaped, second.Text[0].Text), "unchanged text reuses shaped cache");
-        Assert.Equal(firstRunId, second.Text[0].RunId, "unchanged text preserves its retained identity");
-        Assert.Equal(firstVersion, second.Text[0].Version, "unchanged text preserves its producer version");
+        Assert.Equal(firstIdentity, second.Identities[1], "unchanged text preserves its aligned identity and version");
         text.Text = "B";
         document.Layout(new Delta.Maths.float2(240, 40), 1);
         var third = document.BuildDisplayList();
@@ -1104,10 +1102,10 @@ internal static partial class Program
         Assert.Equal(3, textService.ShapeCount, "value-only visual update does not reshape unchanged text");
         Assert.True(ReferenceEquals(first.Text[1].Text, third.Text[1].Text), "value-only visual update preserves unchanged shaped text");
         Assert.Equal(first.Text[0].Clip, third.Text[0].Clip, "text clip identity remains canonical");
-        Assert.Equal(firstRunId, third.Text[0].RunId, "text mutation preserves the retained owner identity");
-        Assert.True(third.Text[0].Version > firstVersion, "text mutation advances only the producer version");
-        Assert.Equal(unchangedRunId, third.Text[1].RunId, "unmodified text preserves its retained identity");
-        Assert.Equal(unchangedVersion, third.Text[1].Version, "unmodified text preserves its producer version");
+        Assert.Equal(firstIdentity.Value, third.Identities[1].Value, "text mutation preserves the retained owner identity");
+        Assert.Equal(firstIdentity.Generation, third.Identities[1].Generation, "text mutation preserves the retained owner generation");
+        Assert.True(third.Identities[1].Version > firstIdentity.Version, "text mutation advances only the producer version");
+        Assert.Equal(unchangedIdentity, third.Identities[2], "unmodified text preserves its aligned identity and version");
     }
 
     private static void PaintPropertiesReachDisplayList()
@@ -1412,6 +1410,7 @@ internal static partial class Program
         var clips = storage.Clips;
         var text = storage.Text;
         var order = storage.Order;
+        var identities = storage.Identities;
         _ = document.BuildDisplayList();
 
         Assert.True(ReferenceEquals(storage, document.DisplayListStorage), "document keeps one display-list owner");
@@ -1419,6 +1418,7 @@ internal static partial class Program
         Assert.True(ReferenceEquals(clips, storage.Clips), "unchanged clip output keeps its backing storage");
         Assert.True(ReferenceEquals(text, storage.Text), "unchanged text output keeps its backing storage");
         Assert.True(ReferenceEquals(order, storage.Order), "unchanged draw order keeps its backing storage");
+        Assert.True(ReferenceEquals(identities, storage.Identities), "unchanged identities keep their backing storage");
     }
 
     private static void DisplayListOrderContract()
@@ -1438,13 +1438,21 @@ internal static partial class Program
         {
             new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, 0),
         };
+        var identities = new[] { new LibraryContract.UiElementIdentity(1, 1, 1) };
         var text = Array.Empty<LibraryContract.UiTextDraw>();
-        var display = new LibraryContract.UiDisplayList(visuals, clips, text, order);
+        var display = new LibraryContract.UiDisplayList(visuals, clips, text, order, identities);
         Assert.Equal(1, display.Order.Length, "explicit display-list order is exposed");
+        Assert.Equal(1, display.Identities.Length, "explicit display-list identity alignment is exposed");
         Assert.True(display.Order[0].IsValid, "visual draw reference is well formed");
         Assert.True(new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Text, 0).IsValid, "text draw reference is well formed");
         Assert.True(!new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Unknown, 0).IsValid, "unknown draw kind is rejected");
         Assert.True(!new LibraryContract.UiDrawRef(LibraryContract.UiDrawKind.Visual, -1).IsValid, "negative draw index is rejected");
+        Assert.Throws<ArgumentException>(
+            () =>
+            {
+                _ = new LibraryContract.UiDisplayList(visuals, clips, text, order, Array.Empty<LibraryContract.UiElementIdentity>());
+            },
+            "display-list construction rejects identity/order length mismatch");
 
         var paint = new LibraryContract.UiVisualPaint(
             new float4(1, 1, 1, 1),

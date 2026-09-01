@@ -48,6 +48,7 @@ internal sealed class UiDisplayListBatcherWorkload
     private readonly UiTextDraw[] _text = new UiTextDraw[ChurnEntryCount];
     private readonly UiClipRegion[] _clips = new UiClipRegion[ClipCount];
     private readonly UiDrawRef[] _order = new UiDrawRef[ChurnEntryCount];
+    private readonly UiElementIdentity[] _identities = new UiElementIdentity[ChurnEntryCount];
 
     internal UiDisplayList Build(UiDisplayListWorkloadFrame frame, ShapedText shapedText)
     {
@@ -83,17 +84,18 @@ internal sealed class UiDisplayListBatcherWorkload
             _visuals.AsSpan(0, visualCount),
             _clips,
             _text.AsSpan(0, textCount),
-            _order.AsSpan(0, orderCount));
+            _order.AsSpan(0, orderCount),
+            _identities.AsSpan(0, orderCount));
     }
 
     internal static UiDisplayListWorkloadExpectation Expected(UiDisplayListWorkloadFrame frame) =>
         frame switch
         {
-            UiDisplayListWorkloadFrame.Base => new(3_500, 1_500, ClipCount, BaseEntryCount, BaseEntryCount, 0, 0, 0, 0, 4_322_472_588_939_357_607UL, 7_525_632_923_540_591_110UL, 9_031_151_385_499_634_758UL),
-            UiDisplayListWorkloadFrame.Paint => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 715, 0, 4_322_472_588_939_357_607UL, 13_327_287_353_690_654_130UL, 2_277_488_697_916_662_658UL),
-            UiDisplayListWorkloadFrame.Clip => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 0, 52, 4_322_472_588_939_357_607UL, 4_837_542_823_663_243_782UL, 5_327_905_869_668_322_374UL),
-            UiDisplayListWorkloadFrame.Reorder => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, BaseEntryCount - 1, 0, 0, 7_877_403_130_303_307_063UL, 3_064_124_748_223_052_344UL, 4_165_849_485_099_287_768UL),
-            UiDisplayListWorkloadFrame.Churn => new(3_527, 1_509, ClipCount, 5_036, 300, 264, 0, 0, 0, 15_779_854_436_547_583_369UL, 7_775_226_777_097_878_523UL, 15_413_119_183_328_370_041UL),
+            UiDisplayListWorkloadFrame.Base => new(3_500, 1_500, ClipCount, BaseEntryCount, BaseEntryCount, 0, 0, 0, 0, 4_322_472_588_939_357_607UL, 8_266_880_654_181_956_318UL, 3_147_310_012_876_536_094UL),
+            UiDisplayListWorkloadFrame.Paint => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 715, 0, 4_322_472_588_939_357_607UL, 8_131_302_817_821_511_631UL, 2_848_628_888_392_451_231UL),
+            UiDisplayListWorkloadFrame.Clip => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 0, 52, 4_322_472_588_939_357_607UL, 8_249_909_929_344_596_702UL, 12_787_136_938_159_520_030UL),
+            UiDisplayListWorkloadFrame.Reorder => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, BaseEntryCount - 1, 0, 0, 7_877_403_130_303_307_063UL, 4_366_644_032_252_713_698UL, 202_736_544_587_668_498UL),
+            UiDisplayListWorkloadFrame.Churn => new(3_527, 1_509, ClipCount, 5_036, 300, 264, 0, 0, 0, 15_779_854_436_547_583_369UL, 2_582_732_951_393_937_468UL, 4_799_295_886_069_212_130UL),
             _ => throw new ArgumentOutOfRangeException(nameof(frame), frame, "Unknown workload frame."),
         };
 
@@ -144,9 +146,6 @@ internal sealed class UiDisplayListBatcherWorkload
         for (var i = 0; i < displayList.Text.Length; i++)
         {
             var text = displayList.Text[i];
-            Add(ref hash, text.RunId.Value);
-            Add(ref hash, text.RunId.Generation);
-            Add(ref hash, text.Version);
             Add(ref hash, (uint)text.Text.TextLengthUtf16);
             Add(ref hash, (uint)text.Text.Runs.Length);
             Add(ref hash, BitConverter.SingleToUInt32Bits(text.BaselineOrigin.x));
@@ -234,7 +233,9 @@ internal sealed class UiDisplayListBatcherWorkload
                 paint,
                 clip,
                 Resource(0x1000 + entry % 31 + variant * 97));
-            _order[orderCount++] = new UiDrawRef(UiDrawKind.Visual, visualCount++);
+            var visualIndex = visualCount++;
+            _order[orderCount] = new UiDrawRef(UiDrawKind.Visual, visualIndex);
+            _identities[orderCount++] = new((uint)(entry + 1), entry < BaseEntryCount ? 1u : 2u, paintChanged ? 2u : 1u);
             return;
         }
 
@@ -246,13 +247,13 @@ internal sealed class UiDisplayListBatcherWorkload
         var generation = entry < BaseEntryCount ? 1u : 2u;
         var version = paintChanged ? 2u : 1u;
         _text[textCount] = UiTextDraw.WithPaint(
-            new UiTextRunId((uint)(entry + 1), generation),
-            version,
             shapedText,
             new float2(entry % 100 * 8 + 2, entry / 100 * 6 + 18),
             textPaint,
             clip);
-        _order[orderCount++] = new UiDrawRef(UiDrawKind.Text, textCount++);
+        var textIndex = textCount++;
+        _order[orderCount] = new UiDrawRef(UiDrawKind.Text, textIndex);
+        _identities[orderCount++] = new((uint)(entry + 1), generation, version);
     }
 
     private static float4 Bounds(int entry) =>
@@ -333,6 +334,7 @@ internal static class DisplayListBatcherWorkloadTests
             Assert.Equal(expected.TextCount, displayList.Text.Length, $"{frame} text count");
             Assert.Equal(expected.ClipCount, displayList.Clips.Length, $"{frame} clip count");
             Assert.Equal(expected.OrderCount, displayList.Order.Length, $"{frame} canonical order count");
+            Assert.Equal(displayList.Order.Length, displayList.Identities.Length, $"{frame} identity alignment");
             Assert.True(expected.AddedEntries >= 0 && expected.RemovedEntries >= 0, $"{frame} transition counts are non-negative");
             Assert.Equal(expected.OrderChecksum, orderChecksum, $"{frame} ordered command checksum");
             Assert.Equal(expected.PayloadChecksum, payloadChecksum, $"{frame} payload checksum");
@@ -347,15 +349,15 @@ internal static class DisplayListBatcherWorkloadTests
             else if (frame == UiDisplayListWorkloadFrame.Paint)
             {
                 var changedTextVersions = 0;
-                for (var i = 0; i < displayList.Text.Length; i++)
+                for (var i = 0; i < displayList.Order.Length; i++)
                 {
-                    if (displayList.Text[i].Version == 2)
+                    if (displayList.Order[i].Kind == UiDrawKind.Text && displayList.Identities[i].Version == 2)
                     {
                         changedTextVersions++;
                     }
                 }
 
-                Assert.Equal(215, changedTextVersions, "paint frame changes only the expected text versions");
+                Assert.Equal(215, changedTextVersions, "paint frame changes only the expected text identity versions");
                 Assert.Equal(baseOrderChecksum, orderChecksum, "paint changes preserve the actual canonical command order");
                 Assert.True(basePayloadChecksum != payloadChecksum, "paint changes modify the actual payload checksum");
             }
@@ -391,7 +393,9 @@ internal static class DisplayListBatcherWorkloadTests
         for (var i = 0; i < displayList.Order.Length; i++)
         {
             var draw = displayList.Order[i];
+            var identity = displayList.Identities[i];
             Assert.True(draw.IsValid, $"{frame} order entry {i} is valid");
+            Assert.True(identity.Value != 0 && identity.Generation != 0, $"{frame} identity entry {i} is generation-safe");
             if (draw.Kind == UiDrawKind.Visual)
             {
                 Assert.True(draw.Index < displayList.Visuals.Length, $"{frame} visual order entry {i} is in range");

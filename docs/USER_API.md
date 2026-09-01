@@ -266,11 +266,12 @@ not render commands and are not stored in `UiDisplayList`.
 
 `UiDocument` receives `DeltaText.Contract.ITextService`. DeltaText owns font
 instances, shaping and glyph image generation. DeltaXAML owns placement and
-emits already shaped `UiTextDraw` values. Each extracted text draw carries a
-stable `UiTextRunId` (`Value` plus lifetime `Generation`) and a monotonic
-producer `Version` for text/style/DPI changes. DeltaRender may use the pair as
-its cache key and skip upload when the version is unchanged. DeltaRender owns
-atlas packing, texture uploads and Vulkan execution.
+emits already shaped `UiTextDraw` values. Each ordered draw has a stable
+`UiElementIdentity` in `UiDisplayList.Identities`, aligned with
+`UiDisplayList.Order`; its `Value` and lifetime `Generation` form the retained
+cache identity and its `Version` identifies the current producer payload.
+DeltaRender may use the identity and version to skip upload when unchanged.
+DeltaRender owns atlas packing, texture uploads and Vulkan execution.
 
 ## Display-list lifetime
 
@@ -433,8 +434,9 @@ Formatted text contains typed style runs over one paragraph. Layout preserves
 paragraph-level line breaking, bidi ordering, shaping and baselines across run
 boundaries. Link runs produce retained inline hit ranges and semantic command
 invocations. Extraction may emit several `UiTextDraw` values for one retained
-owner; those values share the owner's `UiTextRunId` and text version while
-remaining separately addressable through `UiDisplayList.Order`.
+owner; those values carry the owner's `UiElementIdentity` in the corresponding
+`UiDisplayList.Identities` entries while remaining separately addressable
+through `UiDisplayList.Order`.
 
 ### Brushes and images
 

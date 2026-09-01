@@ -13,6 +13,7 @@ internal sealed class UiDisplayListStorage
     internal UiClipRegion[] Clips = Array.Empty<UiClipRegion>();
     internal UiTextDraw[] Text = Array.Empty<UiTextDraw>();
     internal UiDrawRef[] Order = Array.Empty<UiDrawRef>();
+    internal UiElementIdentity[] Identities = Array.Empty<UiElementIdentity>();
     internal int VisualCount;
     internal int ClipCount;
     internal int TextCount;
@@ -31,5 +32,6 @@ internal sealed class UiDisplayListStorage
             Visuals.AsSpan(0, VisualCount),
             Clips.AsSpan(0, ClipCount),
             Text.AsSpan(0, TextCount),
-            Order.AsSpan(0, OrderCount));
+            Order.AsSpan(0, OrderCount),
+            Identities.AsSpan(0, OrderCount));
 }

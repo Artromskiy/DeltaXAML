@@ -32,10 +32,9 @@ internal static class RichTextTests
         document.Layout(new float2(240, 30), 1);
         var first = document.BuildDisplayList();
         Assert.Equal(2, first.Text.Length, "one rich paragraph may emit several canonical text draws");
-        var firstRunId = first.Text[0].RunId;
-        var firstVersion = first.Text[0].Version;
-        Assert.True(firstRunId.IsValid, "rich text output carries the retained paragraph identity");
-        Assert.True(firstVersion > 0, "rich text output carries the producer version");
+        var firstIdentity = first.Identities[0];
+        Assert.True(firstIdentity.Value != 0 && firstIdentity.Generation != 0, "rich text output carries the retained paragraph identity");
+        Assert.True(firstIdentity.Version > 0, "rich text output carries the producer version");
         Assert.Equal(2, text.ShapeCount, "each typography span is shaped once on its initial paragraph layout");
         var retained = (DeltaXAML.Internal.RichTextBlock)rich.RetainedElement;
         var hitStorage = retained.State.HitRanges;
@@ -49,8 +48,9 @@ internal static class RichTextTests
         var painted = document.BuildDisplayList();
         Assert.Equal(2, text.ShapeCount, "paint-only rich-text changes preserve shaped runs");
         Assert.True(painted.Text[0].Color.z > painted.Text[0].Color.x, "paint-only update reaches the canonical text draw");
-        Assert.Equal(firstRunId, painted.Text[0].RunId, "rich text paint changes preserve paragraph identity");
-        Assert.True(painted.Text[0].Version > firstVersion, "rich text paint changes advance the producer version");
+        Assert.Equal(firstIdentity.Value, painted.Identities[0].Value, "rich text paint changes preserve paragraph identity");
+        Assert.Equal(firstIdentity.Generation, painted.Identities[0].Generation, "rich text paint changes preserve paragraph generation");
+        Assert.True(painted.Identities[0].Version > firstIdentity.Version, "rich text paint changes advance the producer version");
         Assert.True(ReferenceEquals(hitStorage, retained.State.HitRanges), "paint-only extraction reuses retained inline hit storage");
 
         document.Dispatch(UiInputEvent.FromPointingDevice(Pointer(UiPointerEventKind.ButtonDown, 3, 8)));
