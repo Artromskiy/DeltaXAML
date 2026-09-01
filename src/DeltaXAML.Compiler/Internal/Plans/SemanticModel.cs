@@ -661,6 +661,8 @@ internal sealed class XamlSemanticRegistry
             Property("TemplateKey", "10000000-0000-4000-8000-000000000009", XamlValueKind.String));
         common = common.AddRange(ImmutableArray.Create(
             Property("BackgroundBrush", "10000000-0000-4000-8000-00000000000A", XamlValueKind.Brush),
+            Property("BorderColor", "10000000-0000-4000-8000-000000000011", XamlValueKind.Color),
+            Property("BorderWidth", "10000000-0000-4000-8000-000000000012", XamlValueKind.Single),
             Property("CornerRadius", "10000000-0000-4000-8000-000000000013", XamlValueKind.CornerRadii),
             Property("AutomationName", "10000000-0000-4000-8000-00000000000B", XamlValueKind.String),
             Property("AutomationRole", "10000000-0000-4000-8000-00000000000C", XamlValueKind.Enum),

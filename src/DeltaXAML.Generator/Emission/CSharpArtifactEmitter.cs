@@ -1074,7 +1074,8 @@ internal static class CSharpArtifactEmitter
         "Width" or "Height" or "Background" or "Padding" or "Fill" or "IsEnabled" or "IsSelected" or
         "StyleKey" or "TemplateKey" or "Text" or "FontKey" or "FontSize" or "Foreground" or
         "Minimum" or "Maximum" or "Value" or "Step" or "Orientation" or "Columns" or "Rows" or
-        "Source" or "Tint" or "SelectedIndex" or "IsOpen" or "BackgroundBrush" or "AutomationName" or
+        "Source" or "Tint" or "SelectedIndex" or "IsOpen" or "BackgroundBrush" or "BorderColor" or
+        "BorderWidth" or "CornerRadius" or "AutomationName" or
         "AutomationRole" or "Gestures" or "Command" or "CommandKey" or "IsFocusScope" or "Stretch" or
         "Placeholder" or "ErrorSource" => true,
         _ => false,
@@ -2852,6 +2853,8 @@ internal static class CSharpArtifactEmitter
             "StyleKey" => "global::Delta.XAML.UiElementProperties.StyleKey",
             "TemplateKey" => "global::Delta.XAML.UiElementProperties.TemplateKey",
             "BackgroundBrush" => "global::Delta.XAML.UiElementProperties.BackgroundBrush",
+            "BorderColor" => "global::Delta.XAML.UiElementProperties.BorderColor",
+            "BorderWidth" => "global::Delta.XAML.UiElementProperties.BorderWidth",
             "CornerRadius" => "global::Delta.XAML.UiElementProperties.CornerRadius",
             "AutomationName" => "global::Delta.XAML.UiElementProperties.AutomationName",
             "AutomationRole" => "global::Delta.XAML.UiElementProperties.AutomationRole",

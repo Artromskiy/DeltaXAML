@@ -4,10 +4,17 @@
       Height="500"
       Rows="110,280,110"
       Columns="140,520,140">
+  <Border Grid.Row="0"
+          Grid.Column="0"
+          Grid.RowSpan="3"
+          Grid.ColumnSpan="3"
+          Background="#D9D9D9" />
   <Border Grid.Row="1"
           Grid.Column="1"
           Width="520"
           Height="280"
-          Background="#7A8494"
+          Background="#3A3A3A"
+          BorderColor="#FFFFFF"
+          BorderWidth="1"
           CornerRadius="56,32,72,24" />
 </Grid>

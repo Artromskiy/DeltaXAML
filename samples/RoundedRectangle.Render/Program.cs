@@ -79,11 +79,12 @@ internal static class Program
         await using var session = renderer.CreateWindowSession(window);
 
         var program = LoadRoundedProgram();
+        var solidProgram = LoadSolidProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(800, 500));
         var metrics = window.Metrics;
         var extent = metrics.DrawableExtent;
-        return await RunFramesAsync(window, session, document, program, textFeature, extent, frameLimit, profile).ConfigureAwait(false);
+        return await RunFramesAsync(window, session, document, program, solidProgram, textFeature, extent, frameLimit, profile).ConfigureAwait(false);
     }
 
     private static async Task<int> RunHeadlessAsync(
@@ -100,6 +101,7 @@ internal static class Program
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateHeadlessSession(800, 500);
         var program = LoadRoundedProgram();
+        var solidProgram = LoadSolidProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(800, 500));
         return await RunFramesAsync(
@@ -107,6 +109,7 @@ internal static class Program
             session,
             document,
             program,
+            solidProgram,
             textFeature,
             new PixelExtent(800, 500),
             frameLimit,
@@ -120,6 +123,7 @@ internal static class Program
         IRenderFrameSession session,
         UiDocument document,
         IGraphicsShaderProgram program,
+        IGraphicsShaderProgram solidProgram,
         TextRenderFeature textFeature,
         PixelExtent initialExtent,
         int frameLimit,
@@ -131,7 +135,12 @@ internal static class Program
         var extent = initialExtent;
         session.ResizeTarget(in extent);
         textFeature.Resize(extent);
-        using var ui = new UiDisplayListGraphFeature(session, program, extent, textFeature: textFeature);
+        using var ui = new UiDisplayListGraphFeature(
+            session,
+            program,
+            extent,
+            textFeature: textFeature,
+            solidVisualProgram: solidProgram);
         var clear = new ClearFeature(session.Target, extent, program);
         var readback = window is null && readbackPath is not null
             ? new HeadlessReadbackFeature(session.Target, extent.Width, extent.Height)
@@ -348,6 +357,20 @@ internal static class Program
         }
 
         return RoundedRectangleGraphicsShaderProgram.CreateProgram(
+            File.ReadAllBytes(vertexPath),
+            File.ReadAllBytes(fragmentPath));
+    }
+
+    private static IGraphicsShaderProgram LoadSolidProgram()
+    {
+        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SolidRectangleVertex.vert.spv");
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SolidRectangleFragment.frag.spv");
+        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
+        {
+            throw new FileNotFoundException($"Solid rectangle shader artifacts were not found: {vertexPath}");
+        }
+
+        return SolidRectangleGraphicsShaderProgram.CreateProgram(
             File.ReadAllBytes(vertexPath),
             File.ReadAllBytes(fragmentPath));
     }
