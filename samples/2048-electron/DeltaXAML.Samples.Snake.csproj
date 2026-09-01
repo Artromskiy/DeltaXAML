@@ -48,30 +48,6 @@
     <None Include="Assets/LuckiestGuy-Regular.ttf"
           Link="Assets/LuckiestGuy-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareSolidRectangleVertex.vert.spv"
-             Link="shaders/ClipAwareSolidRectangleVertex.vert.spv"
-             CopyToOutputDirectory="Always" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareSolidRectangleFragment.frag.spv"
-             Link="shaders/ClipAwareSolidRectangleFragment.frag.spv"
-             CopyToOutputDirectory="Always" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareRoundedRectangleVertex.vert.spv"
-             Link="shaders/ClipAwareRoundedRectangleVertex.vert.spv"
-             CopyToOutputDirectory="Always" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareRoundedRectangleFragment.frag.spv"
-             Link="shaders/ClipAwareRoundedRectangleFragment.frag.spv"
-             CopyToOutputDirectory="Always" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareRoundedRectangleSliceVertex.vert.spv"
-             Link="shaders/ClipAwareRoundedRectangleSliceVertex.vert.spv"
-             CopyToOutputDirectory="Always" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareRoundedRectangleSliceFragment.frag.spv"
-             Link="shaders/ClipAwareRoundedRectangleSliceFragment.frag.spv"
-             CopyToOutputDirectory="Always" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.Text.SdfTextVertex.vert.spv"
-             Link="shaders/SdfTextVertex.vert.spv"
-             CopyToOutputDirectory="Always" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.Text.SdfTextFragment.frag.spv"
-             Link="shaders/SdfTextFragment.frag.spv"
-             CopyToOutputDirectory="Always" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
              Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
       <Link>libMoltenVK.dylib</Link>

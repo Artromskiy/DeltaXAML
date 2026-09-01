@@ -71,19 +71,6 @@ DeltaShader owns generated shader outputs. Run
 `./eng/check-shader-output-ownership.sh` to reject shader binaries and
 sidecars in DeltaXAML projects and samples.
 
-The render-backed Snake sample links the canonical producer outputs directly;
-it must not use shader copies from another sample. Check the eight linked
-UI/text artifacts and their ABI sidecars before building the sample:
-
-```bash
-./eng/check-snake-shader-artifacts.sh
-```
-
-The check validates the project links, SPIR-V headers, available `spirv-val`
-validation, and the set/binding/stride fields consumed by the generated UI and
-text shader programs. Set `DELTA_SHADER_ROOT` only when the sibling
-DeltaShader checkout is elsewhere.
-
 ## Descriptor/mixin architecture (mandatory)
 
 Read [docs/INTERNAL.md](docs/INTERNAL.md) before changing retained controls, properties,

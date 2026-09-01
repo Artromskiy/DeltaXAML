@@ -46,24 +46,6 @@
           CopyToOutputDirectory="PreserveNewest" />
     <None Include="RoundedRectangle.xaml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="GridTwoRows.xaml" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.RoundedRectangleVertex.vert.spv"
-             Link="shaders/RoundedRectangleVertex.vert.spv"
-             CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.RoundedRectangleFragment.frag.spv"
-             Link="shaders/RoundedRectangleFragment.frag.spv"
-             CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.SolidRectangleVertex.vert.spv"
-             Link="shaders/SolidRectangleVertex.vert.spv"
-             CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.SolidRectangleFragment.frag.spv"
-             Link="shaders/SolidRectangleFragment.frag.spv"
-             CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.Text.SdfTextVertex.vert.spv"
-             Link="shaders/SdfTextVertex.vert.spv"
-             CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.Text.SdfTextFragment.frag.spv"
-             Link="shaders/SdfTextFragment.frag.spv"
-             CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
              Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
       <Link>libMoltenVK.dylib</Link>
