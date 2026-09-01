@@ -249,6 +249,9 @@ internal interface ITextEditorStateOwner
     List<string> UndoHistory { get; }
     List<string> RedoHistory { get; }
     IUiClipboard? Clipboard { get; }
+    bool IsReadOnly { get; }
+    bool AcceptsReturn { get; }
+    int MaxLength { get; }
     string? ValidationDiagnostic { get; set; }
     void RaiseTextChanged(string text);
 }
@@ -267,6 +270,16 @@ internal readonly struct TextEditorBehaviorMixin
         text.Visual.OutlineColor = default;
         text.Visual.OutlineWidth = 0;
         text.Visual.TextEffectResource = Guid.Empty;
+        text.Layout.HorizontalAlignment = Delta.XAML.UiTextHorizontalAlignment.Left;
+        text.Layout.VerticalAlignment = Delta.XAML.UiTextVerticalAlignment.Top;
+        text.Layout.Wrapping = Delta.XAML.UiTextWrapping.NoWrap;
+        text.Layout.Trimming = Delta.XAML.UiTextTrimming.None;
+        text.Visual.Weight = Delta.XAML.UiFontWeight.Normal;
+        text.Visual.Style = Delta.XAML.UiFontStyle.Normal;
+        owner.EditorState.PlaceholderText = string.Empty;
+        owner.EditorState.IsReadOnly = false;
+        owner.EditorState.AcceptsReturn = false;
+        owner.EditorState.MaxLength = 0;
         owner.SetDefault("Text", text.Text, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
         owner.SetDefault("FontKey", text.Visual.FontKey, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
         owner.SetDefault("FontSize", text.Visual.FontSize, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
@@ -274,12 +287,30 @@ internal readonly struct TextEditorBehaviorMixin
         owner.SetDefault("OutlineColor", text.Visual.OutlineColor, UiDirtyMask.Visual | UiDirtyMask.Text);
         owner.SetDefault("OutlineWidth", text.Visual.OutlineWidth, UiDirtyMask.Visual | UiDirtyMask.Text);
         owner.SetDefault("TextEffect", new UiResourceId(text.Visual.TextEffectResource), UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("HorizontalTextAlignment", text.Layout.HorizontalAlignment, UiDirtyMask.Arrange | UiDirtyMask.Visual);
+        owner.SetDefault("VerticalTextAlignment", text.Layout.VerticalAlignment, UiDirtyMask.Arrange | UiDirtyMask.Visual);
+        owner.SetDefault("TextWrapping", text.Layout.Wrapping, UiDirtyMask.Measure | UiDirtyMask.Arrange | UiDirtyMask.Visual);
+        owner.SetDefault("TextTrimming", text.Layout.Trimming, UiDirtyMask.Arrange | UiDirtyMask.Visual);
+        owner.SetDefault("MaxLines", text.Layout.MaxLines, UiDirtyMask.Measure | UiDirtyMask.Arrange | UiDirtyMask.Visual);
+        owner.SetDefault("LineHeight", text.Layout.LineHeight, UiDirtyMask.Measure | UiDirtyMask.Arrange | UiDirtyMask.Visual);
+        owner.SetDefault("FontWeight", text.Visual.Weight, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("FontStyle", text.Visual.Style, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("TextDecorations", text.Visual.Decorations, UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("PlaceholderText", owner.EditorState.PlaceholderText, UiDirtyMask.Visual | UiDirtyMask.Text);
+        owner.SetDefault("IsReadOnly", owner.EditorState.IsReadOnly, UiDirtyMask.Visual);
+        owner.SetDefault("AcceptsReturn", owner.EditorState.AcceptsReturn, UiDirtyMask.Visual);
+        owner.SetDefault("MaxLength", owner.EditorState.MaxLength, UiDirtyMask.Visual);
     }
 
     internal static void SetText<T>(T owner, string text, bool recordUndo = true)
         where T : UiElement, ITextEditorStateOwner
     {
         ArgumentNullException.ThrowIfNull(text);
+        if (owner.MaxLength > 0 && text.Length > owner.MaxLength)
+        {
+            text = text[..owner.MaxLength];
+        }
+
         ref var editor = ref owner.EditorState;
         TextBoxEditingMixin.ClearComposition(ref editor);
         if (recordUndo)
@@ -298,15 +329,30 @@ internal readonly struct TextEditorBehaviorMixin
     internal static bool ApplyText<T>(T owner, in UiTextInput input)
         where T : UiElement, ITextEditorStateOwner
     {
+        if (owner.IsReadOnly || (!owner.AcceptsReturn && ContainsLineBreak(input.Text.Span)))
+        {
+            return false;
+        }
+
         ref var editor = ref owner.EditorState;
         TextBoxEditingMixin.ClearComposition(ref editor);
-        ReplaceSelection(owner, input.Text.Span);
-        return true;
+        return ReplaceSelection(owner, input.Text.Span);
     }
 
     internal static bool ApplyComposition<T>(T owner, in UiCompositionEvent input)
         where T : UiElement, ITextEditorStateOwner
     {
+        if (owner.IsReadOnly || (!owner.AcceptsReturn && ContainsLineBreak(input.Preedit.Span)))
+        {
+            return false;
+        }
+
+        if (owner.MaxLength > 0 &&
+            owner.TextState.Text.Length - owner.EditorState.SelectionLength + input.Preedit.Length > owner.MaxLength)
+        {
+            return false;
+        }
+
         ref var editor = ref owner.EditorState;
         if (!TextBoxEditingMixin.ApplyComposition(ref editor, owner.TextState.Text, in input))
         {
@@ -321,15 +367,16 @@ internal readonly struct TextEditorBehaviorMixin
         where T : UiElement, ITextEditorStateOwner
     {
         ref var editor = ref owner.EditorState;
-        return TextBoxGenerated.ProcessKey(ref editor, in input, owner.TextState.Text.Length) switch
+        var action = TextBoxGenerated.ProcessKey(ref editor, in input, owner.TextState.Text.Length);
+        return action switch
         {
             UiTextEditAction.SelectAll => true,
             UiTextEditAction.Copy => CopyAndConsume(owner),
-            UiTextEditAction.Cut => CutAndConsume(owner),
-            UiTextEditAction.Paste => Paste(owner),
-            UiTextEditAction.Undo => Undo(owner),
-            UiTextEditAction.Redo => Redo(owner),
-            UiTextEditAction.DeleteSelection => DeleteSelection(owner),
+            UiTextEditAction.Cut when !owner.IsReadOnly => CutAndConsume(owner),
+            UiTextEditAction.Paste when !owner.IsReadOnly => Paste(owner),
+            UiTextEditAction.Undo when !owner.IsReadOnly => Undo(owner),
+            UiTextEditAction.Redo when !owner.IsReadOnly => Redo(owner),
+            UiTextEditAction.DeleteSelection when !owner.IsReadOnly => DeleteSelection(owner),
             _ => false,
         };
     }
@@ -339,6 +386,19 @@ internal readonly struct TextEditorBehaviorMixin
     {
         ref var editor = ref owner.EditorState;
         TextBoxEditingMixin.SelectAll(ref editor, owner.TextState.Text.Length);
+    }
+
+    internal static void SetSelection<T>(T owner, int start, int length)
+        where T : UiElement, ITextEditorStateOwner
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(start);
+        ArgumentOutOfRangeException.ThrowIfNegative(length);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(length, owner.TextState.Text.Length - start, nameof(length));
+
+        ref var editor = ref owner.EditorState;
+        editor.SelectionStart = start;
+        editor.SelectionLength = length;
+        editor.CaretIndex = start + length;
     }
 
     internal static void Copy<T>(T owner)
@@ -354,6 +414,11 @@ internal readonly struct TextEditorBehaviorMixin
     internal static void Cut<T>(T owner)
         where T : UiElement, ITextEditorStateOwner
     {
+        if (owner.IsReadOnly)
+        {
+            return;
+        }
+
         ref var editor = ref owner.EditorState;
         if (!TextBoxEditingMixin.HasSelection(in editor))
         {
@@ -367,18 +432,27 @@ internal readonly struct TextEditorBehaviorMixin
     internal static bool Paste<T>(T owner)
         where T : UiElement, ITextEditorStateOwner
     {
+        if (owner.IsReadOnly)
+        {
+            return false;
+        }
+
         if (owner.Clipboard?.ReadText() is not { Length: > 0 } text)
         {
             return false;
         }
 
-        ReplaceSelection(owner, text);
-        return true;
+        return ReplaceSelection(owner, text);
     }
 
     internal static bool Undo<T>(T owner)
         where T : UiElement, ITextEditorStateOwner
     {
+        if (owner.IsReadOnly)
+        {
+            return false;
+        }
+
         ref var editor = ref owner.EditorState;
         if (!TextBoxEditingMixin.TryUndo(
                 ref editor,
@@ -397,6 +471,11 @@ internal readonly struct TextEditorBehaviorMixin
     internal static bool Redo<T>(T owner)
         where T : UiElement, ITextEditorStateOwner
     {
+        if (owner.IsReadOnly)
+        {
+            return false;
+        }
+
         ref var editor = ref owner.EditorState;
         if (!TextBoxEditingMixin.TryRedo(
                 ref editor,
@@ -439,9 +518,15 @@ internal readonly struct TextEditorBehaviorMixin
         return true;
     }
 
-    private static void ReplaceSelection<T>(T owner, ReadOnlySpan<char> inserted)
+    private static bool ReplaceSelection<T>(T owner, ReadOnlySpan<char> inserted)
         where T : UiElement, ITextEditorStateOwner
     {
+        if ((!owner.AcceptsReturn && ContainsLineBreak(inserted)) ||
+            (owner.MaxLength > 0 && owner.TextState.Text.Length - owner.EditorState.SelectionLength + inserted.Length > owner.MaxLength))
+        {
+            return false;
+        }
+
         ref var editor = ref owner.EditorState;
         var value = TextBoxEditingMixin.ReplaceSelection(
             ref editor,
@@ -452,6 +537,7 @@ internal readonly struct TextEditorBehaviorMixin
         owner.ValidationDiagnostic = null;
         owner.SetInvalid(false);
         SetEditedText(owner, value);
+        return true;
     }
 
     private static void DeleteRange<T>(T owner, int start, int length)
@@ -496,6 +582,9 @@ internal readonly struct TextEditorBehaviorMixin
         owner.SetLocal("Text", value, UiDirtyMask.Measure | UiDirtyMask.Visual | UiDirtyMask.Text);
         return true;
     }
+
+    private static bool ContainsLineBreak(ReadOnlySpan<char> value) =>
+        value.IndexOfAny('\r', '\n') >= 0;
 }
 
 internal readonly struct NumericEditorInputMixin : ITextBoxInputMixin<NumericEditorState>

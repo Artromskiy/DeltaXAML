@@ -5,6 +5,9 @@ the generated `Game2048.xaml`. It keeps the game state and XAML composition from
 and adds only the consumer-side renderer references: DeltaRender, DeltaRender's
 SDL3/Vulkan integration, DeltaRender.Text, DeltaShader UI/text artifacts and
 the native MoltenVK package. `DeltaXAML` itself remains renderer-neutral.
+The visual loader uses DeltaShader's canonical clip-aware solid, rounded and
+rounded-slice SPIR-V artifacts; the graph feature selects the matching program
+for each visual kind while DeltaXAML supplies only neutral display-list data.
 
 The host uses the normal path:
 

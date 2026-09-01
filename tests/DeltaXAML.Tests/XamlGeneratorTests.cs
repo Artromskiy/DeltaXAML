@@ -28,6 +28,16 @@ internal static partial class Program
         Assert.True(first.Contains("TryFindName", StringComparison.Ordinal), "the companion contains a generated namescope lookup");
         Assert.True(!first.Contains("Activator", StringComparison.Ordinal) && !first.Contains("Type.GetType", StringComparison.Ordinal), "generated artifact has no reflection fallback");
 
+        var textPropertiesPlan = XamlCompiler.Compile(
+            sourceId,
+            "<TextBlock Text=\"Hello\" HorizontalTextAlignment=\"Center\" VerticalTextAlignment=\"Bottom\" TextWrapping=\"Word\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"2\" LineHeight=\"18\" FontWeight=\"Bold\" FontStyle=\"Italic\" TextDecorations=\"Underline, Strikethrough\" />",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(textPropertiesPlan.Success, "text layout properties compile into the semantic model");
+        Assert.True(CSharpArtifactEmitter.TryEmit(textPropertiesPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "TextPropertiesArtifact", out var textPropertiesSource, out _), "text layout properties emit through typed setters");
+        Assert.True(textPropertiesSource.Contains("node0.HorizontalTextAlignment = global::Delta.XAML.UiTextHorizontalAlignment.Center;", StringComparison.Ordinal), "generated text artifact preserves horizontal alignment");
+        Assert.True(textPropertiesSource.Contains("node0.TextWrapping = global::Delta.XAML.UiTextWrapping.Word;", StringComparison.Ordinal), "generated text artifact preserves wrapping");
+        Assert.True(textPropertiesSource.Contains("node0.TextDecorations = global::Delta.XAML.UiTextDecorations.Underline | global::Delta.XAML.UiTextDecorations.Strikethrough;", StringComparison.Ordinal), "generated text artifact preserves decorations");
+
         const string capabilitySource = "<Panel><Slider Minimum=\"0\" Maximum=\"10\" Value=\"4\" Step=\"0.5\" /><Image Source=\"285a7033-e9eb-438e-81d8-7906cf978301\" Tint=\"#112233\" /><Overlay IsOpen=\"true\"><TextBlock Text=\"popup\" /></Overlay><CollectionView SelectedIndex=\"2\" /></Panel>";
         var capabilityPlan = XamlCompiler.Compile(sourceId, capabilitySource, XamlSemanticRegistry.CreateBuiltIns());
         Assert.True(capabilityPlan.Success, "full-capability controls are accepted by the typed semantic model");
@@ -39,10 +49,11 @@ internal static partial class Program
         Assert.True(attachedPlan.Success, "built-in attached layout slots compile without object-keyed storage");
         Assert.True(CSharpArtifactEmitter.TryEmit(attachedPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "AttachedArtifact", out var attachedArtifact, out _), "attached slots emit through generated typed setters");
         Assert.True(attachedArtifact.Contains("node1.SetAttachedValue(global::Delta.XAML.UiGridAttachedProperties.Row, 1);", StringComparison.Ordinal), "grid row uses its stable generated attached slot");
-        var richPlan = XamlCompiler.Compile(sourceId, "<RichTextBlock><Span Text=\"Delta\" Foreground=\"#FF0000\" Command=\"b3288fca-9dc6-4b90-ac40-c1c23366c301\" Argument=\"docs\" /><Span Text=\"XAML\" FontSize=\"16\" /></RichTextBlock>", XamlSemanticRegistry.CreateBuiltIns());
+        var richPlan = XamlCompiler.Compile(sourceId, "<RichTextBlock><Span Text=\"Delta\" Foreground=\"#FF0000\" TextDecorations=\"Underline\" Command=\"b3288fca-9dc6-4b90-ac40-c1c23366c301\" Argument=\"docs\" /><Span Text=\"XAML\" FontSize=\"16\" /></RichTextBlock>", XamlSemanticRegistry.CreateBuiltIns());
         Assert.True(richPlan.Success, "formatted Span content lowers into one typed paragraph plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(richPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "RichArtifact", out var richArtifact, out _), "rich paragraph emits through its generated factory");
         Assert.True(richArtifact.Contains("node0.Spans = new global::Delta.XAML.UiTextSpan[]", StringComparison.Ordinal) && richArtifact.Contains("new global::Delta.XAML.UiCommandId", StringComparison.Ordinal), "generated Span values preserve style and hyperlink command identity");
+        Assert.True(richArtifact.Contains("global::Delta.XAML.UiTextDecorations.Underline", StringComparison.Ordinal), "generated Span values preserve decorations");
 
         var collectionRegistry = XamlSemanticRegistry.CreateBuiltIns();
         collectionRegistry.RegisterBinding(new(

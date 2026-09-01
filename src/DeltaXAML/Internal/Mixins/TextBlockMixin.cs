@@ -30,8 +30,27 @@ internal readonly struct TextBlockMeasureMixin : IMeasureMixin<TextBlockState>
 {
     public static void Measure(ref TextBlockState state, in UiMeasureContext context)
     {
-        var size = state.Visual.FontSize * context.DpiScale;
-        state.Layout.DesiredSize = new(MathF.Min(context.Available.Width, state.Text.Length * size * 0.55f), size * 1.25f);
+        var scale = context.DpiScale > 0 ? context.DpiScale : 1;
+        var size = state.Visual.FontSize * scale;
+        var lineHeight = state.Layout.LineHeight > 0 ? state.Layout.LineHeight * scale : size * 1.25f;
+        var naturalWidth = state.Text.Length * size * 0.55f;
+        var availableWidth = MathF.Max(0, context.Available.Width);
+        var lineCount = 1;
+        if (state.Layout.Wrapping is not (Delta.XAML.UiTextWrapping.Unknown or Delta.XAML.UiTextWrapping.NoWrap) &&
+            float.IsFinite(availableWidth) && availableWidth > 0 && naturalWidth > availableWidth)
+        {
+            lineCount = Math.Max(1, (int)MathF.Ceiling(naturalWidth / availableWidth));
+        }
+
+        if (state.Layout.MaxLines > 0)
+        {
+            lineCount = Math.Min(lineCount, state.Layout.MaxLines);
+        }
+
+        var desiredWidth = state.Layout.Wrapping is not (Delta.XAML.UiTextWrapping.Unknown or Delta.XAML.UiTextWrapping.NoWrap)
+            ? MathF.Min(availableWidth, naturalWidth)
+            : naturalWidth;
+        state.Layout.DesiredSize = new(MathF.Min(availableWidth, desiredWidth), lineCount * lineHeight);
     }
 }
 
@@ -41,6 +60,29 @@ internal readonly struct TextBlockArrangeMixin : IArrangeMixin<TextBlockState>
     {
         state.Layout.Bounds = context.Bounds;
         state.Layout.Clip = context.Clip;
+        var textWidth = MathF.Min(state.Layout.DesiredSize.Width, MathF.Max(0, context.Bounds.Width));
+        var textHeight = MathF.Min(state.Layout.DesiredSize.Height, MathF.Max(0, context.Bounds.Height));
+        var x = context.Bounds.X;
+        var y = context.Bounds.Y;
+        if (state.Layout.HorizontalAlignment == Delta.XAML.UiTextHorizontalAlignment.Center)
+        {
+            x += (context.Bounds.Width - textWidth) * 0.5f;
+        }
+        else if (state.Layout.HorizontalAlignment == Delta.XAML.UiTextHorizontalAlignment.Right)
+        {
+            x += context.Bounds.Width - textWidth;
+        }
+
+        if (state.Layout.VerticalAlignment == Delta.XAML.UiTextVerticalAlignment.Center)
+        {
+            y += (context.Bounds.Height - textHeight) * 0.5f;
+        }
+        else if (state.Layout.VerticalAlignment == Delta.XAML.UiTextVerticalAlignment.Bottom)
+        {
+            y += context.Bounds.Height - textHeight;
+        }
+
+        state.Layout.TextBounds = new(x, y, textWidth, textHeight);
     }
 }
 
@@ -66,5 +108,17 @@ internal readonly struct TextBlockVisualMixin : IVisualMixin<TextBlockState>
             default,
             state.Visual.OutlineColor,
             state.Visual.OutlineWidth,
-            state.Visual.TextEffectResource);
+            state.Visual.TextEffectResource)
+        {
+            TextBounds = state.Layout.TextBounds,
+            HorizontalAlignment = state.Layout.HorizontalAlignment,
+            VerticalAlignment = state.Layout.VerticalAlignment,
+            Wrapping = state.Layout.Wrapping,
+            Trimming = state.Layout.Trimming,
+            MaxLines = state.Layout.MaxLines,
+            LineHeight = state.Layout.LineHeight > 0 ? state.Layout.LineHeight * context.LayoutScale : 0,
+            Weight = state.Visual.Weight,
+            Style = state.Visual.Style,
+            Decorations = state.Visual.Decorations,
+        };
 }

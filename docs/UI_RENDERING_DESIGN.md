@@ -1,9 +1,10 @@
 # UI rendering design
 
-This document defines the cross-project design for rendering a DeltaXAML
+This document defines the cross-project design for consuming a DeltaXAML
 display list. It does not add a renderer dependency to DeltaXAML. The producer
-currently emits fill/stroke/corner-radius visual paint and text fill/outline/
-effect identities; consumer shader support remains a separate concern.
+emits fill/stroke/corner-radius visual paint and text fill/outline/effect
+identities; whether a renderer has an artifact and submission path for a
+particular kind remains consumer-owned.
 
 ## Ownership
 
@@ -88,7 +89,7 @@ row origin and perform at most one orientation conversion. Screen-space Y
 orientation must not be used to decide whether a normal map's green channel
 is Y+ or Y-; that is explicit tangent-space asset metadata.
 
-## Current contract and next extension
+## Current producer contract and consumer boundary
 
 The current `DeltaXAML.Contract` carries solid rectangles, images, text fill,
 rectangular or rounded clip semantics and canonical ordering. `UiVisualDraw`
@@ -168,13 +169,11 @@ SPIR-V plus binary `ShaderAbi` artifacts. DeltaRender consumes those artifacts
 and owns pipeline/cache construction. Generated artifacts are build/package
 outputs owned by DeltaShader; they are not hand-authored files in DeltaXAML.
 
-The current text shader already has `TextColor`, `OutlineColor` and
-`OutlineWidth` in its shader-visible parameters, and the MSDF fragment applies
-outline coverage. DeltaXAML now carries equivalent paint data from the UI draw
-request. The adapter still needs to register and validate the matching text
-effect artifact before non-zero outline/effect values can be submitted to the
-GPU. DeltaText itself does not need to know about outline shaders; it only
-needs to produce a valid distance field with the requested range.
+DeltaXAML carries fill, outline and effect identity in the neutral text request.
+Artifact registration, ABI validation and GPU submission are consumer-owned;
+the presence of these producer fields is not a guarantee that every renderer
+configuration can display every effect. DeltaText only needs to produce a
+valid distance field with the requested range.
 
 ## Clipping and effects
 
@@ -192,21 +191,21 @@ The same display list can therefore serve a HUD, editor overlay or world-space
 render target. World-space projection is a consumer transform, not a second
 XAML runtime.
 
-## Implementation order
+## Integration status and remaining consumer work
 
-1. Add a `DeltaRender.XAML` adapter for the existing list: order, solid/image,
-   text fill and rectangular clips.
-2. Add headless order/clip/resource/lifetime tests and a RenderGraph adapter
-   smoke without a native window.
-3. Add consumer validation/submission for producer paint values and verify that
-   style changes do not reshape unchanged text.
-4. Add `DeltaShader.UI` and complete common SDF/MSDF text fill-plus-outline
-   artifacts.
-5. Add rounded clip/mask submission; rounded rectangles and borders are already
-   represented by the producer paint values.
-6. Add custom visual registration keyed by `UiVisualTypeId`, with explicit
-   unsupported diagnostics and no fallback rectangle.
-7. Measure dirty uploads, atlas reuse, batching and unchanged-frame behavior
+The producer-side boundary and the first consumer path are present: the
+adapter consumes canonical order, clips, solid/rounded visual records and
+neutral text records, and headless checks cover order, resource identity and
+lifetime. Remaining support is consumer-side and must not be implemented by
+adding renderer code to DeltaXAML:
+
+1. Validate and submit every resource-backed/custom visual kind (including
+   gradients and images) with an explicit unsupported diagnostic when an
+   artifact is unavailable.
+2. Complete rounded clip/mask submission in
+   [DeltaRender/TODO.md](../../DeltaRender/TODO.md), independently of the
+   producer's rounded drawing support.
+3. Measure dirty uploads, atlas reuse, batching and unchanged-frame behavior
    at realistic UI sizes before changing storage or sort policy.
 
 The first adapter must preserve semantic order even when that creates several

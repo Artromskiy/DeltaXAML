@@ -283,11 +283,18 @@ internal static class UiDescriptorCatalog
             case 1 when element is TextBlock text:
                 return TrySetTextProperty(ref text.State, key, value);
             case 9 when element is TextBox editor:
-                return TrySetTextProperty(ref editor.TextState, key, value);
+                return TrySetTextProperty(ref editor.TextState, key, value) &&
+                    UiEditingPropertyResult(editor, key, value);
             default:
                 return true;
         }
     }
+
+    private static bool UiEditingPropertyResult(TextBox editor, UiPropertyKey key, UiValue value) =>
+        UiEditingPropertyResult(ref editor.State, key, value);
+
+    private static bool UiEditingPropertyResult(ref TextBoxState state, UiPropertyKey key, UiValue value) =>
+        TextBoxGenerated.TrySetProperty(ref state, key, value);
 
     private static bool TrySetBrush(UiElement element, Delta.XAML.UiBrush brush)
     {
@@ -358,8 +365,29 @@ internal static class UiDescriptorCatalog
                 return TextBlockGenerated.TrySetOutlineWidth(ref state, outlineWidth);
             case UiPropertyKey.TextEffect when value.UntypedValue is UiResourceId textEffect:
                 return TextBlockGenerated.TrySetTextEffect(ref state, textEffect);
+            case UiPropertyKey.HorizontalTextAlignment when value.UntypedValue is Delta.XAML.UiTextHorizontalAlignment horizontal:
+                return TextBlockGenerated.TrySetHorizontalTextAlignment(ref state, horizontal);
+            case UiPropertyKey.VerticalTextAlignment when value.UntypedValue is Delta.XAML.UiTextVerticalAlignment vertical:
+                return TextBlockGenerated.TrySetVerticalTextAlignment(ref state, vertical);
+            case UiPropertyKey.TextWrapping when value.UntypedValue is Delta.XAML.UiTextWrapping wrapping:
+                return TextBlockGenerated.TrySetTextWrapping(ref state, wrapping);
+            case UiPropertyKey.TextTrimming when value.UntypedValue is Delta.XAML.UiTextTrimming trimming:
+                return TextBlockGenerated.TrySetTextTrimming(ref state, trimming);
+            case UiPropertyKey.MaxLines when value.UntypedValue is int maxLines:
+                return TextBlockGenerated.TrySetMaxLines(ref state, maxLines);
+            case UiPropertyKey.LineHeight when value.UntypedValue is float lineHeight:
+                return TextBlockGenerated.TrySetLineHeight(ref state, lineHeight);
+            case UiPropertyKey.FontWeight when value.UntypedValue is Delta.XAML.UiFontWeight weight:
+                return TextBlockGenerated.TrySetFontWeight(ref state, weight);
+            case UiPropertyKey.FontStyle when value.UntypedValue is Delta.XAML.UiFontStyle style:
+                return TextBlockGenerated.TrySetFontStyle(ref state, style);
+            case UiPropertyKey.TextDecorations when value.UntypedValue is Delta.XAML.UiTextDecorations decorations:
+                return TextBlockGenerated.TrySetTextDecorations(ref state, decorations);
             case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground or
-                UiPropertyKey.OutlineColor or UiPropertyKey.OutlineWidth or UiPropertyKey.TextEffect:
+                UiPropertyKey.OutlineColor or UiPropertyKey.OutlineWidth or UiPropertyKey.TextEffect or
+                UiPropertyKey.HorizontalTextAlignment or UiPropertyKey.VerticalTextAlignment or UiPropertyKey.TextWrapping or
+                UiPropertyKey.TextTrimming or UiPropertyKey.MaxLines or UiPropertyKey.LineHeight or UiPropertyKey.FontWeight or
+                UiPropertyKey.FontStyle or UiPropertyKey.TextDecorations:
                 return false;
             default:
                 return true;
@@ -381,7 +409,8 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.Value or UiPropertyKey.Minimum or UiPropertyKey.Maximum:
                 return false;
             default:
-                return TrySetTextProperty(ref numeric.TextState, key, value);
+                return TrySetTextProperty(ref numeric.TextState, key, value) &&
+                    TextBoxGenerated.TrySetProperty(ref numeric.EditorState, key, value);
         }
     }
 
@@ -608,7 +637,7 @@ internal static class UiDescriptorCatalog
 
         if (type.Value == 9 && element is TextBox editor)
         {
-            if (editor.IsComposing)
+            if (editor.IsComposing || (editor.Text.Length == 0 && editor.PlaceholderText.Length != 0))
             {
                 var displayState = editor.TextState;
                 displayState.Text = editor.VisualText;
@@ -622,7 +651,7 @@ internal static class UiDescriptorCatalog
 
         if (type.Value == 10 && element is NumericEditor numeric)
         {
-            if (numeric.IsComposing)
+            if (numeric.IsComposing || (numeric.Text.Length == 0 && numeric.PlaceholderText.Length != 0))
             {
                 var displayState = numeric.TextState;
                 displayState.Text = numeric.VisualText;
@@ -943,6 +972,98 @@ internal static class TextBlockGenerated
     {
         if (state.Visual.TextEffectResource == value.Value) { return false; }
         state.Visual.TextEffectResource = value.Value;
+        return true;
+    }
+
+    internal static bool TrySetHorizontalTextAlignment(ref TextBlockState state, Delta.XAML.UiTextHorizontalAlignment value)
+    {
+        if (value is Delta.XAML.UiTextHorizontalAlignment.Unknown)
+        {
+            return false;
+        }
+
+        if (state.Layout.HorizontalAlignment == value) { return true; }
+        state.Layout.HorizontalAlignment = value;
+        return true;
+    }
+
+    internal static bool TrySetVerticalTextAlignment(ref TextBlockState state, Delta.XAML.UiTextVerticalAlignment value)
+    {
+        if (value is Delta.XAML.UiTextVerticalAlignment.Unknown)
+        {
+            return false;
+        }
+
+        if (state.Layout.VerticalAlignment == value) { return true; }
+        state.Layout.VerticalAlignment = value;
+        return true;
+    }
+
+    internal static bool TrySetTextWrapping(ref TextBlockState state, Delta.XAML.UiTextWrapping value)
+    {
+        if (value is Delta.XAML.UiTextWrapping.Unknown)
+        {
+            return false;
+        }
+
+        if (state.Layout.Wrapping == value) { return true; }
+        state.Layout.Wrapping = value;
+        return true;
+    }
+
+    internal static bool TrySetTextTrimming(ref TextBlockState state, Delta.XAML.UiTextTrimming value)
+    {
+        if (value is Delta.XAML.UiTextTrimming.Unknown)
+        {
+            return false;
+        }
+
+        if (state.Layout.Trimming == value) { return true; }
+        state.Layout.Trimming = value;
+        return true;
+    }
+
+    internal static bool TrySetMaxLines(ref TextBlockState state, int value)
+    {
+        if (value < 0) { return false; }
+        if (state.Layout.MaxLines == value) { return true; }
+        state.Layout.MaxLines = value;
+        return true;
+    }
+
+    internal static bool TrySetLineHeight(ref TextBlockState state, float value)
+    {
+        if (!float.IsFinite(value) || value < 0) { return false; }
+        if (state.Layout.LineHeight.Equals(value)) { return true; }
+        state.Layout.LineHeight = value;
+        return true;
+    }
+
+    internal static bool TrySetFontWeight(ref TextBlockState state, Delta.XAML.UiFontWeight value)
+    {
+        if (value is Delta.XAML.UiFontWeight.Unknown) { return false; }
+        if (state.Visual.Weight == value) { return true; }
+        state.Visual.Weight = value;
+        return true;
+    }
+
+    internal static bool TrySetFontStyle(ref TextBlockState state, Delta.XAML.UiFontStyle value)
+    {
+        if (value is Delta.XAML.UiFontStyle.Unknown) { return false; }
+        if (state.Visual.Style == value) { return true; }
+        state.Visual.Style = value;
+        return true;
+    }
+
+    internal static bool TrySetTextDecorations(ref TextBlockState state, Delta.XAML.UiTextDecorations value)
+    {
+        if ((value & ~(Delta.XAML.UiTextDecorations.Underline | Delta.XAML.UiTextDecorations.Strikethrough)) != 0 ||
+            state.Visual.Decorations == value)
+        {
+            return (value & ~(Delta.XAML.UiTextDecorations.Underline | Delta.XAML.UiTextDecorations.Strikethrough)) == 0;
+        }
+
+        state.Visual.Decorations = value;
         return true;
     }
 }

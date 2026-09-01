@@ -212,10 +212,25 @@ internal class TextBlock : UiElement
         _state.Visual.GlyphRunKey = "default";
         _state.Visual.FontSize = 14;
         _state.Visual.Foreground = new(255, 255, 255);
+        _state.Layout.HorizontalAlignment = Delta.XAML.UiTextHorizontalAlignment.Left;
+        _state.Layout.VerticalAlignment = Delta.XAML.UiTextVerticalAlignment.Top;
+        _state.Layout.Wrapping = Delta.XAML.UiTextWrapping.NoWrap;
+        _state.Layout.Trimming = Delta.XAML.UiTextTrimming.None;
+        _state.Visual.Weight = Delta.XAML.UiFontWeight.Normal;
+        _state.Visual.Style = Delta.XAML.UiFontStyle.Normal;
         SetDefaultProperty("Text", _state.Text, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
         SetDefaultProperty("FontKey", _state.Visual.FontKey, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
         SetDefaultProperty("FontSize", _state.Visual.FontSize, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
         SetDefaultProperty("Foreground", _state.Visual.Foreground, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        SetDefaultProperty("HorizontalTextAlignment", _state.Layout.HorizontalAlignment, UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        SetDefaultProperty("VerticalTextAlignment", _state.Layout.VerticalAlignment, UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        SetDefaultProperty("TextWrapping", _state.Layout.Wrapping, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        SetDefaultProperty("TextTrimming", _state.Layout.Trimming, UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        SetDefaultProperty("MaxLines", _state.Layout.MaxLines, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        SetDefaultProperty("LineHeight", _state.Layout.LineHeight, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        SetDefaultProperty("FontWeight", _state.Visual.Weight, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        SetDefaultProperty("FontStyle", _state.Visual.Style, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text);
+        SetDefaultProperty("TextDecorations", _state.Visual.Decorations, UiDirtyFlags.Visual | UiDirtyFlags.Text);
     }
 
     public string Text { get => _state.Text; set { ArgumentNullException.ThrowIfNull(value); SetLocalProperty("Text", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
@@ -239,6 +254,15 @@ internal class TextBlock : UiElement
         get => new(_state.Visual.TextEffectResource);
         set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
     }
+    public Delta.XAML.UiTextHorizontalAlignment HorizontalTextAlignment { get => _state.Layout.HorizontalAlignment; set => SetLocalProperty("HorizontalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextVerticalAlignment VerticalTextAlignment { get => _state.Layout.VerticalAlignment; set => SetLocalProperty("VerticalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextWrapping TextWrapping { get => _state.Layout.Wrapping; set => SetLocalProperty("TextWrapping", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextTrimming TextTrimming { get => _state.Layout.Trimming; set => SetLocalProperty("TextTrimming", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public int MaxLines { get => _state.Layout.MaxLines; set => SetLocalProperty("MaxLines", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public float LineHeight { get => _state.Layout.LineHeight; set => SetLocalProperty("LineHeight", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiFontWeight FontWeight { get => _state.Visual.Weight; set => SetLocalProperty("FontWeight", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiFontStyle FontStyle { get => _state.Visual.Style; set => SetLocalProperty("FontStyle", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiTextDecorations TextDecorations { get => _state.Visual.Decorations; set => SetLocalProperty("TextDecorations", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
 
 }
 
@@ -287,11 +311,25 @@ internal class TextBox : UiElement, ITextEditorStateOwner
         get => new(_textState.Visual.TextEffectResource);
         set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
     }
+    public Delta.XAML.UiTextHorizontalAlignment HorizontalTextAlignment { get => _textState.Layout.HorizontalAlignment; set => SetLocalProperty("HorizontalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextVerticalAlignment VerticalTextAlignment { get => _textState.Layout.VerticalAlignment; set => SetLocalProperty("VerticalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextWrapping TextWrapping { get => _textState.Layout.Wrapping; set => SetLocalProperty("TextWrapping", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextTrimming TextTrimming { get => _textState.Layout.Trimming; set => SetLocalProperty("TextTrimming", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public int MaxLines { get => _textState.Layout.MaxLines; set => SetLocalProperty("MaxLines", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public float LineHeight { get => _textState.Layout.LineHeight; set => SetLocalProperty("LineHeight", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiFontWeight FontWeight { get => _textState.Visual.Weight; set => SetLocalProperty("FontWeight", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiFontStyle FontStyle { get => _textState.Visual.Style; set => SetLocalProperty("FontStyle", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiTextDecorations TextDecorations { get => _textState.Visual.Decorations; set => SetLocalProperty("TextDecorations", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public string PlaceholderText { get => _state.PlaceholderText; set => SetLocalProperty("PlaceholderText", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public bool IsReadOnly { get => _state.IsReadOnly; set => SetLocalProperty("IsReadOnly", value, UiDirtyFlags.Visual); }
+    public bool AcceptsReturn { get => _state.AcceptsReturn; set => SetLocalProperty("AcceptsReturn", value, UiDirtyFlags.Visual); }
+    public int MaxLength { get => _state.MaxLength; set => SetLocalProperty("MaxLength", value, UiDirtyFlags.Visual); }
     public int CaretIndex => _state.CaretIndex;
     public int SelectionStart => _state.SelectionStart;
     public int SelectionLength => _state.SelectionLength;
+    public int SelectionEnd => _state.SelectionStart + _state.SelectionLength;
     public string? Diagnostic => _diagnostic;
-    internal string VisualText => _state.CompositionDisplayText ?? Text;
+    internal string VisualText => _state.CompositionDisplayText ?? (Text.Length == 0 ? PlaceholderText : Text);
     internal bool IsComposing => _state.CompositionDisplayText is not null;
     internal string? CompositionText => _state.CompositionText;
     internal int CompositionSelectionStart => _state.CompositionSelectionStart;
@@ -304,6 +342,7 @@ internal class TextBox : UiElement, ITextEditorStateOwner
     public bool ApplyComposition(in UiCompositionEvent input) => TextEditorBehaviorMixin.ApplyComposition(this, in input);
     public bool ApplyKey(in UiKeyEvent input) => TextEditorBehaviorMixin.ApplyKey(this, in input);
     public void SelectAll() => TextEditorBehaviorMixin.SelectAll(this);
+    public void SetSelection(int start, int length) => TextEditorBehaviorMixin.SetSelection(this, start, length);
     public void Copy() => TextEditorBehaviorMixin.Copy(this);
     public void Cut() => TextEditorBehaviorMixin.Cut(this);
     public bool Paste() => TextEditorBehaviorMixin.Paste(this);
@@ -362,11 +401,25 @@ internal sealed class NumericEditor : UiElement, ITextEditorStateOwner
         get => new(_textState.Visual.TextEffectResource);
         set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
     }
+    public Delta.XAML.UiTextHorizontalAlignment HorizontalTextAlignment { get => _textState.Layout.HorizontalAlignment; set => SetLocalProperty("HorizontalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextVerticalAlignment VerticalTextAlignment { get => _textState.Layout.VerticalAlignment; set => SetLocalProperty("VerticalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextWrapping TextWrapping { get => _textState.Layout.Wrapping; set => SetLocalProperty("TextWrapping", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiTextTrimming TextTrimming { get => _textState.Layout.Trimming; set => SetLocalProperty("TextTrimming", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public int MaxLines { get => _textState.Layout.MaxLines; set => SetLocalProperty("MaxLines", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public float LineHeight { get => _textState.Layout.LineHeight; set => SetLocalProperty("LineHeight", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
+    public Delta.XAML.UiFontWeight FontWeight { get => _textState.Visual.Weight; set => SetLocalProperty("FontWeight", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiFontStyle FontStyle { get => _textState.Visual.Style; set => SetLocalProperty("FontStyle", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiTextDecorations TextDecorations { get => _textState.Visual.Decorations; set => SetLocalProperty("TextDecorations", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public string PlaceholderText { get => _editorState.PlaceholderText; set => SetLocalProperty("PlaceholderText", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public bool IsReadOnly { get => _editorState.IsReadOnly; set => SetLocalProperty("IsReadOnly", value, UiDirtyFlags.Visual); }
+    public bool AcceptsReturn { get => _editorState.AcceptsReturn; set => SetLocalProperty("AcceptsReturn", value, UiDirtyFlags.Visual); }
+    public int MaxLength { get => _editorState.MaxLength; set => SetLocalProperty("MaxLength", value, UiDirtyFlags.Visual); }
     public int CaretIndex => _editorState.CaretIndex;
     public int SelectionStart => _editorState.SelectionStart;
     public int SelectionLength => _editorState.SelectionLength;
+    public int SelectionEnd => _editorState.SelectionStart + _editorState.SelectionLength;
     public string? Diagnostic => _diagnostic;
-    internal string VisualText => _editorState.CompositionDisplayText ?? Text;
+    internal string VisualText => _editorState.CompositionDisplayText ?? (Text.Length == 0 ? PlaceholderText : Text);
     internal bool IsComposing => _editorState.CompositionDisplayText is not null;
     internal string? CompositionText => _editorState.CompositionText;
     internal int CompositionSelectionStart => _editorState.CompositionSelectionStart;
@@ -383,6 +436,7 @@ internal sealed class NumericEditor : UiElement, ITextEditorStateOwner
     public bool ApplyText(in UiTextInput input) => TextEditorBehaviorMixin.ApplyText(this, in input);
     public bool ApplyComposition(in UiCompositionEvent input) => TextEditorBehaviorMixin.ApplyComposition(this, in input);
     public void SelectAll() => TextEditorBehaviorMixin.SelectAll(this);
+    public void SetSelection(int start, int length) => TextEditorBehaviorMixin.SetSelection(this, start, length);
     public void Copy() => TextEditorBehaviorMixin.Copy(this);
     public void Cut() => TextEditorBehaviorMixin.Cut(this);
     public bool Paste() => TextEditorBehaviorMixin.Paste(this);

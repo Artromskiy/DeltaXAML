@@ -377,7 +377,8 @@ internal readonly record struct XamlTextSpanPlan(
     string Color,
     Guid Command,
     string? Argument,
-    SourceRange Range);
+    SourceRange Range,
+    UiTextDecorations Decorations = UiTextDecorations.None);
 
 internal sealed record XamlResourcePlan(
     UiResourceId Id,
@@ -686,12 +687,26 @@ internal sealed class XamlSemanticRegistry
             Property("Text", "20000000-0000-4000-8000-000000000001", XamlValueKind.String),
             Property("FontKey", "20000000-0000-4000-8000-000000000002", XamlValueKind.String),
             Property("FontSize", "20000000-0000-4000-8000-000000000003", XamlValueKind.Single),
-            Property("Foreground", "20000000-0000-4000-8000-000000000004", XamlValueKind.Color)));
+            Property("Foreground", "20000000-0000-4000-8000-000000000004", XamlValueKind.Color),
+            Property("HorizontalTextAlignment", "20000000-0000-4000-8000-000000000008", XamlValueKind.Enum),
+            Property("VerticalTextAlignment", "20000000-0000-4000-8000-000000000009", XamlValueKind.Enum),
+            Property("TextWrapping", "20000000-0000-4000-8000-00000000000A", XamlValueKind.Enum),
+            Property("TextTrimming", "20000000-0000-4000-8000-00000000000B", XamlValueKind.Enum),
+            Property("MaxLines", "20000000-0000-4000-8000-00000000000C", XamlValueKind.Integer),
+            Property("LineHeight", "20000000-0000-4000-8000-00000000000D", XamlValueKind.Single),
+            Property("FontWeight", "20000000-0000-4000-8000-00000000000E", XamlValueKind.Enum),
+            Property("FontStyle", "20000000-0000-4000-8000-00000000000F", XamlValueKind.Enum),
+            Property("TextDecorations", "20000000-0000-4000-8000-000000000010", XamlValueKind.Enum)));
         Register(registry, "TextBlock", "22222222-2222-2222-2222-22222222220A", XamlContentKind.None, text);
-        Register(registry, "TextBox", "22222222-2222-2222-2222-22222222220B", XamlContentKind.None, text);
+        var textBox = text.AddRange(ImmutableArray.Create(
+            Property("PlaceholderText", "21000000-0000-4000-8000-000000000001", XamlValueKind.String),
+            Property("IsReadOnly", "21000000-0000-4000-8000-000000000002", XamlValueKind.Boolean),
+            Property("AcceptsReturn", "21000000-0000-4000-8000-000000000003", XamlValueKind.Boolean),
+            Property("MaxLength", "21000000-0000-4000-8000-000000000004", XamlValueKind.Integer)));
+        Register(registry, "TextBox", "22222222-2222-2222-2222-22222222220B", XamlContentKind.None, textBox);
 
         Register(registry, "NumericEditor", "22222222-2222-2222-2222-22222222220C", XamlContentKind.None,
-            text.AddRange(ImmutableArray.Create(
+            textBox.AddRange(ImmutableArray.Create(
                 Property("Value", "30000000-0000-4000-8000-000000000001", XamlValueKind.Double),
                 Property("Minimum", "30000000-0000-4000-8000-000000000002", XamlValueKind.Double),
                 Property("Maximum", "30000000-0000-4000-8000-000000000003", XamlValueKind.Double))));

@@ -14,6 +14,33 @@ internal static class TextBoxGenerated
 
     internal static UiTextEditAction ProcessKey(ref TextBoxState state, in UiKeyEvent input, int textLength) =>
         TextBoxEditingMixin.ProcessKey(ref state, in input, textLength);
+
+    internal static bool TrySetProperty(ref TextBoxState state, UiPropertyKey key, UiValue value)
+    {
+        switch (key)
+        {
+            case UiPropertyKey.PlaceholderText when value.UntypedValue is string placeholder:
+                if (state.PlaceholderText == placeholder) { return true; }
+                state.PlaceholderText = placeholder;
+                return true;
+            case UiPropertyKey.IsReadOnly when value.UntypedValue is bool isReadOnly:
+                if (state.IsReadOnly == isReadOnly) { return true; }
+                state.IsReadOnly = isReadOnly;
+                return true;
+            case UiPropertyKey.AcceptsReturn when value.UntypedValue is bool acceptsReturn:
+                if (state.AcceptsReturn == acceptsReturn) { return true; }
+                state.AcceptsReturn = acceptsReturn;
+                return true;
+            case UiPropertyKey.MaxLength when value.UntypedValue is int maxLength && maxLength >= 0:
+                if (state.MaxLength == maxLength) { return true; }
+                state.MaxLength = maxLength;
+                return true;
+            case UiPropertyKey.PlaceholderText or UiPropertyKey.IsReadOnly or UiPropertyKey.AcceptsReturn or UiPropertyKey.MaxLength:
+                return false;
+            default:
+                return true;
+        }
+    }
 }
 
 internal static class UiNumericEditorGenerated

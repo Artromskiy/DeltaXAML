@@ -1,10 +1,15 @@
 using DeltaXAML.Internal;
 using Delta.XAML.Contract;
+using Library = Delta.XAML;
 
 internal static class TextBlockArchitectureTests
 {
     public static void Run()
     {
+        TextLayoutPropertiesUseTypedState();
+        XamlLoaderReadsTextProperties();
+        TextEditorConstraintsAreEnforced();
+
         var state = new TextBlockState
         {
             Text = "Hello",
@@ -54,5 +59,116 @@ internal static class TextBlockArchitectureTests
                 out var retainedRun),
             "retained TextBlock uses the typed visual thunk");
         Assert.Equal(retained.Bounds, retainedRun.Bounds, "typed visual state carries arranged bounds");
+    }
+
+    private static void TextLayoutPropertiesUseTypedState()
+    {
+        var state = new TextBlockState
+        {
+            Text = new string('x', 40),
+            Visual = new TextBlockVisualState
+            {
+                FontKey = "default",
+                GlyphRunKey = "long-text",
+                FontSize = 14,
+                Foreground = new UiColor(255, 255, 255),
+            },
+        };
+
+        Assert.True(TextBlockGenerated.TrySetHorizontalTextAlignment(ref state, Library.UiTextHorizontalAlignment.Center), "typed horizontal alignment setter");
+        Assert.True(TextBlockGenerated.TrySetVerticalTextAlignment(ref state, Library.UiTextVerticalAlignment.Center), "typed vertical alignment setter");
+        Assert.True(TextBlockGenerated.TrySetTextWrapping(ref state, Library.UiTextWrapping.Word), "typed wrapping setter");
+        Assert.True(TextBlockGenerated.TrySetTextTrimming(ref state, Library.UiTextTrimming.CharacterEllipsis), "typed trimming setter");
+        Assert.True(TextBlockGenerated.TrySetMaxLines(ref state, 2), "typed max-lines setter");
+        Assert.True(TextBlockGenerated.TrySetLineHeight(ref state, 20), "typed line-height setter");
+        Assert.True(TextBlockGenerated.TrySetFontWeight(ref state, Library.UiFontWeight.SemiBold), "typed weight setter");
+        Assert.True(TextBlockGenerated.TrySetFontStyle(ref state, Library.UiFontStyle.Italic), "typed style setter");
+        Assert.True(TextBlockGenerated.TrySetTextDecorations(ref state, Library.UiTextDecorations.Underline), "typed decorations setter");
+        Assert.True(!TextBlockGenerated.TrySetMaxLines(ref state, -1), "negative max-lines is rejected");
+
+        TextBlockGenerated.Measure(ref state, new(new(100, 80), 1));
+        Assert.Equal(100f, state.Layout.DesiredSize.Width, "wrapped text is constrained by available width");
+        Assert.Equal(40f, state.Layout.DesiredSize.Height, "max-lines and line-height determine desired height");
+        TextBlockGenerated.Arrange(ref state, new(new(10, 20, 100, 100), new(10, 20, 100, 100)));
+        Assert.Equal(new UiRect(10, 50, 100, 40), state.Layout.TextBounds, "aligned text bounds stay inside the arranged element");
+
+        var run = TextBlockGenerated.EmitVisual(ref state, new(new(8), 4, 1, 12));
+        Assert.Equal(state.Layout.TextBounds, run.TextBounds, "text run carries aligned text bounds");
+        Assert.Equal(Library.UiTextHorizontalAlignment.Center, run.HorizontalAlignment, "text run carries horizontal alignment");
+        Assert.Equal(Library.UiTextVerticalAlignment.Center, run.VerticalAlignment, "text run carries vertical alignment");
+        Assert.Equal(Library.UiTextWrapping.Word, run.Wrapping, "text run carries wrapping mode");
+        Assert.Equal(Library.UiTextTrimming.CharacterEllipsis, run.Trimming, "text run carries trimming mode");
+        Assert.Equal(2, run.MaxLines, "text run carries max-lines");
+        Assert.Equal(20f, run.LineHeight, "text run carries line-height");
+        Assert.Equal(Library.UiFontWeight.SemiBold, run.Weight, "text run carries font weight");
+        Assert.Equal(Library.UiFontStyle.Italic, run.Style, "text run carries font style");
+        Assert.Equal(Library.UiTextDecorations.Underline, run.Decorations, "text run carries decorations");
+    }
+
+    private static void XamlLoaderReadsTextProperties()
+    {
+        var result = new Library.XamlLoader().Load(
+            "<TextBlock Text=\"Hello\" HorizontalTextAlignment=\"Center\" VerticalTextAlignment=\"Bottom\" TextWrapping=\"Word\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"2\" LineHeight=\"18\" FontWeight=\"Bold\" FontStyle=\"Italic\" TextDecorations=\"Underline, Strikethrough\" />",
+            new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), new Library.UiResourceCatalog()));
+
+        Assert.True(result.Success, "XAML loader accepts the text layout dialect");
+        if (result.Root is not Library.TextBlock text)
+        {
+            throw new InvalidOperationException("XAML loader did not create a TextBlock.");
+        }
+
+        Assert.Equal("Hello", text.Text, "XAML loader applies text");
+        Assert.Equal(Library.UiTextHorizontalAlignment.Center, text.HorizontalTextAlignment, "XAML loader applies horizontal alignment");
+        Assert.Equal(Library.UiTextVerticalAlignment.Bottom, text.VerticalTextAlignment, "XAML loader applies vertical alignment");
+        Assert.Equal(Library.UiTextWrapping.Word, text.TextWrapping, "XAML loader applies wrapping");
+        Assert.Equal(Library.UiTextTrimming.CharacterEllipsis, text.TextTrimming, "XAML loader applies trimming");
+        Assert.Equal(2, text.MaxLines, "XAML loader applies max-lines");
+        Assert.Equal(18f, text.LineHeight, "XAML loader applies line-height");
+        Assert.Equal(Library.UiFontWeight.Bold, text.FontWeight, "XAML loader applies weight");
+        Assert.Equal(Library.UiFontStyle.Italic, text.FontStyle, "XAML loader applies style");
+        Assert.Equal(Library.UiTextDecorations.Underline | Library.UiTextDecorations.Strikethrough, text.TextDecorations, "XAML loader applies decorations");
+    }
+
+    private static void TextEditorConstraintsAreEnforced()
+    {
+        var editor = TextBoxGenerated.Create();
+        editor.MaxLength = 3;
+        editor.SetText("abcd", false);
+        Assert.Equal("abc", editor.Text, "TextBox clamps programmatic text to MaxLength");
+        editor.SetSelection(0, editor.Text.Length);
+        var replacement = new UiTextInput("xy".AsMemory());
+        Assert.True(editor.ApplyText(in replacement), "TextBox accepts an in-limit replacement");
+        Assert.Equal("xy", editor.Text, "TextBox replaces selected text");
+        editor.PlaceholderText = "Enter value";
+        Assert.Equal("xy", editor.VisualText, "non-empty TextBox displays its value instead of placeholder");
+        editor.SetText(string.Empty, false);
+        Assert.Equal("Enter value", editor.VisualText, "empty TextBox exposes placeholder text to visual extraction");
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                TextBoxGenerated.Descriptor.Index,
+                editor,
+                new(editor.Id, editor.Generation, editor.LayoutScale, editor.TextRunVersion),
+                out var placeholderRun),
+            "empty TextBox emits a placeholder text run");
+        Assert.Equal("Enter value", placeholderRun.Text, "placeholder reaches the renderer-neutral text run");
+        editor.SetText("xy", false);
+
+        editor.SetSelection(0, 0);
+        var tooLong = new UiTextInput("1234".AsMemory());
+        Assert.True(!editor.ApplyText(in tooLong), "TextBox reports a rejected MaxLength edit");
+        Assert.Equal("xy", editor.Text, "rejected MaxLength edit preserves text");
+
+        editor.IsReadOnly = true;
+        var readOnlyInput = new UiTextInput("z".AsMemory());
+        Assert.True(!editor.ApplyText(in readOnlyInput), "read-only TextBox rejects text input");
+        Assert.Equal("xy", editor.Text, "read-only edit preserves text");
+
+        editor.IsReadOnly = false;
+        editor.MaxLength = 0;
+        var lineBreak = new UiTextInput("a\nb".AsMemory());
+        Assert.True(!editor.ApplyText(in lineBreak), "single-line TextBox rejects line breaks");
+        editor.AcceptsReturn = true;
+        Assert.True(editor.ApplyText(in lineBreak), "multiline TextBox accepts line breaks");
+        Assert.Equal("a\nbxy", editor.Text, "multiline TextBox stores line breaks");
     }
 }

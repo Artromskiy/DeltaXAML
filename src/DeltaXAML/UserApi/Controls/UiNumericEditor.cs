@@ -30,6 +30,40 @@ public sealed class UiNumericEditor : UiElement
 
     public UiResourceId TextEffect { get => new(StateOwner.TextEffectResource); set => StateOwner.TextEffect = value; }
 
+    public UiTextHorizontalAlignment HorizontalTextAlignment { get => StateOwner.HorizontalTextAlignment; set => StateOwner.HorizontalTextAlignment = value; }
+
+    public UiTextVerticalAlignment VerticalTextAlignment { get => StateOwner.VerticalTextAlignment; set => StateOwner.VerticalTextAlignment = value; }
+
+    public UiTextWrapping TextWrapping { get => StateOwner.TextWrapping; set => StateOwner.TextWrapping = value; }
+
+    public UiTextTrimming TextTrimming { get => StateOwner.TextTrimming; set => StateOwner.TextTrimming = value; }
+
+    public int MaxLines { get => StateOwner.MaxLines; set => StateOwner.MaxLines = value; }
+
+    public float LineHeight { get => StateOwner.LineHeight; set => StateOwner.LineHeight = value; }
+
+    public UiFontWeight FontWeight { get => StateOwner.FontWeight; set => StateOwner.FontWeight = value; }
+
+    public UiFontStyle FontStyle { get => StateOwner.FontStyle; set => StateOwner.FontStyle = value; }
+
+    public UiTextDecorations TextDecorations { get => StateOwner.TextDecorations; set => StateOwner.TextDecorations = value; }
+
+    public string PlaceholderText { get => StateOwner.PlaceholderText; set => StateOwner.PlaceholderText = value; }
+
+    public bool IsReadOnly { get => StateOwner.IsReadOnly; set => StateOwner.IsReadOnly = value; }
+
+    public bool AcceptsReturn { get => StateOwner.AcceptsReturn; set => StateOwner.AcceptsReturn = value; }
+
+    public int MaxLength { get => StateOwner.MaxLength; set => StateOwner.MaxLength = value; }
+
+    public int CaretIndex => StateOwner.CaretIndex;
+
+    public int SelectionStart => StateOwner.SelectionStart;
+
+    public int SelectionLength => StateOwner.SelectionLength;
+
+    public int SelectionEnd => StateOwner.SelectionEnd;
+
     public IUiClipboard? Clipboard
     {
         get => GetClipboard(StateOwner);
@@ -51,6 +85,8 @@ public sealed class UiNumericEditor : UiElement
     public void SetText(string text) => StateOwner.SetText(text);
 
     public void SelectAll() => StateOwner.SelectAll();
+
+    public void SetSelection(int start, int length) => StateOwner.SetSelection(start, length);
 
     public void Copy() => StateOwner.Copy();
 

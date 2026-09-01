@@ -10,4 +10,8 @@ internal struct TextBoxState
     public int CompositionSelectionLength;
     public string? CompositionText;
     public string? CompositionDisplayText;
+    public string PlaceholderText;
+    public bool IsReadOnly;
+    public bool AcceptsReturn;
+    public int MaxLength;
 }

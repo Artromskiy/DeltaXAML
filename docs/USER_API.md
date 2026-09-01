@@ -152,6 +152,22 @@ Default < Style/Trigger < Binding < Local < Handle < Animation
 Property metadata determines whether a change affects measure, arrange,
 visual extraction or hit testing.
 
+Text controls expose a compact layout and editing surface. `TextBlock` and the
+text side of `TextBox`/`UiNumericEditor` support `HorizontalTextAlignment`,
+`VerticalTextAlignment`, `TextWrapping`, `TextTrimming`, `MaxLines`,
+`LineHeight`, `FontWeight`, `FontStyle` and `TextDecorations`. The controls
+also expose `TextBoxProperties.PlaceholderText`, `IsReadOnly`,
+`AcceptsReturn` and `MaxLength`, plus caret and selection accessors. Empty
+editors publish their placeholder through the same renderer-neutral text-run
+path; programmatic `SetText` remains available for host-controlled updates.
+
+These values are retained in typed state and applied while DeltaXAML measures
+and requests shaping. The frozen `UiTextDraw` carries the resulting shaped
+text and paint, but does not expose each layout/style property as a separate
+field; a renderer must not try to reconstruct wrapping, trimming or font
+selection from the draw record. DeltaXAML does not rasterize glyphs, and
+renderer effect support remains outside this library.
+
 Common elements expose renderer-neutral paint values through `BorderColor`,
 `BorderWidth` and four-corner `CornerRadius` values ordered top-left, top-right,
 bottom-right, bottom-left. A scalar XAML value is expanded uniformly. A radius

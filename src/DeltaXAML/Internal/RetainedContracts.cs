@@ -30,6 +30,19 @@ internal enum UiPropertyKey
     OutlineColor,
     OutlineWidth,
     TextEffect,
+    HorizontalTextAlignment,
+    VerticalTextAlignment,
+    TextWrapping,
+    TextTrimming,
+    MaxLines,
+    LineHeight,
+    FontWeight,
+    FontStyle,
+    TextDecorations,
+    PlaceholderText,
+    IsReadOnly,
+    AcceptsReturn,
+    MaxLength,
     Orientation,
     Columns,
     Rows,
@@ -74,6 +87,19 @@ internal static class UiPropertyKeys
         "OutlineColor" => UiPropertyKey.OutlineColor,
         "OutlineWidth" => UiPropertyKey.OutlineWidth,
         "TextEffect" => UiPropertyKey.TextEffect,
+        "HorizontalTextAlignment" => UiPropertyKey.HorizontalTextAlignment,
+        "VerticalTextAlignment" => UiPropertyKey.VerticalTextAlignment,
+        "TextWrapping" => UiPropertyKey.TextWrapping,
+        "TextTrimming" => UiPropertyKey.TextTrimming,
+        "MaxLines" => UiPropertyKey.MaxLines,
+        "LineHeight" => UiPropertyKey.LineHeight,
+        "FontWeight" => UiPropertyKey.FontWeight,
+        "FontStyle" => UiPropertyKey.FontStyle,
+        "TextDecorations" => UiPropertyKey.TextDecorations,
+        "PlaceholderText" => UiPropertyKey.PlaceholderText,
+        "IsReadOnly" => UiPropertyKey.IsReadOnly,
+        "AcceptsReturn" => UiPropertyKey.AcceptsReturn,
+        "MaxLength" => UiPropertyKey.MaxLength,
         "Orientation" => UiPropertyKey.Orientation,
         "Columns" => UiPropertyKey.Columns,
         "Rows" => UiPropertyKey.Rows,
@@ -113,12 +139,22 @@ internal static class UiPropertyKeys
 
         return name switch
         {
-            "Width" or "Height" or "FontSize" => typeof(float),
+            "Width" or "Height" or "FontSize" or "LineHeight" => typeof(float),
+            "MaxLines" or "MaxLength" => typeof(int),
             "Fill" or "IsEnabled" or "IsSelected" => typeof(bool),
+            "IsReadOnly" or "AcceptsReturn" => typeof(bool),
             "Background" or "BorderColor" or "Foreground" or "OutlineColor" => typeof(UiColor),
             "BorderWidth" or "OutlineWidth" => typeof(float),
             "CornerRadius" => typeof(Delta.XAML.UiCornerRadii),
             "TextEffect" => typeof(UiResourceId),
+            "HorizontalTextAlignment" => typeof(Delta.XAML.UiTextHorizontalAlignment),
+            "VerticalTextAlignment" => typeof(Delta.XAML.UiTextVerticalAlignment),
+            "TextWrapping" => typeof(Delta.XAML.UiTextWrapping),
+            "TextTrimming" => typeof(Delta.XAML.UiTextTrimming),
+            "FontWeight" => typeof(Delta.XAML.UiFontWeight),
+            "FontStyle" => typeof(Delta.XAML.UiFontStyle),
+            "TextDecorations" => typeof(Delta.XAML.UiTextDecorations),
+            "PlaceholderText" => typeof(string),
             "BackgroundBrush" => typeof(Delta.XAML.UiBrush),
             "AutomationName" => typeof(string),
             "AutomationRole" => typeof(Delta.XAML.UiSemanticRole),
@@ -178,7 +214,33 @@ internal readonly record struct UiStateSnapshot(UiVisualState State, bool IsEnab
 internal readonly record struct UiClipId(uint Value);
 /// <summary>Renderer-neutral text request; it is not shaped glyph data.</summary>
 /// <remarks>DeltaXAML owns content, style, layout bounds, DPI-dependent text metrics and identity. Owner plus OwnerGeneration identify retained lifetime; Version identifies text/style/DPI dirtiness. Layout changes are represented by Bounds, Clip and draw-list deltas. Shaping and glyph pixels remain external.</remarks>
-internal readonly record struct UiTextRun(string FontKey, float FontSize, string Text, string GlyphRunKey, UiColor Color, UiRect Bounds, UiRect Clip, UiElementId Owner, uint OwnerGeneration, uint Version, UiClipId ClipId = default, UiColor OutlineColor = default, float OutlineWidth = 0, Guid TextEffectResource = default);
+internal readonly record struct UiTextRun(
+    string FontKey,
+    float FontSize,
+    string Text,
+    string GlyphRunKey,
+    UiColor Color,
+    UiRect Bounds,
+    UiRect Clip,
+    UiElementId Owner,
+    uint OwnerGeneration,
+    uint Version,
+    UiClipId ClipId = default,
+    UiColor OutlineColor = default,
+    float OutlineWidth = 0,
+    Guid TextEffectResource = default)
+{
+    internal UiRect TextBounds { get; init; }
+    internal Delta.XAML.UiTextHorizontalAlignment HorizontalAlignment { get; init; }
+    internal Delta.XAML.UiTextVerticalAlignment VerticalAlignment { get; init; }
+    internal Delta.XAML.UiTextWrapping Wrapping { get; init; }
+    internal Delta.XAML.UiTextTrimming Trimming { get; init; }
+    internal int MaxLines { get; init; }
+    internal float LineHeight { get; init; }
+    internal Delta.XAML.UiFontWeight Weight { get; init; }
+    internal Delta.XAML.UiFontStyle Style { get; init; }
+    internal Delta.XAML.UiTextDecorations Decorations { get; init; }
+}
 internal readonly record struct UiMeasureContext(
     UiSize Available,
     float DpiScale,

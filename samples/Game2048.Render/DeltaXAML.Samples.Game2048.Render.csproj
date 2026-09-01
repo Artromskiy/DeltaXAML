@@ -53,12 +53,24 @@
     <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
           Link="Assets/NotoSans-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../RoundedRectangle.Render/shaders/RoundedRectangleVertex.vert.spv"
-             Link="shaders/RoundedRectangleVertex.vert.spv"
-             CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../RoundedRectangle.Render/shaders/RoundedRectangleFragment.frag.spv"
-             Link="shaders/RoundedRectangleFragment.frag.spv"
-             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareSolidRectangleVertex.vert.spv"
+             Link="shaders/ClipAwareSolidRectangleVertex.vert.spv"
+             CopyToOutputDirectory="Always" />
+    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareSolidRectangleFragment.frag.spv"
+             Link="shaders/ClipAwareSolidRectangleFragment.frag.spv"
+             CopyToOutputDirectory="Always" />
+    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareRoundedRectangleVertex.vert.spv"
+             Link="shaders/ClipAwareRoundedRectangleVertex.vert.spv"
+             CopyToOutputDirectory="Always" />
+    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareRoundedRectangleFragment.frag.spv"
+             Link="shaders/ClipAwareRoundedRectangleFragment.frag.spv"
+             CopyToOutputDirectory="Always" />
+    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareRoundedRectangleSliceVertex.vert.spv"
+             Link="shaders/ClipAwareRoundedRectangleSliceVertex.vert.spv"
+             CopyToOutputDirectory="Always" />
+    <Content Include="../../../DeltaShader/src/DeltaShader/CompiledShaders/DeltaShader.UI.ClipAwareRoundedRectangleSliceFragment.frag.spv"
+             Link="shaders/ClipAwareRoundedRectangleSliceFragment.frag.spv"
+             CopyToOutputDirectory="Always" />
     <Content Include="shaders/SdfTextVertex.vert.spv" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="shaders/SdfTextFragment.frag.spv" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"

@@ -30,4 +30,22 @@ public class TextBlock : UiElement
     public float OutlineWidth { get => TextElement.OutlineWidth; set => TextElement.OutlineWidth = value; }
 
     public UiResourceId TextEffect { get => new(TextElement.TextEffectResource); set => TextElement.TextEffect = value; }
+
+    public UiTextHorizontalAlignment HorizontalTextAlignment { get => TextElement.HorizontalTextAlignment; set => TextElement.HorizontalTextAlignment = value; }
+
+    public UiTextVerticalAlignment VerticalTextAlignment { get => TextElement.VerticalTextAlignment; set => TextElement.VerticalTextAlignment = value; }
+
+    public UiTextWrapping TextWrapping { get => TextElement.TextWrapping; set => TextElement.TextWrapping = value; }
+
+    public UiTextTrimming TextTrimming { get => TextElement.TextTrimming; set => TextElement.TextTrimming = value; }
+
+    public int MaxLines { get => TextElement.MaxLines; set => TextElement.MaxLines = value; }
+
+    public float LineHeight { get => TextElement.LineHeight; set => TextElement.LineHeight = value; }
+
+    public UiFontWeight FontWeight { get => TextElement.FontWeight; set => TextElement.FontWeight = value; }
+
+    public UiFontStyle FontStyle { get => TextElement.FontStyle; set => TextElement.FontStyle = value; }
+
+    public UiTextDecorations TextDecorations { get => TextElement.TextDecorations; set => TextElement.TextDecorations = value; }
 }

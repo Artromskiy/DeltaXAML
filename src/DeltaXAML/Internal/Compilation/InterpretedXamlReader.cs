@@ -137,6 +137,19 @@ internal static class InterpretedXamlReader
             case "Text": e.SetLocal("Text", value, InvalidationFor("Text")); break;
             case "FontKey": e.SetLocal("FontKey", value, InvalidationFor("FontKey")); break;
             case "FontSize" when TryFloat(value, out var size): e.SetLocal("FontSize", size, InvalidationFor("FontSize")); break;
+            case "HorizontalTextAlignment" when Enum.TryParse(value, true, out Delta.XAML.UiTextHorizontalAlignment horizontal) && horizontal != Delta.XAML.UiTextHorizontalAlignment.Unknown: e.SetLocal(name, horizontal, InvalidationFor(name)); break;
+            case "VerticalTextAlignment" when Enum.TryParse(value, true, out Delta.XAML.UiTextVerticalAlignment vertical) && vertical != Delta.XAML.UiTextVerticalAlignment.Unknown: e.SetLocal(name, vertical, InvalidationFor(name)); break;
+            case "TextWrapping" when Enum.TryParse(value, true, out Delta.XAML.UiTextWrapping wrapping) && wrapping != Delta.XAML.UiTextWrapping.Unknown: e.SetLocal(name, wrapping, InvalidationFor(name)); break;
+            case "TextTrimming" when Enum.TryParse(value, true, out Delta.XAML.UiTextTrimming trimming) && trimming != Delta.XAML.UiTextTrimming.Unknown: e.SetLocal(name, trimming, InvalidationFor(name)); break;
+            case "MaxLines" when int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxLines) && maxLines >= 0: e.SetLocal(name, maxLines, InvalidationFor(name)); break;
+            case "LineHeight" when TryFloat(value, out var lineHeight) && lineHeight >= 0: e.SetLocal(name, lineHeight, InvalidationFor(name)); break;
+            case "FontWeight" when Enum.TryParse(value, true, out Delta.XAML.UiFontWeight weight) && weight != Delta.XAML.UiFontWeight.Unknown: e.SetLocal(name, weight, InvalidationFor(name)); break;
+            case "FontStyle" when Enum.TryParse(value, true, out Delta.XAML.UiFontStyle style) && style != Delta.XAML.UiFontStyle.Unknown: e.SetLocal(name, style, InvalidationFor(name)); break;
+            case "TextDecorations" when TryTextDecorations(value, out var decorations): e.SetLocal(name, decorations, InvalidationFor(name)); break;
+            case "PlaceholderText" when e is TextBox or NumericEditor: e.SetLocal(name, value, InvalidationFor(name)); break;
+            case "IsReadOnly" when e is TextBox or NumericEditor && bool.TryParse(value, out var isReadOnly): e.SetLocal(name, isReadOnly, InvalidationFor(name)); break;
+            case "AcceptsReturn" when e is TextBox or NumericEditor && bool.TryParse(value, out var acceptsReturn): e.SetLocal(name, acceptsReturn, InvalidationFor(name)); break;
+            case "MaxLength" when e is TextBox or NumericEditor && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxLength) && maxLength >= 0: e.SetLocal(name, maxLength, InvalidationFor(name)); break;
             case "Minimum" when e is NumericEditor numeric && TryFloat(value, out var minimum): numeric.Min = minimum; break;
             case "Maximum" when e is NumericEditor numeric && TryFloat(value, out var maximum): numeric.Max = maximum; break;
             case "Value" when e is NumericEditor numeric && TryFloat(value, out var numericValue): numeric.Initialize(numericValue); break;
@@ -167,7 +180,14 @@ internal static class InterpretedXamlReader
         }
 
         if (element is TextBlock or TextBox or NumericEditor &&
-            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundResource" or "OutlineColor" or "OutlineWidth" or "TextEffect")
+            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundResource" or "OutlineColor" or "OutlineWidth" or "TextEffect" or
+            "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextWrapping" or "TextTrimming" or "MaxLines" or "LineHeight" or
+            "FontWeight" or "FontStyle" or "TextDecorations")
+        {
+            return true;
+        }
+
+        if (element is TextBox or NumericEditor && name is "PlaceholderText" or "IsReadOnly" or "AcceptsReturn" or "MaxLength")
         {
             return true;
         }
@@ -188,7 +208,16 @@ internal static class InterpretedXamlReader
         "Padding" => value is UiThickness or Delta.XAML.UiThickness,
         "Width" or "Height" or "FontSize" or "Minimum" or "Maximum" or "Value" => value is
             byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
-        "Fill" or "IsEnabled" or "IsSelected" => value is bool,
+        "Fill" or "IsEnabled" or "IsSelected" or "IsReadOnly" or "AcceptsReturn" => value is bool,
+        "MaxLines" or "MaxLength" => value is int or byte or sbyte or short or ushort or uint,
+        "HorizontalTextAlignment" => value is Delta.XAML.UiTextHorizontalAlignment,
+        "VerticalTextAlignment" => value is Delta.XAML.UiTextVerticalAlignment,
+        "TextWrapping" => value is Delta.XAML.UiTextWrapping,
+        "TextTrimming" => value is Delta.XAML.UiTextTrimming,
+        "FontWeight" => value is Delta.XAML.UiFontWeight,
+        "FontStyle" => value is Delta.XAML.UiFontStyle,
+        "TextDecorations" => value is Delta.XAML.UiTextDecorations,
+        "LineHeight" => value is float or double or int,
         "Text" or "FontKey" or "StyleKey" or "TemplateKey" or "AutomationName" => value is string,
         _ => true,
     };
@@ -220,6 +249,12 @@ internal static class InterpretedXamlReader
     private static UiDirtyFlags InvalidationFor(string name) => name switch
     {
         "Text" or "FontKey" or "FontSize" => UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "FontWeight" or "FontStyle" => UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "TextDecorations" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "TextWrapping" or "MaxLines" or "LineHeight" => UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
+        "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextTrimming" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
+        "PlaceholderText" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "IsReadOnly" or "AcceptsReturn" or "MaxLength" => UiDirtyFlags.Visual,
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "BorderColor" or "BorderWidth" or "CornerRadius" => UiDirtyFlags.Visual,
         "Width" or "Height" or "Padding" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
@@ -227,6 +262,28 @@ internal static class InterpretedXamlReader
     };
     private static string NormalizeResourceKey(string value) => Guid.TryParse(value, out var resourceId) ? resourceId.ToString("D") : value;
     private static bool TryFloat(string value, out float result) => float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+    private static bool TryTextDecorations(string value, out Delta.XAML.UiTextDecorations result)
+    {
+        result = Delta.XAML.UiTextDecorations.None;
+        var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!Enum.TryParse(parts[i], true, out Delta.XAML.UiTextDecorations decoration) || decoration == Delta.XAML.UiTextDecorations.None)
+            {
+                result = default;
+                return false;
+            }
+
+            result |= decoration;
+        }
+
+        return true;
+    }
     private static bool TryCornerRadii(string value, out Delta.XAML.UiCornerRadii result)
     {
         var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

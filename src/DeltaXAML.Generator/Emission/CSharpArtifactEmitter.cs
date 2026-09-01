@@ -2103,6 +2103,17 @@ internal static class CSharpArtifactEmitter
             "CommandKey" => "global::Delta.XAML.UiKeyGesture",
             "IsFocusScope" => "global::System.Boolean",
             "Stretch" => "global::Delta.XAML.UiImageStretch",
+            "HorizontalTextAlignment" => "global::Delta.XAML.UiTextHorizontalAlignment",
+            "VerticalTextAlignment" => "global::Delta.XAML.UiTextVerticalAlignment",
+            "TextWrapping" => "global::Delta.XAML.UiTextWrapping",
+            "TextTrimming" => "global::Delta.XAML.UiTextTrimming",
+            "FontWeight" => "global::Delta.XAML.UiFontWeight",
+            "FontStyle" => "global::Delta.XAML.UiFontStyle",
+            "TextDecorations" => "global::Delta.XAML.UiTextDecorations",
+            "MaxLines" or "MaxLength" => "global::System.Int32",
+            "LineHeight" => "global::System.Single",
+            "PlaceholderText" => "global::System.String",
+            "IsReadOnly" or "AcceptsReturn" => "global::System.Boolean",
             _ => string.Empty,
         };
         if (typeName.Length != 0)
@@ -2717,7 +2728,8 @@ internal static class CSharpArtifactEmitter
                     .Append(Quote(span.Command.ToString("D"))).Append("))");
             }
 
-            writer.Append(", ").Append(span.Argument is null ? "null" : Quote(span.Argument)).AppendLine("),");
+            writer.Append(", ").Append(span.Argument is null ? "null" : Quote(span.Argument)).Append(", ")
+                .Append("global::Delta.XAML.UiTextDecorations.").Append(span.Decorations).AppendLine("),");
         }
 
         writer.AppendLine("        };");
@@ -2790,6 +2802,26 @@ internal static class CSharpArtifactEmitter
             case XamlValueKind.Enum when propertyName == "Orientation" && (literal == "Horizontal" || literal == "Vertical"):
                 expression = "global::Delta.XAML.UiOrientation." + literal;
                 return true;
+            case XamlValueKind.Enum when propertyName == "HorizontalTextAlignment" && Enum.TryParse<Delta.XAML.UiTextHorizontalAlignment>(literal, false, out var horizontalAlignment) && horizontalAlignment != Delta.XAML.UiTextHorizontalAlignment.Unknown:
+                expression = "global::Delta.XAML.UiTextHorizontalAlignment." + horizontalAlignment;
+                return true;
+            case XamlValueKind.Enum when propertyName == "VerticalTextAlignment" && Enum.TryParse<Delta.XAML.UiTextVerticalAlignment>(literal, false, out var verticalAlignment) && verticalAlignment != Delta.XAML.UiTextVerticalAlignment.Unknown:
+                expression = "global::Delta.XAML.UiTextVerticalAlignment." + verticalAlignment;
+                return true;
+            case XamlValueKind.Enum when propertyName == "TextWrapping" && Enum.TryParse<Delta.XAML.UiTextWrapping>(literal, false, out var wrapping) && wrapping != Delta.XAML.UiTextWrapping.Unknown:
+                expression = "global::Delta.XAML.UiTextWrapping." + wrapping;
+                return true;
+            case XamlValueKind.Enum when propertyName == "TextTrimming" && Enum.TryParse<Delta.XAML.UiTextTrimming>(literal, false, out var trimming) && trimming != Delta.XAML.UiTextTrimming.Unknown:
+                expression = "global::Delta.XAML.UiTextTrimming." + trimming;
+                return true;
+            case XamlValueKind.Enum when propertyName == "FontWeight" && Enum.TryParse<Delta.XAML.UiFontWeight>(literal, false, out var weight) && weight != Delta.XAML.UiFontWeight.Unknown:
+                expression = "global::Delta.XAML.UiFontWeight." + weight;
+                return true;
+            case XamlValueKind.Enum when propertyName == "FontStyle" && Enum.TryParse<Delta.XAML.UiFontStyle>(literal, false, out var style) && style != Delta.XAML.UiFontStyle.Unknown:
+                expression = "global::Delta.XAML.UiFontStyle." + style;
+                return true;
+            case XamlValueKind.Enum when propertyName == "TextDecorations" && TryTextDecorations(literal, out expression):
+                return true;
             case XamlValueKind.Enum when propertyName == "AutomationRole" &&
                 Enum.TryParse<Delta.XAML.UiSemanticRole>(literal, false, out var role):
                 expression = "global::Delta.XAML.UiSemanticRole." + role;
@@ -2831,6 +2863,19 @@ internal static class CSharpArtifactEmitter
             "FontKey" => "global::Delta.XAML.TextBlockProperties.FontKey",
             "FontSize" => "global::Delta.XAML.TextBlockProperties.FontSize",
             "Foreground" => "global::Delta.XAML.TextBlockProperties.Foreground",
+            "HorizontalTextAlignment" => "global::Delta.XAML.TextBlockProperties.HorizontalTextAlignment",
+            "VerticalTextAlignment" => "global::Delta.XAML.TextBlockProperties.VerticalTextAlignment",
+            "TextWrapping" => "global::Delta.XAML.TextBlockProperties.TextWrapping",
+            "TextTrimming" => "global::Delta.XAML.TextBlockProperties.TextTrimming",
+            "MaxLines" => "global::Delta.XAML.TextBlockProperties.MaxLines",
+            "LineHeight" => "global::Delta.XAML.TextBlockProperties.LineHeight",
+            "FontWeight" => "global::Delta.XAML.TextBlockProperties.FontWeight",
+            "FontStyle" => "global::Delta.XAML.TextBlockProperties.FontStyle",
+            "TextDecorations" => "global::Delta.XAML.TextBlockProperties.TextDecorations",
+            "PlaceholderText" => "global::Delta.XAML.TextBoxProperties.PlaceholderText",
+            "IsReadOnly" => "global::Delta.XAML.TextBoxProperties.IsReadOnly",
+            "AcceptsReturn" => "global::Delta.XAML.TextBoxProperties.AcceptsReturn",
+            "MaxLength" => "global::Delta.XAML.TextBoxProperties.MaxLength",
             "Value" => "global::Delta.XAML.UiNumericEditorProperties.Value",
             "Minimum" => "global::Delta.XAML.UiNumericEditorProperties.Minimum",
             "Maximum" => "global::Delta.XAML.UiNumericEditorProperties.Maximum",
@@ -3028,6 +3073,35 @@ internal static class CSharpArtifactEmitter
             }
 
             builder.Append("global::Delta.XAML.UiGestureKind.").Append(gesture);
+        }
+
+        expression = builder.ToString();
+        return true;
+    }
+
+    private static bool TryTextDecorations(string value, out string expression)
+    {
+        expression = string.Empty;
+        var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return false;
+        }
+
+        var builder = new StringBuilder();
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!Enum.TryParse<Delta.XAML.UiTextDecorations>(parts[i], false, out var decoration) || decoration == Delta.XAML.UiTextDecorations.None)
+            {
+                return false;
+            }
+
+            if (i != 0)
+            {
+                builder.Append(" | ");
+            }
+
+            builder.Append("global::Delta.XAML.UiTextDecorations.").Append(decoration);
         }
 
         expression = builder.ToString();

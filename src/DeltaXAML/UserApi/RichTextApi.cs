@@ -10,7 +10,8 @@ public readonly record struct UiTextSpan(
     float FontSize,
     UiColor Color,
     UiCommandId Link = default,
-    string? LinkArgument = null)
+    string? LinkArgument = null,
+    UiTextDecorations Decorations = UiTextDecorations.None)
 {
     public UiTextSpan(string text, UiColor color)
         : this(text, "default", 14, color)

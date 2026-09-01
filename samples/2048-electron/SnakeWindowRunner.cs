@@ -41,7 +41,7 @@ internal static class SnakeWindowRunner
             return await RunWindowAsync(
                 window,
                 ParseFrameLimit(args),
-                HasFlag(args, "--profile")).ConfigureAwait(false);
+                HasFlag(args, "--profile") || HasFlag(args, "--profiling")).ConfigureAwait(false);
         }
 #pragma warning disable CA1031
         catch (Exception exception)
@@ -77,6 +77,8 @@ internal static class SnakeWindowRunner
             window,
             new RenderSessionOptions(EnableProfiling: enableProfiling, FramesInFlight: 16));
         var visualProgram = LoadRoundedProgram();
+        var solidVisualProgram = LoadSolidProgram();
+        var roundedSliceVisualProgram = LoadRoundedSliceProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(980, 760));
 
@@ -84,8 +86,15 @@ internal static class SnakeWindowRunner
         var extent = new PixelExtent(metrics.Width, metrics.Height);
         session.ResizeTarget(in extent);
         textFeature.Resize(extent);
-        UiDisplayListGraphFeature? uiFeature = CreateFeature(session, visualProgram, textFeature, extent);
+        UiDisplayListGraphFeature uiFeature = CreateFeature(
+            session,
+            visualProgram,
+            solidVisualProgram,
+            roundedSliceVisualProgram,
+            textFeature,
+            extent);
         var graph = session.CreateRenderGraph();
+        IRenderFeature[] features = [uiFeature];
         var renderedFrames = 0;
         var clipCount = 0;
         var running = true;
@@ -102,7 +111,14 @@ internal static class SnakeWindowRunner
                     session.ResizeTarget(in nextExtent);
                     textFeature.Resize(nextExtent);
                     uiFeature.Dispose();
-                    uiFeature = CreateFeature(session, visualProgram, textFeature, nextExtent);
+                    uiFeature = CreateFeature(
+                        session,
+                        visualProgram,
+                        solidVisualProgram,
+                        roundedSliceVisualProgram,
+                        textFeature,
+                        nextExtent);
+                    features[0] = uiFeature;
                     extent = nextExtent;
                 }
 
@@ -118,7 +134,6 @@ internal static class SnakeWindowRunner
                     return 1;
                 }
 
-                IRenderFeature[] features = [uiFeature];
                 graph.Build((ulong)renderedFrames, features);
                 if (uiFeature.Diagnostics.Count != 0)
                 {
@@ -232,9 +247,17 @@ internal static class SnakeWindowRunner
     private static UiDisplayListGraphFeature CreateFeature(
         IRenderFrameSession session,
         IGraphicsShaderProgram visualProgram,
+        IGraphicsShaderProgram solidVisualProgram,
+        IGraphicsShaderProgram roundedSliceVisualProgram,
         TextRenderFeature textFeature,
         PixelExtent extent) =>
-        new(session, visualProgram, extent, textFeature: textFeature);
+        new(
+            session,
+            visualProgram,
+            extent,
+            textFeature: textFeature,
+            solidVisualProgram: solidVisualProgram,
+            roundedSliceVisualProgram: roundedSliceVisualProgram);
 
     private static WindowMetrics ReadMetrics(IRenderWindow window, PixelExtent fallback)
     {
@@ -249,14 +272,42 @@ internal static class SnakeWindowRunner
 
     private static IGraphicsShaderProgram LoadRoundedProgram()
     {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "RoundedRectangleVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "RoundedRectangleFragment.frag.spv");
+        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleVertex.vert.spv");
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleFragment.frag.spv");
         if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
         {
-            throw new FileNotFoundException($"Rounded rectangle shader artifacts were not found: {vertexPath}");
+            throw new FileNotFoundException($"Clip-aware rounded rectangle shader artifacts were not found: {vertexPath}");
         }
 
-        return RoundedRectangleGraphicsShaderProgram.CreateProgram(
+        return ClipAwareRoundedRectangleGraphicsShaderProgram.CreateProgram(
+            File.ReadAllBytes(vertexPath),
+            File.ReadAllBytes(fragmentPath));
+    }
+
+    private static IGraphicsShaderProgram LoadSolidProgram()
+    {
+        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareSolidRectangleVertex.vert.spv");
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareSolidRectangleFragment.frag.spv");
+        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
+        {
+            throw new FileNotFoundException($"Clip-aware solid rectangle shader artifacts were not found: {vertexPath}");
+        }
+
+        return ClipAwareSolidRectangleGraphicsShaderProgram.CreateProgram(
+            File.ReadAllBytes(vertexPath),
+            File.ReadAllBytes(fragmentPath));
+    }
+
+    private static IGraphicsShaderProgram LoadRoundedSliceProgram()
+    {
+        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleSliceVertex.vert.spv");
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleSliceFragment.frag.spv");
+        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
+        {
+            throw new FileNotFoundException($"Clip-aware rounded rectangle slice shader artifacts were not found: {vertexPath}");
+        }
+
+        return ClipAwareRoundedRectangleSliceGraphicsShaderProgram.CreateProgram(
             File.ReadAllBytes(vertexPath),
             File.ReadAllBytes(fragmentPath));
     }

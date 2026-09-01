@@ -943,6 +943,12 @@ public abstract class UiElement
     private static RetainedDirty PropertyInvalidation(string propertyName) => propertyName switch
     {
         "Text" or "FontKey" or "FontSize" => RetainedDirty.Measure | RetainedDirty.Visual | RetainedDirty.Text,
+        "FontWeight" or "FontStyle" => RetainedDirty.Measure | RetainedDirty.Visual | RetainedDirty.Text,
+        "TextDecorations" => RetainedDirty.Visual | RetainedDirty.Text,
+        "TextWrapping" or "MaxLines" or "LineHeight" => RetainedDirty.Measure | RetainedDirty.Arrange | RetainedDirty.Visual,
+        "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextTrimming" => RetainedDirty.Arrange | RetainedDirty.Visual,
+        "PlaceholderText" => RetainedDirty.Visual | RetainedDirty.Text,
+        "IsReadOnly" or "AcceptsReturn" or "MaxLength" => RetainedDirty.Visual,
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
         "BorderColor" or "BorderWidth" or "CornerRadius" => RetainedDirty.Visual,

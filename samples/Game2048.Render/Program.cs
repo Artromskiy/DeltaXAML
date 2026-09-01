@@ -84,6 +84,8 @@ internal static class Program
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateWindowSession(window);
         var visualProgram = LoadRoundedProgram();
+        var solidVisualProgram = LoadSolidProgram();
+        var roundedSliceVisualProgram = LoadRoundedSliceProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(960, 720));
         var graph = session.CreateRenderGraph();
@@ -93,7 +95,13 @@ internal static class Program
             var extent = new PixelExtent(960, 720);
             session.ResizeTarget(in extent);
             textFeature.Resize(extent);
-            uiFeature = CreateFeature(session, visualProgram, textFeature, extent);
+            uiFeature = CreateFeature(
+                session,
+                visualProgram,
+                solidVisualProgram,
+                roundedSliceVisualProgram,
+                textFeature,
+                extent);
             IRenderFeature[] features = [uiFeature];
             var renderedFrames = 0;
             var clipCount = 0;
@@ -109,7 +117,13 @@ internal static class Program
                     session.ResizeTarget(in nextExtent);
                     textFeature.Resize(nextExtent);
                     uiFeature.Dispose();
-                    uiFeature = CreateFeature(session, visualProgram, textFeature, nextExtent);
+                    uiFeature = CreateFeature(
+                        session,
+                        visualProgram,
+                        solidVisualProgram,
+                        roundedSliceVisualProgram,
+                        textFeature,
+                        nextExtent);
                     features = [uiFeature];
                     extent = nextExtent;
                 }
@@ -179,9 +193,17 @@ internal static class Program
         await using var session = renderer.CreateHeadlessSession(width, height);
         var extent = new PixelExtent(width, height);
         var visualProgram = LoadRoundedProgram();
+        var solidVisualProgram = LoadSolidProgram();
+        var roundedSliceVisualProgram = LoadRoundedSliceProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, extent);
-        using var uiFeature = CreateFeature(session, visualProgram, textFeature, extent);
+        using var uiFeature = CreateFeature(
+            session,
+            visualProgram,
+            solidVisualProgram,
+            roundedSliceVisualProgram,
+            textFeature,
+            extent);
         var readbackFeature = new HeadlessReadbackFeature(session.Target, width, height);
         var graph = session.CreateRenderGraph();
         IRenderFeature[] features = [uiFeature, readbackFeature];
@@ -287,10 +309,18 @@ internal static class Program
     private static UiDisplayListGraphFeature CreateFeature(
         IRenderFrameSession session,
         IGraphicsShaderProgram visualProgram,
+        IGraphicsShaderProgram solidVisualProgram,
+        IGraphicsShaderProgram roundedSliceVisualProgram,
         TextRenderFeature textFeature,
         PixelExtent extent)
     {
-        return new UiDisplayListGraphFeature(session, visualProgram, extent, textFeature: textFeature);
+        return new UiDisplayListGraphFeature(
+            session,
+            visualProgram,
+            extent,
+            textFeature: textFeature,
+            solidVisualProgram: solidVisualProgram,
+            roundedSliceVisualProgram: roundedSliceVisualProgram);
     }
 
     private static WindowMetrics ReadMetrics(IRenderWindow window, PixelExtent fallback)
@@ -354,14 +384,42 @@ internal static class Program
 
     private static IGraphicsShaderProgram LoadRoundedProgram()
     {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "RoundedRectangleVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "RoundedRectangleFragment.frag.spv");
+        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleVertex.vert.spv");
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleFragment.frag.spv");
         if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
         {
-            throw new FileNotFoundException($"Rounded rectangle shader artifacts were not found: {vertexPath}");
+            throw new FileNotFoundException($"Clip-aware rounded rectangle shader artifacts were not found: {vertexPath}");
         }
 
-        return RoundedRectangleGraphicsShaderProgram.CreateProgram(
+        return ClipAwareRoundedRectangleGraphicsShaderProgram.CreateProgram(
+            File.ReadAllBytes(vertexPath),
+            File.ReadAllBytes(fragmentPath));
+    }
+
+    private static IGraphicsShaderProgram LoadSolidProgram()
+    {
+        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareSolidRectangleVertex.vert.spv");
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareSolidRectangleFragment.frag.spv");
+        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
+        {
+            throw new FileNotFoundException($"Clip-aware solid rectangle shader artifacts were not found: {vertexPath}");
+        }
+
+        return ClipAwareSolidRectangleGraphicsShaderProgram.CreateProgram(
+            File.ReadAllBytes(vertexPath),
+            File.ReadAllBytes(fragmentPath));
+    }
+
+    private static IGraphicsShaderProgram LoadRoundedSliceProgram()
+    {
+        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleSliceVertex.vert.spv");
+        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleSliceFragment.frag.spv");
+        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
+        {
+            throw new FileNotFoundException($"Clip-aware rounded rectangle slice shader artifacts were not found: {vertexPath}");
+        }
+
+        return ClipAwareRoundedRectangleSliceGraphicsShaderProgram.CreateProgram(
             File.ReadAllBytes(vertexPath),
             File.ReadAllBytes(fragmentPath));
     }

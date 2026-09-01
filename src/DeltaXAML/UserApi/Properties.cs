@@ -138,6 +138,27 @@ public static class TextBlockProperties
     public static UiProperty<UiColor> OutlineColor { get; } = Create<UiColor>("20000000-0000-4000-8000-000000000005", "OutlineColor", default);
     public static UiProperty<float> OutlineWidth { get; } = Create<float>("20000000-0000-4000-8000-000000000006", "OutlineWidth", 0f);
     public static UiProperty<Delta.XAML.Contract.UiResourceId> TextEffect { get; } = Create<Delta.XAML.Contract.UiResourceId>("20000000-0000-4000-8000-000000000007", "TextEffect", Delta.XAML.Contract.UiResourceId.Empty);
+    public static UiProperty<UiTextHorizontalAlignment> HorizontalTextAlignment { get; } = Create("20000000-0000-4000-8000-000000000008", "HorizontalTextAlignment", UiTextHorizontalAlignment.Left);
+    public static UiProperty<UiTextVerticalAlignment> VerticalTextAlignment { get; } = Create("20000000-0000-4000-8000-000000000009", "VerticalTextAlignment", UiTextVerticalAlignment.Top);
+    public static UiProperty<UiTextWrapping> TextWrapping { get; } = Create("20000000-0000-4000-8000-00000000000A", "TextWrapping", UiTextWrapping.NoWrap);
+    public static UiProperty<UiTextTrimming> TextTrimming { get; } = Create("20000000-0000-4000-8000-00000000000B", "TextTrimming", UiTextTrimming.None);
+    public static UiProperty<int> MaxLines { get; } = Create("20000000-0000-4000-8000-00000000000C", "MaxLines", 0);
+    public static UiProperty<float> LineHeight { get; } = Create("20000000-0000-4000-8000-00000000000D", "LineHeight", 0f);
+    public static UiProperty<UiFontWeight> FontWeight { get; } = Create("20000000-0000-4000-8000-00000000000E", "FontWeight", UiFontWeight.Normal);
+    public static UiProperty<UiFontStyle> FontStyle { get; } = Create("20000000-0000-4000-8000-00000000000F", "FontStyle", UiFontStyle.Normal);
+    public static UiProperty<UiTextDecorations> TextDecorations { get; } = Create("20000000-0000-4000-8000-000000000010", "TextDecorations", UiTextDecorations.None);
+
+    private static UiProperty<T> Create<T>(string id, string name, T defaultValue) =>
+        new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);
+}
+
+/// <summary>Typed editor-only text properties shared by <see cref="TextBox"/> and <see cref="UiNumericEditor"/>.</summary>
+public static class TextBoxProperties
+{
+    public static UiProperty<string> PlaceholderText { get; } = Create("21000000-0000-4000-8000-000000000001", "PlaceholderText", string.Empty);
+    public static UiProperty<bool> IsReadOnly { get; } = Create("21000000-0000-4000-8000-000000000002", "IsReadOnly", false);
+    public static UiProperty<bool> AcceptsReturn { get; } = Create("21000000-0000-4000-8000-000000000003", "AcceptsReturn", false);
+    public static UiProperty<int> MaxLength { get; } = Create("21000000-0000-4000-8000-000000000004", "MaxLength", 0);
 
     private static UiProperty<T> Create<T>(string id, string name, T defaultValue) =>
         new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);

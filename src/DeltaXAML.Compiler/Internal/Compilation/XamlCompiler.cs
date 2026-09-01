@@ -1056,6 +1056,7 @@ internal static class XamlCompiler
                 var color = "#FFFFFFFF";
                 var command = Guid.Empty;
                 string? argument = null;
+                var decorations = UiTextDecorations.None;
                 for (var i = 0; i < attributes.Count; i++)
                 {
                     var attribute = attributes[i];
@@ -1067,6 +1068,7 @@ internal static class XamlCompiler
                         case "Foreground" when TryColor(attribute.Value, out _): color = attribute.Value; break;
                         case "Command" when Guid.TryParse(attribute.Value, out var parsed) && parsed != Guid.Empty: command = parsed; break;
                         case "Argument": argument = attribute.Value; break;
+                        case "TextDecorations" when TryTextDecorations(attribute.Value, out var parsedDecorations): decorations = parsedDecorations; break;
                         default: Report("XAML041", $"Unsupported Span property '{attribute.LocalName}'.", attribute.Range); break;
                     }
                 }
@@ -1077,7 +1079,7 @@ internal static class XamlCompiler
                     continue;
                 }
 
-                spans.Add(new(text, fontKey, fontSize, color, command, argument, Range(start, _offset)));
+                spans.Add(new(text, fontKey, fontSize, color, command, argument, Range(start, _offset), decorations));
             }
 
             if (!closed)
@@ -1939,6 +1941,29 @@ internal static class XamlCompiler
             }
 
             canonical = string.Join(',', normalized);
+            return true;
+        }
+
+        private static bool TryTextDecorations(string value, out UiTextDecorations decorations)
+        {
+            decorations = UiTextDecorations.None;
+            var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (!Enum.TryParse(parts[i], true, out UiTextDecorations parsed) || parsed == UiTextDecorations.None)
+                {
+                    decorations = default;
+                    return false;
+                }
+
+                decorations |= parsed;
+            }
+
             return true;
         }
 

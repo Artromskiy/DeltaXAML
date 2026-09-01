@@ -564,7 +564,8 @@ internal sealed class UiVisualStage : IDisposable
         }
 
         var bounds = ShapedBounds(cache.Shaped);
-        var baseline = new float2(run.Bounds.X - bounds.Left, run.Bounds.Y - bounds.Top);
+        var textBounds = run.TextBounds.Width > 0 || run.TextBounds.Height > 0 ? run.TextBounds : run.Bounds;
+        var baseline = new float2(textBounds.X - bounds.Left, textBounds.Y - bounds.Top);
         var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
         draw = UiTextDraw.WithPaint(
             new UiTextRunId(run.Owner.Value, run.OwnerGeneration),
@@ -923,6 +924,8 @@ internal sealed class UiVisualStage : IDisposable
             FontKey = run.FontKey;
             Text = run.Text;
             FontSize = run.FontSize;
+            Weight = run.Weight;
+            Style = run.Style;
             Shaped = shaped;
         }
 
@@ -931,6 +934,8 @@ internal sealed class UiVisualStage : IDisposable
         internal string FontKey { get; }
         internal string Text { get; }
         internal float FontSize { get; }
+        internal Delta.XAML.UiFontWeight Weight { get; }
+        internal Delta.XAML.UiFontStyle Style { get; }
         internal ShapedText Shaped { get; }
 
         internal bool Matches(Retained.UiTextRun run) =>
@@ -938,7 +943,9 @@ internal sealed class UiVisualStage : IDisposable
             string.Equals(GlyphRunKey, run.GlyphRunKey, StringComparison.Ordinal) &&
             string.Equals(FontKey, run.FontKey, StringComparison.Ordinal) &&
             string.Equals(Text, run.Text, StringComparison.Ordinal) &&
-            FontSize.Equals(run.FontSize);
+            FontSize.Equals(run.FontSize) &&
+            Weight == run.Weight &&
+            Style == run.Style;
     }
 
     private sealed class UiRichTextCacheEntry

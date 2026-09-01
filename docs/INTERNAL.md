@@ -123,7 +123,7 @@ host input / property writes
 Every phase has one owner and explicit inputs. There is no general event bus or
 monolithic `ProcessEverything` facade.
 
-## Core runtime types
+## Internal runtime types
 
 The following declarations describe implementation shape. Public signatures
 remain governed by `LIBRARY_CONTRACT.md`.
@@ -268,8 +268,8 @@ The first migrated container uses the same capability path in
 and layout results; the stateless mixins perform child measure/arrange through
 the one retained child list, and the generated companion supplies the typed
 dispatch. `StackPanel` does not inherit the `Panel` algorithm. The
-remaining built-in controls use the same descriptor path in the subsequent
-content, layout, input/editing and items/scroll slices below.
+All other built-in controls use the same descriptor path across the content,
+layout, input/editing and items/scroll slices below.
 
 The content/layout slice adds `BorderState` and `ContentControlState` with
 their stateless measure/arrange mixins and typed companions. `Border` owns no
@@ -338,6 +338,7 @@ A control may declare:
 - state fields;
 - constructors that establish valid initial state;
 - property and event accessors;
+- explicit child/content operations that forward to the single retained tree;
 - the internal `ref` state accessor required by generated code.
 
 It may not declare layout, input, visual, binding or validation algorithms;
