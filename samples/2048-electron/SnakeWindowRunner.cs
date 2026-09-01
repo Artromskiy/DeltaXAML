@@ -14,6 +14,8 @@ using Delta.XAML;
 using Delta.XAML.Contract;
 using DeltaXaml.Samples.Snake.Generated;
 using SDL3;
+using TextShaders = Delta.Shader.Text.Shaders;
+using UiShaders = Delta.Shader.UI.Shaders;
 
 namespace DeltaXaml.Samples.Snake;
 
@@ -80,11 +82,17 @@ internal static class SnakeWindowRunner
         var solidVisualProgram = LoadSolidProgram();
         var roundedSliceVisualProgram = LoadRoundedSliceProgram();
         var textProgram = LoadTextProgram();
-        using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(980, 760));
 
-        var metrics = ReadMetrics(window, new PixelExtent(980, 760));
-        var extent = new PixelExtent(metrics.Width, metrics.Height);
+        var metrics = ReadMetrics(
+            window,
+            new WindowMetrics(980, 760, 1f)
+            {
+                DrawableWidth = 980,
+                DrawableHeight = 760,
+            });
+        var extent = metrics.DrawableExtent;
         session.ResizeTarget(in extent);
+        using var textFeature = new TextRenderFeature(session, textService, textProgram, extent);
         textFeature.Resize(extent);
         UiDisplayListGraphFeature uiFeature = CreateFeature(
             session,
@@ -104,8 +112,8 @@ internal static class SnakeWindowRunner
             while (running && !window.IsClosed && renderedFrames < frameLimit)
             {
                 running = PumpEvents(page, game, view);
-                metrics = ReadMetrics(window, extent);
-                var nextExtent = new PixelExtent(metrics.Width, metrics.Height);
+                metrics = ReadMetrics(window, metrics);
+                var nextExtent = metrics.DrawableExtent;
                 if (!nextExtent.IsEmpty && nextExtent != extent)
                 {
                     session.ResizeTarget(in nextExtent);
@@ -259,71 +267,81 @@ internal static class SnakeWindowRunner
             solidVisualProgram: solidVisualProgram,
             roundedSliceVisualProgram: roundedSliceVisualProgram);
 
-    private static WindowMetrics ReadMetrics(IRenderWindow window, PixelExtent fallback)
+    private static WindowMetrics ReadMetrics(IRenderWindow window, WindowMetrics fallback)
     {
         var handle = new IntPtr(unchecked((long)window.Handle.Value));
-        if (SDL.GetWindowSizeInPixels(handle, out var width, out var height) && width > 0 && height > 0)
+        if (!SDL.GetWindowSize(handle, out var logicalWidth, out var logicalHeight) || logicalWidth <= 0 || logicalHeight <= 0)
         {
-            return new WindowMetrics((uint)width, (uint)height, window.Metrics.DpiScale);
+            return fallback;
         }
 
-        return new WindowMetrics(fallback.Width, fallback.Height, window.Metrics.DpiScale);
+        var drawableWidth = logicalWidth;
+        var drawableHeight = logicalHeight;
+        if (!SDL.GetWindowSizeInPixels(handle, out drawableWidth, out drawableHeight) || drawableWidth <= 0 || drawableHeight <= 0)
+        {
+            drawableWidth = logicalWidth;
+            drawableHeight = logicalHeight;
+        }
+
+        var dpiScale = SDL.GetWindowPixelDensity(handle);
+        if (!float.IsFinite(dpiScale) || dpiScale <= 0)
+        {
+            dpiScale = MathF.Max(
+                (float)drawableWidth / logicalWidth,
+                (float)drawableHeight / logicalHeight);
+        }
+
+        if (!float.IsFinite(dpiScale) || dpiScale <= 0)
+        {
+            return fallback;
+        }
+
+        return new WindowMetrics((uint)logicalWidth, (uint)logicalHeight, dpiScale)
+        {
+            DrawableWidth = (uint)drawableWidth,
+            DrawableHeight = (uint)drawableHeight,
+        };
     }
 
-    private static IGraphicsShaderProgram LoadRoundedProgram()
+    private static GraphicsShaderProgram LoadRoundedProgram()
+        => LoadProgram(
+            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangle.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangle.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangle.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangle.Fragment());
+
+    private static GraphicsShaderProgram LoadSolidProgram()
+        => LoadProgram(
+            UiShaders.Spv.UiRectangleShaders.ClipAwareSolidRectangle.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.ClipAwareSolidRectangle.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareSolidRectangle.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareSolidRectangle.Fragment());
+
+    private static GraphicsShaderProgram LoadRoundedSliceProgram()
+        => LoadProgram(
+            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Fragment());
+
+    private static GraphicsShaderProgram LoadTextProgram()
+        => LoadProgram(
+            TextShaders.Spv.TextShaders.SdfText.Vertex(),
+            TextShaders.Spv.TextShaders.SdfText.Fragment(),
+            TextShaders.Abi.TextShaders.SdfText.Vertex(),
+            TextShaders.Abi.TextShaders.SdfText.Fragment());
+
+    private static GraphicsShaderProgram LoadProgram(
+        ReadOnlySpan<byte> vertexSpirv,
+        ReadOnlySpan<byte> fragmentSpirv,
+        ShaderAbi vertexAbi,
+        ShaderAbi fragmentAbi)
     {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleFragment.frag.spv");
-        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
-        {
-            throw new FileNotFoundException($"Clip-aware rounded rectangle shader artifacts were not found: {vertexPath}");
-        }
-
-        return ClipAwareRoundedRectangleGraphicsShaderProgram.CreateProgram(
-            File.ReadAllBytes(vertexPath),
-            File.ReadAllBytes(fragmentPath));
-    }
-
-    private static IGraphicsShaderProgram LoadSolidProgram()
-    {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareSolidRectangleVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareSolidRectangleFragment.frag.spv");
-        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
-        {
-            throw new FileNotFoundException($"Clip-aware solid rectangle shader artifacts were not found: {vertexPath}");
-        }
-
-        return ClipAwareSolidRectangleGraphicsShaderProgram.CreateProgram(
-            File.ReadAllBytes(vertexPath),
-            File.ReadAllBytes(fragmentPath));
-    }
-
-    private static IGraphicsShaderProgram LoadRoundedSliceProgram()
-    {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleSliceVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "ClipAwareRoundedRectangleSliceFragment.frag.spv");
-        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
-        {
-            throw new FileNotFoundException($"Clip-aware rounded rectangle slice shader artifacts were not found: {vertexPath}");
-        }
-
-        return ClipAwareRoundedRectangleSliceGraphicsShaderProgram.CreateProgram(
-            File.ReadAllBytes(vertexPath),
-            File.ReadAllBytes(fragmentPath));
-    }
-
-    private static IGraphicsShaderProgram LoadTextProgram()
-    {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SdfTextVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SdfTextFragment.frag.spv");
-        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
-        {
-            throw new FileNotFoundException($"SDF text shader artifacts were not found: {vertexPath}");
-        }
-
-        return SdfTextGraphicsShaderProgram.CreateProgram(
-            File.ReadAllBytes(vertexPath),
-            File.ReadAllBytes(fragmentPath));
+        ArgumentNullException.ThrowIfNull(vertexAbi);
+        ArgumentNullException.ThrowIfNull(fragmentAbi);
+        return new GraphicsShaderProgram(
+            new ShaderArtifact(vertexSpirv, "main", vertexAbi),
+            new ShaderArtifact(fragmentSpirv, "main", fragmentAbi));
     }
 
     private static bool HasFlag(string[] args, string flag)

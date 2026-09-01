@@ -8,9 +8,16 @@ application is Snake (`SnakeGame`, a 24x18 board), matching the supplied
 The XAML file is compiled by the DeltaXAML source generator into
 `SnakeArtifact`. The host owns only game state and input decisions; the
 retained visual tree, layout and display-list extraction remain in DeltaXAML.
-The renderer sample copies the canonical clip-aware solid, rounded and
-rounded-slice UI SPIR-V artifacts from DeltaShader and supplies them to
-`UiDisplayListGraphFeature`; DeltaXAML does not own or resolve these shaders.
+The renderer sample receives producer-owned clip-aware solid, rounded and
+rounded-slice `ShaderArtifact`/`ShaderAbi` values from DeltaShader and supplies
+them to `UiDisplayListGraphFeature`; DeltaXAML does not own, copy or resolve
+these shaders. Prepare fresh producer output with the explicit tool command
+from the DeltaXAML repository root:
+For normal project builds, consume the generated producer program/factory API
+from the `DeltaShader.Tool` NuGet integration for `ShaderArtifact`, `ShaderAbi`
+and typed packers. The `.shader.json` files are compiler diagnostics only; do
+not duplicate their layout in DeltaXAML or Render, and do not invoke the shader
+CLI from this consumer project.
 
 Run the windowed sample with:
 

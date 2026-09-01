@@ -6,6 +6,12 @@ canonical `UiDisplayList` through `DeltaRender.XAML.UiDisplayListGraphFeature`.
 The rounded rectangle uses the generated `DeltaShader.UI` rounded-rectangle
 artifacts and four independent corner radii.
 
+This sample does not own or copy compiled shaders. Obtain the producer-owned
+`ShaderArtifact`/`ShaderAbi`, generated `VertexAbi`/`FragmentAbi` and typed
+packers through the `DeltaShader.Tool` NuGet-backed producer build. Pass them
+through the normal Render handoff; do not invoke the shader CLI, parse sidecars
+or add `.spv` files to this sample.
+
 Run continuously until the window is closed from the DeltaXAML repository root:
 
 ```bash

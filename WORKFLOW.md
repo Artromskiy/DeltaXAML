@@ -71,6 +71,11 @@ DeltaShader owns generated shader outputs. Run
 `./eng/check-shader-output-ownership.sh` to reject shader binaries and
 sidecars in DeltaXAML projects and samples.
 
+Renderer-backed samples consume generated `ShaderArtifact`/`ShaderAbi` and
+typed packers from the DeltaShader producer built through its private
+`DeltaShader.Tool` NuGet package. DeltaXAML does not invoke the shader CLI or
+copy generated outputs.
+
 ## Descriptor/mixin architecture (mandatory)
 
 Read [docs/INTERNAL.md](docs/INTERNAL.md) before changing retained controls, properties,

@@ -14,6 +14,8 @@ using Delta.Text.Contract;
 using Delta.XAML;
 using Delta.XAML.Contract;
 using DeltaXaml.Samples.Snake.Generated;
+using TextShaders = Delta.Shader.Text.Shaders;
+using UiShaders = Delta.Shader.UI.Shaders;
 
 namespace DeltaXaml.Samples.Snake;
 
@@ -36,7 +38,6 @@ internal static class SnakeHeadlessRenderRunner
         int skipFrames = ParseNonNegativeInt(args, "--skip", DefaultSkipFrames);
         int framesInFlight = ParsePositiveInt(args, "--slots", DefaultFramesInFlight);
         string layoutJsonPath = ParsePath(args, "--layout-json", "/tmp/delta-snake-layout.json");
-        string shaderRoot = ParsePath(args, "--shader-root", Path.Combine(AppContext.BaseDirectory, "shaders"));
         string profileReportPath = GetOption(args, "--profile-report", string.Empty);
         var fonts = new UiFontCatalog();
         string fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "LuckiestGuy-Regular.ttf");
@@ -76,10 +77,10 @@ internal static class SnakeHeadlessRenderRunner
             Height,
             new RenderSessionOptions(EnableProfiling: true, FramesInFlight: framesInFlight));
         var extent = new PixelExtent(Width, Height);
-        var visualProgram = LoadRoundedProgram(shaderRoot);
-        var solidVisualProgram = LoadSolidProgram(shaderRoot);
-        var roundedSliceVisualProgram = LoadRoundedSliceProgram(shaderRoot);
-        var textProgram = LoadTextProgram(shaderRoot);
+        var visualProgram = LoadRoundedProgram();
+        var solidVisualProgram = LoadSolidProgram();
+        var roundedSliceVisualProgram = LoadRoundedSliceProgram();
+        var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, extent);
         using var uiFeature = new UiDisplayListGraphFeature(
             session,
@@ -153,32 +154,45 @@ internal static class SnakeHeadlessRenderRunner
         return document.BuildDisplayList();
     }
 
-    private static IGraphicsShaderProgram LoadRoundedProgram(string shaderRoot)
-        => ClipAwareRoundedRectangleGraphicsShaderProgram.CreateProgram(
-            ReadShader(shaderRoot, "ClipAwareRoundedRectangleVertex.vert.spv"),
-            ReadShader(shaderRoot, "ClipAwareRoundedRectangleFragment.frag.spv"));
+    private static GraphicsShaderProgram LoadRoundedProgram()
+        => LoadProgram(
+            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangle.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangle.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangle.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangle.Fragment());
 
-    private static IGraphicsShaderProgram LoadSolidProgram(string shaderRoot)
-        => ClipAwareSolidRectangleGraphicsShaderProgram.CreateProgram(
-            ReadShader(shaderRoot, "ClipAwareSolidRectangleVertex.vert.spv"),
-            ReadShader(shaderRoot, "ClipAwareSolidRectangleFragment.frag.spv"));
+    private static GraphicsShaderProgram LoadSolidProgram()
+        => LoadProgram(
+            UiShaders.Spv.UiRectangleShaders.ClipAwareSolidRectangle.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.ClipAwareSolidRectangle.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareSolidRectangle.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareSolidRectangle.Fragment());
 
-    private static IGraphicsShaderProgram LoadRoundedSliceProgram(string shaderRoot)
-        => ClipAwareRoundedRectangleSliceGraphicsShaderProgram.CreateProgram(
-            ReadShader(shaderRoot, "ClipAwareRoundedRectangleSliceVertex.vert.spv"),
-            ReadShader(shaderRoot, "ClipAwareRoundedRectangleSliceFragment.frag.spv"));
+    private static GraphicsShaderProgram LoadRoundedSliceProgram()
+        => LoadProgram(
+            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Fragment());
 
-    private static IGraphicsShaderProgram LoadTextProgram(string shaderRoot)
-        => SdfTextGraphicsShaderProgram.CreateProgram(
-            ReadShader(shaderRoot, "SdfTextVertex.vert.spv"),
-            ReadShader(shaderRoot, "SdfTextFragment.frag.spv"));
+    private static GraphicsShaderProgram LoadTextProgram()
+        => LoadProgram(
+            TextShaders.Spv.TextShaders.SdfText.Vertex(),
+            TextShaders.Spv.TextShaders.SdfText.Fragment(),
+            TextShaders.Abi.TextShaders.SdfText.Vertex(),
+            TextShaders.Abi.TextShaders.SdfText.Fragment());
 
-    private static byte[] ReadShader(string root, string name)
+    private static GraphicsShaderProgram LoadProgram(
+        ReadOnlySpan<byte> vertexSpirv,
+        ReadOnlySpan<byte> fragmentSpirv,
+        ShaderAbi vertexAbi,
+        ShaderAbi fragmentAbi)
     {
-        string path = Path.Combine(root, name);
-        return File.Exists(path)
-            ? File.ReadAllBytes(path)
-            : throw new FileNotFoundException($"Missing Snake shader artifact: {path}");
+        ArgumentNullException.ThrowIfNull(vertexAbi);
+        ArgumentNullException.ThrowIfNull(fragmentAbi);
+        return new GraphicsShaderProgram(
+            new ShaderArtifact(vertexSpirv, "main", vertexAbi),
+            new ShaderArtifact(fragmentSpirv, "main", fragmentAbi));
     }
 
     private static void WriteProfileSummary(List<HeadlessProfile> profiles)

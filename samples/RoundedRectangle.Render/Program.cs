@@ -15,6 +15,8 @@ using Delta.Text.Contract;
 using Delta.XAML;
 using Delta.XAML.Contract;
 using DeltaXaml.Samples.RoundedRectangle.Render.Generated;
+using TextShaders = Delta.Shader.Text.Shaders;
+using UiShaders = Delta.Shader.UI.Shaders;
 
 namespace DeltaXaml.Samples.RoundedRectangle.Render;
 
@@ -347,46 +349,38 @@ internal static class Program
         return $"({pixels[offset]},{pixels[offset + 1]},{pixels[offset + 2]},{pixels[offset + 3]})";
     }
 
-    private static IGraphicsShaderProgram LoadRoundedProgram()
+    private static GraphicsShaderProgram LoadRoundedProgram()
+        => LoadProgram(
+            UiShaders.Spv.UiRectangleShaders.RoundedRectangle.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.RoundedRectangle.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.RoundedRectangle.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.RoundedRectangle.Fragment());
+
+    private static GraphicsShaderProgram LoadSolidProgram()
+        => LoadProgram(
+            UiShaders.Spv.UiRectangleShaders.SolidRectangle.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.SolidRectangle.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.SolidRectangle.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.SolidRectangle.Fragment());
+
+    private static GraphicsShaderProgram LoadTextProgram()
+        => LoadProgram(
+            TextShaders.Spv.TextShaders.SdfText.Vertex(),
+            TextShaders.Spv.TextShaders.SdfText.Fragment(),
+            TextShaders.Abi.TextShaders.SdfText.Vertex(),
+            TextShaders.Abi.TextShaders.SdfText.Fragment());
+
+    private static GraphicsShaderProgram LoadProgram(
+        ReadOnlySpan<byte> vertexSpirv,
+        ReadOnlySpan<byte> fragmentSpirv,
+        ShaderAbi vertexAbi,
+        ShaderAbi fragmentAbi)
     {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "RoundedRectangleVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "RoundedRectangleFragment.frag.spv");
-        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
-        {
-            throw new FileNotFoundException($"Rounded rectangle shader artifacts were not found: {vertexPath}");
-        }
-
-        return RoundedRectangleGraphicsShaderProgram.CreateProgram(
-            File.ReadAllBytes(vertexPath),
-            File.ReadAllBytes(fragmentPath));
-    }
-
-    private static IGraphicsShaderProgram LoadSolidProgram()
-    {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SolidRectangleVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SolidRectangleFragment.frag.spv");
-        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
-        {
-            throw new FileNotFoundException($"Solid rectangle shader artifacts were not found: {vertexPath}");
-        }
-
-        return SolidRectangleGraphicsShaderProgram.CreateProgram(
-            File.ReadAllBytes(vertexPath),
-            File.ReadAllBytes(fragmentPath));
-    }
-
-    private static IGraphicsShaderProgram LoadTextProgram()
-    {
-        var vertexPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SdfTextVertex.vert.spv");
-        var fragmentPath = Path.Combine(AppContext.BaseDirectory, "shaders", "SdfTextFragment.frag.spv");
-        if (!File.Exists(vertexPath) || !File.Exists(fragmentPath))
-        {
-            throw new FileNotFoundException($"SDF text shader artifacts were not found: {vertexPath}");
-        }
-
-        return SdfTextGraphicsShaderProgram.CreateProgram(
-            File.ReadAllBytes(vertexPath),
-            File.ReadAllBytes(fragmentPath));
+        ArgumentNullException.ThrowIfNull(vertexAbi);
+        ArgumentNullException.ThrowIfNull(fragmentAbi);
+        return new GraphicsShaderProgram(
+            new ShaderArtifact(vertexSpirv, "main", vertexAbi),
+            new ShaderArtifact(fragmentSpirv, "main", fragmentAbi));
     }
 
     private static int ParseFrameLimit(string[] args)
