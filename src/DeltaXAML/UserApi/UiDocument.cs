@@ -142,6 +142,7 @@ public sealed class UiDocument : IDisposable
 
         Viewport = viewport;
         DpiScale = dpiScale;
+        _displayListStorage.DpiScale = dpiScale;
         _runtime.Layout(new(viewport.x, viewport.y), dpiScale, _theme, Root, _imageMetadataResolver, _program, this);
         _hasLayout = true;
     }

@@ -2,12 +2,12 @@
       xmlns:x="urn:delta-xaml"
       Width="800"
       Height="500"
-      Rows="227,73"
-      Columns="280,520">
-  <TextBlock Grid.Row="1"
-             Grid.Column="1"
-             Text="Rewards"
-             FontKey="default"
-             FontSize="64"
-             Foreground="#FFFFFF" />
+      Rows="110,280,110"
+      Columns="140,520,140">
+  <Border Grid.Row="1"
+          Grid.Column="1"
+          Width="520"
+          Height="280"
+          Background="#7A8494"
+          CornerRadius="56,32,72,24" />
 </Grid>

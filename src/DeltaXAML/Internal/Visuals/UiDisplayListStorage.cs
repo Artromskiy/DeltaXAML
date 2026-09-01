@@ -18,6 +18,7 @@ internal sealed class UiDisplayListStorage
     internal int ClipCount;
     internal int TextCount;
     internal int OrderCount;
+    internal float DpiScale = 1f;
 
     internal void ClearCounts()
     {
@@ -33,5 +34,6 @@ internal sealed class UiDisplayListStorage
             Clips.AsSpan(0, ClipCount),
             Text.AsSpan(0, TextCount),
             Order.AsSpan(0, OrderCount),
-            Identities.AsSpan(0, OrderCount));
+            Identities.AsSpan(0, OrderCount),
+            DpiScale);
 }

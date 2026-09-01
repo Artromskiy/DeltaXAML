@@ -94,6 +94,16 @@ public enum UiVisualKind : byte
     Custom,
 }
 
+/// <summary>Unit system for renderer paint metrics such as thickness and effect distances.</summary>
+public enum PaintUnits : byte
+{
+    /// <summary>The metric is expressed in logical UI units and is scaled by the frame DPI.</summary>
+    Logical,
+
+    /// <summary>The metric is expressed in physical device pixels and is not DPI-scaled.</summary>
+    Device,
+}
+
 /// <summary>Fixed-size renderer-neutral paint data for a visual primitive.</summary>
 /// <param name="FillColor">Linear RGBA fill or tint.</param>
 /// <param name="StrokeColor">Linear RGBA stroke color.</param>
@@ -105,6 +115,9 @@ public readonly record struct UiVisualPaint(
     float StrokeWidth,
     float4 CornerRadii)
 {
+    /// <summary>Gets the unit system for stroke and other paint metrics.</summary>
+    public PaintUnits Units { get; init; } = PaintUnits.Logical;
+
     /// <summary>Creates a fill-only paint.</summary>
     public static UiVisualPaint Solid(float4 color) => new(color, default, 0, default);
 }
@@ -196,6 +209,9 @@ public readonly record struct UiTextPaint(
     float OutlineWidth,
     UiResourceId Effect)
 {
+    /// <summary>Gets the unit system for outline and effect metrics.</summary>
+    public PaintUnits Units { get; init; } = PaintUnits.Logical;
+
     /// <summary>Creates fill-only text paint.</summary>
     public static UiTextPaint Solid(float4 color) => new(color, default, 0, UiResourceId.Empty);
 }
@@ -274,11 +290,17 @@ public readonly ref struct UiDisplayList
         ReadOnlySpan<UiClipRegion> clips,
         ReadOnlySpan<UiTextDraw> text,
         ReadOnlySpan<UiDrawRef> order,
-        ReadOnlySpan<UiElementIdentity> identities)
+        ReadOnlySpan<UiElementIdentity> identities,
+        float dpiScale = 1f)
     {
         if (identities.Length != order.Length)
         {
             throw new ArgumentException("Identities length must equal Order length.", nameof(identities));
+        }
+
+        if (!float.IsFinite(dpiScale) || dpiScale <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dpiScale), "DPI scale must be finite and positive.");
         }
 
         Visuals = visuals;
@@ -286,6 +308,7 @@ public readonly ref struct UiDisplayList
         Text = text;
         Order = order;
         Identities = identities;
+        DpiScale = dpiScale;
     }
 
     /// <summary>Gets renderer-neutral visual payloads indexed by visual draw references.</summary>
@@ -308,4 +331,7 @@ public readonly ref struct UiDisplayList
     /// describes the ordered payload selected by entry <c>i</c> in <see cref="Order"/>.
     /// </summary>
     public ReadOnlySpan<UiElementIdentity> Identities { get; }
+
+    /// <summary>Gets the logical-to-device scale for paint metrics in this frame.</summary>
+    public float DpiScale { get; }
 }
