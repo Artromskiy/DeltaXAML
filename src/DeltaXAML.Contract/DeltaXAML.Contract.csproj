@@ -23,6 +23,6 @@
           PackagePath="README.md"
           Visible="false" />
     <PackageReference Include="DeltaMaths" Version="*" />
-    <ProjectReference Include="../../../DeltaText/src/DeltaText/DeltaText.csproj" />
+    <PackageReference Include="DeltaText" Version="*" />
   </ItemGroup>
 </Project>
