@@ -21,7 +21,7 @@
           PackagePath="README.md"
           Visible="false" />
     <ProjectReference Include="../DeltaXAML/DeltaXAML.csproj" />
-    <ProjectReference Include="../../../DeltaDiagnostics/src/DeltaDiagnostics.Contract/Delta.Diagnostics.Contract.csproj" />
+    <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
     <ProjectReference Include="../DeltaXAML.Contract/DeltaXAML.Contract.csproj" />
   </ItemGroup>
 </Project>
