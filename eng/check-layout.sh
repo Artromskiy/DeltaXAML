@@ -29,7 +29,7 @@ done
 
 while IFS= read -r tracked_directory; do
     case "$tracked_directory" in
-        .github|src|tests|benchmarks|samples|probes|playground|tools|adr|docs|eng|artifacts|assets)
+        .github|.vscode|src|tests|benchmarks|samples|probes|playground|tools|adr|docs|eng|artifacts|assets)
             ;;
         *)
             printf 'layout: unexpected tracked top-level directory: %s\n' "$tracked_directory" >&2
@@ -37,6 +37,12 @@ while IFS= read -r tracked_directory; do
             ;;
     esac
 done < <(git -C "$repo_root" ls-tree -d --name-only HEAD | sort)
+
+vscode_settings="$repo_root/.vscode/settings.json"
+if [[ ! -f "$vscode_settings" ]] || ! git -C "$repo_root" ls-files --error-unmatch .vscode/settings.json >/dev/null 2>&1; then
+    printf 'layout: tracked .vscode/settings.json is required\n' >&2
+    failed=1
+fi
 
 primary_source="$repo_root/src/$project_name"
 if [[ ! -d "$primary_source" ]]; then
