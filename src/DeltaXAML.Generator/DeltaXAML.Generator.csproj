@@ -5,12 +5,42 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>DeltaXAML.Generator</RootNamespace>
     <AssemblyName>DeltaXAML.Generator</AssemblyName>
+    <PackageId>DeltaXAML.Generator</PackageId>
+    <Version>0.0.14</Version>
+    <IsPackable>true</IsPackable>
+    <Authors>Artromskiy</Authors>
+    <Description>Build-time Roslyn incremental generator for compiled DeltaXAML documents.</Description>
+    <PackageTags>xaml;roslyn;source-generator;build-time</PackageTags>
+    <RepositoryUrl>https://github.com/Artromskiy/DeltaXAML</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <IsRoslynComponent>true</IsRoslynComponent>
-    <!-- This build-time component consumes the net8 semantic compiler; it is not shipped as a netstandard analyzer. -->
+    <!-- The build-time analyzer targets net8 and carries its compiler companions. -->
     <NoWarn>$(NoWarn);RS1041;RS1036;RS2008</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="$(MSBuildProjectDirectory)/../../docs/README.md"
+          Pack="true"
+          PackagePath="README.md"
+          Visible="false" />
     <ProjectReference Include="../DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" PrivateAssets="all" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);CollectDeltaXamlGeneratorPackageFiles</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <Target Name="CollectDeltaXamlGeneratorPackageFiles" Returns="@(TfmSpecificPackageFile)">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetPath)">
+        <PackagePath>analyzers/dotnet/cs/$(TargetFileName)</PackagePath>
+      </TfmSpecificPackageFile>
+      <TfmSpecificPackageFile Include="$(TargetDir)**/*.dll" Exclude="$(TargetPath)">
+        <PackagePath>analyzers/dotnet/cs/</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
 </Project>

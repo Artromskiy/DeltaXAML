@@ -5,8 +5,21 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>DeltaXAML.Compiler</RootNamespace>
     <AssemblyName>DeltaXAML.Compiler</AssemblyName>
+    <PackageId>DeltaXAML.Compiler</PackageId>
+    <Version>0.0.14</Version>
+    <IsPackable>true</IsPackable>
+    <Authors>Artromskiy</Authors>
+    <Description>Build-time deterministic XAML semantic compiler and typed plans for DeltaXAML.</Description>
+    <PackageTags>xaml;compiler;semantic-model;source-generation</PackageTags>
+    <RepositoryUrl>https://github.com/Artromskiy/DeltaXAML</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="$(MSBuildProjectDirectory)/../../docs/README.md"
+          Pack="true"
+          PackagePath="README.md"
+          Visible="false" />
     <ProjectReference Include="../DeltaXAML/DeltaXAML.csproj" />
     <ProjectReference Include="../../../DeltaDiagnostics/src/Delta.Diagnostics.Contract/Delta.Diagnostics.Contract.csproj" />
     <ProjectReference Include="../DeltaXAML.Contract/DeltaXAML.Contract.csproj" />
