@@ -15,6 +15,7 @@ using Delta.Text.Contract;
 using Delta.XAML;
 using Delta.XAML.Contract;
 using DeltaXaml.Samples.RoundedRectangle.Render.Generated;
+using SDL3;
 using TextShaders = Delta.Shader.Text.Shaders;
 using UiShaders = Delta.Shader.UI.Shaders;
 
@@ -150,12 +151,18 @@ internal static class Program
         IRenderFeature[] features = readback is null ? [clear, ui] : [clear, ui, readback];
         var renderedFrames = 0;
         var timings = new TimingSummary();
-        while ((window is null || !window.IsClosed) && renderedFrames < frameLimit)
+        var running = true;
+        while (running && (window is null || !window.IsClosed) && renderedFrames < frameLimit)
         {
             WindowMetrics metrics;
             if (window is { } activeWindow)
             {
-                Sdl3WindowFactory.PumpEvents();
+                running = PumpWindowEvents();
+                if (!running)
+                {
+                    break;
+                }
+
                 metrics = activeWindow.Metrics;
             }
             else
@@ -238,6 +245,22 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    private static bool PumpWindowEvents()
+    {
+        Sdl3WindowFactory.PumpEvents();
+        var running = true;
+        while (SDL.PollEvent(out var @event))
+        {
+            var type = (SDL.EventType)@event.Type;
+            if (type is SDL.EventType.Quit or SDL.EventType.WindowCloseRequested)
+            {
+                running = false;
+            }
+        }
+
+        return running;
     }
 
     private static LoadedDocument LoadDocument(

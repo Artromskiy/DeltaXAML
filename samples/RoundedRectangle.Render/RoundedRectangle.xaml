@@ -1,7 +1,18 @@
-<Border xmlns="urn:delta-xaml"
-        Width="640"
-        Height="320"
-        Background="#2878D0"
-        BorderColor="#D9EEFF"
-        BorderWidth="4"
-        CornerRadius="48,20,72,12" />
+<Grid xmlns="urn:delta-xaml"
+	  xmlns:x="urn:delta-xaml"
+	  Width="800"
+	  Height="500"
+	  Background="#808080"
+	  Rows="*,320,*"
+	  Columns="*,640,*">
+	<Panel/>
+	<Panel/>
+	<Panel/>
+	<Panel/>
+	<Border Width="640"
+			Height="320"
+			Background="#2878D0"
+			BorderColor="#D9EEFF"
+			BorderWidth="1"
+			CornerRadius="48,20,72,12"/>
+</Grid>

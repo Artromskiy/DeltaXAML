@@ -79,7 +79,6 @@ internal static class SnakeHeadlessRenderRunner
         var extent = new PixelExtent(Width, Height);
         var visualProgram = LoadRoundedProgram();
         var solidVisualProgram = LoadSolidProgram();
-        var roundedSliceVisualProgram = LoadRoundedSliceProgram();
         var textProgram = LoadTextProgram();
         using var textFeature = new TextRenderFeature(session, textService, textProgram, extent);
         using var uiFeature = new UiDisplayListGraphFeature(
@@ -87,8 +86,7 @@ internal static class SnakeHeadlessRenderRunner
             visualProgram,
             extent,
             textFeature: textFeature,
-            solidVisualProgram: solidVisualProgram,
-            roundedSliceVisualProgram: roundedSliceVisualProgram);
+            solidVisualProgram: solidVisualProgram);
         var graph = session.CreateRenderGraph();
         IRenderFeature[] features = [uiFeature];
         int measuredFrameCount = Math.Max(0, frameCount - skipFrames);
@@ -156,24 +154,17 @@ internal static class SnakeHeadlessRenderRunner
 
     private static GraphicsShaderProgram LoadRoundedProgram()
         => LoadProgram(
-            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangle.Vertex(),
-            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangle.Fragment(),
-            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangle.Vertex(),
-            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangle.Fragment());
+            UiShaders.Spv.UiRectangleShaders.RoundedRectangle.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.RoundedRectangle.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.RoundedRectangle.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.RoundedRectangle.Fragment());
 
     private static GraphicsShaderProgram LoadSolidProgram()
         => LoadProgram(
-            UiShaders.Spv.UiRectangleShaders.ClipAwareSolidRectangle.Vertex(),
-            UiShaders.Spv.UiRectangleShaders.ClipAwareSolidRectangle.Fragment(),
-            UiShaders.Abi.UiRectangleShaders.ClipAwareSolidRectangle.Vertex(),
-            UiShaders.Abi.UiRectangleShaders.ClipAwareSolidRectangle.Fragment());
-
-    private static GraphicsShaderProgram LoadRoundedSliceProgram()
-        => LoadProgram(
-            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Vertex(),
-            UiShaders.Spv.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Fragment(),
-            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Vertex(),
-            UiShaders.Abi.UiRectangleShaders.ClipAwareRoundedRectangleSlice.Fragment());
+            UiShaders.Spv.UiRectangleShaders.SolidRectangle.Vertex(),
+            UiShaders.Spv.UiRectangleShaders.SolidRectangle.Fragment(),
+            UiShaders.Abi.UiRectangleShaders.SolidRectangle.Vertex(),
+            UiShaders.Abi.UiRectangleShaders.SolidRectangle.Fragment());
 
     private static GraphicsShaderProgram LoadTextProgram()
         => LoadProgram(
