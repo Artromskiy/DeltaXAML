@@ -37,15 +37,18 @@ from the configured feed. `DeltaMaths` is currently the only cross-repository
 runtime package consumed by the samples (`Version="*"`, through the
 authenticated GitHub Packages source configured by CI).
 
-The following sample references are intentionally source-only until their
-producer packages are published: `DeltaText`, `Delta.Diagnostics.Contract`,
+The following producer references are intentionally source-only until their
+packages are published: `DeltaText`, `Delta.Diagnostics.Contract`,
 `DeltaRender`, `DeltaRender.Platform.SDL3`, `DeltaRender.Vulkan`,
 `DeltaRender.Text`, `DeltaRender.XAML`, `DeltaShader.UI` and
-`DeltaShader.Text`. They remain sibling `ProjectReference` edges so a local
-checkout describes the real implementation graph; no fake package source or
-unpublished package version is used. `DeltaXAML`, `DeltaXAML.Contract`,
-`DeltaXAML.Compiler` and `DeltaXAML.Generator` remain local repository
-references, with Compiler/Generator serving the build-time path.
+`DeltaShader.Text`. The production library, tests and samples keep the
+available source project for those edges, so a local checkout describes the
+real implementation graph; no fake package source or unpublished package
+version is used. The frozen `DeltaXAML.Contract` project retains its existing
+package metadata and is not changed by this migration. Pack targets still
+express a package dependency when the DeltaXAML package is published.
+`DeltaXAML`, `DeltaXAML.Compiler` and `DeltaXAML.Generator` remain local
+repository references, with Compiler/Generator serving the build-time path.
 
 ## Lessons retained from other XAML systems
 
