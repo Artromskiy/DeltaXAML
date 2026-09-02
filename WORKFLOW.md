@@ -78,11 +78,11 @@ done
 Publish only after the package inspection succeeds. The API key is supplied
 only by the shell environment variable `NUGET_API_KEY`; never put it in a
 project file, command-line literal, repository file or committed log. This
-protocol targets the repository's authenticated GitHub Packages feed:
+protocol targets NuGet.org:
 
 ```bash
 : "${NUGET_API_KEY:?Set NUGET_API_KEY in the shell; do not store it in the repository}"
-nuget_source='https://nuget.pkg.github.com/Artromskiy/index.json'
+nuget_source='https://api.nuget.org/v3/index.json'
 for package in \
   "$package_dir/DeltaXAML.Contract.0.0.14.nupkg" \
   "$package_dir/DeltaXAML.0.0.14.nupkg" \
