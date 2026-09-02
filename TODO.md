@@ -10,6 +10,13 @@ in [IDEAS.md](IDEAS.md).
 
 ## Deferred rendering follow-up
 
-- [ ] Define and implement one logical-DIP to Vulkan device-pixel DPI boundary
-  for viewport, layout, clips, text metrics and readback. Apply the scale once
-  and keep it separate from the fixed top-left UI and texture-UV convention.
+- [x] Implement the DeltaXAML producer half of the logical-DIP boundary:
+  `UiDocument.Layout(viewport, dpiScale)` validates one finite positive scale,
+  keeps viewport, layout and clip geometry in logical coordinates, applies the
+  scale once to text metrics, and exports the scale through
+  `UiDisplayList.DpiScale`. Repeating the same scale reuses the retained
+  layout/text state; `DpiInvalidatesLayoutWithoutCompoundingScale` covers the
+  invalidation and shaped-text cache behavior.
+- [ ] Complete the consumer-side logical-DIP to Vulkan device-pixel conversion
+  and readback policy. This is owned by DeltaRender; DeltaXAML must only
+  provide the logical display list and its validated `DpiScale`.

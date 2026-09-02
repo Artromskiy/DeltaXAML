@@ -80,6 +80,20 @@ tests must cover original and resized viewports, clips and stable backing-array
 reuse. The real window command lives in
 [../DeltaEditor/WORKFLOW.md](../DeltaEditor/WORKFLOW.md).
 
+### DPI boundary evidence
+
+DeltaXAML owns one producer-side boundary. `UiDocument.Layout(viewport,
+dpiScale)` validates the scale, preserves logical viewport/layout/clip
+coordinates, applies it once to text metrics, and publishes it as
+`UiDisplayList.DpiScale`. The retained scale stage is keyed by both DPI and
+tree version, so an unchanged scale does not repeat layout invalidation or
+text shaping. `DpiInvalidatesLayoutWithoutCompoundingScale` is the bounded
+regression check for this behavior.
+
+Conversion from logical values to Vulkan device pixels, framebuffer readback
+orientation and presentation policy belong to DeltaRender. Do not add a
+second scaled layout path or perform device-pixel conversion in DeltaXAML.
+
 DeltaShader owns generated shader outputs. Run
 `./eng/check-shader-output-ownership.sh` to reject shader binaries and
 sidecars in DeltaXAML projects and samples.
