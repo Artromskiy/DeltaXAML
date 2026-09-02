@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/DeltaXAML/DeltaXAML.csproj" />
-    <PackageReference Include="DeltaText" Version="*" />
+    <ProjectReference Include="../../../DeltaText/src/DeltaText/DeltaText.csproj" />
   </ItemGroup>
 
   <ItemGroup>

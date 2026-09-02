@@ -15,9 +15,9 @@
     <ProjectReference Include="../../src/DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" />
     <ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" OutputItemType="Analyzer" />
     <ProjectReference Include="../../src/DeltaXAML.Contract/DeltaXAML.Contract.csproj" />
-    <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
+    <ProjectReference Include="../../../DeltaDiagnostics/src/Delta.Diagnostics.Contract/Delta.Diagnostics.Contract.csproj" />
     <PackageReference Include="DeltaMaths" Version="*" />
-    <PackageReference Include="DeltaText" Version="*" />
+    <ProjectReference Include="../../../DeltaText/src/DeltaText/DeltaText.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender/DeltaRender.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Platform.SDL3/DeltaRender.Platform.SDL3.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Vulkan/DeltaRender.Vulkan.csproj" />

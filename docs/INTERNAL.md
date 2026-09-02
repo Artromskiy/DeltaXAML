@@ -30,6 +30,23 @@ The code should read in execution order. A reader must be able to see what
 state enters a stage, what it mutates, what memory it borrows and which project
 owns the result.
 
+### Consumer sample dependency modes
+
+Samples use a package reference only when the producer release is available
+from the configured feed. `DeltaMaths` is currently the only cross-repository
+runtime package consumed by the samples (`Version="*"`, through the
+authenticated GitHub Packages source configured by CI).
+
+The following sample references are intentionally source-only until their
+producer packages are published: `DeltaText`, `Delta.Diagnostics.Contract`,
+`DeltaRender`, `DeltaRender.Platform.SDL3`, `DeltaRender.Vulkan`,
+`DeltaRender.Text`, `DeltaRender.XAML`, `DeltaShader.UI` and
+`DeltaShader.Text`. They remain sibling `ProjectReference` edges so a local
+checkout describes the real implementation graph; no fake package source or
+unpublished package version is used. `DeltaXAML`, `DeltaXAML.Contract`,
+`DeltaXAML.Compiler` and `DeltaXAML.Generator` remain local repository
+references, with Compiler/Generator serving the build-time path.
+
 ## Lessons retained from other XAML systems
 
 DeltaXAML deliberately adopts these proven ideas:
