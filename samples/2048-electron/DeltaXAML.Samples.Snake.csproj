@@ -11,10 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/DeltaXAML/DeltaXAML.csproj" />
-    <ProjectReference Include="../../src/DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" />
-    <ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" OutputItemType="Analyzer" />
-    <ProjectReference Include="../../src/DeltaXAML.Contract/DeltaXAML.Contract.csproj" />
+    <PackageReference Include="DeltaXAML" Version="*" />
+    <PackageReference Include="DeltaXAML.Compiler" Version="*" />
+    <PackageReference Include="DeltaXAML.Generator" Version="*" PrivateAssets="all" />
+    <PackageReference Include="DeltaXAML.Contract" Version="*" />
     <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
     <PackageReference Include="DeltaMaths" Version="*" />
     <PackageReference Include="DeltaText" Version="*" />
@@ -31,13 +31,6 @@
     </ProjectReference>
     <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
     <PackageReference Include="Silk.NET.MoltenVK.Native" Version="2.23.0" GeneratePathProperty="true" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Compiler.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/Delta.Diagnostics.Contract.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Contract.dll" />
   </ItemGroup>
 
   <ItemGroup>

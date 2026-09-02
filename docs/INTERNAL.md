@@ -36,8 +36,10 @@ Consumers use package references for the available cross-repository runtime
 packages `DeltaText`, `Delta.Diagnostics.Contract` and `DeltaMaths`, all with
 `Version="*"` through the authenticated GitHub Packages source configured by
 CI. The DeltaXAML package itself is consumed by external applications; the
-repository's own compiler/test/sample projects keep the local runtime project
-so generated artifacts are tested against the checked-out implementation.
+user-facing samples and benchmark use the published XAML packages. The
+compiler project and contract test suite keep local source edges so generated
+artifacts and implementation contracts are tested against the checked-out
+implementation.
 
 The following producer references are intentionally source-only until their
 packages are published: `DeltaRender`, `DeltaRender.Platform.SDL3`,
@@ -49,8 +51,10 @@ real implementation graph; no fake package source or unpublished package
 version is used. The frozen `DeltaXAML.Contract` project retains its existing
 package metadata and is not changed by this migration. Pack targets still
 express a package dependency when the DeltaXAML package is published.
-`DeltaXAML`, `DeltaXAML.Compiler` and `DeltaXAML.Generator` remain local
-repository references, with Compiler/Generator serving the build-time path.
+`DeltaXAML.Compiler` and `DeltaXAML.Generator` are package references in
+consumer samples; the compiler project and contract tests retain their local
+intra-repository build-time edges. `DeltaXAML` itself remains a local source
+project only for the implementation path.
 
 ## Lessons retained from other XAML systems
 
