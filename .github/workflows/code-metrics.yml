@@ -14,6 +14,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          path: DeltaXAML
+      - name: Checkout DeltaDiagnostics sibling
+        uses: actions/checkout@v5
+        with:
+          repository: Artromskiy/DeltaDiagnostics
+          path: DeltaDiagnostics
+      - name: Checkout DeltaMaths sibling
+        uses: actions/checkout@v5
+        with:
+          repository: Artromskiy/DeltaMaths
+          path: DeltaMaths
+      - name: Checkout DeltaText sibling
+        uses: actions/checkout@v5
+        with:
+          repository: Artromskiy/DeltaText
+          path: DeltaText
+      - name: Checkout DeltaRender sibling
+        uses: actions/checkout@v5
+        with:
+          repository: Artromskiy/DeltaRender
+          path: DeltaRender
+      - name: Checkout DeltaShader sibling
+        uses: actions/checkout@v5
+        with:
+          repository: Artromskiy/DeltaShader
+          path: DeltaShader
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
@@ -31,14 +58,17 @@ jobs:
             --password "$NUGET_AUTH_TOKEN" \
             --store-password-in-clear-text
       - name: Restore
+        working-directory: DeltaXAML
         run: dotnet restore DeltaXAML.slnx
       - name: Verify formatting
         continue-on-error: true
+        working-directory: DeltaXAML
         run: |
           mkdir -p artifacts/code-metrics
           dotnet format whitespace --folder . --exclude ./obj ./bin --verify-no-changes --verbosity minimal 2>&1 | tee artifacts/code-metrics/format.log
       - name: Build and collect analyzer metrics
         shell: bash
+        working-directory: DeltaXAML
         run: |
           set -uo pipefail
           mkdir -p artifacts/code-metrics; set +e
@@ -50,5 +80,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: code-metrics
-          path: artifacts/code-metrics
+          path: DeltaXAML/artifacts/code-metrics
           if-no-files-found: warn
