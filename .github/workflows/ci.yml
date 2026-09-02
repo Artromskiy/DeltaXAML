@@ -59,16 +59,6 @@ jobs:
           dotnet-version: |
             8.0.x
             10.0.x
-      - name: Configure GitHub Packages
-        env:
-          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          dotnet nuget add source \
-            https://nuget.pkg.github.com/Artromskiy/index.json \
-            --name github \
-            --username "${{ github.repository_owner }}" \
-            --password "$NUGET_AUTH_TOKEN" \
-            --store-password-in-clear-text
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
