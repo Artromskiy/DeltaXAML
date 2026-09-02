@@ -38,8 +38,6 @@
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/Delta.Diagnostics.Contract.dll" />
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.dll" />
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Contract.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaMaths.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaText.dll" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace" />
     <AdditionalFiles Include="GridTwoRows.xaml"
