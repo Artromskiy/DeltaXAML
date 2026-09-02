@@ -26,26 +26,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          path: DeltaXAML
       - name: Checkout DeltaDiagnostics sibling
         uses: actions/checkout@v7
         with:
           repository: Artromskiy/DeltaDiagnostics
-          path: ../DeltaDiagnostics
+          path: DeltaDiagnostics
       - name: Checkout DeltaText sibling
         uses: actions/checkout@v7
         with:
           repository: Artromskiy/DeltaText
-          path: ../DeltaText
+          path: DeltaText
       - name: Checkout DeltaRender sibling
         uses: actions/checkout@v7
         with:
           repository: Artromskiy/DeltaRender
-          path: ../DeltaRender
+          path: DeltaRender
       - name: Checkout DeltaShader sibling
         uses: actions/checkout@v7
         with:
           repository: Artromskiy/DeltaShader
-          path: ../DeltaShader
+          path: DeltaShader
       - name: Install .NET 8 and 10
         uses: actions/setup-dotnet@v6
         with:
@@ -69,8 +71,10 @@ jobs:
           key: delta-xaml-nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: delta-xaml-nuget-${{ runner.os }}-
       - name: Restore and build
+        working-directory: DeltaXAML
         run: |
           dotnet restore DeltaXAML.slnx
           dotnet build DeltaXAML.slnx -c Release --no-restore
       - name: Run tests
+        working-directory: DeltaXAML
         run: dotnet run --project tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj -c Release --no-build --no-restore
