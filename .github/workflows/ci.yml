@@ -30,22 +30,22 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Artromskiy/DeltaDiagnostics
-          path: DeltaDiagnostics
+          path: ../DeltaDiagnostics
       - name: Checkout DeltaText sibling
         uses: actions/checkout@v7
         with:
           repository: Artromskiy/DeltaText
-          path: DeltaText
+          path: ../DeltaText
       - name: Checkout DeltaRender sibling
         uses: actions/checkout@v7
         with:
           repository: Artromskiy/DeltaRender
-          path: DeltaRender
+          path: ../DeltaRender
       - name: Checkout DeltaShader sibling
         uses: actions/checkout@v7
         with:
           repository: Artromskiy/DeltaShader
-          path: DeltaShader
+          path: ../DeltaShader
       - name: Install .NET 8 and 10
         uses: actions/setup-dotnet@v6
         with:
