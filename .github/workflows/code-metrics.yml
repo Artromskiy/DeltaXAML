@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   metrics:
@@ -19,6 +20,16 @@ jobs:
           dotnet-version: |
             8.x
             10.x
+      - name: Configure GitHub Packages
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget add source \
+            https://nuget.pkg.github.com/Artromskiy/index.json \
+            --name github \
+            --username "${{ github.repository_owner }}" \
+            --password "$NUGET_AUTH_TOKEN" \
+            --store-password-in-clear-text
       - name: Restore
         run: dotnet restore DeltaXAML.slnx
       - name: Verify formatting
