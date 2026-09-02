@@ -38,6 +38,11 @@ jobs:
         with:
           repository: Artromskiy/DeltaText
           path: DeltaText
+      - name: Checkout DeltaMaths sibling
+        uses: actions/checkout@v7
+        with:
+          repository: Artromskiy/DeltaMaths
+          path: DeltaMaths
       - name: Checkout DeltaRender sibling
         uses: actions/checkout@v7
         with:
