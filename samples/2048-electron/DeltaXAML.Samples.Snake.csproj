@@ -18,9 +18,9 @@
     <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
     <PackageReference Include="DeltaMaths" Version="*" />
     <PackageReference Include="DeltaText" Version="*" />
-    <ProjectReference Include="../../../DeltaRender/src/DeltaRender/DeltaRender.csproj" />
-    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Platform.SDL3/DeltaRender.Platform.SDL3.csproj" />
-    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Vulkan/DeltaRender.Vulkan.csproj" />
+    <PackageReference Include="DeltaRender" Version="*" />
+    <PackageReference Include="DeltaRender.Platform.SDL3" Version="*" />
+    <PackageReference Include="DeltaRender.Vulkan" Version="*" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Text/DeltaRender.Text.csproj" />
     <ProjectReference Include="../../../DeltaRender/src/DeltaRender.XAML/DeltaRender.XAML.csproj" />
     <ProjectReference Include="../../../DeltaShader/src/DeltaShader.UI/DeltaShader.UI.csproj">

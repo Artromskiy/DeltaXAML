@@ -42,15 +42,19 @@ artifacts and implementation contracts are tested against the checked-out
 implementation.
 
 The following producer references are intentionally source-only until their
-packages are published: `DeltaRender`, `DeltaRender.Platform.SDL3`,
-`DeltaRender.Vulkan`,
-`DeltaRender.Text`, `DeltaRender.XAML`, `DeltaShader.UI` and
-`DeltaShader.Text`. The production library, tests and samples keep the
-available source project for those edges, so a local checkout describes the
-real implementation graph; no fake package source or unpublished package
-version is used. The frozen `DeltaXAML.Contract` project retains its existing
-package metadata and is not changed by this migration. Pack targets still
-express a package dependency when the DeltaXAML package is published.
+packages are published: `DeltaRender.Text`, `DeltaRender.XAML`,
+`DeltaShader.UI` and `DeltaShader.Text`. Renderer-backed samples use floating
+package references for the published `DeltaRender`,
+`DeltaRender.Platform.SDL3` and `DeltaRender.Vulkan` packages, while keeping
+the non-packable Text/XAML and Shader producer edges as source references.
+This keeps one packaged base renderer assembly; no source `DeltaRender`
+project reference is added through the sample. The production library, tests
+and samples keep the available source project for the remaining source-only
+edges, so a local checkout describes the real implementation graph; no fake
+package source or unpublished package version is used. The frozen
+`DeltaXAML.Contract` project retains its existing package metadata and is not
+changed by this migration. Pack targets still express a package dependency
+when the DeltaXAML package is published.
 `DeltaXAML.Compiler` and `DeltaXAML.Generator` are package references in
 consumer samples; the compiler project and contract tests retain their local
 intra-repository build-time edges. `DeltaXAML` itself remains a local source
