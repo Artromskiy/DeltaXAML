@@ -4,11 +4,25 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DeltaXAML.Contract</AssemblyName>
+    <PackageId>DeltaXAML.Contract</PackageId>
+    <Version>0.0.14</Version>
+    <IsPackable>true</IsPackable>
+    <Authors>Artromskiy</Authors>
+    <Description>Neutral input and borrowed UI display-list contracts for DeltaXAML consumers.</Description>
+    <PackageTags>xaml;ui;input;display-list;contracts</PackageTags>
+    <RepositoryUrl>https://github.com/Artromskiy/DeltaXAML</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <RootNamespace>Delta.XAML.Contract</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../../DeltaMaths/src/DeltaMaths/DeltaMaths.csproj" />
+    <None Include="$(MSBuildProjectDirectory)/../../docs/CONTRACT.md"
+          Pack="true"
+          PackagePath="README.md"
+          Visible="false" />
+    <PackageReference Include="DeltaMaths" Version="0.0.7" />
     <ProjectReference Include="../../../DeltaText/src/DeltaText/DeltaText.csproj" />
   </ItemGroup>
 </Project>
