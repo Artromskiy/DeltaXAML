@@ -1,30 +1,12 @@
-# DeltaXAML
+# DeltaXAML public documentation
 
-DeltaXAML is the retained XAML library owned by DeltaXAML. It provides XAML
-loading, retained elements, properties, bindings, layout and neutral input.
-It has no SDL, Vulkan, DeltaEngine or ECS-storage dependency.
+Public documentation for the DeltaXAML library:
 
-Authoritative documents:
-
-- [USER_API.md](USER_API.md) — explicitly user-facing library API;
-- [LIBRARY_CONTRACT.md](LIBRARY_CONTRACT.md) — selected loader/document/
-  element/property contract;
-- [CONTRACT.md](CONTRACT.md) — cross-project input and borrowed
-  display-list contract;
-- [UI_RENDERING_DESIGN.md](UI_RENDERING_DESIGN.md) — cross-project UI
-  rendering ownership, adapter and shader design;
-- [INTERNAL.md](INTERNAL.md) — authoritative typed-state, static-mixin,
-  generated-descriptor and compiled-XAML implementation architecture;
-- [TODO.md](../TODO.md) — currently selected project work;
-- [WORKFLOW.md](../WORKFLOW.md) — bounded local checks.
-
-Ownership is intentionally split: DeltaXAML owns the retained document and
-display-list production, DeltaText owns shaping, DeltaRender owns GPU/atlas
-submission, and DeltaEngine owns platform event acquisition and scheduling.
-The canonical cross-project namespace is `Delta.XAML.Contract`; retained
-implementation details are internal.
-
-DeltaXAML is usable directly inside a game. The host dispatches neutral input,
-lays out the retained document for its viewport and adds the borrowed
-`UiDisplayList` to DeltaRender's Vulkan render graph. DeltaEditor is one
-consumer, not the owner of the library or its lifecycle.
+- [User API](USER_API.md) — user-facing library API and usage.
+- [Library contract](LIBRARY_CONTRACT.md) — consumer-facing loader, element,
+  property, binding and resource surface.
+- [Cross-project contract](CONTRACT.md) — neutral input and display-list
+  boundary.
+- [UI rendering design](UI_RENDERING_DESIGN.md) — public ownership and adapter
+  overview.
+- [Project README](../README.md) — quick start, capabilities and examples.
