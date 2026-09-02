@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: delta-xaml-ci-${{ github.workflow }}-${{ github.ref }}
@@ -25,10 +26,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Install .NET 8
+      - name: Checkout DeltaDiagnostics sibling
+        uses: actions/checkout@v7
+        with:
+          repository: Artromskiy/DeltaDiagnostics
+          path: DeltaDiagnostics
+      - name: Checkout DeltaText sibling
+        uses: actions/checkout@v7
+        with:
+          repository: Artromskiy/DeltaText
+          path: DeltaText
+      - name: Checkout DeltaRender sibling
+        uses: actions/checkout@v7
+        with:
+          repository: Artromskiy/DeltaRender
+          path: DeltaRender
+      - name: Checkout DeltaShader sibling
+        uses: actions/checkout@v7
+        with:
+          repository: Artromskiy/DeltaShader
+          path: DeltaShader
+      - name: Install .NET 8 and 10
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Configure GitHub Packages
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dotnet nuget add source \
+            https://nuget.pkg.github.com/Artromskiy/index.json \
+            --name github \
+            --username "${{ github.repository_owner }}" \
+            --password "$NUGET_AUTH_TOKEN" \
+            --store-password-in-clear-text
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
