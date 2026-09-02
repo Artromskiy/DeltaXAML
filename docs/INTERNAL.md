@@ -32,14 +32,16 @@ owns the result.
 
 ### Consumer sample dependency modes
 
-Samples use a package reference only when the producer release is available
-from the configured feed. `DeltaMaths` is currently the only cross-repository
-runtime package consumed by the samples (`Version="*"`, through the
-authenticated GitHub Packages source configured by CI).
+Consumers use package references for the available cross-repository runtime
+packages `DeltaText`, `Delta.Diagnostics.Contract` and `DeltaMaths`, all with
+`Version="*"` through the authenticated GitHub Packages source configured by
+CI. The DeltaXAML package itself is consumed by external applications; the
+repository's own compiler/test/sample projects keep the local runtime project
+so generated artifacts are tested against the checked-out implementation.
 
 The following producer references are intentionally source-only until their
-packages are published: `DeltaText`, `Delta.Diagnostics.Contract`,
-`DeltaRender`, `DeltaRender.Platform.SDL3`, `DeltaRender.Vulkan`,
+packages are published: `DeltaRender`, `DeltaRender.Platform.SDL3`,
+`DeltaRender.Vulkan`,
 `DeltaRender.Text`, `DeltaRender.XAML`, `DeltaShader.UI` and
 `DeltaShader.Text`. The production library, tests and samples keep the
 available source project for those edges, so a local checkout describes the
