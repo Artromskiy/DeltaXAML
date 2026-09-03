@@ -19,6 +19,17 @@ dotnet run --project samples/RoundedRectangle.Render/DeltaXAML.Samples.RoundedRe
   -c Release -r osx-arm64
 ```
 
+Add `--watch` to reload the source XAML at frame boundaries while the sample
+is running; no rebuild is required. The watcher uses the source file under
+`samples/RoundedRectangle.Render` when the command is started from the
+repository root. A file that is temporarily invalid is rejected and the last
+valid document remains active until the next successful save:
+
+```bash
+dotnet run --project samples/RoundedRectangle.Render/DeltaXAML.Samples.RoundedRectangle.Render.csproj \
+  -c Release -r osx-arm64 -- --watch
+```
+
 Use `--frames N` for a bounded run. The host requires an SDL3
 display, Vulkan/MoltenVK and compatible checked-out DeltaRender/DeltaShader
 artifacts. DeltaXAML itself remains renderer-neutral.

@@ -202,9 +202,9 @@ present); it does not implicitly clip child content. Text controls expose `Outli
 `OutlineWidth` and an optional `TextEffect` resource identity. These values are
 carried into `UiVisualPaint`/`UiTextPaint`; shaping, effect shader selection and
 GPU resource resolution remain outside DeltaXAML. During display-list extraction,
-each corner is limited to half the smaller element dimension, so adjacent radii
-cannot overrun the arranged bounds; the declared `CornerRadius` value is not
-changed.
+radii are scaled proportionally only when the sums of adjacent radii would exceed
+an arranged width or height. A valid single corner can therefore reach the full
+length of its adjacent sides; the declared `CornerRadius` value is not changed.
 
 `BorderWidthUnits` selects `Logical` (the default, scaled by the display-list
 DPI) or `Device` (physical pixels, useful for a one-pixel hairline). It affects

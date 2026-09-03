@@ -17,7 +17,7 @@
     <PackageReference Include="DeltaXAML.Contract" Version="*" />
     <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
     <PackageReference Include="DeltaMaths" Version="*" />
-    <PackageReference Include="DeltaText" Version="0.0.7" />
+    <PackageReference Include="DeltaText" Version="*" />
     <PackageReference Include="DeltaRender" Version="*" />
     <PackageReference Include="DeltaRender.Platform.SDL3" Version="*" />
     <PackageReference Include="DeltaRender.Vulkan" Version="*" />
@@ -29,8 +29,8 @@
     <ProjectReference Include="../../../DeltaShader/src/DeltaShader.Text/DeltaShader.Text.csproj">
       <AdditionalProperties>DeltaShaderPublishPath=$(TargetDir)DeltaShader\DeltaShader.Text\</AdditionalProperties>
     </ProjectReference>
-    <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
-    <PackageReference Include="Silk.NET.MoltenVK.Native" Version="2.23.0" GeneratePathProperty="true" />
+    <PackageReference Include="SDL3-CS" Version="*" />
+    <PackageReference Include="Silk.NET.MoltenVK.Native" Version="*" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>

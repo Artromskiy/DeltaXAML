@@ -14,7 +14,6 @@ using Delta.Text;
 using Delta.Text.Contract;
 using Delta.XAML;
 using Delta.XAML.Contract;
-using DeltaXaml.Samples.RoundedRectangle.Render.Generated;
 using SDL3;
 using TextShaders = Delta.Shader.Text.Shaders;
 using UiShaders = Delta.Shader.UI.Shaders;
@@ -31,13 +30,18 @@ internal static class Program
         try
         {
             var frameLimit = ParseFrameLimit(args);
+            var watch = HasFlag(args, "--watch");
             var profile = HasFlag(args, "--profile");
+            var assertNoBlackPixels = HasFlag(args, "--assert-no-black-pixels");
+            var xamlPath = ParsePath(args, "--xaml", "RoundedRectangle.xaml");
             if (HasFlag(args, "--headless"))
             {
                 return await RunHeadlessAsync(
                     frameLimit,
                     profile,
-                    ParsePath(args, "--xaml", "RoundedRectangle.xaml"),
+                    assertNoBlackPixels,
+                    xamlPath,
+                    watch,
                     ParsePath(args, "--layout-json", "/tmp/delta-grid-two-rows-layout.json"),
                     ParsePath(args, "--readback", "/tmp/delta-grid-two-rows.ppm")).ConfigureAwait(false);
             }
@@ -57,7 +61,8 @@ internal static class Program
                 window,
                 frameLimit,
                 profile,
-                ParsePath(args, "--xaml", "RoundedRectangle.xaml")).ConfigureAwait(false);
+                xamlPath,
+                watch).ConfigureAwait(false);
         }
 #pragma warning disable CA1031
         catch (Exception exception)
@@ -72,12 +77,15 @@ internal static class Program
         IRenderWindow window,
         int frameLimit,
         bool profile,
-        string xamlPath)
+        string xamlPath,
+        bool watch)
     {
         var fonts = LoadFonts();
         using var textService = new SixLaborsTextService();
-        using var loaded = LoadDocument(xamlPath, textService, fonts);
-        var document = loaded.Document;
+        var sourcePath = ResolveSourcePath(xamlPath);
+        using var documentState = new LoadedDocumentState(
+            LoadDocument(sourcePath, textService, fonts),
+            GetPathStamp(sourcePath));
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateWindowSession(window);
 
@@ -87,20 +95,38 @@ internal static class Program
         using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(800, 500));
         var metrics = window.Metrics;
         var extent = metrics.DrawableExtent;
-        return await RunFramesAsync(window, session, document, program, solidProgram, textFeature, extent, frameLimit, profile).ConfigureAwait(false);
+        return await RunFramesAsync(
+            window,
+            session,
+            documentState,
+            program,
+            solidProgram,
+            textFeature,
+            extent,
+            frameLimit,
+            profile,
+            assertNoBlackPixels: false,
+            watch: watch,
+            xamlSourcePath: sourcePath,
+            textService: textService,
+            fontResolver: fonts).ConfigureAwait(false);
     }
 
     private static async Task<int> RunHeadlessAsync(
         int frameLimit,
         bool profile,
+        bool assertNoBlackPixels,
         string xamlPath,
+        bool watch,
         string layoutJsonPath,
         string readbackPath)
     {
         var fonts = LoadFonts();
         using var textService = new SixLaborsTextService();
-        using var loaded = LoadDocument(xamlPath, textService, fonts);
-        var document = loaded.Document;
+        var sourcePath = ResolveSourcePath(xamlPath);
+        using var documentState = new LoadedDocumentState(
+            LoadDocument(sourcePath, textService, fonts),
+            GetPathStamp(sourcePath));
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
         await using var session = renderer.CreateHeadlessSession(800, 500);
         var program = LoadRoundedProgram();
@@ -110,30 +136,43 @@ internal static class Program
         return await RunFramesAsync(
             null,
             session,
-            document,
+            documentState,
             program,
             solidProgram,
             textFeature,
             new PixelExtent(800, 500),
             frameLimit,
             profile,
-            layoutJsonPath,
-            readbackPath).ConfigureAwait(false);
+            assertNoBlackPixels: assertNoBlackPixels,
+            watch: watch,
+            xamlSourcePath: sourcePath,
+            textService: textService,
+            fontResolver: fonts,
+            layoutJsonPath: layoutJsonPath,
+            readbackPath: readbackPath).ConfigureAwait(false);
     }
 
     private static async Task<int> RunFramesAsync(
         IRenderWindow? window,
         IRenderFrameSession session,
-        UiDocument document,
+        LoadedDocumentState documentState,
         IGraphicsShaderProgram program,
         IGraphicsShaderProgram solidProgram,
         TextRenderFeature textFeature,
         PixelExtent initialExtent,
         int frameLimit,
         bool profile,
+        ITextService textService,
+        IUiFontResolver fontResolver,
+        bool assertNoBlackPixels = false,
+        bool watch = false,
+        string? xamlSourcePath = null,
         string? layoutJsonPath = null,
         string? readbackPath = null)
     {
+        ArgumentNullException.ThrowIfNull(documentState);
+        ArgumentNullException.ThrowIfNull(textService);
+        ArgumentNullException.ThrowIfNull(fontResolver);
         var graph = session.CreateRenderGraph();
         var extent = initialExtent;
         session.ResizeTarget(in extent);
@@ -152,6 +191,12 @@ internal static class Program
         var renderedFrames = 0;
         var timings = new TimingSummary();
         var running = true;
+        var sourcePath = watch ? xamlSourcePath : null;
+        if (!watch)
+        {
+            sourcePath = null;
+        }
+
         while (running && (window is null || !window.IsClosed) && renderedFrames < frameLimit)
         {
             WindowMetrics metrics;
@@ -180,15 +225,27 @@ internal static class Program
                 extent = nextExtent;
             }
 
+            if (watch && sourcePath is not null)
+            {
+                if (TryReloadDocument(
+                    sourcePath,
+                    documentState,
+                    textService: textService,
+                    fontResolver: fontResolver))
+                {
+                    Console.WriteLine($"[watch] Reloaded {sourcePath}");
+                }
+            }
+
             var layoutStart = Stopwatch.GetTimestamp();
-            document.Layout(new float2(metrics.Width, metrics.Height), metrics.DpiScale);
+            documentState.Document.Layout(new float2(metrics.Width, metrics.Height), metrics.DpiScale);
             var layoutEnd = Stopwatch.GetTimestamp();
             if (layoutJsonPath is not null && renderedFrames == 0)
             {
-                File.WriteAllText(layoutJsonPath, document.BuildLayoutDiagnosticsJson());
+                File.WriteAllText(layoutJsonPath, documentState.Document.BuildLayoutDiagnosticsJson());
             }
 
-            var displayList = document.BuildDisplayList();
+            var displayList = documentState.Document.BuildDisplayList();
             var displayListEnd = Stopwatch.GetTimestamp();
             if (!ui.Consume(displayList))
             {
@@ -239,6 +296,15 @@ internal static class Program
             }
 
             SavePpm(pixels, extent.Width, extent.Height, readbackPath);
+            var visibleBlackPixels = CountVisibleBlackPixels(pixels);
+            await Console.Out.WriteLineAsync(
+                $"readback pixels: black={visibleBlackPixels}/{extent.Width * extent.Height}").ConfigureAwait(false);
+            if (assertNoBlackPixels && visibleBlackPixels != 0)
+            {
+                await Console.Error.WriteLineAsync($"black pixel regression: visible black pixels={visibleBlackPixels}").ConfigureAwait(false);
+                return 1;
+            }
+
             await Console.Out.WriteLineAsync(
                 $"readback: path={readbackPath}, nonZeroPixels={CountNonZeroPixels(pixels)}, " +
                 $"center={FormatCenterPixel(pixels, extent)}").ConfigureAwait(false);
@@ -271,14 +337,91 @@ internal static class Program
         ArgumentNullException.ThrowIfNull(textService);
         ArgumentNullException.ThrowIfNull(fontResolver);
         ArgumentException.ThrowIfNullOrWhiteSpace(xamlPath);
-        if (string.Equals(Path.GetFileName(xamlPath), "GridTwoRows.xaml", StringComparison.OrdinalIgnoreCase))
-        {
-            var artifact = new GridTwoRowsArtifact(textService, fontResolver);
-            return new LoadedDocument(artifact.Document, artifact);
-        }
-
         var root = LoadRoot(xamlPath);
         return new LoadedDocument(new UiDocument(root, textService, fontResolver), null);
+    }
+
+    private static bool TryReloadDocument(
+        string xamlPath,
+        LoadedDocumentState documentState,
+        ITextService textService,
+        IUiFontResolver fontResolver)
+    {
+        ArgumentNullException.ThrowIfNull(xamlPath);
+        ArgumentNullException.ThrowIfNull(documentState);
+        ArgumentNullException.ThrowIfNull(textService);
+        ArgumentNullException.ThrowIfNull(fontResolver);
+        var nextStamp = GetPathStamp(xamlPath);
+        if (nextStamp == -1L || nextStamp == documentState.SourceStamp)
+        {
+            return false;
+        }
+
+        try
+        {
+            var reloaded = LoadDocument(xamlPath, textService, fontResolver);
+            documentState.Replace(reloaded, nextStamp);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            documentState.SourceStamp = nextStamp;
+            Console.Error.WriteLine($"[watch] Failed to reload {xamlPath}: {exception.Message}");
+            return false;
+        }
+    }
+
+    private static long GetPathStamp(string sourcePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+        if (!File.Exists(sourcePath))
+        {
+            return -1L;
+        }
+
+        return unchecked(
+            (File.GetLastWriteTimeUtc(sourcePath).Ticks * 397L) ^ new FileInfo(sourcePath).Length);
+    }
+
+    private static string ResolveSourcePath(string xamlPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(xamlPath);
+        if (Path.IsPathRooted(xamlPath))
+        {
+            if (!File.Exists(xamlPath))
+            {
+                throw new FileNotFoundException($"Sample XAML was not found: {xamlPath}");
+            }
+
+            return xamlPath;
+        }
+
+        var cwdPath = Path.Combine(Environment.CurrentDirectory, xamlPath);
+        if (File.Exists(cwdPath))
+        {
+            return cwdPath;
+        }
+
+        if (string.IsNullOrEmpty(Path.GetDirectoryName(xamlPath)))
+        {
+            var projectPath = Path.Combine(
+                Environment.CurrentDirectory,
+                "samples",
+                "RoundedRectangle.Render",
+                xamlPath);
+            if (File.Exists(projectPath))
+            {
+                return projectPath;
+            }
+        }
+
+        var basePath = Path.Combine(AppContext.BaseDirectory, xamlPath);
+        if (File.Exists(basePath))
+        {
+            return basePath;
+        }
+
+        throw new FileNotFoundException($"Sample XAML was not found: {xamlPath}");
     }
 
     private static UiFontCatalog LoadFonts()
@@ -297,17 +440,9 @@ internal static class Program
     private static UiElement LoadRoot(string xamlPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(xamlPath);
-        var sourcePath = Path.IsPathRooted(xamlPath)
-            ? xamlPath
-            : Path.Combine(AppContext.BaseDirectory, xamlPath);
-        if (!File.Exists(sourcePath))
-        {
-            throw new FileNotFoundException($"Sample XAML was not found: {sourcePath}");
-        }
-
         var loader = new XamlLoader();
         var context = new XamlLoadContext(new EmptyTypeResolver(), new EmptyResourceResolver());
-        var result = loader.Load(File.ReadAllText(sourcePath), in context);
+        var result = loader.Load(File.ReadAllText(xamlPath), in context);
         if (!result.Success || result.Root is not { } root)
         {
             var diagnostics = result.Diagnostics.IsEmpty
@@ -336,6 +471,26 @@ internal static class Program
         }
     }
 
+    private sealed class LoadedDocumentState(LoadedDocument loaded, long sourceStamp) : IDisposable
+    {
+        internal LoadedDocument Loaded { get; private set; } = loaded;
+
+        internal UiDocument Document => Loaded.Document;
+
+        internal long SourceStamp { get; set; } = sourceStamp;
+
+        internal void Replace(LoadedDocument replacement, long sourceStamp)
+        {
+            ArgumentNullException.ThrowIfNull(replacement);
+            var previous = Loaded;
+            Loaded = replacement;
+            SourceStamp = sourceStamp;
+            previous.Dispose();
+        }
+
+        public void Dispose() => Loaded.Dispose();
+    }
+
     private static void SavePpm(byte[] pixels, uint width, uint height, string path)
     {
         ArgumentNullException.ThrowIfNull(pixels);
@@ -358,6 +513,20 @@ internal static class Program
         for (var index = 0; index < pixels.Length; index += 4)
         {
             if ((pixels[index] | pixels[index + 1] | pixels[index + 2] | pixels[index + 3]) != 0)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountVisibleBlackPixels(ReadOnlySpan<byte> pixels)
+    {
+        var count = 0;
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            if (pixels[index] == 0 && pixels[index + 1] == 0 && pixels[index + 2] == 0 && pixels[index + 3] != 0)
             {
                 count++;
             }
@@ -499,7 +668,7 @@ internal static class Program
                     target,
                     AttachmentLoadOperation.Clear,
                     AttachmentStoreOperation.Store,
-                    new ClearColor(0.035f, 0.045f, 0.075f, 1f)));
+                    new ClearColor(0f, 0f, 0f, 1f)));
         }
     }
 
