@@ -72,6 +72,7 @@ internal partial class UiElement
         _properties.InitializeDefault("Background", _state.Background, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderColor", _state.BorderColor, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderWidth", _state.BorderWidth, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("BorderWidthUnits", _state.BorderWidthUnits, UiDirtyFlags.Visual);
         _properties.InitializeDefault("CornerRadius", _state.CornerRadius, UiDirtyFlags.Visual);
         _properties.InitializeDefault("Padding", _state.Padding, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         _properties.InitializeDefault("Fill", _state.Fill, UiDirtyFlags.Visual);
@@ -106,6 +107,19 @@ internal partial class UiElement
         {
             if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
             SetLocalProperty("BorderWidth", value, UiDirtyFlags.Visual);
+        }
+    }
+    public Delta.XAML.Contract.PaintUnits BorderWidthUnits
+    {
+        get => _state.BorderWidthUnits;
+        set
+        {
+            if (value is not (Delta.XAML.Contract.PaintUnits.Logical or Delta.XAML.Contract.PaintUnits.Device))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            SetLocalProperty("BorderWidthUnits", value, UiDirtyFlags.Visual);
         }
     }
     public Delta.XAML.UiCornerRadii CornerRadius

@@ -279,6 +279,11 @@ internal static class XamlPlanMaterializer
             case "Background" when TryColor(value, out var color): e.Background = color; break;
             case "BorderColor" when TryColor(value, out var borderColor): e.BorderColor = borderColor; break;
             case "BorderWidth" when TryFloat(value, out var borderWidth): e.BorderWidth = borderWidth; break;
+            case "BorderWidthUnits" when Enum.TryParse(value, true, out Delta.XAML.Contract.PaintUnits borderWidthUnits) &&
+                borderWidthUnits is Delta.XAML.Contract.PaintUnits.Logical or Delta.XAML.Contract.PaintUnits.Device:
+                e.BorderWidthUnits = borderWidthUnits;
+                break;
+            case "BorderWidthUnits": d.Add(new("XAML003", $"Invalid BorderWidthUnits '{value}'. Expected Logical or Device.", line, 1)); break;
             case "CornerRadius" when TryCornerRadii(value, out var cornerRadii): e.CornerRadius = cornerRadii; break;
             case "CornerRadius": d.Add(new("XAML003", $"Invalid CornerRadius '{value}'. Expected one value or four comma-separated values.", line, 1)); break;
             case "BackgroundBrush" when TryBrush(value, out var brush):
@@ -382,7 +387,7 @@ internal static class XamlPlanMaterializer
 
     private static bool SupportsProperty(UiElement element, string name)
     {
-        if (name is "Width" or "Height" or "Fill" or "Background" or "BorderColor" or "BorderWidth" or "CornerRadius" or "Padding" or
+        if (name is "Width" or "Height" or "Fill" or "Background" or "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" or "Padding" or
             "StyleKey" or "TemplateKey" or "AutomationName" or "AutomationRole" or
             "IsEnabled" or "IsSelected" or "BackgroundBrush")
         {
@@ -418,6 +423,7 @@ internal static class XamlPlanMaterializer
         "Background" or "BorderColor" or "Foreground" or "OutlineColor" => value is UiColor or Delta.XAML.UiColor,
         "BorderWidth" or "OutlineWidth" => value is
             byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
+        "BorderWidthUnits" => value is Delta.XAML.Contract.PaintUnits,
         "CornerRadius" => value is Delta.XAML.UiCornerRadii,
         "TextEffect" => value is UiResourceId,
         "BackgroundBrush" => value is Delta.XAML.UiBrush,
@@ -457,7 +463,7 @@ internal static class XamlPlanMaterializer
         "PlaceholderText" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => UiDirtyFlags.Visual,
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
-        "BorderColor" or "BorderWidth" or "CornerRadius" => UiDirtyFlags.Visual,
+        "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
         "Width" or "Height" or "Padding" or "Source" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
         "Minimum" or "Maximum" or "Step" or "Orientation" or "SelectedIndex" or "IsOpen" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
         "Stretch" or "Placeholder" or "ErrorSource" or "Tint" or "BackgroundBrush" => UiDirtyFlags.Visual,

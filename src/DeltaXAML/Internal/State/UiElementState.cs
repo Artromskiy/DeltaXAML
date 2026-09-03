@@ -7,6 +7,7 @@ internal struct UiElementState
     public UiColor Background;
     public UiColor BorderColor;
     public float BorderWidth;
+    public Delta.XAML.Contract.PaintUnits BorderWidthUnits;
     public Delta.XAML.UiCornerRadii CornerRadius;
     public UiThickness Padding;
     public bool Fill;

@@ -514,7 +514,8 @@ internal sealed class UiVisualStage : IDisposable
             return false;
         }
 
-        var radii = element.CornerRadius;
+        var bounds = element.Bounds;
+        var radii = NormalizeCornerRadii(element.CornerRadius, bounds.Width, bounds.Height);
         var rounded = radii != Delta.XAML.UiCornerRadii.Zero;
         var kind = rounded
             ? hasStroke ? UiVisualKind.Border : UiVisualKind.RoundedRectangle
@@ -522,15 +523,34 @@ internal sealed class UiVisualStage : IDisposable
         visual = UiVisualDraw.WithPaint(
             kind,
             default,
-            ToFloat4(element.Bounds),
+            ToFloat4(bounds),
             new UiVisualPaint(
                 ToColor(element.Background),
                 ToColor(element.BorderColor),
                 element.BorderWidth,
-                new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft)),
+                new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft))
+            {
+                Units = element.BorderWidthUnits,
+            },
             clip,
             UiResourceId.Empty);
         return true;
+    }
+
+    private static UiCornerRadii NormalizeCornerRadii(UiCornerRadii radii, float width, float height)
+    {
+        if (!radii.IsFiniteNonNegative || !float.IsFinite(width) || !float.IsFinite(height) || width <= 0 || height <= 0)
+        {
+            return UiCornerRadii.Zero;
+        }
+
+        var maximum = MathF.Min(width, height) * 0.5f;
+        var normalized = new UiCornerRadii(
+            MathF.Min(radii.TopLeft, maximum),
+            MathF.Min(radii.TopRight, maximum),
+            MathF.Min(radii.BottomRight, maximum),
+            MathF.Min(radii.BottomLeft, maximum));
+        return normalized;
     }
 
     private bool TryBuildTextDraw(Retained.UiTextRun run, out UiTextDraw draw, out Diagnostic? diagnostic)

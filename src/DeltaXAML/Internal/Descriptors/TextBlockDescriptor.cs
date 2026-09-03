@@ -195,6 +195,8 @@ internal static class UiDescriptorCatalog
                 return true;
             case UiPropertyKey.BorderWidth when value.UntypedValue is float borderWidth:
                 return UiElementPropertiesGenerated.TrySetBorderWidth(ref element.CommonState, borderWidth);
+            case UiPropertyKey.BorderWidthUnits when value.UntypedValue is PaintUnits borderWidthUnits:
+                return UiElementPropertiesGenerated.TrySetBorderWidthUnits(ref element.CommonState, borderWidthUnits);
             case UiPropertyKey.CornerRadius when value.UntypedValue is Delta.XAML.UiCornerRadii cornerRadius:
                 return UiElementPropertiesGenerated.TrySetCornerRadius(ref element.CommonState, cornerRadius);
             case UiPropertyKey.BackgroundBrush when value.UntypedValue is Delta.XAML.UiBrush brush:
@@ -230,7 +232,7 @@ internal static class UiDescriptorCatalog
                 element.IsFocusScope = isFocusScope;
                 return true;
             case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Background or UiPropertyKey.BorderColor or
-                UiPropertyKey.BorderWidth or UiPropertyKey.CornerRadius or UiPropertyKey.Padding or
+                UiPropertyKey.BorderWidth or UiPropertyKey.BorderWidthUnits or UiPropertyKey.CornerRadius or UiPropertyKey.Padding or
                 UiPropertyKey.Fill or UiPropertyKey.IsEnabled or UiPropertyKey.IsSelected or UiPropertyKey.BackgroundBrush or
                 UiPropertyKey.AutomationName or UiPropertyKey.AutomationRole or UiPropertyKey.Gestures or UiPropertyKey.Command or
                 UiPropertyKey.CommandKey or UiPropertyKey.IsFocusScope:

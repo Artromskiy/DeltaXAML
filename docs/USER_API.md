@@ -201,7 +201,14 @@ changes the visual primitive to `RoundedRectangle` (or `Border` when a stroke is
 present); it does not implicitly clip child content. Text controls expose `OutlineColor`,
 `OutlineWidth` and an optional `TextEffect` resource identity. These values are
 carried into `UiVisualPaint`/`UiTextPaint`; shaping, effect shader selection and
-GPU resource resolution remain outside DeltaXAML.
+GPU resource resolution remain outside DeltaXAML. During display-list extraction,
+each corner is limited to half the smaller element dimension, so adjacent radii
+cannot overrun the arranged bounds; the declared `CornerRadius` value is not
+changed.
+
+`BorderWidthUnits` selects `Logical` (the default, scaled by the display-list
+DPI) or `Device` (physical pixels, useful for a one-pixel hairline). It affects
+stroke width only; element geometry and corner radii remain in logical units.
 
 `UiElement.GetHandle` returns a generation-safe `UiPropertyHandle` for direct
 host writes through `UiElement.TrySet`. A host may group several writes before

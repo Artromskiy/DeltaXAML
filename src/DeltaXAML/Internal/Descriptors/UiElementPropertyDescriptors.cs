@@ -51,6 +51,18 @@ internal static class UiElementPropertiesGenerated
         return true;
     }
 
+    internal static bool TrySetBorderWidthUnits(ref UiElementState state, Delta.XAML.Contract.PaintUnits value)
+    {
+        if (value is not (Delta.XAML.Contract.PaintUnits.Logical or Delta.XAML.Contract.PaintUnits.Device) ||
+            state.BorderWidthUnits == value)
+        {
+            return false;
+        }
+
+        state.BorderWidthUnits = value;
+        return true;
+    }
+
     internal static bool TrySetCornerRadius(ref UiElementState state, Delta.XAML.UiCornerRadii value)
     {
         if (!value.IsFiniteNonNegative) { return false; }

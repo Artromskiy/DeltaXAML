@@ -30,13 +30,14 @@ internal static partial class Program
 
         var textPropertiesPlan = XamlCompiler.Compile(
             sourceId,
-            "<TextBlock Text=\"Hello\" HorizontalTextAlignment=\"Center\" VerticalTextAlignment=\"Bottom\" TextWrapping=\"Word\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"2\" LineHeight=\"18\" FontWeight=\"Bold\" FontStyle=\"Italic\" TextDecorations=\"Underline, Strikethrough\" />",
+            "<Border BorderWidth=\"1\" BorderWidthUnits=\"Device\"><TextBlock Text=\"Hello\" HorizontalTextAlignment=\"Center\" VerticalTextAlignment=\"Bottom\" TextWrapping=\"Word\" TextTrimming=\"CharacterEllipsis\" MaxLines=\"2\" LineHeight=\"18\" FontWeight=\"Bold\" FontStyle=\"Italic\" TextDecorations=\"Underline, Strikethrough\" /></Border>",
             XamlSemanticRegistry.CreateBuiltIns());
         Assert.True(textPropertiesPlan.Success, "text layout properties compile into the semantic model");
         Assert.True(CSharpArtifactEmitter.TryEmit(textPropertiesPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "TextPropertiesArtifact", out var textPropertiesSource, out _), "text layout properties emit through typed setters");
-        Assert.True(textPropertiesSource.Contains("node0.HorizontalTextAlignment = global::Delta.XAML.UiTextHorizontalAlignment.Center;", StringComparison.Ordinal), "generated text artifact preserves horizontal alignment");
-        Assert.True(textPropertiesSource.Contains("node0.TextWrapping = global::Delta.XAML.UiTextWrapping.Word;", StringComparison.Ordinal), "generated text artifact preserves wrapping");
-        Assert.True(textPropertiesSource.Contains("node0.TextDecorations = global::Delta.XAML.UiTextDecorations.Underline | global::Delta.XAML.UiTextDecorations.Strikethrough;", StringComparison.Ordinal), "generated text artifact preserves decorations");
+        Assert.True(textPropertiesSource.Contains("node0.BorderWidthUnits = global::Delta.XAML.Contract.PaintUnits.Device;", StringComparison.Ordinal), "generated artifact preserves device-pixel border units");
+        Assert.True(textPropertiesSource.Contains("node1.HorizontalTextAlignment = global::Delta.XAML.UiTextHorizontalAlignment.Center;", StringComparison.Ordinal), "generated text artifact preserves horizontal alignment");
+        Assert.True(textPropertiesSource.Contains("node1.TextWrapping = global::Delta.XAML.UiTextWrapping.Word;", StringComparison.Ordinal), "generated text artifact preserves wrapping");
+        Assert.True(textPropertiesSource.Contains("node1.TextDecorations = global::Delta.XAML.UiTextDecorations.Underline | global::Delta.XAML.UiTextDecorations.Strikethrough;", StringComparison.Ordinal), "generated text artifact preserves decorations");
 
         const string capabilitySource = "<Panel><Slider Minimum=\"0\" Maximum=\"10\" Value=\"4\" Step=\"0.5\" /><Image Source=\"285a7033-e9eb-438e-81d8-7906cf978301\" Tint=\"#112233\" /><Overlay IsOpen=\"true\"><TextBlock Text=\"popup\" /></Overlay><CollectionView SelectedIndex=\"2\" /></Panel>";
         var capabilityPlan = XamlCompiler.Compile(sourceId, capabilitySource, XamlSemanticRegistry.CreateBuiltIns());

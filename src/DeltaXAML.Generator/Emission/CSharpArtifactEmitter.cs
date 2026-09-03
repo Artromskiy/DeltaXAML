@@ -1075,7 +1075,7 @@ internal static class CSharpArtifactEmitter
         "StyleKey" or "TemplateKey" or "Text" or "FontKey" or "FontSize" or "Foreground" or
         "Minimum" or "Maximum" or "Value" or "Step" or "Orientation" or "Columns" or "Rows" or
         "Source" or "Tint" or "SelectedIndex" or "IsOpen" or "BackgroundBrush" or "BorderColor" or
-        "BorderWidth" or "CornerRadius" or "AutomationName" or
+        "BorderWidth" or "BorderWidthUnits" or "CornerRadius" or "AutomationName" or
         "AutomationRole" or "Gestures" or "Command" or "CommandKey" or "IsFocusScope" or "Stretch" or
         "Placeholder" or "ErrorSource" => true,
         _ => false,
@@ -2102,6 +2102,7 @@ internal static class CSharpArtifactEmitter
             "Gestures" => "global::Delta.XAML.UiGestureKind",
             "Command" => "global::Delta.XAML.UiCommandId",
             "CommandKey" => "global::Delta.XAML.UiKeyGesture",
+            "BorderWidthUnits" => "global::Delta.XAML.Contract.PaintUnits",
             "IsFocusScope" => "global::System.Boolean",
             "Stretch" => "global::Delta.XAML.UiImageStretch",
             "HorizontalTextAlignment" => "global::Delta.XAML.UiTextHorizontalAlignment",
@@ -2803,6 +2804,11 @@ internal static class CSharpArtifactEmitter
             case XamlValueKind.Enum when propertyName == "Orientation" && (literal == "Horizontal" || literal == "Vertical"):
                 expression = "global::Delta.XAML.UiOrientation." + literal;
                 return true;
+            case XamlValueKind.Enum when propertyName == "BorderWidthUnits" &&
+                Enum.TryParse<Delta.XAML.Contract.PaintUnits>(literal, false, out var borderWidthUnits) &&
+                borderWidthUnits is Delta.XAML.Contract.PaintUnits.Logical or Delta.XAML.Contract.PaintUnits.Device:
+                expression = "global::Delta.XAML.Contract.PaintUnits." + borderWidthUnits;
+                return true;
             case XamlValueKind.Enum when propertyName == "HorizontalTextAlignment" && Enum.TryParse<Delta.XAML.UiTextHorizontalAlignment>(literal, false, out var horizontalAlignment) && horizontalAlignment != Delta.XAML.UiTextHorizontalAlignment.Unknown:
                 expression = "global::Delta.XAML.UiTextHorizontalAlignment." + horizontalAlignment;
                 return true;
@@ -2855,6 +2861,7 @@ internal static class CSharpArtifactEmitter
             "BackgroundBrush" => "global::Delta.XAML.UiElementProperties.BackgroundBrush",
             "BorderColor" => "global::Delta.XAML.UiElementProperties.BorderColor",
             "BorderWidth" => "global::Delta.XAML.UiElementProperties.BorderWidth",
+            "BorderWidthUnits" => "global::Delta.XAML.UiElementProperties.BorderWidthUnits",
             "CornerRadius" => "global::Delta.XAML.UiElementProperties.CornerRadius",
             "AutomationName" => "global::Delta.XAML.UiElementProperties.AutomationName",
             "AutomationRole" => "global::Delta.XAML.UiElementProperties.AutomationRole",

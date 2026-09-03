@@ -308,11 +308,13 @@ internal static partial class Program
         DocumentOwnsReusableDisplayListStorage();
         TextDisplayListUsesDeltaText();
         PaintPropertiesReachDisplayList();
+        RoundedCornerRadiiAreNormalizedBeforeExtraction();
         DisplayListDirtySubtreeReusesStableText();
         TextCacheDropsRemovedNodes();
         TextVersionTracksTextInputsOnly();
         DpiInvalidatesLayoutWithoutCompoundingScale();
         CustomVisualsRemainNeutral();
+        BorderWidthUnitsPropertyDescriptor();
         DisplayListOrderContract();
         PublicDisplayListWarmFrameHasNoAllocations();
         BindingExpressionsAndContexts();
@@ -1133,6 +1135,7 @@ internal static partial class Program
             Background = new(20, 30, 40),
             BorderColor = new(200, 210, 220),
             BorderWidth = 2,
+            BorderWidthUnits = LibraryContract.PaintUnits.Device,
             CornerRadius = new Library.UiCornerRadii(2, 4, 6, 8),
         };
         var text = new Library.TextBlock
@@ -1154,6 +1157,7 @@ internal static partial class Program
         Assert.Equal(new float4(20 / 255f, 30 / 255f, 40 / 255f, 1), display.Visuals[0].Paint.FillColor, "border fill reaches the canonical paint");
         Assert.Equal(new float4(200 / 255f, 210 / 255f, 220 / 255f, 1), display.Visuals[0].Paint.StrokeColor, "border color reaches the canonical paint");
         Assert.Equal(2f, display.Visuals[0].Paint.StrokeWidth, "border width reaches the canonical paint");
+        Assert.Equal(LibraryContract.PaintUnits.Device, display.Visuals[0].Paint.Units, "device border units reach the canonical paint");
         Assert.Equal(new float4(2, 4, 6, 8), display.Visuals[0].Paint.CornerRadii, "per-corner radii reach the canonical paint in contract order");
         Assert.Equal(new LibraryContract.UiTextPaint(
             new float4(1, 1, 1, 1),
@@ -1182,13 +1186,57 @@ internal static partial class Program
         }
 
         var cornerMarkup = loader.Load(
-            "<Border Width=\"100\" Height=\"40\" CornerRadius=\"2,4,6,8\" Background=\"#FFFFFF\" />",
+            "<Border Width=\"100\" Height=\"40\" CornerRadius=\"2,4,6,8\" Background=\"#FFFFFF\" BorderWidth=\"1\" BorderWidthUnits=\"Device\" />",
             in context);
         Assert.True(cornerMarkup.Success && cornerMarkup.Root is Library.UiBorder, "XAML accepts four corner radii");
         if (cornerMarkup.Root is Library.UiBorder loadedBorder)
         {
             Assert.Equal(new Library.UiCornerRadii(2, 4, 6, 8), loadedBorder.CornerRadius, "XAML preserves per-corner radius order");
+            Assert.Equal(LibraryContract.PaintUnits.Device, loadedBorder.BorderWidthUnits, "XAML selects device-pixel border units");
         }
+
+        var invalidUnits = loader.Load(
+            "<Border BorderWidth=\"1\" BorderWidthUnits=\"Pixels\" />",
+            in context);
+        Assert.True(!invalidUnits.Success && invalidUnits.Diagnostics.Length == 1 && invalidUnits.Diagnostics.Span[0].Code.Value == "XAML003", "XAML diagnoses unsupported border unit values");
+    }
+
+    private static void RoundedCornerRadiiAreNormalizedBeforeExtraction()
+    {
+        var border = new Library.UiBorder
+        {
+            Width = 320,
+            Height = 320,
+            Background = new(40, 80, 120),
+            CornerRadius = new Library.UiCornerRadii(0, 0, 0, 200),
+        };
+        using var document = new Library.UiDocument(border, new EmptyTextService());
+        document.Layout(new(320, 320), 1);
+        var display = document.BuildDisplayList();
+
+        Assert.Equal(new float4(0, 0, 0, 160), display.Visuals[0].Paint.CornerRadii, "oversized corner is limited before display-list extraction");
+        Assert.Equal(new Library.UiCornerRadii(0, 0, 0, 200), border.CornerRadius, "normalization does not mutate the declared property");
+
+        border.Width = 200;
+        border.Height = 100;
+        border.CornerRadius = new Library.UiCornerRadii(140, 140, 0, 0);
+        document.Layout(new(200, 100), 1);
+        var scaled = document.BuildDisplayList();
+        Assert.Equal(new float4(50, 50, 0, 0), scaled.Visuals[0].Paint.CornerRadii, "adjacent radii are limited to the arranged bounds");
+    }
+
+    private static void BorderWidthUnitsPropertyDescriptor()
+    {
+        var border = new Library.UiBorder();
+        Assert.Equal(LibraryContract.PaintUnits.Logical, border.BorderWidthUnits, "logical units are the default border mode");
+        border.RetainedElement.DirtyFlags = UiDirtyFlags.None;
+        Assert.True(border.TrySetValue(Library.UiElementProperties.BorderWidthUnits, LibraryContract.PaintUnits.Device, out var diagnostic), "typed property sets device border units");
+        Assert.True(diagnostic is null && border.BorderWidthUnits == LibraryContract.PaintUnits.Device, "typed border unit value updates retained state");
+        Assert.True((border.RetainedElement.DirtyFlags & UiDirtyFlags.Visual) != 0 &&
+            (border.RetainedElement.DirtyFlags & UiDirtyFlags.Measure) == 0, "border unit changes invalidate visual output without relayout");
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => border.BorderWidthUnits = (LibraryContract.PaintUnits)99,
+            "unknown border units are rejected at the user API boundary");
     }
 
     private static void DisplayListDirtySubtreeReusesStableText()

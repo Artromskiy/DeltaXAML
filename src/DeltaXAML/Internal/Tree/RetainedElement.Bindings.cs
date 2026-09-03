@@ -220,7 +220,7 @@ internal partial class UiElement
         "Text" or "FontKey" or "FontSize" => UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "Width" or "Height" or "Padding" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
-        "BorderColor" or "BorderWidth" or "CornerRadius" => UiDirtyFlags.Visual,
+        "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
         _ => UiDirtyFlags.Visual,
     };
 

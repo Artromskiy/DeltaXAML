@@ -260,7 +260,8 @@ public abstract class UiElement
         set => _retained.BorderColor = ToRetainedColor(value);
     }
 
-    /// <summary>Uniform border width in logical units; zero disables the stroke.</summary>
+    /// <summary>Uniform border width; zero disables the stroke.</summary>
+    /// <remarks>Use <see cref="BorderWidthUnits"/> to keep the width in device pixels for hairlines.</remarks>
     public float BorderWidth
     {
         get => _retained.BorderWidth;
@@ -268,6 +269,21 @@ public abstract class UiElement
         {
             ValidatePaintDimension(value, nameof(value));
             _retained.BorderWidth = value;
+        }
+    }
+
+    /// <summary>Gets or sets whether <see cref="BorderWidth"/> is logical or device-pixel sized.</summary>
+    public PaintUnits BorderWidthUnits
+    {
+        get => _retained.BorderWidthUnits;
+        set
+        {
+            if (value is not (PaintUnits.Logical or PaintUnits.Device))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            _retained.BorderWidthUnits = value;
         }
     }
 
@@ -951,7 +967,7 @@ public abstract class UiElement
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => RetainedDirty.Visual,
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
-        "BorderColor" or "BorderWidth" or "CornerRadius" => RetainedDirty.Visual,
+        "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => RetainedDirty.Visual,
         "Width" or "Height" or "Padding" or
         "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
         _ => RetainedDirty.Visual,
