@@ -2,9 +2,8 @@
 
 Runnable DeltaXAML samples currently kept in this repository:
 
-- [`Snake`](2048-electron/README.md) — a generated-XAML game sample with
-  headless and SDL3/Vulkan paths. The directory name is retained from the
-  source project it replaced.
+- [`Snake`](Snake/README.md) — a generated-XAML game sample with headless and
+  SDL3/Vulkan paths.
 - [`RoundedRectangle.Render`](RoundedRectangle.Render/README.md) — a native
   DeltaRender sample for a four-corner rounded rectangle.
 - [`RoundedRectangle.Headless`](RoundedRectangle.Headless/README.md) — a

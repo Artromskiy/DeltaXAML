@@ -14,11 +14,13 @@ internal static class XamlCompiler
     internal static XamlDocumentPlan Compile(
         SourceId source,
         string text,
-        XamlSemanticRegistry registry)
+        XamlSemanticRegistry registry,
+        bool allowUnregisteredTypes = false,
+        bool allowUnregisteredResources = false)
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(registry);
-        return new Parser(source, text, registry).Parse();
+        return new Parser(source, text, registry, allowUnregisteredTypes, allowUnregisteredResources).Parse();
     }
 
     private sealed class Parser
@@ -26,6 +28,8 @@ internal static class XamlCompiler
         private readonly SourceId _source;
         private readonly string _text;
         private readonly XamlSemanticRegistry _registry;
+        private readonly bool _allowUnregisteredTypes;
+        private readonly bool _allowUnregisteredResources;
         private readonly ImmutableArray<Diagnostic>.Builder _diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         private readonly ImmutableArray<XamlResourcePlan>.Builder _resources = ImmutableArray.CreateBuilder<XamlResourcePlan>();
         private readonly ImmutableArray<XamlScalarResourcePlan>.Builder _scalarResources = ImmutableArray.CreateBuilder<XamlScalarResourcePlan>();
@@ -41,11 +45,18 @@ internal static class XamlCompiler
         private string? _bindingSourceTypeName;
         private int _offset;
 
-        internal Parser(SourceId source, string text, XamlSemanticRegistry registry)
+        internal Parser(
+            SourceId source,
+            string text,
+            XamlSemanticRegistry registry,
+            bool allowUnregisteredTypes,
+            bool allowUnregisteredResources)
         {
             _source = source;
             _text = text;
             _registry = registry;
+            _allowUnregisteredTypes = allowUnregisteredTypes;
+            _allowUnregisteredResources = allowUnregisteredResources;
         }
 
         internal XamlDocumentPlan Parse()
@@ -168,7 +179,7 @@ internal static class XamlCompiler
             }
 
             var hasType = _registry.TryResolveType(name, out var type);
-            if (!hasType)
+            if (!hasType && !_allowUnregisteredTypes)
             {
                 Report(
                     "XAML002",
@@ -1042,6 +1053,11 @@ internal static class XamlCompiler
                 if (!string.Equals(name, "Span", StringComparison.Ordinal) || !selfClosing)
                 {
                     Report("XAML040", "RichTextBlock accepts self-closing Span elements only.", start, _offset);
+                    if (string.Equals(name, "Span", StringComparison.Ordinal) && !selfClosing)
+                    {
+                        Report("XAML042", "Span requires a Text property.", start, _offset);
+                    }
+
                     if (!selfClosing)
                     {
                         SkipElementBody(name);
@@ -1187,11 +1203,17 @@ internal static class XamlCompiler
         {
             if (TryParseResource(value, out var resource))
             {
-                if (!_registry.TryResolveResource(resource.Key, out var id))
+                if (!_registry.TryResolveResource(resource.Key, out var id) && !_allowUnregisteredResources)
                 {
                     Report("XAML006", $"Resource '{resource.Key}' has no registered stable identity.", range);
                     plan = default;
                     return false;
+                }
+
+                if (!_registry.TryResolveResource(resource.Key, out id))
+                {
+                    id = CreateResourceId(resource.Key);
+                    _registry.RegisterResource(resource.Key, id);
                 }
 
                 plan = XamlValuePlan.FromResource(new(id, resource.Key, resource.IsDynamic, RegisterResourceSlot(id, resource.Key, resource.IsDynamic)));

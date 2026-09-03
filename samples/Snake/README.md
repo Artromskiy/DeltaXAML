@@ -1,9 +1,8 @@
 # DeltaXAML Snake sample
 
 This sample is the in-place DeltaXAML port of the source project copied into
-this folder. The source folder was named `2048-electron`, but the checked-in
-application is Snake (`SnakeGame`, a 24x18 board), matching the supplied
-`MainWindow.axaml` and its original behavior.
+this folder. The checked-in application is Snake (`SnakeGame`, a 24x18 board),
+matching the supplied `MainWindow.axaml` and its original behavior.
 
 The XAML file is compiled by the DeltaXAML source generator into
 `SnakeArtifact`. The host owns only game state and input decisions; the
@@ -22,7 +21,7 @@ CLI from this consumer project.
 Run the windowed sample with:
 
 ```bash
-dotnet run --project samples/2048-electron/DeltaXAML.Samples.Snake.csproj \
+dotnet run --project samples/Snake/DeltaXAML.Samples.Snake.csproj \
   -c Release --no-restore -- --frames 600
 ```
 
@@ -30,14 +29,14 @@ Enable window profiling with `--profiling` (the legacy `--profile` spelling is
 also accepted). Completed frame profiles are printed by the renderer profiler:
 
 ```bash
-dotnet run --project samples/2048-electron/DeltaXAML.Samples.Snake.csproj \
+dotnet run --project samples/Snake/DeltaXAML.Samples.Snake.csproj \
   -c Release --no-restore -- --frames 600 --profiling
 ```
 
 Run the headless checks with:
 
 ```bash
-dotnet run --project samples/2048-electron/DeltaXAML.Samples.Snake.csproj \
+dotnet run --project samples/Snake/DeltaXAML.Samples.Snake.csproj \
   -c Release --no-restore -- --headless --frames 600 --slots 16
 ```
 

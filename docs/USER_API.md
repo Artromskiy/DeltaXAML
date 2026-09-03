@@ -112,7 +112,33 @@ factories and typed setters construct the retained document without reflection.
 `IXamlLoader` is the explicit cold source-loading entry point selected by the
 library contract. It constructs the same retained elements, descriptors,
 property store and node store as generated code. Generated production
-artifacts never silently call it and never fall back to reflection.
+artifacts never silently call it and never fall back to reflection. The cold
+reader currently covers the built-in controls, literal colors/brushes,
+qualified grid placement, rich-text spans, simple bindings and external
+named/GUID resources. Resource/style/template/trigger/behavior declaration
+blocks, collection item markup and typed collection properties (`ItemsSource`,
+`ItemTemplate`, `ItemTemplateSelector`, `VirtualizationStart`,
+`VirtualizationCount` and `ItemExtent`) remain compiler-only and return stable
+`XAML020` diagnostics when passed to this reader; they do not produce a
+partial fallback tree.
+Generated-only relation bindings (`Source`, `RelativeSource`, `ElementName`,
+`TemplateBinding` and `MultiBinding`) likewise return `XAML008` or `XAML020`
+from the cold reader; they never fall back to string traversal.
+
+### Unsupported cold syntax and its DeltaXAML alternative
+
+The cold reader reports unsupported syntax instead of returning a partially
+constructed document. The stable alternatives are:
+
+| Cold syntax | Diagnostic | Generated/library alternative |
+| --- | --- | --- |
+| `Resource`, `Style`, `Setter`, `Template`, `Trigger`, `Behavior`, `VisualState` and `ResourceDictionary` declarations | `XAML020` | Compile the declaration in the same generated artifact; use `UiResourceCatalog`, `UiStyle`, `UiTemplate` and typed plans from code when constructing documents directly. |
+| `TemplateBinding` and `MultiBinding` | `XAML020` | Use generated typed relation/multi-binding plans. |
+| `Source`, `RelativeSource` and `ElementName` binding forms | `XAML008` | Use generated cached relation-source plans and stable namescope identities. |
+| `ItemsSource`, `ItemTemplate`, `ItemTemplateSelector` and virtualization properties | `XAML020` | Use `IUiItemsSource<TItem>`, `IUiItemTemplatePlan<TPlan,TItem>` and the generated virtualizing presenter. |
+
+These diagnostics are part of the loader boundary, not a claim of source
+compatibility with MAUI, WPF or Avalonia.
 
 ## Elements and controls
 

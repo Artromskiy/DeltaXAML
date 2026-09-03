@@ -1,1 +1,1 @@
-<CustomBadge xmlns="urn:custom" Label="generated" Width="120" Height="32" Background="#304860" />
+<CustomBadge xmlns="urn:custom" Label="generated" Width="120" Height="32" Background="#304860" SurfaceBrush="#203040" Texture="285a7033-e9eb-438e-81d8-7906cf978301" Radii="1,2,3,4" />

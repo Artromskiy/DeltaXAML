@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir=$(cd "$(dirname "$0")" && pwd)
 delta_xaml_root=$(cd "$script_dir/.." && pwd)
 workspace_root=$(cd "$delta_xaml_root/.." && pwd)
-project="$delta_xaml_root/samples/2048-electron/DeltaXAML.Samples.Snake.csproj"
+project="$delta_xaml_root/samples/Snake/DeltaXAML.Samples.Snake.csproj"
 frames=1000
 skip=100
 slots=16

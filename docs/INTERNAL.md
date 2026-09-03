@@ -932,7 +932,7 @@ not by a second facade or tree:
 | `Internal/Descriptors/**` | canonical dispatch | Compact runtime type indices, typed factories and typed state/property thunks. |
 | `Internal/Stages/UiRuntimeStages.cs` | canonical pipeline | Runs input, mutation, binding, style, measure, arrange and focus work over reusable queues. |
 | `Internal/Visuals/**` | canonical extraction | Writes frozen contract commands directly into reusable document-owned storage and owns shaped-text cache entries. |
-| `Internal/Compilation/InterpretedXamlReader.cs` | explicit cold source reader | Used only when a caller chooses `IXamlLoader`; construction converges on the canonical retained owner and descriptors. |
+| `Internal/Compilation/XamlPlanMaterializer.cs` | explicit cold plan materializer | Used only when a caller chooses `IXamlLoader`; construction converges on the canonical retained owner and descriptors. |
 | `Internal/Bindings/UiInterpretedBinding.cs` | explicit cold string binding | Used only by the public string binding/source-loading entry point; generated production artifacts use typed compiled bindings. |
 | `UserApi/UiElement.cs` and `UserApi/Controls/**` | public identity/accessors | Thin shells over the canonical retained owner; no parallel relation or property storage. |
 | `UserApi/XamlLoader.cs` | public cold loader | Required by the frozen library contract; it is not a shipping fallback selected by generated artifacts. |
@@ -1021,24 +1021,41 @@ needed by the current slice, but it must not keep two active implementations.
 
 ### Compile-time projects and ownership
 
-Keep the runtime library small. Compile-time implementation belongs in two
-supplementary projects only when `DXAML-COMPILE-1/2` begins:
+Keep the runtime library small. The canonical semantic compiler and its plan
+model now live in the runtime assembly's cold `Internal/Compilation` area so
+`IXamlLoader` and the Roslyn generator consume one implementation. The
+supplementary compiler project remains only as a package/build-time forwarding
+boundary:
 
 ```text
+src/DeltaXAML/Internal/Compilation/
+  XamlCompiler.cs              XML reader, semantic model and diagnostics
+  SemanticModel.cs             immutable typed plans
+  XamlPlanMaterializer.cs      cold IXamlLoader plan materialization
+
 src/DeltaXAML.Compiler/
-  Internal/Compilation/       XML reading, semantic model and diagnostics
-  Internal/Plans/             immutable typed plans
+  Properties/AssemblyInfo.cs   type-forwarding package boundary
 
 src/DeltaXAML.Generator/
   IncrementalGenerator.cs     Roslyn AdditionalFiles adapter only
   Emission/                   C# source emission from typed plans
 ```
 
-`DeltaXAML.Compiler` owns the source-to-plan pipeline and may be reused by an
-explicit designer/hot-reload tool. `DeltaXAML.Generator` only supplies Roslyn
-incremental inputs and emits C#; it must not contain a second parser or semantic
-model. Neither project is a cross-project runtime contract. Runtime
-`DeltaXAML` consumes generated C# and does not reference Roslyn.
+`DeltaXAML` owns the source-to-plan pipeline used by the cold loader. The
+`DeltaXAML.Compiler` assembly keeps the historical build-time package name by
+forwarding the internal plan types; it does not contain a second parser or
+semantic model. `DeltaXAML.Generator` only supplies Roslyn incremental inputs
+and emits C#. Neither project is a cross-project runtime contract, and the
+runtime still does not reference Roslyn.
+
+The runtime `Internal/Compilation/UiBuiltInElementFactory` is a deliberately
+smaller cold-loader bridge: it maps a registered built-in XAML name to the
+corresponding generated companion and assembles only the retained composite
+host nodes required by that companion. It is not a semantic model, does not
+resolve arbitrary CLR types, and is never selected by generated production
+artifacts. This keeps the cold `IXamlLoader` path on the same descriptor/state
+runtime without making the runtime depend on Roslyn or creating a second
+retained tree.
 
 Compilation is cold and may use immutable object graphs. Generated runtime
 artifacts contain compact IDs, literal values and direct typed operations;
@@ -1058,16 +1075,17 @@ XML token + source range
   -> immutable XamlDocumentPlan
 ```
 
-The first implementation lives in the cold-only `DeltaXAML.Compiler` project.
+The implementation lives in the cold `DeltaXAML/Internal/Compilation` area.
 `XamlSemanticRegistry` accepts stable, caller-assigned `UiTypeId`,
 `UiPropertyId` and `UiResourceId` values; it never creates durable identities
 from process-random values. `XamlCompiler` emits one immutable plan model with
 typed literal/resource/binding values, exact UTF-16 `SourceRange` offsets and
 diagnostics for unknown names, invalid values, duplicate names and unsupported
 content. Its hand-written XML reader recovers at the next attribute or sibling
-element so one compile can report multiple local errors. The compiler project
-does not participate in runtime layout, input or visual extraction, and the
-runtime `DeltaXAML` project does not reference it.
+element so one compile can report multiple local errors. The semantic plan is
+materialized by `XamlPlanMaterializer` only at the explicit cold loader
+boundary; layout, input and visual extraction still consume the retained tree
+and never parse XAML.
 
 `XamlObjectPlan.ScopeName` carries an `x:Name` declaration for the generated
 namescope. Built-in `XamlTypeDefinition` entries also carry explicit direct

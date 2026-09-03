@@ -1,0 +1,4 @@
+<Panel xmlns:x="urn:delta-xaml" Width="240" Height="40">
+  <Resource x:Key="Accent" Type="Color" Value="#FF8040" />
+  <TextBlock Text="Accent" FontKey="default" FontSize="14" Foreground="{DynamicResource Accent}" />
+</Panel>

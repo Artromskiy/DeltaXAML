@@ -664,6 +664,7 @@ internal sealed class XamlSemanticRegistry
             Property("BorderColor", "10000000-0000-4000-8000-000000000011", XamlValueKind.Color),
             Property("BorderWidth", "10000000-0000-4000-8000-000000000012", XamlValueKind.Single),
             Property("CornerRadius", "10000000-0000-4000-8000-000000000013", XamlValueKind.CornerRadii),
+            Property("ForegroundResource", "10000000-0000-4000-8000-000000000014", XamlValueKind.ResourceId),
             Property("AutomationName", "10000000-0000-4000-8000-00000000000B", XamlValueKind.String),
             Property("AutomationRole", "10000000-0000-4000-8000-00000000000C", XamlValueKind.Enum),
             Property("Gestures", "10000000-0000-4000-8000-00000000000D", XamlValueKind.Enum),
@@ -690,6 +691,9 @@ internal sealed class XamlSemanticRegistry
             Property("FontKey", "20000000-0000-4000-8000-000000000002", XamlValueKind.String),
             Property("FontSize", "20000000-0000-4000-8000-000000000003", XamlValueKind.Single),
             Property("Foreground", "20000000-0000-4000-8000-000000000004", XamlValueKind.Color),
+            Property("OutlineColor", "20000000-0000-4000-8000-000000000005", XamlValueKind.Color),
+            Property("OutlineWidth", "20000000-0000-4000-8000-000000000006", XamlValueKind.Single),
+            Property("TextEffect", "20000000-0000-4000-8000-000000000007", XamlValueKind.ResourceId),
             Property("HorizontalTextAlignment", "20000000-0000-4000-8000-000000000008", XamlValueKind.Enum),
             Property("VerticalTextAlignment", "20000000-0000-4000-8000-000000000009", XamlValueKind.Enum),
             Property("TextWrapping", "20000000-0000-4000-8000-00000000000A", XamlValueKind.Enum),
@@ -728,7 +732,7 @@ internal sealed class XamlSemanticRegistry
                 Property("ErrorSource", "71000000-0000-4000-8000-000000000005", XamlValueKind.ResourceId))));
         Register(registry, "Overlay", "22222222-2222-2222-2222-222222222210", XamlContentKind.Children,
             common.Add(Property("IsOpen", "72000000-0000-4000-8000-000000000001", XamlValueKind.Boolean)));
-        Register(registry, "CollectionView", "22222222-2222-2222-2222-222222222211", XamlContentKind.None,
+        Register(registry, "CollectionView", "22222222-2222-2222-2222-222222222211", XamlContentKind.Children,
             common.AddRange(ImmutableArray.Create(
                 Property("SelectedIndex", "72000000-0000-4000-8000-000000000002", XamlValueKind.Integer),
                 Property("ItemsSource", "73000000-0000-4000-8000-000000000001", XamlValueKind.ItemsSource),
@@ -737,7 +741,7 @@ internal sealed class XamlSemanticRegistry
                 Property("VirtualizationStart", "73000000-0000-4000-8000-000000000003", XamlValueKind.Integer),
                 Property("VirtualizationCount", "73000000-0000-4000-8000-000000000004", XamlValueKind.Integer),
                 Property("ItemExtent", "73000000-0000-4000-8000-000000000006", XamlValueKind.Single))));
-        Register(registry, "Picker", "22222222-2222-2222-2222-222222222212", XamlContentKind.None,
+        Register(registry, "Picker", "22222222-2222-2222-2222-222222222212", XamlContentKind.Children,
             common.AddRange(ImmutableArray.Create(
                 Property("SelectedIndex", "72000000-0000-4000-8000-000000000003", XamlValueKind.Integer),
                 Property("IsOpen", "72000000-0000-4000-8000-000000000004", XamlValueKind.Boolean),
@@ -747,9 +751,9 @@ internal sealed class XamlSemanticRegistry
                 Property("VirtualizationStart", "73000000-0000-4000-8000-00000000000A", XamlValueKind.Integer),
                 Property("VirtualizationCount", "73000000-0000-4000-8000-00000000000B", XamlValueKind.Integer),
                 Property("ItemExtent", "73000000-0000-4000-8000-00000000000C", XamlValueKind.Single))));
-        Register(registry, "TabView", "22222222-2222-2222-2222-222222222213", XamlContentKind.None,
+        Register(registry, "TabView", "22222222-2222-2222-2222-222222222213", XamlContentKind.Children,
             common.Add(Property("SelectedIndex", "72000000-0000-4000-8000-000000000005", XamlValueKind.Integer)));
-        Register(registry, "Menu", "22222222-2222-2222-2222-222222222214", XamlContentKind.None, common);
+        Register(registry, "Menu", "22222222-2222-2222-2222-222222222214", XamlContentKind.Children, common);
         Register(registry, "RichTextBlock", "22222222-2222-2222-2222-222222222215", XamlContentKind.None, common);
         RegisterAttached(registry, "Grid.Row", "60000000-0000-4000-8000-000000000002", XamlValueKind.Integer, "global::Delta.XAML.UiGridAttachedProperties.Row");
         RegisterAttached(registry, "Grid.Column", "60000000-0000-4000-8000-000000000003", XamlValueKind.Integer, "global::Delta.XAML.UiGridAttachedProperties.Column");

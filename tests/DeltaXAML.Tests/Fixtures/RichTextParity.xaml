@@ -1,0 +1,4 @@
+<RichTextBlock xmlns:x="urn:delta-xaml" x:Name="Rich" Width="240" Height="40">
+  <Span Text="Rewards" FontKey="default" FontSize="18" Foreground="#FF8040" TextDecorations="Underline" />
+  <Span Text="!" FontKey="default" FontSize="18" Foreground="#FFFFFF" />
+</RichTextBlock>

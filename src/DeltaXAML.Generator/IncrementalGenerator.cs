@@ -915,6 +915,9 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             6 => XamlValueKind.GridLengthList,
             7 => XamlValueKind.Enum,
             8 => XamlValueKind.Integer,
+            9 => XamlValueKind.Brush,
+            10 => XamlValueKind.ResourceId,
+            11 => XamlValueKind.CornerRadii,
             _ => XamlValueKind.Invalid,
         };
         return kind != XamlValueKind.Invalid;

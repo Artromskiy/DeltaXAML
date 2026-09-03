@@ -17,7 +17,7 @@
     <PackageReference Include="DeltaXAML.Contract" Version="*" />
     <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
     <PackageReference Include="DeltaMaths" Version="*" />
-    <PackageReference Include="DeltaText" Version="*" />
+    <PackageReference Include="DeltaText" Version="0.0.7" />
     <PackageReference Include="DeltaRender" Version="*" />
     <PackageReference Include="DeltaRender.Platform.SDL3" Version="*" />
     <PackageReference Include="DeltaRender.Vulkan" Version="*" />

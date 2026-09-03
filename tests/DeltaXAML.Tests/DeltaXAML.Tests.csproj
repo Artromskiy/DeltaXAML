@@ -37,6 +37,8 @@
     <AdditionalFiles Include="Fixtures/GeneratedRelations.xaml" DeltaXamlClassName="GeneratedRelationsArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <AdditionalFiles Include="Fixtures/FullCapability.xaml" DeltaXamlClassName="FullCapabilityArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <AdditionalFiles Include="Fixtures/GeneratedAttached.xaml" DeltaXamlClassName="GeneratedAttachedArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/RichTextParity.xaml" DeltaXamlClassName="RichTextParityArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/ResourceParity.xaml" DeltaXamlClassName="ResourceParityArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <None Include="Fixtures/EditorShell.xaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/GameHud.xaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/CustomBadge.xaml" CopyToOutputDirectory="PreserveNewest"/>
@@ -47,5 +49,7 @@
     <None Include="Fixtures/GeneratedRelations.xaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/FullCapability.xaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/GeneratedAttached.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/RichTextParity.xaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/ResourceParity.xaml" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 </Project>

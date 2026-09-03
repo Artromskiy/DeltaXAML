@@ -115,6 +115,15 @@ sealed class LibraryCustomBadge : Library.UiElement
 {
     [Library.UiXamlProperty("C851D40C-14E4-4B86-99B2-401A972342A9", Library.UiXamlValueKind.Text)]
     public string Label { get; set; } = string.Empty;
+
+    [Library.UiXamlProperty("C851D40C-14E4-4B86-99B2-401A972342AA", Library.UiXamlValueKind.Brush)]
+    public Library.UiBrush SurfaceBrush { get; set; }
+
+    [Library.UiXamlProperty("C851D40C-14E4-4B86-99B2-401A972342AB", Library.UiXamlValueKind.ResourceId)]
+    public LibraryContract.UiResourceId Texture { get; set; }
+
+    [Library.UiXamlProperty("C851D40C-14E4-4B86-99B2-401A972342AC", Library.UiXamlValueKind.CornerRadii)]
+    public Library.UiCornerRadii Radii { get; set; }
 }
 
 sealed class CustomLibraryTypeResolver : Library.IXamlTypeResolver
@@ -322,6 +331,7 @@ internal static partial class Program
         DocumentDisposesBindingSubscriptions();
         TypeCatalogUsesStableIds();
         LibraryApiSmoke();
+        InterpretedLoaderTests.Run();
         FrameContractAndBatchedMutations();
         ParticipationBoundary();
         RuntimeLayoutQueuesAreNonRecursive();
@@ -1694,7 +1704,7 @@ internal static partial class Program
 
         using var customText = new EmptyTextService();
         using var custom = new DeltaXaml.Generated.CustomBadgeArtifact(customText);
-        Assert.True(custom.Document.Root is LibraryCustomBadge { Label: "generated" }, "attributed custom type and property use direct generated construction");
+        Assert.True(custom.Document.Root is LibraryCustomBadge { Label: "generated", SurfaceBrush.Kind: Library.UiBrushKind.Solid, Texture.IsValid: true, Radii.TopLeft: 1 }, "attributed custom type and extended literal metadata use direct generated construction");
         custom.Document.Layout(new(120, 32), 1);
         var customDisplay = custom.Document.BuildDisplayList();
         Assert.True(customDisplay.Visuals.Length == 1, "attributed custom type inherits typed common properties and canonical visual extraction");

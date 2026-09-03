@@ -20,6 +20,9 @@ public enum UiXamlValueKind : byte
     GridLengthList,
     Enum,
     WholeNumber,
+    Brush,
+    ResourceId,
+    CornerRadii,
 }
 
 /// <summary>Registers a custom element with the compile-time XAML generator.</summary>

@@ -80,7 +80,7 @@ different tree.
   headless retained layout and display-list example.
 - [`RoundedRectangle.Render`](samples/RoundedRectangle.Render/README.md) —
   DeltaRender-backed rounded-rectangle example.
-- [`Snake`](samples/2048-electron/README.md) — interactive XAML game sample.
+- [`Snake`](samples/Snake/README.md) — interactive XAML game sample.
 
 ## Further reading
 

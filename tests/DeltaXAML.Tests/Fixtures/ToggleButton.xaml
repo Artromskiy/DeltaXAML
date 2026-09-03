@@ -1,3 +1,3 @@
-<ToggleButton x:Name="Toggle" Width="120" Height="32" Background="#2B3A4D">
+<ToggleButton xmlns:x="urn:delta-xaml" x:Name="Toggle" Width="120" Height="32" Background="#2B3A4D">
   <TextBlock Text="Toggle" FontKey="default" FontSize="14" Foreground="#FFFFFF" />
 </ToggleButton>

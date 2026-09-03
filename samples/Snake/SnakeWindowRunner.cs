@@ -78,7 +78,7 @@ internal static class SnakeWindowRunner
         await using var session = renderer.CreateWindowSession(
             window,
             new RenderSessionOptions(EnableProfiling: enableProfiling, FramesInFlight: 16));
-        var visualProgram = LoadRoundedProgram();
+        var roundVisualProgram = LoadRoundProgram();
         var solidVisualProgram = LoadSolidProgram();
         var textProgram = LoadTextProgram();
 
@@ -95,7 +95,7 @@ internal static class SnakeWindowRunner
         textFeature.Resize(extent);
         UiDisplayListGraphFeature uiFeature = CreateFeature(
             session,
-            visualProgram,
+            roundVisualProgram,
             solidVisualProgram,
             textFeature,
             extent);
@@ -119,7 +119,7 @@ internal static class SnakeWindowRunner
                     uiFeature.Dispose();
                     uiFeature = CreateFeature(
                         session,
-                        visualProgram,
+                        roundVisualProgram,
                         solidVisualProgram,
                         textFeature,
                         nextExtent);
@@ -298,7 +298,7 @@ internal static class SnakeWindowRunner
         };
     }
 
-    private static GraphicsShaderProgram LoadRoundedProgram()
+    private static GraphicsShaderProgram LoadRoundProgram()
         => LoadProgram(
             UiShaders.Spv.UiRectangleShaders.RoundedRectangle.Vertex(),
             UiShaders.Spv.UiRectangleShaders.RoundedRectangle.Fragment(),
