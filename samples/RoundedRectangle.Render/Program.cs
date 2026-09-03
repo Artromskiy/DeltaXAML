@@ -757,8 +757,15 @@ internal static class Program
             }
             else
             {
-                _minimumTicks = Maths.Min(_minimumTicks, ticks);
-                _maximumTicks = Maths.Max(_maximumTicks, ticks);
+                if (ticks < _minimumTicks)
+                {
+                    _minimumTicks = ticks;
+                }
+
+                if (ticks > _maximumTicks)
+                {
+                    _maximumTicks = ticks;
+                }
             }
 
             Count++;
