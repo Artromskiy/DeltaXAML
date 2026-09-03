@@ -45,13 +45,11 @@ internal static class SnakeWindowRunner
                 ParseFrameLimit(args),
                 HasFlag(args, "--profile") || HasFlag(args, "--profiling")).ConfigureAwait(false);
         }
-#pragma warning disable CA1031
         catch (Exception exception)
         {
             await Console.Error.WriteLineAsync(exception.ToString()).ConfigureAwait(false);
             return 1;
         }
-#pragma warning restore CA1031
     }
 
     private static async Task<int> RunWindowAsync(

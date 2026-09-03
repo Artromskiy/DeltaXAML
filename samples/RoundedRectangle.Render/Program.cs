@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Delta;
 using Delta.Render;
 using Delta.Render.Platform.SDL3;
@@ -64,13 +63,11 @@ internal static class Program
                 xamlPath,
                 watch).ConfigureAwait(false);
         }
-#pragma warning disable CA1031
         catch (Exception exception)
         {
             await Console.Error.WriteLineAsync(exception.ToString()).ConfigureAwait(false);
             return 1;
         }
-#pragma warning restore CA1031
     }
 
     private static async Task<int> RunAsync(

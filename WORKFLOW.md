@@ -274,21 +274,20 @@ Before handing off a migration, report:
 
 ## Code metrics
 
-Run the same analyzer/code-metrics build locally and in the manual GitHub
-Actions workflow through the repository wrapper:
+Run the shared Furnace wrappers from this repository before every commit; see
+the [common workflow](../REVIEW_PLAYBOOK.md#shared-local-formatter-and-metrics-wrappers):
 
 ```bash
-./eng/code-metrics.sh -v:q
+../eng/format.sh "$PWD"
+FORMAT_CHECK=1 ../eng/format.sh "$PWD"
+../eng/code-metrics.sh "$PWD" -v:q
 ```
 
-`eng/code-metrics.sh` converts `CODE_METRICS_ERROR_LOG` (default:
-`artifacts/code-metrics/diagnostics.sarif`) to an absolute path before
-MSBuild starts, so multi-project builds write one repository-level SARIF
-instead of resolving a missing directory relative to each project. An
-explicit destination is supported:
+Set `CODE_METRICS_ERROR_LOG` when a different SARIF destination is needed:
 
 ```bash
-CODE_METRICS_ERROR_LOG=/tmp/code-metrics.sarif ./eng/code-metrics.sh -v:q
+CODE_METRICS_ERROR_LOG=/tmp/deltaxaml-metrics.sarif \
+  ../eng/code-metrics.sh "$PWD" -v:q
 ```
 
 Inspect the SARIF and summary artifacts from the manual workflow. The rules
@@ -307,10 +306,3 @@ Compact byte enums are explicitly allowed by the repository `.editorconfig`:
 per-declaration suppressions. Use `byte` only where the compact representation
 is deliberate (for example frozen packet/visual metadata); new enums that are
 not size-sensitive should keep the default `int` representation.
-
-For local application run `./eng/format.sh`; for a non-mutating check use
-`FORMAT_CHECK=1 ./eng/format.sh`. The script uses `dotnet format whitespace
---folder` intentionally: it avoids the MSBuild/Roslyn workspace load that can
-hang on macOS with the .NET 10 SDK. It therefore checks/applies whitespace
-formatting only; analyzer/style diagnostics remain covered by the build and
-SARIF metrics workflow. `FORMAT_RESTORE` is no longer needed for this command.
