@@ -145,12 +145,12 @@ internal static class PlatformBoundaryTests
         UiGeneratedActions.Publish(document, source, UiSemanticActionKind.Navigate, "details/7");
         UiGeneratedActions.Publish(document, source, UiSemanticActionKind.OpenUri, "https://example.invalid/docs");
         UiGeneratedActions.Publish(document, source, UiSemanticActionKind.BeginDragDrop, "application/x-delta");
-        UiGeneratedActions.Publish(document, source, UiSemanticActionKind.OpenFileDialog, "*.xaml");
+        UiGeneratedActions.Publish(document, source, UiSemanticActionKind.OpenFileDialog, "*.dxaml");
         UiGeneratedActions.Publish(document, source, UiSemanticActionKind.RequestAsset, "asset://icon/save");
 
         Assert.Equal(5, document.SemanticCommands.Length, "host-owned operations remain a compact borrowed semantic request batch");
         Assert.Equal(UiSemanticActionKind.OpenUri, document.SemanticCommands[1].Action, "URI activation is data rather than an OS callback");
-        Assert.Equal("*.xaml", document.SemanticCommands[3].Argument, "file-dialog request preserves its host policy argument");
+        Assert.Equal("*.dxaml", document.SemanticCommands[3].Argument, "file-dialog request preserves its host policy argument");
     }
 
     private readonly struct SemanticRowPlan : IUiItemTemplatePlan<SemanticRowPlan, CollectionRow>

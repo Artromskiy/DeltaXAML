@@ -10,3 +10,5 @@ Public documentation for the DeltaXAML library:
 - [UI rendering design](UI_RENDERING_DESIGN.md) — public ownership and adapter
   overview.
 - [Project README](../README.md) — quick start, capabilities and examples.
+- [VS Code syntax support](../tools/dxaml-vscode/README.md) — local `.dxaml`
+  language definition and TextMate grammar.

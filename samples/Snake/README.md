@@ -2,7 +2,12 @@
 
 This sample is the in-place DeltaXAML port of the source project copied into
 this folder. The checked-in application is Snake (`SnakeGame`, a 24x18 board),
-matching the supplied `MainWindow.axaml` and its original behavior.
+matching the supplied `MainWindow.dxaml` and its original behavior.
+The board is a typed `ItemsSource` with one `DataTemplate`; no cell elements
+are declared in XAML. The runtime grid can be changed with `--grid CxR`, for
+example `--grid 16x12`. The row and column slots remain star-sized, so the
+source count and the board geometry change together while cells share the
+available board evenly.
 
 The XAML file is compiled by the DeltaXAML source generator into
 `SnakeArtifact`. The host owns only game state and input decisions; the
@@ -22,7 +27,7 @@ Run the windowed sample with:
 
 ```bash
 dotnet run --project samples/Snake/DeltaXAML.Samples.Snake.csproj \
-  -c Release --no-restore -- --frames 600
+  -c Release --no-restore -- --grid 16x12 --frames 600
 ```
 
 Enable window profiling with `--profiling` (the legacy `--profile` spelling is

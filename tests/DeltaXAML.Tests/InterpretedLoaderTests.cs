@@ -176,7 +176,7 @@ internal static class InterpretedLoaderTests
 
     private static void GeneratedAndInterpretedToggleButtonHaveMatchingOutput()
     {
-        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "ToggleButton.xaml");
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "ToggleButton.dxaml");
         var source = File.ReadAllText(fixturePath);
         var loader = new XamlLoader();
         var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
@@ -244,7 +244,7 @@ internal static class InterpretedLoaderTests
 
     private static void GeneratedAndInterpretedRichTextHaveMatchingOutput()
     {
-        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "RichTextParity.xaml");
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "RichTextParity.dxaml");
         var source = File.ReadAllText(fixturePath);
         var loader = new XamlLoader();
         var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
@@ -300,7 +300,7 @@ internal static class InterpretedLoaderTests
 
     private static void GeneratedAndInterpretedDynamicResourceHaveMatchingOutput()
     {
-        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "ResourceParity.xaml");
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "ResourceParity.dxaml");
         var source = File.ReadAllText(fixturePath);
         var interpretedSource = source.Replace("  <Resource x:Key=\"Accent\" Type=\"Color\" Value=\"#FF8040\" />\n", string.Empty, StringComparison.Ordinal);
         var loader = new XamlLoader();
@@ -356,7 +356,7 @@ internal static class InterpretedLoaderTests
 
     private static void GeneratedAndInterpretedBindingHaveMatchingOutput()
     {
-        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "BoundText.xaml");
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "BoundText.dxaml");
         var source = File.ReadAllText(fixturePath);
         var model = new BindingModel { Name = "Ada" };
         var loader = new XamlLoader();

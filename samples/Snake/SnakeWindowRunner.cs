@@ -40,10 +40,12 @@ internal static class SnakeWindowRunner
             }
 
             await using var windowLease = window.ConfigureAwait(false);
+            var grid = SnakeArguments.ParseGrid(args);
             return await RunWindowAsync(
                 window,
                 ParseFrameLimit(args),
-                HasFlag(args, "--profile") || HasFlag(args, "--profiling")).ConfigureAwait(false);
+                HasFlag(args, "--profile") || HasFlag(args, "--profiling"),
+                grid).ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -55,7 +57,8 @@ internal static class SnakeWindowRunner
     private static async Task<int> RunWindowAsync(
         IRenderWindow window,
         int frameLimit,
-        bool enableProfiling)
+        bool enableProfiling,
+        (int Columns, int Rows) grid)
     {
         var fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "LuckiestGuy-Regular.ttf");
         if (!File.Exists(fontPath))
@@ -66,8 +69,8 @@ internal static class SnakeWindowRunner
         var fonts = new UiFontCatalog();
         fonts.Register("default", SampleFontId, File.ReadAllBytes(fontPath));
         using var textService = new SixLaborsTextService();
-        using var page = new SnakeArtifact(textService, fonts);
-        var game = new SnakeGame();
+        var game = new SnakeGame(grid.Columns, grid.Rows);
+        using var page = new SnakeArtifact(game, textService, fonts);
         var view = new SnakeView(page);
         game.StartNewGame();
         view.Render(game);

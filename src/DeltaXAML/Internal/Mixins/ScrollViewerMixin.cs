@@ -32,6 +32,14 @@ internal readonly struct ScrollViewerArrangeMixin : IArrangeMixin<ScrollViewerSt
         if (children is not null && children.Count > 0)
         {
             var child = children[0];
+            if (child is ItemsControl { IsGridLayout: true })
+            {
+                state.Offset = default;
+                UiArrangeQueue.Add(in context, child, context.Bounds,
+                    UiRect.Intersect(context.Clip, context.Bounds));
+                return;
+            }
+
             var maxOffsetX = Maths.Max(0, child.DesiredSize.Width - context.Bounds.Width);
             var maxOffsetY = Maths.Max(0, child.DesiredSize.Height - context.Bounds.Height);
             state.Offset = new(

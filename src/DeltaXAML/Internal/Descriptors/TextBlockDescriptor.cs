@@ -570,8 +570,8 @@ internal static class UiDescriptorCatalog
                 UiPanelGenerated.Measure(ref panel.State, in context);
                 return panel.State.DesiredSize;
             case 11 when element is ItemsControl items:
-                UiStackPanelGenerated.Measure(ref items.LayoutState, in context);
-                return items.LayoutState.DesiredSize;
+                UiItemsControlGenerated.Measure(ref items.State, in context);
+                return items.State.Layout.DesiredSize;
             case 6 when element is Grid grid:
                 UiGridGenerated.Measure(ref grid.State, in context);
                 return grid.State.DesiredSize;
@@ -842,7 +842,7 @@ internal static class UiDescriptorCatalog
                 UiPanelGenerated.Arrange(ref panel.State, in context);
                 return;
             case 11 when element is ItemsControl items:
-                UiStackPanelGenerated.Arrange(ref items.LayoutState, in context);
+                UiItemsControlGenerated.Arrange(ref items.State, in context);
                 return;
             case 6 when element is Grid grid:
                 UiGridGenerated.Arrange(ref grid.State, in context);

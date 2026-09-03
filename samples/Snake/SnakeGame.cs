@@ -1,3 +1,5 @@
+using Delta.XAML;
+
 namespace DeltaXaml.Samples.Snake;
 
 internal enum Direction : byte
@@ -8,24 +10,48 @@ internal enum Direction : byte
     Right,
 }
 
-internal readonly record struct SnakeCell(int Column, int Row);
+public readonly record struct SnakeCell(int Column, int Row, UiColor Color = default);
 
-internal sealed class SnakeGame
+public sealed class SnakeGame : IUiItemsSource<SnakeCell>
 {
-    internal const int Columns = 24;
-    internal const int Rows = 18;
-    internal const int CellCount = Columns * Rows;
+    internal const int DefaultColumns = 24;
+    internal const int DefaultRows = 18;
     private const int InitialLength = 3;
     private const int FoodReward = 10;
     private const uint InitialRandom = 0x9E3779B9;
 
-    private readonly SnakeCell[] _snake = new SnakeCell[CellCount];
-    private readonly bool[] _occupied = new bool[CellCount];
+    private SnakeCell[] _snake;
+    private SnakeCell[] _cells;
+    private bool[] _occupied;
     private uint _random = InitialRandom;
     private SnakeCell _food;
     private Direction _direction = Direction.Right;
     private Direction _nextDirection = Direction.Right;
     private int _length;
+    private ulong _cellsVersion;
+
+    internal SnakeGame(int columns = DefaultColumns, int rows = DefaultRows)
+    {
+        ValidateDimensions(columns, rows);
+        Columns = columns;
+        Rows = rows;
+        var cellCount = checked(columns * rows);
+        _snake = new SnakeCell[cellCount];
+        _cells = new SnakeCell[cellCount];
+        _occupied = new bool[cellCount];
+    }
+
+    internal int Columns { get; private set; }
+
+    internal int Rows { get; private set; }
+
+    internal int CellCount => Columns * Rows;
+
+    public SnakeGame Cells => this;
+
+    public int Count => CellCount;
+
+    public ulong Version => _cellsVersion;
 
     internal ReadOnlySpan<SnakeCell> Body => _snake.AsSpan(0, _length);
 
@@ -41,13 +67,30 @@ internal sealed class SnakeGame
 
     internal int TickCount { get; private set; }
 
-    internal string StatusText => IsGameOver
-        ? $"Игра окончена — Enter: новая игра · кадр {TickCount}"
-        : IsPaused
-            ? $"Пауза — Space: продолжить · кадр {TickCount}"
-            : $"Игра идёт — стрелки или WASD · кадр {TickCount}";
+    internal void Resize(int columns, int rows)
+    {
+        ValidateDimensions(columns, rows);
+        if (Columns == columns && Rows == rows)
+        {
+            return;
+        }
 
-    internal string PauseButtonText => IsPaused ? "Продолжить" : "Пауза";
+        Columns = columns;
+        Rows = rows;
+        var cellCount = checked(columns * rows);
+        _snake = new SnakeCell[cellCount];
+        _cells = new SnakeCell[cellCount];
+        _occupied = new bool[cellCount];
+        StartNewGame();
+    }
+
+    internal string StatusText => IsGameOver
+        ? $"Game over — Enter: new game · frame {TickCount}"
+        : IsPaused
+            ? $"Paused — Space: resume · frame {TickCount}"
+            : $"Game running — arrows or WASD · frame {TickCount}";
+
+    internal string PauseButtonText => IsPaused ? "Resume" : "Pause";
 
     internal void StartNewGame()
     {
@@ -69,6 +112,7 @@ internal sealed class SnakeGame
         IsPaused = false;
         TickCount = 0;
         SpawnFood();
+        RefreshCells();
     }
 
     internal void TogglePause()
@@ -126,11 +170,34 @@ internal sealed class SnakeGame
             if (_length == CellCount)
             {
                 IsGameOver = true;
+                RefreshCells();
                 return;
             }
 
             SpawnFood();
         }
+
+        RefreshCells();
+    }
+
+    public ulong GetKey(int index)
+    {
+        ValidateCellIndex(index);
+        var row = index / Columns;
+        var column = index % Columns;
+        return ((ulong)(uint)row << 32) | (uint)column;
+    }
+
+    public SnakeCell GetItem(int index)
+    {
+        ValidateCellIndex(index);
+        return _cells[index];
+    }
+
+    public bool TryGetChange(ulong previousVersion, out UiCollectionChange change)
+    {
+        change = new(UiCollectionChangeKind.Replace, 0, CellCount);
+        return previousVersion + 1 == _cellsVersion;
     }
 
     private void SpawnFood()
@@ -171,7 +238,7 @@ internal sealed class SnakeGame
         return _random;
     }
 
-    private static SnakeCell Move(SnakeCell cell, Direction direction)
+    private SnakeCell Move(SnakeCell cell, Direction direction)
     {
         var moved = direction switch
         {
@@ -197,5 +264,57 @@ internal sealed class SnakeGame
             ? 0
             : value;
 
-    private static int ToIndex(SnakeCell cell) => cell.Row * Columns + cell.Column;
+    private int ToIndex(SnakeCell cell) => cell.Row * Columns + cell.Column;
+
+    private void RefreshCells()
+    {
+        for (var index = 0; index < CellCount; index++)
+        {
+            var row = index / Columns;
+            var column = index % Columns;
+            _cells[index] = new(column, row, EmptyColor);
+        }
+
+        for (var index = 1; index < _length; index++)
+        {
+            SetCellColor(_snake[index], BodyColor);
+        }
+
+        if (_length > 0)
+        {
+            SetCellColor(_snake[0], HeadColor);
+        }
+
+        SetCellColor(_food, FoodColor);
+        _cellsVersion++;
+    }
+
+    private void SetCellColor(SnakeCell cell, UiColor color) =>
+        _cells[ToIndex(cell)] = cell with { Color = color };
+
+    private void ValidateCellIndex(int index)
+    {
+        if ((uint)index >= (uint)CellCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index));
+        }
+    }
+
+    private static void ValidateDimensions(int columns, int rows)
+    {
+        if (columns < InitialLength + 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(columns), columns, $"Columns must be at least {InitialLength + 1}.");
+        }
+
+        if (rows < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(rows), rows, "Rows must be positive.");
+        }
+    }
+
+    private static readonly UiColor EmptyColor = new(26, 35, 56);
+    private static readonly UiColor BodyColor = new(56, 161, 111);
+    private static readonly UiColor HeadColor = new(91, 255, 227);
+    private static readonly UiColor FoodColor = new(255, 107, 107);
 }

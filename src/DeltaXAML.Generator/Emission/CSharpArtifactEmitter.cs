@@ -770,7 +770,13 @@ internal static class CSharpArtifactEmitter
                 writer.Append("        var sourceCount").Append(i).Append(" = _collection").Append(i).AppendLine(".Source.Count;");
                 if (site.Count < 0)
                 {
-                    writer.Append("        var range").Append(i).Append(" = global::Delta.XAML.UiVirtualizingLayout.Vertical(_collectionViewport")
+                    writer.Append("        if (_collection").Append(i).AppendLine(".Host.IsGridLayout)");
+                    writer.AppendLine("        {");
+                    writer.Append("            _collection").Append(i).Append(".Realize(new global::Delta.XAML.UiRealizationRange(0, sourceCount").Append(i).AppendLine("));");
+                    writer.AppendLine("        }");
+                    writer.AppendLine("        else");
+                    writer.AppendLine("        {");
+                    writer.Append("            var range").Append(i).Append(" = global::Delta.XAML.UiVirtualizingLayout.Vertical(_collectionViewport")
                         .Append(i).Append(".OffsetY, ");
                     if (float.IsFinite(site.ViewportExtent) && site.ViewportExtent > 0)
                     {
@@ -784,7 +790,8 @@ internal static class CSharpArtifactEmitter
 
                     writer.Append(", ")
                         .Append(site.ItemExtent.ToString("R", CultureInfo.InvariantCulture)).Append("f, sourceCount").Append(i).AppendLine(");");
-                    writer.Append("        _collection").Append(i).Append(".Realize(range").Append(i).AppendLine(");");
+                    writer.Append("            _collection").Append(i).Append(".Realize(range").Append(i).AppendLine(");");
+                    writer.AppendLine("        }");
                 }
                 else
                 {
@@ -1069,18 +1076,6 @@ internal static class CSharpArtifactEmitter
         error = string.Empty;
         return true;
     }
-
-    private static bool IsSupportedProperty(string name) => name switch
-    {
-        "Width" or "Height" or "Background" or "Padding" or "Fill" or "IsEnabled" or "IsSelected" or
-        "StyleKey" or "TemplateKey" or "Text" or "FontKey" or "FontSize" or "Foreground" or
-        "Minimum" or "Maximum" or "Value" or "Step" or "Orientation" or "Columns" or "Rows" or
-        "Source" or "Tint" or "SelectedIndex" or "IsOpen" or "BackgroundBrush" or "BorderColor" or
-        "BorderWidth" or "BorderWidthUnits" or "CornerRadius" or "AutomationName" or
-        "AutomationRole" or "Gestures" or "Command" or "CommandKey" or "IsFocusScope" or "Stretch" or
-        "Placeholder" or "ErrorSource" => true,
-        _ => false,
-    };
 
     private static bool IsIdentifier(string value)
     {
@@ -2610,15 +2605,19 @@ internal static class CSharpArtifactEmitter
     {
         if (type.Name.Namespace.Length == 0)
         {
-            return type.Name.LocalName is "TextBlock" or "TextBox"
-                ? "global::Delta.XAML." + type.Name.LocalName
-                : "global::Delta.XAML.Ui" + type.Name.LocalName;
+            return type.Name.LocalName switch
+            {
+                "TextBlock" or "TextBox" => "global::Delta.XAML." + type.Name.LocalName,
+                _ => "global::Delta.XAML.Ui" + type.Name.LocalName,
+            };
         }
 
-        var factory = type.FactoryExpression ?? throw new InvalidOperationException("A generated public type requires a factory.");
-        return factory.StartsWith("new ", StringComparison.Ordinal) && factory.EndsWith("()", StringComparison.Ordinal)
-            ? factory[4..^2]
-            : throw new InvalidOperationException($"Factory '{factory}' cannot provide a direct public type name.");
+        return type.FactoryExpression switch
+        {
+            { } factory when factory.StartsWith("new ", StringComparison.Ordinal) && factory.EndsWith("()", StringComparison.Ordinal) => factory[4..^2],
+            { } factory => throw new InvalidOperationException($"Factory '{factory}' cannot provide a direct public type name."),
+            _ => throw new InvalidOperationException("A generated public type requires a factory."),
+        };
     }
 
     private static bool IsCollectionMetadata(string name) =>
@@ -2653,50 +2652,39 @@ internal static class CSharpArtifactEmitter
         string variablePrefix)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(variablePrefix);
-        switch (parentType.ContentKind)
+        var invocation = parentType.ContentKind switch
         {
-            case XamlContentKind.Children when parentType.ChildAttachmentMember is { } childMember:
-                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append('.')
-                    .Append(childMember).Append('(').Append(variablePrefix).Append(childIndex).AppendLine(");");
-                error = string.Empty;
-                return true;
-            case XamlContentKind.Children when parentType.ChildAttachmentExpression is { } childAttachment:
-                writer.Append("        ").Append(childAttachment).Append('(')
-                    .Append(variablePrefix).Append(parentIndex).Append(", ").Append(variablePrefix).Append(childIndex).AppendLine(");");
-                error = string.Empty;
-                return true;
-            case XamlContentKind.Children when IsBuiltInChildrenOwner(parentType.Name.LocalName):
-                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".Add(").Append(variablePrefix).Append(childIndex).AppendLine(");");
-                error = string.Empty;
-                return true;
-            case XamlContentKind.Children:
-                error = $"Type '{parentType.Name.LocalName}' declares children content but has no generated child attachment thunk.";
-                return false;
-            case XamlContentKind.SingleContent when parentType.ContentAttachmentMember is { } contentMember:
-                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append('.')
-                    .Append(contentMember).Append('(').Append(variablePrefix).Append(childIndex).AppendLine(");");
-                error = string.Empty;
-                return true;
-            case XamlContentKind.SingleContent when parentType.ContentAttachmentExpression is { } contentAttachment:
-                writer.Append("        ").Append(contentAttachment).Append('(')
-                    .Append(variablePrefix).Append(parentIndex).Append(", ").Append(variablePrefix).Append(childIndex).AppendLine(");");
-                error = string.Empty;
-                return true;
-            case XamlContentKind.SingleContent when string.Equals(parentType.Name.LocalName, "Border", StringComparison.Ordinal):
-                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".SetChild(").Append(variablePrefix).Append(childIndex).AppendLine(");");
-                error = string.Empty;
-                return true;
-            case XamlContentKind.SingleContent when IsBuiltInContentOwner(parentType.Name.LocalName):
-                writer.Append("        ").Append(variablePrefix).Append(parentIndex).Append(".SetContent(").Append(variablePrefix).Append(childIndex).AppendLine(");");
-                error = string.Empty;
-                return true;
-            case XamlContentKind.SingleContent:
-                error = $"Type '{parentType.Name.LocalName}' declares single content but has no generated content attachment thunk.";
-                return false;
-            default:
-                error = $"Type '{parentType.Name.LocalName}' does not accept generated child/content attachment.";
-                return false;
+            XamlContentKind.Children when parentType.ChildAttachmentMember is { } childMember =>
+                $"{variablePrefix}{parentIndex}.{childMember}({variablePrefix}{childIndex});",
+            XamlContentKind.Children when parentType.ChildAttachmentExpression is { } childAttachment =>
+                $"{childAttachment}({variablePrefix}{parentIndex}, {variablePrefix}{childIndex});",
+            XamlContentKind.Children when IsBuiltInChildrenOwner(parentType.Name.LocalName) =>
+                $"{variablePrefix}{parentIndex}.Add({variablePrefix}{childIndex});",
+            XamlContentKind.SingleContent when parentType.ContentAttachmentMember is { } contentMember =>
+                $"{variablePrefix}{parentIndex}.{contentMember}({variablePrefix}{childIndex});",
+            XamlContentKind.SingleContent when parentType.ContentAttachmentExpression is { } contentAttachment =>
+                $"{contentAttachment}({variablePrefix}{parentIndex}, {variablePrefix}{childIndex});",
+            XamlContentKind.SingleContent when string.Equals(parentType.Name.LocalName, "Border", StringComparison.Ordinal) =>
+                $"{variablePrefix}{parentIndex}.SetChild({variablePrefix}{childIndex});",
+            XamlContentKind.SingleContent when IsBuiltInContentOwner(parentType.Name.LocalName) =>
+                $"{variablePrefix}{parentIndex}.SetContent({variablePrefix}{childIndex});",
+            _ => null,
+        };
+
+        if (invocation is null)
+        {
+            error = parentType.ContentKind switch
+            {
+                XamlContentKind.Children => $"Type '{parentType.Name.LocalName}' declares children content but has no generated child attachment thunk.",
+                XamlContentKind.SingleContent => $"Type '{parentType.Name.LocalName}' declares single content but has no generated content attachment thunk.",
+                _ => $"Type '{parentType.Name.LocalName}' does not accept generated child/content attachment.",
+            };
+            return false;
         }
+
+        writer.Append("        ").Append(invocation).AppendLine();
+        error = string.Empty;
+        return true;
     }
 
     private static void EmitTextSpans(StringBuilder writer, int nodeIndex, XamlObjectPlan node, string variablePrefix)
@@ -2750,11 +2738,10 @@ internal static class CSharpArtifactEmitter
     {
         expression = string.Empty;
         error = string.Empty;
-        if (value.Kind != XamlValueKind.Invalid && value.Kind != XamlValueKind.String && value.Kind != XamlValueKind.Boolean &&
-            value.Kind != XamlValueKind.Single && value.Kind != XamlValueKind.Double && value.Kind != XamlValueKind.Color &&
-            value.Kind != XamlValueKind.Integer && value.Kind != XamlValueKind.ResourceId && value.Kind != XamlValueKind.Thickness &&
-            value.Kind != XamlValueKind.CornerRadii &&
-            value.Kind != XamlValueKind.GridLengthList && value.Kind != XamlValueKind.Enum && value.Kind != XamlValueKind.Brush)
+        if (value.Kind is not (XamlValueKind.Invalid or XamlValueKind.String or XamlValueKind.Boolean or
+            XamlValueKind.Single or XamlValueKind.Double or XamlValueKind.Color or XamlValueKind.Integer or
+            XamlValueKind.ResourceId or XamlValueKind.Thickness or XamlValueKind.CornerRadii or
+            XamlValueKind.GridLengthList or XamlValueKind.Enum or XamlValueKind.Brush))
         {
             error = $"Property '{propertyName}' is not a literal value in this compile slice.";
             return false;

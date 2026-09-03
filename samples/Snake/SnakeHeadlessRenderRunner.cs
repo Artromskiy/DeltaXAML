@@ -37,6 +37,7 @@ internal static class SnakeHeadlessRenderRunner
         int frameCount = ParsePositiveInt(args, "--frames", DefaultFrames);
         int skipFrames = ParseNonNegativeInt(args, "--skip", DefaultSkipFrames);
         int framesInFlight = ParsePositiveInt(args, "--slots", DefaultFramesInFlight);
+        var grid = SnakeArguments.ParseGrid(args);
         string layoutJsonPath = ParsePath(args, "--layout-json", "/tmp/delta-snake-layout.json");
         string profileReportPath = GetOption(args, "--profile-report", string.Empty);
         var fonts = new UiFontCatalog();
@@ -48,15 +49,15 @@ internal static class SnakeHeadlessRenderRunner
 
         fonts.Register("default", SampleFontId, File.ReadAllBytes(fontPath));
         using var textService = new SixLaborsTextService();
-        using var page = new SnakeArtifact(textService, fonts);
-        var game = new SnakeGame();
+        var game = new SnakeGame(grid.Columns, grid.Rows);
+        using var page = new SnakeArtifact(game, textService, fonts);
         var view = new SnakeView(page);
         game.StartNewGame();
         view.Render(game);
 
         var initial = LayoutAndBuild(page.Document);
         File.WriteAllText(layoutJsonPath, page.Document.BuildLayoutDiagnosticsJson());
-        Require(initial.Visuals.Length >= SnakeGame.CellCount, "Snake must emit one retained visual per board cell.");
+        Require(initial.Visuals.Length >= game.CellCount, "Snake must emit one retained visual per board cell.");
         Require(initial.Text.Length >= 5, "Snake must emit its retained HUD text.");
 
         game.SetDirection(Direction.Down);

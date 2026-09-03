@@ -1,0 +1,36 @@
+{
+  "name": "delta-xaml-language",
+  "displayName": "DeltaXAML Language",
+  "description": "Syntax highlighting for the DeltaXAML .dxaml dialect.",
+  "version": "0.1.0",
+  "publisher": "artromskiy",
+  "license": "MIT",
+  "engines": {
+    "vscode": ">=1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "delta-xaml",
+        "aliases": [
+          "DeltaXAML",
+          "DXAML"
+        ],
+        "extensions": [
+          ".dxaml"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "delta-xaml",
+        "scopeName": "source.dxaml",
+        "path": "./syntaxes/dxaml.tmLanguage.json"
+      }
+    ]
+  }
+}

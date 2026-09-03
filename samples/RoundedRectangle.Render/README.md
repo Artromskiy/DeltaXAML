@@ -1,6 +1,6 @@
 # Rounded rectangle renderer sample
 
-This sample loads [`RoundedRectangle.xaml`](RoundedRectangle.xaml) through the
+This sample loads [`RoundedRectangle.dxaml`](RoundedRectangle.dxaml) through the
 DeltaXAML `XamlLoader`, builds one retained `UiDocument`, and submits its
 canonical `UiDisplayList` through `DeltaRender.XAML.UiDisplayListGraphFeature`.
 The rounded rectangle uses the generated `DeltaShader.UI` rounded-rectangle
@@ -34,7 +34,7 @@ Use `--frames N` for a bounded run. The host requires an SDL3
 display, Vulkan/MoltenVK and compatible checked-out DeltaRender/DeltaShader
 artifacts. DeltaXAML itself remains renderer-neutral.
 
-For a minimal layout/debug comparison, [`GridTwoRows.xaml`](GridTwoRows.xaml)
+For a minimal layout/debug comparison, [`GridTwoRows.dxaml`](GridTwoRows.dxaml)
 contains one `Grid` with two 100x100 `Border` squares in rows 0 and 2. Headless
 mode can write both the Vulkan readback and the layout diagnostics consumed by
 the external SVG tool:
@@ -42,7 +42,7 @@ the external SVG tool:
 ```bash
 dotnet run --project samples/RoundedRectangle.Render/DeltaXAML.Samples.RoundedRectangle.Render.csproj \
   -c Release -r osx-arm64 --no-build -- --headless --frames 1 \
-  --xaml GridTwoRows.xaml \
+  --xaml GridTwoRows.dxaml \
   --readback /tmp/delta-grid-two-rows.ppm \
   --layout-json /tmp/delta-grid-two-rows-layout.json
 

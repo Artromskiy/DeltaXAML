@@ -32,7 +32,7 @@ internal static class Program
             var watch = HasFlag(args, "--watch");
             var profile = HasFlag(args, "--profile");
             var assertNoBlackPixels = HasFlag(args, "--assert-no-black-pixels");
-            var xamlPath = ParsePath(args, "--xaml", "RoundedRectangle.xaml");
+            var xamlPath = ParsePath(args, "--xaml", "RoundedRectangle.dxaml");
             if (HasFlag(args, "--headless"))
             {
                 return await RunHeadlessAsync(
@@ -754,15 +754,8 @@ internal static class Program
             }
             else
             {
-                if (ticks < _minimumTicks)
-                {
-                    _minimumTicks = ticks;
-                }
-
-                if (ticks > _maximumTicks)
-                {
-                    _maximumTicks = ticks;
-                }
+                _minimumTicks = ticks < _minimumTicks ? ticks : _minimumTicks;
+                _maximumTicks = ticks > _maximumTicks ? ticks : _maximumTicks;
             }
 
             Count++;

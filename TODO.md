@@ -45,7 +45,7 @@ in [IDEAS.md](IDEAS.md).
   plans rather than custom CLR property literals.
 - [x] Add end-to-end tests that execute generated artifacts and compare the
   resulting retained tree, effective values, layout and display list with the
-  supported interpreted path. `ToggleButton.xaml` now exercises this boundary;
+  supported interpreted path. `ToggleButton.dxaml` now exercises this boundary;
   broader resource/collection/template parity remains tracked below.
 - [x] Add parity and boundary tests for resource/style updates, bindings,
   collections, templates, rich text and unsupported syntax diagnostics. The

@@ -1,0 +1,57 @@
+<Border xmlns:x="urn:delta-xaml"
+        x:DataType="global::DeltaXaml.Samples.Snake.SnakeGame"
+        Fill="true"
+        Padding="14,14,14,14"
+        Background="#081325"
+        CornerRadius="16">
+  <Resource x:Key="BoardCellColor" Type="Color" Value="#1A2338" />
+  <Style x:Key="BoardCellStyle" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource BoardCellColor}" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+  <Template x:Key="BoardCellTemplate" x:DataType="global::DeltaXaml.Samples.Snake.SnakeCell">
+    <Border StyleKey="BoardCellStyle" Background="{Binding Color}" />
+  </Template>
+  <Grid Fill="true" Rows="Auto,Auto,*,Auto">
+    <Border Grid.Row="0" Padding="18,18,18,18" Background="#101A2F" CornerRadius="16">
+      <Grid Rows="Auto" Columns="*,Auto,Auto,Auto">
+        <StackPanel>
+          <TextBlock Text="SNAKE" FontSize="44" Foreground="#F8F8FF" />
+          <TextBlock Text="Collect food and avoid hitting yourself" FontSize="14" Foreground="#C9C9DA" />
+        </StackPanel>
+        <Border Grid.Column="1" Width="118" Height="58" Padding="10,6,10,6" Background="#2C3141" CornerRadius="10">
+          <StackPanel>
+            <TextBlock Text="SCORE" FontSize="10" Foreground="#C9C9DA" />
+            <TextBlock x:Name="ScoreText" Text="0" FontSize="20" Foreground="#F4F4FB" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Width="118" Height="58" Padding="10,6,10,6" Background="#2C3141" CornerRadius="10">
+          <StackPanel>
+            <TextBlock Text="BEST" FontSize="10" Foreground="#C9C9DA" />
+            <TextBlock x:Name="BestText" Text="0" FontSize="20" Foreground="#F4F4FB" />
+          </StackPanel>
+        </Border>
+        <Button x:Name="NewGameButton" Grid.Column="3" Height="38" Background="#3A5ACD" CornerRadius="10">
+          <TextBlock Text="New game" FontSize="14" Foreground="#FFFFFF" />
+        </Button>
+      </Grid>
+    </Border>
+    <Border Grid.Row="1" Padding="8,8,8,8" Background="#222839" CornerRadius="12">
+      <TextBlock x:Name="StatusText" Text="Game running — arrows or WASD" FontSize="16" Foreground="#FFD36F" />
+    </Border>
+    <Border Grid.Row="2" Padding="12,12,12,12" Background="#1A2338" CornerRadius="16">
+      <Grid x:Name="BoardGrid" Fill="true">
+        <CollectionView x:Name="BoardItems"
+                        Fill="true"
+                        ItemsSource="{Binding Cells}"
+                        ItemTemplate="BoardCellTemplate" />
+      </Grid>
+    </Border>
+    <Grid Grid.Row="3" Rows="Auto,Auto">
+      <TextBlock Text="Arrows or WASD — move. Space — pause. Enter — new game." FontSize="14" Foreground="#C9C9DA" />
+      <Button x:Name="PauseButton" Grid.Row="1" Height="40" Background="#3A5ACD" CornerRadius="10">
+        <TextBlock Text="Pause" FontSize="14" Foreground="#FFFFFF" />
+      </Button>
+    </Grid>
+  </Grid>
+</Border>

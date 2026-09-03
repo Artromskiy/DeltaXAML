@@ -13,6 +13,12 @@ internal static class UiItemsControlGenerated
 
     internal static ItemsControl Create() => new();
 
+    internal static void Measure(ref ItemsControlState state, in UiMeasureContext context) =>
+        ItemsControlMeasureMixin.Measure(ref state, in context);
+
+    internal static void Arrange(ref ItemsControlState state, in UiArrangeContext context) =>
+        ItemsControlArrangeMixin.Arrange(ref state, in context);
+
     internal static void ApplyItems<T>(
         ref ItemsControlState state,
         IUiItemSource<T> source,

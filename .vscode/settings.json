@@ -10,6 +10,9 @@
     "files.trimTrailingWhitespace": true,
     "omnisharp.enableEditorConfigSupport": true,
     "dotnet.formatting.organizeImportsOnFormat": true,
+    "files.associations": {
+        "*.dxaml": "delta-xaml"
+    },
     "[csharp]": {
         "editor.defaultFormatter": "ms-dotnettools.csharp",
         "editor.detectIndentation": false,

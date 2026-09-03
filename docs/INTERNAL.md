@@ -1145,7 +1145,7 @@ create typed element
 ```
 
 `DeltaXAML.Generator` is the build-time companion. Its Roslyn incremental
-entry point reads `.xaml` additional texts, invokes the one compiler plan, and
+entry point reads `.dxaml` additional texts, invokes the one compiler plan, and
 adds a deterministic `Xaml_<file>_<stable-hash>` artifact. The artifact owns
 one final `UiDocument`, invokes direct public typed setters, and emits one
 compact `_scopeElements` table plus a generated `TryFindName` switch. A

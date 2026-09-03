@@ -1,0 +1,350 @@
+{
+  "name": "DeltaXAML",
+  "scopeName": "source.dxaml",
+  "fileTypes": [
+    "dxaml"
+  ],
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#cdata"
+    },
+    {
+      "include": "#processing-instruction"
+    },
+    {
+      "include": "#tag"
+    },
+    {
+      "include": "#markup-extension"
+    },
+    {
+      "include": "#color"
+    },
+    {
+      "include": "#text-content"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.block.xml.dxaml",
+      "begin": "<!--",
+      "end": "-->"
+    },
+    "cdata": {
+      "name": "string.unquoted.cdata.xml.dxaml",
+      "begin": "<!\\[CDATA\\[",
+      "end": "\\]\\]>"
+    },
+    "processing-instruction": {
+      "name": "keyword.control.processing-instruction.xml.dxaml",
+      "begin": "<\\?",
+      "end": "\\?>"
+    },
+    "tag": {
+      "name": "meta.tag.xml.dxaml",
+      "begin": "(<)(/?)(?:(Border|Panel|Grid|StackPanel|TextBlock|TextBox|NumericEditor|Button|ContentControl|ItemsControl|CollectionView|ScrollViewer|Image|Slider|Picker|Overlay|Canvas|Path|Shape)(?=\\s|/?>)|(Resource|Style|Setter|Template|DataTemplate|DataTemplateSelector|Trigger|DataTrigger|MultiTrigger|VisualState|VisualStateGroup|Behavior|Binding|MultiBinding|Span|Run|GradientStop|SolidColorBrush|LinearGradientBrush|RadialGradientBrush)(?=\\s|/?>)|([A-Za-z_][\\w:.-]*))(?=\\s|/?>)",
+      "end": "(/?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.xml.dxaml"
+        },
+        "2": {
+          "name": "punctuation.definition.tag.end.xml.dxaml"
+        },
+        "3": {
+          "name": "entity.name.type.control.dxaml"
+        },
+        "4": {
+          "name": "entity.name.type.markup.dxaml"
+        },
+        "5": {
+          "name": "entity.name.type.custom.dxaml"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.end.xml.dxaml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#directive-attribute"
+        },
+        {
+          "include": "#attached-attribute"
+        },
+        {
+          "include": "#event-attribute"
+        },
+        {
+          "include": "#style-attribute"
+        },
+        {
+          "include": "#attribute"
+        },
+        {
+          "include": "#markup-extension"
+        },
+        {
+          "include": "#color"
+        },
+        {
+          "include": "#number"
+        },
+        {
+          "include": "#enum"
+        }
+      ]
+    },
+    "directive-attribute": {
+      "name": "meta.attribute.directive.dxaml",
+      "begin": "((?:xmlns(?::[A-Za-z_][\\w.-]*)?|x:[A-Za-z_][\\w.-]*|d:[A-Za-z_][\\w.-]*|mc:[A-Za-z_][\\w.-]*))(\\s*)(=)(\\s*)",
+      "end": "(?=\\s|/?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.modifier.directive.dxaml"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.dxaml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#quoted-value"
+        },
+        {
+          "include": "#unquoted-value"
+        }
+      ]
+    },
+    "attached-attribute": {
+      "name": "meta.attribute.attached.dxaml",
+      "begin": "((?:[A-Za-z_][\\w.-]*\\.)[A-Za-z_][\\w.-]*)(\\s*)(=)(\\s*)",
+      "end": "(?=\\s|/?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.other.property.attached.dxaml"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.dxaml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#quoted-value"
+        },
+        {
+          "include": "#unquoted-value"
+        }
+      ]
+    },
+    "event-attribute": {
+      "name": "meta.attribute.event.dxaml",
+      "begin": "((?:[A-Za-z_][\\w.-]*)(?:Click|Tapped|Pressed|Released|PointerEntered|PointerExited|PointerMoved|TextChanged|SelectionChanged|ValueChanged|FocusGained|FocusLost|Command))(\\s*)(=)(\\s*)",
+      "end": "(?=\\s|/?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.function.event.dxaml"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.dxaml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#quoted-value"
+        },
+        {
+          "include": "#unquoted-value"
+        }
+      ]
+    },
+    "style-attribute": {
+      "name": "meta.attribute.style.dxaml",
+      "begin": "((?:Style|TargetType|BasedOn|Selector|Property|Value|Template|TemplateKey|StyleKey|Theme|ThemeKey|VisualState|State|Trigger|Action|Behavior|FontKey|FontSize|FontWeight|FontStyle|Foreground|Background|BorderColor|BorderWidth|CornerRadius|Padding|Margin|Width|Height|MinWidth|MinHeight|MaxWidth|MaxHeight|Rows|Columns|Fill|IsEnabled|IsVisible|Opacity|ClipToBounds|HorizontalAlignment|VerticalAlignment|HorizontalContentAlignment|VerticalContentAlignment|TextAlignment|TextWrapping|TextTrimming|MaxLines|LineHeight|TextDecorations|Placeholder|IsReadOnly|IsMultiline|MaxLength|ItemsSource|ItemTemplate|ItemTemplateSelector|Command|CommandParameter|BindingContext|StringFormat))(\\s*)(=)(\\s*)",
+      "end": "(?=\\s|/?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.other.attribute-name.property.dxaml"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.dxaml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#quoted-value"
+        },
+        {
+          "include": "#unquoted-value"
+        }
+      ]
+    },
+    "attribute": {
+      "name": "meta.attribute.dxaml",
+      "begin": "([A-Za-z_][\\w:.-]*)(\\s*)(=)(\\s*)",
+      "end": "(?=\\s|/?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.other.attribute-name.property.dxaml"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.dxaml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#quoted-value"
+        },
+        {
+          "include": "#unquoted-value"
+        }
+      ]
+    },
+    "quoted-value": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.dxaml",
+          "begin": "\\\"",
+          "end": "\\\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.dxaml"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.dxaml"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#markup-extension"
+            },
+            {
+              "include": "#color"
+            },
+            {
+              "include": "#number"
+            },
+            {
+              "include": "#boolean"
+            },
+            {
+              "include": "#enum"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.dxaml",
+          "begin": "'",
+          "end": "'",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.dxaml"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.dxaml"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#markup-extension"
+            },
+            {
+              "include": "#color"
+            },
+            {
+              "include": "#number"
+            },
+            {
+              "include": "#boolean"
+            },
+            {
+              "include": "#enum"
+            }
+          ]
+        }
+      ]
+    },
+    "unquoted-value": {
+      "name": "string.unquoted.dxaml",
+      "match": "[^\\s/>]+"
+    },
+    "markup-extension": {
+      "name": "meta.embedded.markup-extension.dxaml",
+      "begin": "(\\{)(?=\\s*(?:Binding|DynamicResource|StaticResource|TemplateBinding|RelativeSource|MultiBinding|x:[A-Za-z]+|Command|OnPlatform|OnIdiom|StringFormat)\\b)",
+      "end": "(\\})",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.begin.dxaml"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.embedded.end.dxaml"
+        }
+      },
+      "patterns": [
+        {
+          "match": "\\b(Binding|DynamicResource|StaticResource|TemplateBinding|RelativeSource|MultiBinding|Command|OnPlatform|OnIdiom|StringFormat)\\b",
+          "name": "support.function.markup-extension.dxaml"
+        },
+        {
+          "match": "\\b(Path|Mode|Source|ElementName|AncestorType|AncestorLevel|RelativeSource|Converter|ConverterParameter|UpdateSourceTrigger|FallbackValue|TargetNullValue|StringFormat|CommandParameter)(?=\\s*=)",
+          "name": "variable.parameter.markup-extension.dxaml"
+        },
+        {
+          "match": "=",
+          "name": "keyword.operator.assignment.dxaml"
+        },
+        {
+          "match": "\\b(OneTime|OneWay|TwoWay|OneWayToSource|Default|Compiled|Explicit|PropertyChanged|LostFocus)\\b",
+          "name": "constant.language.binding-mode.dxaml"
+        },
+        {
+          "include": "#color"
+        },
+        {
+          "include": "#number"
+        },
+        {
+          "include": "#boolean"
+        },
+        {
+          "match": "\\b(x:(?:Null|Type|Static|Reference)|null)\\b",
+          "name": "constant.language.null.dxaml"
+        },
+        {
+          "match": "[^,}\\s]+",
+          "name": "string.unquoted.argument.dxaml"
+        }
+      ]
+    },
+    "color": {
+      "name": "constant.other.color.dxaml",
+      "match": "#[0-9A-Fa-f]{3,8}\\b"
+    },
+    "number": {
+      "name": "constant.numeric.dxaml",
+      "match": "(?<![\\w])[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][-+]?\\d+)?(?:px|dp|device|logical|%)?\\b"
+    },
+    "boolean": {
+      "name": "constant.language.boolean.dxaml",
+      "match": "\\b(?:true|false|True|False)\\b"
+    },
+    "enum": {
+      "name": "constant.language.enum.dxaml",
+      "match": "\\b(?:Auto|Star|Fill|Visible|Collapsed|Horizontal|Vertical|Center|Left|Right|Top|Bottom|Stretch|Uniform|UniformToFill|Wrap|NoWrap|CharacterEllipsis|WordEllipsis|Device|Logical|None|Normal|Hovered|Pressed|Focused|Disabled|Invalid|Selected|OneTime|OneWay|TwoWay|Grid|Stack|Row|Column)\\b"
+    },
+    "text-content": {
+      "name": "string.unquoted.text.dxaml",
+      "match": "(?<=>)(?=[^<]*\\S)[^<]+(?=<)"
+    }
+  }
+}

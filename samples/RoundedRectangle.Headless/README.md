@@ -1,6 +1,6 @@
 # RoundedRectangle.Headless
 
-This sample loads `RoundedRectangles.xaml` through the ordinary DeltaXAML
+This sample loads `RoundedRectangles.dxaml` through the ordinary DeltaXAML
 loader, lays out a retained hierarchy of 100 rounded rectangles and extracts
 one borrowed canonical display list. It has no window, GPU, DeltaRender or
 DeltaEngine dependency.

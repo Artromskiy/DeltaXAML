@@ -36,10 +36,10 @@
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace" />
-    <AdditionalFiles Include="MainWindow.axaml"
+    <AdditionalFiles Include="MainWindow.dxaml"
                      DeltaXamlClassName="SnakeArtifact"
                      DeltaXamlNamespace="DeltaXaml.Samples.Snake.Generated" />
-    <None Update="MainWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="MainWindow.dxaml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets/LuckiestGuy-Regular.ttf"
           Link="Assets/LuckiestGuy-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />

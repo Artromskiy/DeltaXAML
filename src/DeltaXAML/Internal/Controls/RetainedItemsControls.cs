@@ -5,18 +5,32 @@ namespace DeltaXAML.Internal;
 
 internal sealed class ItemsControl : UiElement
 {
-    private StackPanelState _layoutState = new() { Orientation = UiOrientation.Vertical };
-    private ItemsControlState _state;
+    private ItemsControlState _state = new() { Layout = new() { Orientation = UiOrientation.Vertical } };
     private readonly List<object?> _items = new();
     private readonly List<UiElement> _realized = new();
     private readonly List<UiElement> _nextRealized = new();
 
-    internal ref StackPanelState LayoutState => ref _layoutState;
     internal ref ItemsControlState State => ref _state;
+    internal bool IsGridLayout => _state.GridLayout;
 
     public ItemsControl() : base("ItemsControl") { }
     public IReadOnlyList<object?> Items => _items;
     public IReadOnlyList<UiElement> RealizedItems => _realized;
+
+    internal void SetGridDimensions(int columns, int rows)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(columns, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(rows, 1);
+        if (_state.GridLayout && _state.GridColumns == columns && _state.GridRows == rows)
+        {
+            return;
+        }
+
+        _state.GridLayout = true;
+        _state.GridColumns = columns;
+        _state.GridRows = rows;
+        InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+    }
 
     public void SetItems(IReadOnlyList<object?> items, Func<object?, UiElement> factory)
     {

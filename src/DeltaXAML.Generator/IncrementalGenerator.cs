@@ -41,9 +41,7 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var xamlFiles = context.AdditionalTextsProvider
-            .Where(static file =>
-                Path.GetExtension(file.Path).Equals(".xaml", StringComparison.OrdinalIgnoreCase) ||
-                Path.GetExtension(file.Path).Equals(".axaml", StringComparison.OrdinalIgnoreCase))
+            .Where(static file => IsXamlFile(file.Path))
             .Combine(context.AnalyzerConfigOptionsProvider)
             .Select(static (pair, cancellationToken) =>
             {
@@ -925,6 +923,14 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
 
     private static bool IsIdentifier(string value) => SyntaxFacts.IsValidIdentifier(value);
 
+    private static bool IsXamlFile(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return extension.Equals(".dxaml", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".xaml", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".axaml", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsNamespace(string value)
     {
         var segments = value.Split('.');
@@ -952,11 +958,12 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         }
 
         var start = sourceRange.Start.Offset;
-        var end = sourceRange.End.Offset < start
-            ? start
-            : sourceRange.End.Offset > text.Length
-                ? text.Length
-                : sourceRange.End.Offset;
+        var end = sourceRange.End.Offset switch
+        {
+            var offset when offset < start => start,
+            var offset when offset > text.Length => text.Length,
+            var offset => offset,
+        };
         var sourceText = SourceText.From(text, Encoding.UTF8);
         return Location.Create(path, TextSpan.FromBounds(start, end), sourceText.Lines.GetLinePositionSpan(TextSpan.FromBounds(start, end)));
     }

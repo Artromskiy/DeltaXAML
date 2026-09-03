@@ -6,29 +6,20 @@ namespace DeltaXaml.Samples.Snake;
 
 internal sealed class SnakeView
 {
-    private static readonly UiColor EmptyColor = new(26, 35, 56);
-    private static readonly UiColor BodyColor = new(56, 161, 111);
-    private static readonly UiColor HeadColor = new(91, 255, 227);
-    private static readonly UiColor FoodColor = new(255, 107, 107);
-
-    private readonly UiBorder[] _cells = new UiBorder[SnakeGame.CellCount];
+    private readonly UiItemsControl _cells;
     private readonly TextBlock _score;
     private readonly TextBlock _best;
     private readonly TextBlock _status;
     private readonly UiButton _newGame;
     private readonly UiButton _pause;
     private readonly TextBlock _pauseLabel;
+    private int _rows;
+    private int _columns;
 
     internal SnakeView(SnakeArtifact page)
     {
-        for (var row = 0; row < SnakeGame.Rows; row++)
-        {
-            for (var column = 0; column < SnakeGame.Columns; column++)
-            {
-                _cells[row * SnakeGame.Columns + column] =
-                    Find<UiBorder>(page, $"CellR{row:00}C{column:00}");
-            }
-        }
+        var board = Find<UiCollectionView>(page, "BoardItems");
+        _cells = board.ItemsHost;
 
         _score = Find<TextBlock>(page, "ScoreText");
         _best = Find<TextBlock>(page, "BestText");
@@ -46,30 +37,26 @@ internal sealed class SnakeView
 
     internal void Render(SnakeGame game)
     {
-        for (var index = 0; index < _cells.Length; index++)
-        {
-            _cells[index].Background = EmptyColor;
-        }
-
-        var body = game.Body;
-        for (var index = 1; index < body.Length; index++)
-        {
-            _cells[ToIndex(body[index])].Background = BodyColor;
-        }
-
-        if (body.Length > 0)
-        {
-            _cells[ToIndex(body[0])].Background = HeadColor;
-        }
-
-        _cells[ToIndex(game.Food)].Background = FoodColor;
+        ArgumentNullException.ThrowIfNull(game);
+        ResizeGrid(game.Rows, game.Columns);
         _score.Text = game.Score.ToString(CultureInfo.InvariantCulture);
         _best.Text = game.BestScore.ToString(CultureInfo.InvariantCulture);
         _status.Text = game.StatusText;
         _pauseLabel.Text = game.PauseButtonText;
     }
 
-    private static int ToIndex(SnakeCell cell) => cell.Row * SnakeGame.Columns + cell.Column;
+    private void ResizeGrid(int rows, int columns)
+    {
+        if (_rows == rows && _columns == columns)
+        {
+            return;
+        }
+
+        _cells.SetGridDimensions(columns, rows);
+
+        _rows = rows;
+        _columns = columns;
+    }
 
     private static T Find<T>(SnakeArtifact page, string name)
         where T : UiElement

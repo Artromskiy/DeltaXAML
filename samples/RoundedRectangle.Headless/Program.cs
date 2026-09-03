@@ -168,7 +168,7 @@ internal static class Program
 
     private static Fixture LoadFixture()
     {
-        var sourcePath = Path.Combine(AppContext.BaseDirectory, "RoundedRectangles.xaml");
+        var sourcePath = Path.Combine(AppContext.BaseDirectory, "RoundedRectangles.dxaml");
         if (!File.Exists(sourcePath))
         {
             throw new FileNotFoundException($"Sample XAML was not found: {sourcePath}");
@@ -182,7 +182,7 @@ internal static class Program
             var diagnostics = result.Diagnostics.Length == 0
                 ? "unknown XAML load failure"
                 : string.Join(Environment.NewLine, result.Diagnostics.ToArray());
-            throw new InvalidOperationException($"RoundedRectangles.xaml failed to load: {diagnostics}");
+            throw new InvalidOperationException($"RoundedRectangles.dxaml failed to load: {diagnostics}");
         }
 
         var rows = new UiStackPanel[root.Children.Count];

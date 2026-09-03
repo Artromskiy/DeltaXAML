@@ -36,14 +36,14 @@
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace" />
-    <AdditionalFiles Include="GridTwoRows.xaml"
+    <AdditionalFiles Include="GridTwoRows.dxaml"
                      DeltaXamlClassName="GridTwoRowsArtifact"
                      DeltaXamlNamespace="DeltaXaml.Samples.RoundedRectangle.Render.Generated" />
     <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
           Link="Assets/NotoSans-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />
-    <None Include="RoundedRectangle.xaml" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="GridTwoRows.xaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="RoundedRectangle.dxaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="GridTwoRows.dxaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
              Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
       <Link>libMoltenVK.dylib</Link>

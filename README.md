@@ -1,7 +1,7 @@
 # DeltaXAML
 
-DeltaXAML is a retained XAML UI library for games, tools and editors. It turns
-XAML or public C# element definitions into deterministic layout, input and
+DeltaXAML is a retained DXAML UI library for games, tools and editors. It turns
+DXAML or public C# element definitions into deterministic layout, input and
 renderer-neutral display data.
 
 ## What it provides
@@ -81,6 +81,11 @@ different tree.
 - [`RoundedRectangle.Render`](samples/RoundedRectangle.Render/README.md) —
   DeltaRender-backed rounded-rectangle example.
 - [`Snake`](samples/Snake/README.md) — interactive XAML game sample.
+
+DXAML source files use the `.dxaml` extension. The workspace maps them to the
+`delta-xaml` language supplied by the local VS Code extension in
+[`tools/dxaml-vscode`](tools/dxaml-vscode/README.md); XML remains a manual
+fallback when the extension is not installed.
 
 ## Further reading
 
