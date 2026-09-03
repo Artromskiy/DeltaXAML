@@ -576,7 +576,7 @@ state, while a command requests an operation such as scroll, submit or focus.
 Measure and arrange are separate explicit stages. Dirty flags propagate only
 as far as metadata requires. The steady-state stage binds a descriptor and
 state once per element; inner maths operates on concrete structs and
-`Delta.Maths` values.
+`Delta` value types.
 
 Layout must not:
 

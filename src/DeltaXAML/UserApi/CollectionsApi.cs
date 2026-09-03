@@ -1,3 +1,5 @@
+using Delta;
+
 namespace Delta.XAML;
 
 /// <summary>Structural change reported by a typed collection source.</summary>
@@ -92,11 +94,11 @@ public static class UiVirtualizingLayout
 
         ArgumentOutOfRangeException.ThrowIfNegative(itemCount);
         ArgumentOutOfRangeException.ThrowIfNegative(overscan);
-        var firstVisible = Math.Min(itemCount, (int)MathF.Floor(offset / itemExtent));
-        var start = Math.Max(0, firstVisible - overscan);
-        var visibleCount = (int)MathF.Ceiling(viewportExtent / itemExtent);
-        var count = Math.Min(itemCount - start, visibleCount + overscan * 2);
-        return new(start, Math.Max(0, count));
+        var firstVisible = Maths.Min(itemCount, (int)Maths.Floor(offset / itemExtent));
+        var start = Maths.Max(0, firstVisible - overscan);
+        var visibleCount = (int)Maths.Ceil(viewportExtent / itemExtent);
+        var count = Maths.Min(itemCount - start, visibleCount + overscan * 2);
+        return new(start, Maths.Max(0, count));
     }
 }
 
@@ -298,7 +300,7 @@ public sealed class UiVirtualizingPresenter<TItem, TSource, TPlan>
         return change.Kind switch
         {
             UiCollectionChangeKind.Replace =>
-                sourceIndex >= change.Index && sourceIndex < checked(change.Index + Math.Max(1, change.Count)),
+                sourceIndex >= change.Index && sourceIndex < checked(change.Index + Maths.Max(1, change.Count)),
             UiCollectionChangeKind.Add or UiCollectionChangeKind.Remove or UiCollectionChangeKind.Move => false,
             _ => false,
         };
@@ -306,7 +308,7 @@ public sealed class UiVirtualizingPresenter<TItem, TSource, TPlan>
 
     private static int FirstChanged(RealizedItem[] current, int currentCount, RealizedItem[] next, int nextCount)
     {
-        var common = Math.Min(currentCount, nextCount);
+        var common = Maths.Min(currentCount, nextCount);
         var index = 0;
         while (index < common && ReferenceEquals(current[index].Element, next[index].Element))
         {
@@ -371,7 +373,7 @@ public sealed class UiVirtualizingPresenter<TItem, TSource, TPlan>
             return;
         }
 
-        Array.Resize(ref values, Math.Max(count, Math.Max(4, values.Length * 2)));
+        Array.Resize(ref values, Maths.Max(count, Maths.Max(4, values.Length * 2)));
     }
 
     private static void ValidateRange(UiRealizationRange range, int sourceCount)

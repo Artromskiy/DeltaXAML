@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 /// <summary>Typed companion for the migrated panel layout path.</summary>
@@ -46,7 +48,7 @@ internal static class UiGridGenerated
 
         state.Columns = value;
         Ensure(ref state.MeasuredColumns, value.Length);
-        Ensure(ref state.ResolvedColumns, Math.Max(1, value.Length));
+        Ensure(ref state.ResolvedColumns, Maths.Max(1, value.Length));
         return true;
     }
 
@@ -60,7 +62,7 @@ internal static class UiGridGenerated
 
         state.Rows = value;
         Ensure(ref state.MeasuredRows, value.Length);
-        Ensure(ref state.ResolvedRows, Math.Max(1, value.Length));
+        Ensure(ref state.ResolvedRows, Maths.Max(1, value.Length));
         return true;
     }
 
@@ -68,7 +70,7 @@ internal static class UiGridGenerated
     {
         if (values.Length < count)
         {
-            Array.Resize(ref values, Math.Max(count, Math.Max(1, values.Length * 2)));
+            Array.Resize(ref values, Maths.Max(count, Maths.Max(1, values.Length * 2)));
         }
     }
 }

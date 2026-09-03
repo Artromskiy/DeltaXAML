@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 internal readonly struct BorderMeasureMixin : IMeasureMixin<BorderState>
@@ -14,8 +16,8 @@ internal readonly struct BorderMeasureMixin : IMeasureMixin<BorderState>
         if (context.MeasureChildren)
         {
             UiMeasureQueue.Add(in context, child, new(
-                MathF.Max(0, context.Available.Width - state.Padding.Horizontal),
-                MathF.Max(0, context.Available.Height - state.Padding.Vertical)));
+                Maths.Max(0, context.Available.Width - state.Padding.Horizontal),
+                Maths.Max(0, context.Available.Height - state.Padding.Vertical)));
         }
 
         state.DesiredSize = new(
@@ -49,8 +51,8 @@ internal readonly struct BorderArrangeMixin : IArrangeMixin<BorderState>
         UiArrangeQueue.Add(in context, children[0], new(
             context.Bounds.X + state.Padding.Left,
             context.Bounds.Y + state.Padding.Top,
-            MathF.Max(0, context.Bounds.Width - state.Padding.Horizontal),
-            MathF.Max(0, context.Bounds.Height - state.Padding.Vertical)));
+            Maths.Max(0, context.Bounds.Width - state.Padding.Horizontal),
+            Maths.Max(0, context.Bounds.Height - state.Padding.Vertical)));
     }
 }
 

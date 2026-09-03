@@ -1,4 +1,4 @@
-using Delta.Maths;
+using Delta;
 using Delta.XAML;
 using Delta.XAML.Contract;
 using DeltaXaml.Generated;
@@ -49,7 +49,7 @@ internal static class FullCapabilityGeneratedTests
             0,
             default)));
         artifact.Document.Layout(new float2(220, 240), 1);
-        Assert.True(Math.Abs(model.Volume - 8d) < 0.001d, "generated slider two-way binding writes its typed source without a command adapter");
+        Assert.True(Maths.Abs(model.Volume - 8d) < 0.001d, "generated slider two-way binding writes its typed source without a command adapter");
         var image = Find<UiImage>(artifact, "Picture");
         Assert.Equal(UiImageStretch.UniformToFill, image.Stretch, "image stretch compiles to typed retained state");
         Assert.True(image.Placeholder.IsValid && image.ErrorSource.IsValid, "image fallback resources remain renderer-neutral identities");

@@ -1,3 +1,4 @@
+using Delta;
 using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
@@ -358,7 +359,7 @@ internal sealed class UiRuntime
         var required = checked(_inputTextCount + text.Length);
         if (required > _inputTextStorage.Length)
         {
-            Array.Resize(ref _inputTextStorage, Math.Max(required, Math.Max(32, _inputTextStorage.Length * 2)));
+            Array.Resize(ref _inputTextStorage, Maths.Max(required, Maths.Max(32, _inputTextStorage.Length * 2)));
         }
 
         text.CopyTo(_inputTextStorage.AsSpan(_inputTextCount));

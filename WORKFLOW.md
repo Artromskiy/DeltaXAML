@@ -149,6 +149,19 @@ tests must cover original and resized viewports, clips and stable backing-array
 reuse. The real window command lives in
 [../DeltaEditor/WORKFLOW.md](../DeltaEditor/WORKFLOW.md).
 
+### DeltaMaths boundary
+
+All DeltaXAML source, tests, samples and tools use the provider-owned
+`using Delta;` and `Maths.*` operations instead of direct
+`System.Math`/`MathF` calls. The bounded gate scans those in-repository C#
+paths and excludes only `bin/`, `obj/` and generated output. The DeltaMaths
+sibling implementation is outside this repository and is not a provider
+exception inside the scan:
+
+```bash
+./eng/check-deltamaths-usage.sh
+```
+
 ### DPI boundary evidence
 
 DeltaXAML owns one producer-side boundary. `UiDocument.Layout(viewport,

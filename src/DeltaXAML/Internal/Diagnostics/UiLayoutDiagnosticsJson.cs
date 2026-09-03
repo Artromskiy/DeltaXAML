@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
-using Delta.Maths;
+using Delta;
 
 namespace DeltaXAML.Internal;
 

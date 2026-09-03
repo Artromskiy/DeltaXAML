@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Delta.Maths;
+using Delta;
 using Delta.XAML;
 
 internal static class LayoutDiagnosticsTests

@@ -1,3 +1,4 @@
+using Delta;
 using Delta.Diagnostics;
 using Delta.XAML.Contract;
 using DeltaXAML.Compiler;
@@ -256,8 +257,8 @@ public sealed class XamlLoader : IXamlLoader
         for (var i = 0; i < diagnostics.Count; i++)
         {
             var diagnostic = diagnostics[i];
-            var line = Math.Max(0, diagnostic.Line - 1);
-            var column = Math.Max(0, diagnostic.Column - 1);
+            var line = Maths.Max(0, diagnostic.Line - 1);
+            var column = Maths.Max(0, diagnostic.Column - 1);
             converted[i] = CreateDiagnostic(diagnostic.Code, diagnostic.Message, line, column);
         }
 
@@ -267,7 +268,7 @@ public sealed class XamlLoader : IXamlLoader
     private static Diagnostic CreateDiagnostic(string code, string message, int line = 0, int column = 0)
     {
         var location = line > 0 || column > 0
-            ? new SourceRange(SourceId.Empty, new(Math.Max(0, line), Math.Max(0, column), 0), new(Math.Max(0, line), Math.Max(0, column), 0))
+            ? new SourceRange(SourceId.Empty, new(Maths.Max(0, line), Maths.Max(0, column), 0), new(Maths.Max(0, line), Maths.Max(0, column), 0))
             : (SourceRange?)null;
         return new(new DiagnosticCode(code), DiagnosticSeverity.Error, message, location);
     }

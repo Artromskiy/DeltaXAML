@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 /// <summary>Reusable dense measure work queue deduplicated by retained node index.</summary>
@@ -52,7 +54,7 @@ internal sealed class UiMeasureQueueBuffer
             return;
         }
 
-        var length = Math.Max(index + 1, Math.Max(8, _stamps.Length * 2));
+        var length = Maths.Max(index + 1, Maths.Max(8, _stamps.Length * 2));
         Array.Resize(ref _stamps, length);
         Array.Resize(ref _positions, length);
     }
@@ -112,7 +114,7 @@ internal sealed class UiArrangeQueueBuffer
             return;
         }
 
-        var length = Math.Max(index + 1, Math.Max(8, _stamps.Length * 2));
+        var length = Maths.Max(index + 1, Maths.Max(8, _stamps.Length * 2));
         Array.Resize(ref _stamps, length);
         Array.Resize(ref _positions, length);
     }

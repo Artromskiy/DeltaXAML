@@ -68,6 +68,7 @@ jobs:
       - name: Restore and build
         working-directory: DeltaXAML
         run: |
+          ./eng/check-deltamaths-usage.sh
           dotnet restore DeltaXAML.slnx
           dotnet build DeltaXAML.slnx -c Release --no-restore
       - name: Run tests

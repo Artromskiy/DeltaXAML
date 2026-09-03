@@ -952,7 +952,11 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
         }
 
         var start = sourceRange.Start.Offset;
-        var end = Math.Clamp(sourceRange.End.Offset, start, text.Length);
+        var end = sourceRange.End.Offset < start
+            ? start
+            : sourceRange.End.Offset > text.Length
+                ? text.Length
+                : sourceRange.End.Offset;
         var sourceText = SourceText.From(text, Encoding.UTF8);
         return Location.Create(path, TextSpan.FromBounds(start, end), sourceText.Lines.GetLinePositionSpan(TextSpan.FromBounds(start, end)));
     }

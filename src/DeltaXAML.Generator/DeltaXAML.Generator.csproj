@@ -28,12 +28,19 @@
     <ProjectReference Include="../DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" PrivateAssets="all" />
     <PackageReference Include="Delta.Diagnostics.Contract" Version="*" PrivateAssets="all" GeneratePathProperty="true" />
+    <PackageReference Include="DeltaMaths" Version="*" PrivateAssets="all" GeneratePathProperty="true" />
   </ItemGroup>
 
   <Target Name="CopyDeltaDiagnosticsGeneratorDependency" BeforeTargets="CoreCompile">
     <Copy SourceFiles="$(PkgDelta_Diagnostics_Contract)/lib/net8.0/Delta.Diagnostics.Contract.dll"
           DestinationFolder="$(TargetDir)"
           SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyDeltaMathsGeneratorDependency" BeforeTargets="CoreCompile">
+    <Copy SourceFiles="$(PkgDeltaMaths)/lib/net8.0/DeltaMaths.dll"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="false" />
   </Target>
 
   <PropertyGroup>

@@ -350,7 +350,7 @@ internal static partial class Program
         Assert.Equal("Direct", directText.Text, "typed binding notification waits for the binding stage");
         using var directTextService = new EmptyTextService();
         using var directDocument = new Library.UiDocument(directText, directTextService);
-        directDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        directDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal("Queued", directText.Text, "typed binding stage applies the queued value");
 
         var sourceManagedModel = new BindingModel { Name = "ManagedInitial" };
@@ -366,7 +366,7 @@ internal static partial class Program
         Assert.Equal("ManagedInitial", sourceManagedText.Text, "source-managed refresh waits for the binding stage");
         using var sourceManagedTextService = new EmptyTextService();
         using var sourceManagedDocument = new Library.UiDocument(sourceManagedText, sourceManagedTextService);
-        sourceManagedDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        sourceManagedDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal("ManagedQueued", sourceManagedText.Text, "source-managed binding applies at the binding stage");
 
         var replacementModel = new BindingModel { Name = "Replacement" };
@@ -378,7 +378,7 @@ internal static partial class Program
         directText.SetCompiledBinding(Library.TextBlockProperties.Text, replacementBinding);
         directModel.Name = "Stale";
         directBinding.NotifyChanged();
-        directDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        directDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal("Replacement", directText.Text, "replacing a typed binding detaches the previous runtime");
     }
 }

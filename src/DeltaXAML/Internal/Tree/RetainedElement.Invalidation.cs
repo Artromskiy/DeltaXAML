@@ -1,3 +1,4 @@
+using Delta;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 namespace DeltaXAML.Internal;
@@ -266,7 +267,7 @@ internal partial class UiElement
 
     internal void ApplyLayoutScale(float scale)
     {
-        if (Math.Abs(_dpiScale - scale) > float.Epsilon)
+        if (Maths.Abs(_dpiScale - scale) > float.Epsilon)
         {
             _dpiScale = scale;
             _dpiVersion++;

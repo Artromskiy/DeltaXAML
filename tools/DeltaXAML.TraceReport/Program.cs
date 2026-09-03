@@ -1,4 +1,5 @@
 using System.Globalization;
+using Delta;
 using Microsoft.Diagnostics.Tracing;
 
 namespace DeltaXAML.TraceReport;
@@ -27,8 +28,8 @@ internal static class Program
         source.Clr.GCAllocationTick += data =>
         {
             var timestampSeconds = data.TimeStampRelativeMSec / 1_000;
-            minTimestamp = Math.Min(minTimestamp, timestampSeconds);
-            maxTimestamp = Math.Max(maxTimestamp, timestampSeconds);
+            minTimestamp = Maths.Min(minTimestamp, timestampSeconds);
+            maxTimestamp = Maths.Max(maxTimestamp, timestampSeconds);
             if (timestampSeconds < startSeconds || timestampSeconds > endSeconds)
             {
                 return;

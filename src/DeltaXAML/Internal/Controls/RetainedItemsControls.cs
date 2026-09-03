@@ -1,3 +1,4 @@
+using Delta;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
 namespace DeltaXAML.Internal;
@@ -115,7 +116,7 @@ internal sealed class CollectionView : UiElement
         var last = items.Children[^1].CollectionIndex;
         var next = SelectedIndex < first || SelectedIndex > last
             ? delta < 0 ? last : first
-            : Math.Clamp(SelectedIndex + delta, first, last);
+            : Maths.Clamp(SelectedIndex + delta, first, last);
         if (next == SelectedIndex)
         {
             return false;

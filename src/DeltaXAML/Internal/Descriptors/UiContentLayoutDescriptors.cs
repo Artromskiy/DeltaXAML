@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 /// <summary>Typed companion for the migrated Border layout path.</summary>
@@ -15,8 +17,8 @@ internal static class UiBorderGenerated
         BorderMeasureMixin.Measure(ref state, in context);
 
     internal static UiSize ChildMeasureAvailable(ref BorderState state, UiSize available) => new(
-        MathF.Max(0, available.Width - state.Padding.Horizontal),
-        MathF.Max(0, available.Height - state.Padding.Vertical));
+        Maths.Max(0, available.Width - state.Padding.Horizontal),
+        Maths.Max(0, available.Height - state.Padding.Vertical));
 
     internal static void Arrange(ref BorderState state, in UiArrangeContext context) =>
         BorderArrangeMixin.Arrange(ref state, in context);

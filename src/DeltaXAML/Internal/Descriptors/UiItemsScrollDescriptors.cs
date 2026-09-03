@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 internal static class UiItemsControlGenerated
@@ -44,8 +46,8 @@ internal static class UiScrollViewerGenerated
     internal static bool TryScrollBy(ref ScrollViewerState state, float x, float y)
     {
         var next = new UiPoint(
-            MathF.Max(0, state.Offset.X + x),
-            MathF.Max(0, state.Offset.Y + y));
+            Maths.Max(0, state.Offset.X + x),
+            Maths.Max(0, state.Offset.Y + y));
         if (next == state.Offset)
         {
             return false;

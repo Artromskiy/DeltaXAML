@@ -4,6 +4,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Delta.Diagnostics;
+using Delta;
 using Delta.XAML;
 using Delta.XAML.Contract;
 
@@ -118,7 +119,7 @@ internal static class XamlCompiler
 
             if (Current == '/' || Current == '!' || Current == '?')
             {
-                Report("XAML016", "An element name is required.", elementStart, Math.Min(_offset + 1, _text.Length));
+                Report("XAML016", "An element name is required.", elementStart, Maths.Min(_offset + 1, _text.Length));
                 RecoverToTagEnd();
                 return null;
             }
@@ -1130,7 +1131,7 @@ internal static class XamlCompiler
                 var lexicalName = ReadName();
                 if (lexicalName.Length == 0)
                 {
-                    Report("XAML017", "An attribute name is required.", attributeStart, Math.Min(attributeStart + 1, _text.Length));
+                    Report("XAML017", "An attribute name is required.", attributeStart, Maths.Min(attributeStart + 1, _text.Length));
                     RecoverAttribute();
                     continue;
                 }
@@ -1188,7 +1189,7 @@ internal static class XamlCompiler
             SkipWhitespace();
             if (!Consume('>'))
             {
-                Report("XAML020", "The closing tag is not closed.", _offset, Math.Min(_offset + 1, _text.Length));
+                Report("XAML020", "The closing tag is not closed.", _offset, Maths.Min(_offset + 1, _text.Length));
                 RecoverToTagEnd();
             }
 
@@ -1820,7 +1821,7 @@ internal static class XamlCompiler
         {
             var line = 0;
             var column = 0;
-            var limit = Math.Clamp(offset, 0, _text.Length);
+            var limit = Maths.Clamp(offset, 0, _text.Length);
             for (var i = 0; i < limit; i++)
             {
                 if (_text[i] == '\n')

@@ -1,3 +1,4 @@
+using Delta;
 using System.Text;
 
 internal static class ArchitectureGate
@@ -554,7 +555,7 @@ internal static class ArchitectureGate
 
             if (start > headerEnd)
             {
-                return EmptyMember(file, tokens[Math.Min(headerEnd, tokens.Count - 1)].Line);
+                return EmptyMember(file, tokens[Maths.Min(headerEnd, tokens.Count - 1)].Line);
             }
 
             var line = tokens[start].Line;
@@ -846,7 +847,7 @@ internal static class ArchitectureGate
                         i++;
                     }
 
-                    i = Math.Min(source.Length, i + 2);
+                    i = Maths.Min(source.Length, i + 2);
                     continue;
                 }
 

@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 internal readonly struct ScrollViewerMeasureMixin : IMeasureMixin<ScrollViewerState>
@@ -30,11 +32,11 @@ internal readonly struct ScrollViewerArrangeMixin : IArrangeMixin<ScrollViewerSt
         if (children is not null && children.Count > 0)
         {
             var child = children[0];
-            var maxOffsetX = MathF.Max(0, child.DesiredSize.Width - context.Bounds.Width);
-            var maxOffsetY = MathF.Max(0, child.DesiredSize.Height - context.Bounds.Height);
+            var maxOffsetX = Maths.Max(0, child.DesiredSize.Width - context.Bounds.Width);
+            var maxOffsetY = Maths.Max(0, child.DesiredSize.Height - context.Bounds.Height);
             state.Offset = new(
-                MathF.Min(state.Offset.X, maxOffsetX),
-                MathF.Min(state.Offset.Y, maxOffsetY));
+                Maths.Min(state.Offset.X, maxOffsetX),
+                Maths.Min(state.Offset.Y, maxOffsetY));
             UiArrangeQueue.Add(in context, child, new(
                 context.Bounds.X - state.Offset.X,
                 context.Bounds.Y - state.Offset.Y,

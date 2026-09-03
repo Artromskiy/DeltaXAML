@@ -1,5 +1,5 @@
 using Delta.Diagnostics;
-using Delta.Maths;
+using Delta;
 using Delta.Text.Contract;
 using Delta.XAML.Contract;
 using Retained = DeltaXAML.Internal;
@@ -544,13 +544,26 @@ internal sealed class UiVisualStage : IDisposable
             return UiCornerRadii.Zero;
         }
 
-        var maximum = MathF.Min(width, height) * 0.5f;
-        var normalized = new UiCornerRadii(
-            MathF.Min(radii.TopLeft, maximum),
-            MathF.Min(radii.TopRight, maximum),
-            MathF.Min(radii.BottomRight, maximum),
-            MathF.Min(radii.BottomLeft, maximum));
-        return normalized;
+        var scale = 1f;
+        scale = LimitRadiusScale(scale, width, radii.TopLeft + radii.TopRight);
+        scale = LimitRadiusScale(scale, width, radii.BottomLeft + radii.BottomRight);
+        scale = LimitRadiusScale(scale, height, radii.TopLeft + radii.BottomLeft);
+        scale = LimitRadiusScale(scale, height, radii.TopRight + radii.BottomRight);
+        if (scale >= 1f)
+        {
+            return radii;
+        }
+
+        return new UiCornerRadii(
+            radii.TopLeft * scale,
+            radii.TopRight * scale,
+            radii.BottomRight * scale,
+            radii.BottomLeft * scale);
+    }
+
+    private static float LimitRadiusScale(float current, float side, float adjacentSum)
+    {
+        return adjacentSum > 0f ? Maths.Min(current, side / adjacentSum) : current;
     }
 
     private bool TryBuildTextDraw(Retained.UiTextRun run, out UiTextDraw draw, out Diagnostic? diagnostic)
@@ -697,7 +710,7 @@ internal sealed class UiVisualStage : IDisposable
                 var width = Advance(cache.Shaped[i], shapedBounds);
                 if (hits.Length <= hitCount)
                 {
-                    Array.Resize(ref hits, Math.Max(4, hitCount + 1));
+                    Array.Resize(ref hits, Maths.Max(4, hitCount + 1));
                 }
 
                 hits[hitCount++] = new(
@@ -705,7 +718,7 @@ internal sealed class UiVisualStage : IDisposable
                         owner.Bounds.X + origin.x + shapedBounds.Left,
                         owner.Bounds.Y + origin.y + shapedBounds.Top,
                         width,
-                        MathF.Max(1, shapedBounds.Height)),
+                        Maths.Max(1, shapedBounds.Height)),
                     spans[i].Link,
                     spans[i].LinkArgument);
             }
@@ -803,7 +816,7 @@ internal sealed class UiVisualStage : IDisposable
             return;
         }
 
-        var length = Math.Max(ownerIndex + 1, Math.Max(8, _fontSlots.Length * 2));
+        var length = Maths.Max(ownerIndex + 1, Maths.Max(8, _fontSlots.Length * 2));
         Array.Resize(ref _fontSlots, length);
         Array.Resize(ref _textCache, length);
         Array.Resize(ref _richTextCache, length);
@@ -825,10 +838,10 @@ internal sealed class UiVisualStage : IDisposable
         for (var i = 1; i < runs.Length; i++)
         {
             var bounds = runs[i].Bounds;
-            left = MathF.Min(left, bounds.Left);
-            top = MathF.Min(top, bounds.Top);
-            right = MathF.Max(right, bounds.Right);
-            bottom = MathF.Max(bottom, bounds.Bottom);
+            left = Maths.Min(left, bounds.Left);
+            top = Maths.Min(top, bounds.Top);
+            right = Maths.Max(right, bounds.Right);
+            bottom = Maths.Max(bottom, bounds.Bottom);
         }
 
         return new TextBounds(left, top, right, bottom);
@@ -840,10 +853,10 @@ internal sealed class UiVisualStage : IDisposable
         var advance = 0f;
         for (var i = 0; i < runs.Length; i++)
         {
-            advance += MathF.Abs(runs[i].AdvanceX);
+            advance += Maths.Abs(runs[i].AdvanceX);
         }
 
-        return MathF.Max(bounds.Width, advance);
+        return Maths.Max(bounds.Width, advance);
     }
 
     private static void LayoutRichRuns(
@@ -871,8 +884,8 @@ internal sealed class UiVisualStage : IDisposable
             var descent = 0f;
             for (var run = first; run < i; run++)
             {
-                ascent = MathF.Max(ascent, MathF.Max(0, -bounds[run].Top));
-                descent = MathF.Max(descent, MathF.Max(0, bounds[run].Bottom));
+                ascent = Maths.Max(ascent, Maths.Max(0, -bounds[run].Top));
+                descent = Maths.Max(descent, Maths.Max(0, bounds[run].Bottom));
             }
 
             var rightToLeft = direction == TextDirection.RightToLeft;
@@ -885,7 +898,7 @@ internal sealed class UiVisualStage : IDisposable
                 cursor += rightToLeft ? -runAdvance : runAdvance;
             }
 
-            lineTop += MathF.Max(1, ascent + descent);
+            lineTop += Maths.Max(1, ascent + descent);
             first = i;
             lineWidth = advance;
         }
@@ -934,7 +947,7 @@ internal sealed class UiVisualStage : IDisposable
     {
         if (storage.Length < count)
         {
-            Array.Resize(ref storage, Math.Max(8, count));
+            Array.Resize(ref storage, Maths.Max(8, count));
         }
     }
 

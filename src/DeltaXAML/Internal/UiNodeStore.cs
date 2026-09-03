@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Delta;
 
 namespace DeltaXAML.Internal;
 
@@ -500,7 +501,7 @@ internal sealed class UiNodeStore
             var index = checked((int)element.Id.Value);
             if (index >= _records.Length)
             {
-                Array.Resize(ref _records, Math.Max(index + 1, Math.Max(8, _records.Length * 2)));
+                Array.Resize(ref _records, Maths.Max(index + 1, Maths.Max(8, _records.Length * 2)));
                 Array.Resize(ref _activePositions, _records.Length);
             }
 

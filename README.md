@@ -26,7 +26,7 @@ Create a document with the public library API, lay it out, then consume the
 resulting display list:
 
 ```csharp
-using Delta.Maths;
+using Delta;
 using Delta.XAML;
 using Delta.XAML.Contract;
 

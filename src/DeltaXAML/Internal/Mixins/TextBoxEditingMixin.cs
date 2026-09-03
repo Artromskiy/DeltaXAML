@@ -1,3 +1,4 @@
+using Delta;
 using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
@@ -108,8 +109,8 @@ internal readonly struct TextBoxEditingMixin : ITextBoxInputMixin<TextBoxState>
 
         var preedit = input.Preedit.Span;
         var display = string.Concat(current.AsSpan(0, start), preedit, current.AsSpan(start + replacedLength));
-        var selectionStart = Math.Clamp(input.Selection.StartUtf16, 0, preedit.Length);
-        var selectionLength = Math.Clamp(input.Selection.LengthUtf16, 0, preedit.Length - selectionStart);
+        var selectionStart = Maths.Clamp(input.Selection.StartUtf16, 0, preedit.Length);
+        var selectionLength = Maths.Clamp(input.Selection.LengthUtf16, 0, preedit.Length - selectionStart);
         var changed = !string.Equals(state.CompositionDisplayText, display, StringComparison.Ordinal) ||
                       state.CompositionSelectionStart != selectionStart ||
                       state.CompositionSelectionLength != selectionLength;
@@ -319,7 +320,7 @@ internal readonly struct TextEditorBehaviorMixin
         }
 
         SetEditedText(owner, text);
-        editor.CaretIndex = Math.Min(editor.CaretIndex, owner.TextState.Text.Length);
+        editor.CaretIndex = Maths.Min(editor.CaretIndex, owner.TextState.Text.Length);
         editor.SelectionStart = editor.CaretIndex;
         editor.SelectionLength = 0;
         owner.ValidationDiagnostic = null;

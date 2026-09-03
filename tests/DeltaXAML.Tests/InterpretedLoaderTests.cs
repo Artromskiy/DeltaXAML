@@ -1,4 +1,4 @@
-using Delta.Maths;
+using Delta;
 using Delta.XAML;
 using Delta.XAML.Contract;
 using DeltaXaml.Generated;

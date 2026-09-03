@@ -1,4 +1,4 @@
-using Delta.Maths;
+using Delta;
 using Delta.Text.Contract;
 
 namespace Delta.XAML.Contract;

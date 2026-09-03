@@ -292,6 +292,7 @@ internal static class CSharpArtifactEmitter
 
         var writer = new StringBuilder(2048);
         writer.AppendLine("#nullable enable");
+        writer.AppendLine("using Delta;");
         writer.Append("namespace ").Append(namespaceName).AppendLine(";");
         writer.AppendLine();
         writer.Append("public sealed class ").Append(className).Append(" : global::System.IDisposable");
@@ -787,8 +788,8 @@ internal static class CSharpArtifactEmitter
                 }
                 else
                 {
-                    writer.Append("        var start").Append(i).Append(" = global::System.Math.Min(").Append(site.Start).Append(", sourceCount").Append(i).AppendLine(");");
-                    writer.Append("        var count").Append(i).Append(" = global::System.Math.Min(").Append(site.Count.ToString(CultureInfo.InvariantCulture))
+                    writer.Append("        var start").Append(i).Append(" = Maths.Min(").Append(site.Start).Append(", sourceCount").Append(i).AppendLine(");");
+                    writer.Append("        var count").Append(i).Append(" = Maths.Min(").Append(site.Count.ToString(CultureInfo.InvariantCulture))
                         .Append(", sourceCount").Append(i).Append(" - start").Append(i).AppendLine(");");
                     writer.Append("        _collection").Append(i).Append(".Realize(new global::Delta.XAML.UiRealizationRange(start")
                         .Append(i).Append(", count").Append(i).AppendLine("));");

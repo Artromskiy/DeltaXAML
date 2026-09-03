@@ -1,4 +1,4 @@
-using Delta.Maths;
+using Delta;
 using Delta.Text;
 using DeltaXaml.Tests;
 using DeltaXAML.Internal;
@@ -596,13 +596,13 @@ internal static partial class Program
         root.Add(text);
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(root, textService);
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
 
         document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(new LibraryContract.UiPointerEvent(
             LibraryContract.UiPointerEventKind.ButtonDown,
             LibraryContract.UiPointerDeviceKind.Mouse,
             1,
-            new Delta.Maths.float2(10, 10),
+            new Delta.float2(10, 10),
             default,
             default,
             LibraryContract.UiPointerButton.Primary,
@@ -616,7 +616,7 @@ internal static partial class Program
             new LibraryContract.UiModifierState(LibraryContract.UiModifierBits.Control),
             false)));
         document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("z".AsMemory())));
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
 
         Assert.Equal("z", text.Text, "public input preserves Ctrl+A for text editing");
     }
@@ -628,7 +628,7 @@ internal static partial class Program
         root.Add(text);
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(root, textService);
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
         document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(new LibraryContract.UiPointerEvent(
             LibraryContract.UiPointerEventKind.ButtonDown,
             LibraryContract.UiPointerDeviceKind.Mouse,
@@ -644,7 +644,7 @@ internal static partial class Program
         var chars = new[] { 'A' };
         document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput(chars.AsMemory())));
         chars[0] = 'B';
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
         Assert.Equal("A", text.Text, "queued text input owns a snapshot until the next layout");
 
         var retainedText = new TextBox { Width = 100, Height = 20 };
@@ -667,7 +667,7 @@ internal static partial class Program
         keyboardRoot.Add(new Library.UiButton { Width = 100, Height = 20 });
         using var keyboardTextService = new EmptyTextService();
         using var keyboardDocument = new Library.UiDocument(keyboardRoot, keyboardTextService);
-        keyboardDocument.Layout(new Delta.Maths.float2(100, 40), 1);
+        keyboardDocument.Layout(new Delta.float2(100, 40), 1);
         keyboardDocument.Dispatch(LibraryContract.UiInputEvent.FromKey(new LibraryContract.UiKeyEvent(
             LibraryContract.UiKeyEventKind.Down,
             new LibraryContract.UiPhysicalKey(9),
@@ -675,7 +675,7 @@ internal static partial class Program
             default,
             false)));
         keyboardDocument.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("T".AsMemory())));
-        keyboardDocument.Layout(new Delta.Maths.float2(100, 40), 1);
+        keyboardDocument.Layout(new Delta.float2(100, 40), 1);
         Assert.Equal("T", keyboardText.Text, "text boxes participate in keyboard focus traversal");
         Assert.Equal(UiAutomationRole.TextBox, keyboardText.RetainedElement.Automation.Role, "text box exposes text-box automation metadata");
     }
@@ -814,20 +814,20 @@ internal static partial class Program
         scroll.SetContent(content);
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(scroll, textService);
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
 
         document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(new LibraryContract.UiPointerEvent(
             LibraryContract.UiPointerEventKind.Wheel,
             LibraryContract.UiPointerDeviceKind.Mouse,
             1,
-            new Delta.Maths.float2(10, 10),
+            new Delta.float2(10, 10),
             default,
-            new Delta.Maths.float2(0, -20),
+            new Delta.float2(0, -20),
             LibraryContract.UiPointerButton.None,
             default,
             0,
             default)));
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
 
         Assert.Equal(20f, scroll.OffsetY, "public wheel input scrolls the retained viewport");
     }
@@ -907,7 +907,7 @@ internal static partial class Program
         if (loaded.Root is not { } root) { throw new InvalidOperationException("library loader root missing"); }
         using var text = new EmptyTextService();
         using var document = new Library.UiDocument(root, text);
-        document.Layout(new Delta.Maths.float2(80, 20), 1);
+        document.Layout(new Delta.float2(80, 20), 1);
         var display = document.BuildDisplayList();
         Assert.Equal(1, display.Visuals.Length, "library document builds canonical visual display list");
         Assert.Equal(1, display.Clips.Length, "library document builds canonical clip list");
@@ -943,7 +943,7 @@ internal static partial class Program
         var textRoot = loader.Load("<TextBlock Text=\"Hello\" />", in context).Root;
         if (textRoot is null) { throw new InvalidOperationException("library text root missing"); }
         using var textDocumentOwner = new Library.UiDocument(textRoot, textDocument);
-        textDocumentOwner.Layout(new Delta.Maths.float2(80, 20), 1);
+        textDocumentOwner.Layout(new Delta.float2(80, 20), 1);
         Assert.True(!textDocumentOwner.TryBuildDisplayList(out _, out var textDiagnostic) && textDiagnostic is { } unsupported && unsupported.Code.Value == "XAML_TEXT_FONT_NOT_FOUND", "unregistered text font returns a diagnostic");
     }
 
@@ -963,7 +963,7 @@ internal static partial class Program
         var disposed = false;
         try
         {
-            document.Layout(new Delta.Maths.float2(100, 20), 1);
+            document.Layout(new Delta.float2(100, 20), 1);
         }
         catch (ObjectDisposedException)
         {
@@ -1059,15 +1059,15 @@ internal static partial class Program
         panel.SetDynamicResource("Background", resources, "Accent");
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(panel, textService);
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
         Assert.True(document.TryBuildDisplayList(out _, out var diagnostic) && diagnostic is null, $"a compatible dynamic resource has no runtime diagnostic: {diagnostic?.Code.Value} {diagnostic?.Message}");
 
         resources.Set("Accent", Library.UiBrush.Solid(new Library.UiColor(40, 50, 60)));
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
         Assert.True(!document.TryBuildDisplayList(out _, out diagnostic) && diagnostic is { Code.Value: "XAML010" }, "an incompatible dynamic resource is reported at display-list build");
 
         resources.Set("Accent", new Library.UiColor(70, 80, 90));
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
         Assert.True(document.TryBuildDisplayList(out _, out diagnostic) && diagnostic is null, "a corrected dynamic resource clears the runtime diagnostic");
     }
 
@@ -1087,7 +1087,7 @@ internal static partial class Program
         root.Add(unchangedText);
         using var textService = new CountingTextService();
         using var document = new Library.UiDocument(root, textService, fonts);
-        document.Layout(new Delta.Maths.float2(240, 40), 1);
+        document.Layout(new Delta.float2(240, 40), 1);
         var first = document.BuildDisplayList();
         Assert.Equal(2, first.Text.Length, "facade emits canonical text draws");
         Assert.Equal(3, first.Order.Length, "mixed display output emits one ordered reference per payload");
@@ -1107,7 +1107,7 @@ internal static partial class Program
         Assert.True(ReferenceEquals(firstShaped, second.Text[0].Text), "unchanged text reuses shaped cache");
         Assert.Equal(firstIdentity, second.Identities[1], "unchanged text preserves its aligned identity and version");
         text.Text = "B";
-        document.Layout(new Delta.Maths.float2(240, 40), 1);
+        document.Layout(new Delta.float2(240, 40), 1);
         var third = document.BuildDisplayList();
         Assert.True(!ReferenceEquals(firstShaped, third.Text[0].Text), "text mutation reshapes only the changed text cache");
         Assert.Equal(3, textService.ShapeCount, "value-only visual update does not reshape unchanged text");
@@ -1205,24 +1205,31 @@ internal static partial class Program
     {
         var border = new Library.UiBorder
         {
-            Width = 320,
-            Height = 320,
+            Width = 300,
+            Height = 300,
             Background = new(40, 80, 120),
-            CornerRadius = new Library.UiCornerRadii(0, 0, 0, 200),
+            CornerRadius = new Library.UiCornerRadii(0, 0, 0, 300),
         };
         using var document = new Library.UiDocument(border, new EmptyTextService());
-        document.Layout(new(320, 320), 1);
+        document.Layout(new(300, 300), 1);
         var display = document.BuildDisplayList();
 
-        Assert.Equal(new float4(0, 0, 0, 160), display.Visuals[0].Paint.CornerRadii, "oversized corner is limited before display-list extraction");
-        Assert.Equal(new Library.UiCornerRadii(0, 0, 0, 200), border.CornerRadius, "normalization does not mutate the declared property");
+        Assert.Equal(new float4(0, 0, 0, 300), display.Visuals[0].Paint.CornerRadii, "a single corner may span the full adjacent sides");
+        Assert.Equal(new Library.UiCornerRadii(0, 0, 0, 300), border.CornerRadius, "normalization does not mutate the declared property");
 
         border.Width = 200;
         border.Height = 100;
         border.CornerRadius = new Library.UiCornerRadii(140, 140, 0, 0);
         document.Layout(new(200, 100), 1);
         var scaled = document.BuildDisplayList();
-        Assert.Equal(new float4(50, 50, 0, 0), scaled.Visuals[0].Paint.CornerRadii, "adjacent radii are limited to the arranged bounds");
+        Assert.Equal(new float4(100, 100, 0, 0), scaled.Visuals[0].Paint.CornerRadii, "adjacent radii scale proportionally to the arranged bounds");
+
+        border.Width = 100;
+        border.Height = 100;
+        border.CornerRadius = Library.UiCornerRadii.Uniform(200);
+        document.Layout(new(100, 100), 1);
+        var uniformlyScaled = document.BuildDisplayList();
+        Assert.Equal(new float4(50, 50, 50, 50), uniformlyScaled.Visuals[0].Paint.CornerRadii, "all radii scale when every edge is over-constrained");
     }
 
     private static void BorderWidthUnitsPropertyDescriptor()
@@ -1255,13 +1262,13 @@ internal static partial class Program
         var resolver = new CountingFontResolver(fonts);
         using var textService = new CountingTextService();
         using var document = new Library.UiDocument(root, textService, resolver);
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         var first = document.BuildDisplayList();
         Assert.Equal(1, resolver.ResolveCount, "initial display extraction resolves one shared font and reuses its identity");
         var stableShaped = first.Text[1].Text;
 
         changed.Text = "B";
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         var second = document.BuildDisplayList();
         Assert.Equal(1, resolver.ResolveCount, "dirty extraction reuses the changed text subtree font slot");
         Assert.Equal(3, textService.ShapeCount, "dirty extraction reshapes only the changed text");
@@ -1283,17 +1290,17 @@ internal static partial class Program
         root.Add(retained);
         using var textService = new CountingTextService();
         using var document = new Library.UiDocument(root, textService, fonts);
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         _ = document.BuildDisplayList();
         Assert.Equal(2, document.TextCacheCount, "initial extraction caches both live text nodes");
 
         root.Remove(removed);
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         _ = document.BuildDisplayList();
         Assert.Equal(1, document.TextCacheCount, "structural extraction drops the removed text cache entry");
 
         root.Add(removed);
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         _ = document.BuildDisplayList();
         Assert.Equal(2, document.TextCacheCount, "re-added text gets one live cache entry");
         Assert.Equal(3, textService.ShapeCount, "re-added text reshapes after its old cache entry was removed");
@@ -1433,20 +1440,20 @@ internal static partial class Program
         var root = new Library.UiPanel { Width = 80, Height = 40, Background = new(1, 2, 3) };
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(root, textService);
-        document.Layout(new Delta.Maths.float2(80, 40), 1);
+        document.Layout(new Delta.float2(80, 40), 1);
         var first = document.BuildDisplayList();
         Assert.Equal(1, first.Visuals.Length, "warm-frame fixture has one visual");
         _ = document.BuildDisplayList();
         for (var i = 0; i < 3; i++)
         {
-            document.Layout(new Delta.Maths.float2(80, 40), 1);
+            document.Layout(new Delta.float2(80, 40), 1);
             _ = document.BuildDisplayList();
         }
 
         var before = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < 20; i++)
         {
-            document.Layout(new Delta.Maths.float2(80, 40), 1);
+            document.Layout(new Delta.float2(80, 40), 1);
             _ = document.BuildDisplayList();
         }
 
@@ -1459,7 +1466,7 @@ internal static partial class Program
         var root = new Library.UiPanel { Width = 80, Height = 40, Background = new(1, 2, 3) };
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(root, textService);
-        document.Layout(new Delta.Maths.float2(80, 40), 1);
+        document.Layout(new Delta.float2(80, 40), 1);
         _ = document.BuildDisplayList();
 
         var storage = document.DisplayListStorage;
@@ -1543,7 +1550,7 @@ internal static partial class Program
         element.SetCustomVisual(visualType, resource, new Library.UiColor(12, 34, 56));
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(element, textService);
-        document.Layout(new Delta.Maths.float2(20, 10), 1);
+        document.Layout(new Delta.float2(20, 10), 1);
         var display = document.BuildDisplayList();
         Assert.Equal(1, display.Visuals.Length, "custom visual emits one neutral visual command");
         Assert.Equal(LibraryContract.UiVisualKind.Custom, display.Visuals[0].Kind, "custom visual kind is preserved");
@@ -1615,12 +1622,12 @@ internal static partial class Program
         twoWayRoot.BindingContext = editModel;
         using var emptyTextService = new EmptyTextService();
         using var document = new Library.UiDocument(twoWayRoot, emptyTextService);
-        document.Layout(new Delta.Maths.float2(100, 30), 1);
+        document.Layout(new Delta.float2(100, 30), 1);
         document.Dispatch(LibraryContract.UiInputEvent.FromPointingDevice(new LibraryContract.UiPointerEvent(
             LibraryContract.UiPointerEventKind.ButtonDown,
             LibraryContract.UiPointerDeviceKind.Mouse,
             1,
-            new Delta.Maths.float2(1, 1),
+            new Delta.float2(1, 1),
             default,
             default,
             LibraryContract.UiPointerButton.Primary,
@@ -1628,7 +1635,7 @@ internal static partial class Program
             0,
             default)));
         document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("Bob".AsMemory())));
-        document.Layout(new Delta.Maths.float2(100, 30), 1);
+        document.Layout(new Delta.float2(100, 30), 1);
         if (twoWayRoot.Children[0] is not Library.TextBox editText) { throw new InvalidOperationException("edit text missing"); }
         Assert.True(editText.Text == "Bob" && editModel.Name == "Bob", "two-way text edit writes the source");
     }
@@ -1643,11 +1650,11 @@ internal static partial class Program
         text.SetBinding("Text", binding);
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(root, textService);
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
         model.Name = "after";
         Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Binding) != 0, "source notification marks the binding stage dirty");
         Assert.Equal("before", text.Text, "binding notifications wait for the document binding stage");
-        document.Layout(new Delta.Maths.float2(100, 20), 1);
+        document.Layout(new Delta.float2(100, 20), 1);
         Assert.Equal("after", text.Text, "binding stage applies queued source changes before measure");
         Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Binding) == 0, "binding stage clears its transient dirty flag");
     }
@@ -1794,8 +1801,8 @@ internal static partial class Program
     private static void ExerciseGeneratedDocument(
         Library.UiDocument document,
         CountingTextService textService,
-        Delta.Maths.float2 initialViewport,
-        Delta.Maths.float2 resizedViewport,
+        Delta.float2 initialViewport,
+        Delta.float2 resizedViewport,
         string scenario)
     {
         document.Layout(initialViewport, 1);
@@ -1821,7 +1828,7 @@ internal static partial class Program
 
     private static void AssertDisplayListWithinViewport(
         LibraryContract.UiDisplayList displayList,
-        Delta.Maths.float2 viewport,
+        Delta.float2 viewport,
         string scenario)
     {
         const float tolerance = 0.001f;
@@ -1887,36 +1894,36 @@ internal static partial class Program
         style.Set("FontSize", 20f);
         using var styleTextService = new EmptyTextService();
         using var styleDocument = new Library.UiDocument(text, styleTextService, null, theme);
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal(20f, text.FontSize, "changing an applied style refreshes its retained value");
         Assert.True(text.RetainedElement.OutputVersion > unchangedStyleVersion, "changed style invalidates the dependent retained element");
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal(0, theme.LastRefreshCount, "unchanged style frame skips the style tree");
         var changedStyleVersion = text.RetainedElement.OutputVersion;
         style.Set("FontSize", 20f);
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal(changedStyleVersion, text.RetainedElement.OutputVersion, "equal style assignment does not add invalidation");
         text.StyleKey = "Alternate";
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal(22f, text.FontSize, "changing StyleKey applies the replacement style");
         text.StyleKey = "Missing";
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal(14f, text.FontSize, "missing StyleKey clears the previous style source");
         text.StyleKey = "Body";
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         resources.Set("TextColor", secondColor);
         Assert.Equal(firstColor, text.Foreground, "attached resource callback does not mutate effective state before the style stage");
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal(secondColor, text.Foreground, "resource stage updates the dependent style value");
         Assert.True((text.RetainedElement.DirtyFlags & UiDirtyFlags.Measure) == 0, "foreground resource change does not invalidate measure");
         Assert.Equal(new Library.UiColor(255, 255, 255), other.Foreground, "unrelated element is not changed by a resource update");
 
         text.RetainedElement.SetHovered(true);
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal(1, theme.LastRefreshCount, "state invalidation visits only the changed style subtree");
         Assert.Equal(hoverColor, text.Foreground, "visual state overrides the base style after input state changes");
         text.RetainedElement.SetHovered(false);
-        styleDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        styleDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.Equal(1, theme.LastRefreshCount, "leaving a visual state visits only the changed style subtree");
         Assert.Equal(secondColor, text.Foreground, "leaving a visual state restores the base resource style");
 
@@ -1928,9 +1935,9 @@ internal static partial class Program
         theme.Apply(styleRoot);
         using var targetedStyleTextService = new EmptyTextService();
         using var targetedStyleDocument = new Library.UiDocument(styleRoot, targetedStyleTextService, null, theme);
-        targetedStyleDocument.Layout(new Delta.Maths.float2(100, 60), 1);
+        targetedStyleDocument.Layout(new Delta.float2(100, 60), 1);
         style.Set("FontSize", 19f);
-        targetedStyleDocument.Layout(new Delta.Maths.float2(100, 60), 1);
+        targetedStyleDocument.Layout(new Delta.float2(100, 60), 1);
         Assert.Equal(2, theme.LastRefreshCount, "style change refreshes the root and only the dependent styled element");
         Assert.Equal(19f, styled.FontSize, "dependent element receives the changed style value");
         Assert.Equal(22f, unrelated.FontSize, "unrelated style remains unchanged");
@@ -1987,10 +1994,10 @@ internal static partial class Program
         using var templateTextService = new EmptyTextService();
         using var templateDocument = new Library.UiDocument(host, templateTextService, null, theme);
         host.TemplateKey = "OtherLabel";
-        templateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        templateDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.True(host.Content is Library.TextBlock replacement && replacement.Text == "replacement", "template key change replaces only the retained template child");
         host.TemplateKey = null;
-        templateDocument.Layout(new Delta.Maths.float2(100, 30), 1);
+        templateDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.True(host.Content is null, "clearing template key removes the retained template child");
 
         var items = new Library.UiItemsControl();
@@ -2126,7 +2133,7 @@ internal static partial class Program
         root.Participation = Library.UiParticipation.None;
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(root, textService);
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         Assert.True(document.TryBuildDisplayList(out var displayList, out var diagnostic) && diagnostic is null, "non-participating root still builds an empty display list");
         Assert.Equal(0, displayList.Visuals.Length, "non-participating root has no visuals");
         Assert.Equal(0, displayList.Clips.Length, "non-participating root has no clips");
@@ -2370,7 +2377,7 @@ internal static partial class Program
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(root, textService);
 
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         var initial = document.BuildDisplayList();
         Assert.Equal(3, initial.Visuals.Length, "initial visual extraction follows retained child order");
         var initialFirst = initial.Visuals[1];
@@ -2378,7 +2385,7 @@ internal static partial class Program
 
         var lateChild = new Library.UiPanel { Width = 40, Height = 10, Background = new(10, 11, 12) };
         root.Add(lateChild);
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         var added = document.BuildDisplayList();
         Assert.Equal(4, added.Visuals.Length, "visual extraction refreshes after a child is added");
         Assert.Equal(initialFirst with { Clip = added.Visuals[1].Clip }, added.Visuals[1], "first child visual remains in stable order");
@@ -2386,7 +2393,7 @@ internal static partial class Program
         var lateVisual = added.Visuals[3];
 
         root.Remove(firstChild);
-        document.Layout(new Delta.Maths.float2(100, 40), 1);
+        document.Layout(new Delta.float2(100, 40), 1);
         var removed = document.BuildDisplayList();
         Assert.Equal(3, removed.Visuals.Length, "visual extraction refreshes after a child is removed");
         Assert.Equal(initialSecond with { Clip = removed.Visuals[1].Clip }, removed.Visuals[1], "remaining child visual follows node-store sibling links");

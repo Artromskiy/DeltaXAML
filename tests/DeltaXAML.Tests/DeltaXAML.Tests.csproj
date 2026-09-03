@@ -20,6 +20,7 @@
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Compiler.dll"/>
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.dll"/>
     <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaXAML.Contract.dll"/>
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/$(Configuration)/net8.0/DeltaMaths.dll"/>
   </ItemGroup>
   <ItemGroup>
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName"/>

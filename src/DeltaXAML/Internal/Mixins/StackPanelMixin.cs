@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 internal readonly struct StackPanelMeasureMixin : IMeasureMixin<StackPanelState>
@@ -20,11 +22,11 @@ internal readonly struct StackPanelMeasureMixin : IMeasureMixin<StackPanelState>
                 if (state.Orientation == UiOrientation.Horizontal)
                 {
                     width += child.DesiredSize.Width;
-                    height = MathF.Max(height, child.DesiredSize.Height);
+                    height = Maths.Max(height, child.DesiredSize.Height);
                 }
                 else
                 {
-                    width = MathF.Max(width, child.DesiredSize.Width);
+                    width = Maths.Max(width, child.DesiredSize.Width);
                     height += child.DesiredSize.Height;
                 }
             }
@@ -69,7 +71,7 @@ internal readonly struct StackPanelArrangeMixin : IArrangeMixin<StackPanelState>
         var available = state.Orientation == UiOrientation.Horizontal
             ? context.Bounds.Width
             : context.Bounds.Height;
-        var remaining = MathF.Max(0, available - fixedSize);
+        var remaining = Maths.Max(0, available - fixedSize);
         for (var i = 0; i < children.Count; i++)
         {
             var child = children[i];

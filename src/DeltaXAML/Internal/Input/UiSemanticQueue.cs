@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 internal sealed class UiSemanticQueue
@@ -13,7 +15,7 @@ internal sealed class UiSemanticQueue
     {
         if (_count == _values.Length)
         {
-            Array.Resize(ref _values, Math.Max(4, _values.Length * 2));
+            Array.Resize(ref _values, Maths.Max(4, _values.Length * 2));
         }
 
         _values[_count++] = command;

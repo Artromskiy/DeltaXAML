@@ -1,3 +1,4 @@
+using Delta;
 using Delta.XAML.Contract;
 
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
@@ -34,7 +35,7 @@ internal sealed class Slider : UiElement
 
     internal void SetUserValue(double value)
     {
-        value = Math.Clamp(value, _state.Minimum, _state.Maximum);
+        value = Maths.Clamp(value, _state.Minimum, _state.Maximum);
         if (HasBinding(nameof(Value)))
         {
             if (_state.Value.Equals(value))

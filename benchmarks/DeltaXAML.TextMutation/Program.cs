@@ -115,7 +115,7 @@ internal static class Program
         CollectBeforeMeasurement();
         var managedAfterConstruction = GC.GetTotalMemory(false);
         var processAfterConstruction = ReadProcessMemory();
-        var viewport = new Delta.Maths.float2(240, LargeTextBoxCount * 20);
+        var viewport = new Delta.float2(240, LargeTextBoxCount * 20);
         document.Layout(viewport, 1);
         _ = document.BuildDisplayList();
         for (var i = 0; i < WarmupCount; i++)
@@ -177,7 +177,7 @@ internal static class Program
             GC.GetAllocatedBytesForCurrentThread() - allocatedBefore);
     }
 
-    private static ManyMetric MeasureLargeTextBoxPipeline(Library.UiDocument document, Delta.Maths.float2 viewport)
+    private static ManyMetric MeasureLargeTextBoxPipeline(Library.UiDocument document, Delta.float2 viewport)
     {
         CollectBeforeMeasurement();
         var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
@@ -319,7 +319,7 @@ internal static class Program
         }
 
         using var document = new Library.UiDocument(root, textService, fonts);
-        var viewport = new Delta.Maths.float2(240, ManyTextElementCount * 20);
+        var viewport = new Delta.float2(240, ManyTextElementCount * 20);
         document.Layout(viewport, 1);
         _ = document.BuildDisplayList();
         for (var i = 0; i < WarmupCount; i++)

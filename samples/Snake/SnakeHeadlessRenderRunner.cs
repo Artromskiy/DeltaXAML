@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
-using Delta.Maths;
+using Delta;
 using Delta.Render;
 using Delta.Render.RenderGraph;
 using Delta.Render.Text;
@@ -89,7 +89,7 @@ internal static class SnakeHeadlessRenderRunner
             solidVisualProgram: solidVisualProgram);
         var graph = session.CreateRenderGraph();
         IRenderFeature[] features = [uiFeature];
-        int measuredFrameCount = Math.Max(0, frameCount - skipFrames);
+        int measuredFrameCount = Maths.Max(0, frameCount - skipFrames);
         var profiles = new List<HeadlessProfile>(measuredFrameCount);
         var layoutNanoseconds = new List<double>(measuredFrameCount);
 
@@ -247,7 +247,7 @@ internal static class SnakeHeadlessRenderRunner
         double median = values.Length % 2 == 0
             ? (values[medianIndex - 1] + values[medianIndex]) / 2
             : values[medianIndex];
-        int p95Index = Math.Min(values.Length - 1, (int)Math.Ceiling(values.Length * 0.95) - 1);
+        int p95Index = Maths.Min(values.Length - 1, (int)Maths.Ceil(values.Length * 0.95) - 1);
         Console.WriteLine($"{name}: mean={FormatNanoseconds(mean)}, median={FormatNanoseconds(median)}, p95={FormatNanoseconds(values[p95Index])}");
     }
 

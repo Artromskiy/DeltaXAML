@@ -1,3 +1,4 @@
+using Delta;
 using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
@@ -34,23 +35,23 @@ internal readonly struct TextBlockMeasureMixin : IMeasureMixin<TextBlockState>
         var size = state.Visual.FontSize * scale;
         var lineHeight = state.Layout.LineHeight > 0 ? state.Layout.LineHeight * scale : size * 1.25f;
         var naturalWidth = state.Text.Length * size * 0.55f;
-        var availableWidth = MathF.Max(0, context.Available.Width);
+        var availableWidth = Maths.Max(0, context.Available.Width);
         var lineCount = 1;
         if (state.Layout.Wrapping is not (Delta.XAML.UiTextWrapping.Unknown or Delta.XAML.UiTextWrapping.NoWrap) &&
             float.IsFinite(availableWidth) && availableWidth > 0 && naturalWidth > availableWidth)
         {
-            lineCount = Math.Max(1, (int)MathF.Ceiling(naturalWidth / availableWidth));
+            lineCount = Maths.Max(1, (int)Maths.Ceil(naturalWidth / availableWidth));
         }
 
         if (state.Layout.MaxLines > 0)
         {
-            lineCount = Math.Min(lineCount, state.Layout.MaxLines);
+            lineCount = Maths.Min(lineCount, state.Layout.MaxLines);
         }
 
         var desiredWidth = state.Layout.Wrapping is not (Delta.XAML.UiTextWrapping.Unknown or Delta.XAML.UiTextWrapping.NoWrap)
-            ? MathF.Min(availableWidth, naturalWidth)
+            ? Maths.Min(availableWidth, naturalWidth)
             : naturalWidth;
-        state.Layout.DesiredSize = new(MathF.Min(availableWidth, desiredWidth), lineCount * lineHeight);
+        state.Layout.DesiredSize = new(Maths.Min(availableWidth, desiredWidth), lineCount * lineHeight);
     }
 }
 
@@ -60,8 +61,8 @@ internal readonly struct TextBlockArrangeMixin : IArrangeMixin<TextBlockState>
     {
         state.Layout.Bounds = context.Bounds;
         state.Layout.Clip = context.Clip;
-        var textWidth = MathF.Min(state.Layout.DesiredSize.Width, MathF.Max(0, context.Bounds.Width));
-        var textHeight = MathF.Min(state.Layout.DesiredSize.Height, MathF.Max(0, context.Bounds.Height));
+        var textWidth = Maths.Min(state.Layout.DesiredSize.Width, Maths.Max(0, context.Bounds.Width));
+        var textHeight = Maths.Min(state.Layout.DesiredSize.Height, Maths.Max(0, context.Bounds.Height));
         var x = context.Bounds.X;
         var y = context.Bounds.Y;
         if (state.Layout.HorizontalAlignment == Delta.XAML.UiTextHorizontalAlignment.Center)

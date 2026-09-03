@@ -1,4 +1,4 @@
-using Delta.Maths;
+using Delta;
 using Delta.Render;
 using Delta.Render.Platform.SDL3;
 using Delta.Render.RenderGraph;
@@ -281,7 +281,7 @@ internal static class SnakeWindowRunner
         var dpiScale = SDL.GetWindowPixelDensity(handle);
         if (!float.IsFinite(dpiScale) || dpiScale <= 0)
         {
-            dpiScale = MathF.Max(
+            dpiScale = Maths.Max(
                 (float)drawableWidth / logicalWidth,
                 (float)drawableHeight / logicalHeight);
         }

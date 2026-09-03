@@ -1,4 +1,4 @@
-using Delta.Maths;
+using Delta;
 
 namespace DeltaXAML.Internal;
 
@@ -112,7 +112,7 @@ internal sealed class UiAccessibilityStage
     {
         if (_nodes.Length < count)
         {
-            Array.Resize(ref _nodes, Math.Max(8, Math.Max(count, _nodes.Length * 2)));
+            Array.Resize(ref _nodes, Maths.Max(8, Maths.Max(count, _nodes.Length * 2)));
         }
     }
 }

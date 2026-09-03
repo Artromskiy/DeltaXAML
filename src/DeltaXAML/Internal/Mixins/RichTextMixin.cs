@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 internal interface IRichTextLayoutCapability<TState>
@@ -17,11 +19,11 @@ internal readonly struct RichTextLayoutMixin : IRichTextLayoutCapability<RichTex
         for (var i = 0; i < state.Spans.Length; i++)
         {
             var span = state.Spans[i];
-            width += span.Text.Length * MathF.Max(1, span.FontSize * context.DpiScale * 0.55f);
-            height = MathF.Max(height, span.FontSize * context.DpiScale * 1.25f);
+            width += span.Text.Length * Maths.Max(1, span.FontSize * context.DpiScale * 0.55f);
+            height = Maths.Max(height, span.FontSize * context.DpiScale * 1.25f);
         }
 
-        state.DesiredSize = new(MathF.Min(width, context.Available.Width), MathF.Min(height, context.Available.Height));
+        state.DesiredSize = new(Maths.Min(width, context.Available.Width), Maths.Min(height, context.Available.Height));
     }
 
     public static void Arrange(ref RichTextState state, in UiArrangeContext context)

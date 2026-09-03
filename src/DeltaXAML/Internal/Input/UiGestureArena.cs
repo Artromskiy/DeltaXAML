@@ -1,4 +1,4 @@
-using Delta.Maths;
+using Delta;
 using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
@@ -122,7 +122,7 @@ internal sealed class UiGestureArena
         var candidate = _active[index];
         var total = input.Position - candidate.StartPosition;
         var distanceSquared = total.x * total.x + total.y * total.y;
-        var duration = Math.Max(0, timestampTicks - candidate.DownTicks);
+        var duration = Maths.Max(0, timestampTicks - candidate.DownTicks);
         var gestures = candidate.Target.Gestures;
         if (candidate.Dragging)
         {
@@ -233,7 +233,7 @@ internal sealed class UiGestureArena
     {
         if (_active.Length < count)
         {
-            Array.Resize(ref _active, Math.Max(count, Math.Max(4, _active.Length * 2)));
+            Array.Resize(ref _active, Maths.Max(count, Maths.Max(4, _active.Length * 2)));
         }
     }
 
@@ -250,7 +250,7 @@ internal sealed class UiGestureArena
     private static float Distance(float2 first, float2 second)
     {
         var delta = first - second;
-        return MathF.Sqrt(delta.x * delta.x + delta.y * delta.y);
+        return Maths.Sqrt(delta.x * delta.x + delta.y * delta.y);
     }
 
     private struct PointerCandidate

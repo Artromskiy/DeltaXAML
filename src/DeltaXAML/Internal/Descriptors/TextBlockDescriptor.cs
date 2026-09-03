@@ -1,3 +1,4 @@
+using Delta;
 using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
@@ -421,15 +422,15 @@ internal static class UiDescriptorCatalog
         switch (key)
         {
             case UiPropertyKey.Value when value.UntypedValue is double number:
-                state.Value = Math.Clamp(number, state.Minimum, state.Maximum);
+                state.Value = Maths.Clamp(number, state.Minimum, state.Maximum);
                 return true;
             case UiPropertyKey.Minimum when value.UntypedValue is double minimum:
                 state.Minimum = minimum;
-                state.Value = Math.Max(state.Value, minimum);
+                state.Value = Maths.Max(state.Value, minimum);
                 return true;
             case UiPropertyKey.Maximum when value.UntypedValue is double maximum:
                 state.Maximum = maximum;
-                state.Value = Math.Min(state.Value, maximum);
+                state.Value = Maths.Min(state.Value, maximum);
                 return true;
             case UiPropertyKey.Step when value.UntypedValue is double step && step > 0:
                 state.Step = step;

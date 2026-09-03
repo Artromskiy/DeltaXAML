@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using Delta.Diagnostics;
-using Delta.Maths;
+using Delta;
 using Delta.Text.Contract;
 using Delta.XAML.Contract;
 using Retained = DeltaXAML.Internal;

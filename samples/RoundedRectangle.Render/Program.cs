@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Delta.Maths;
+using Delta;
 using Delta.Render;
 using Delta.Render.Platform.SDL3;
 using Delta.Render.RenderGraph;
@@ -588,8 +588,8 @@ internal static class Program
             }
             else
             {
-                _minimumTicks = Math.Min(_minimumTicks, ticks);
-                _maximumTicks = Math.Max(_maximumTicks, ticks);
+                _minimumTicks = Maths.Min(_minimumTicks, ticks);
+                _maximumTicks = Maths.Max(_maximumTicks, ticks);
             }
 
             Count++;

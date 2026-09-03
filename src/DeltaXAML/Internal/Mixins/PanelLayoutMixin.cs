@@ -1,3 +1,5 @@
+using Delta;
+
 namespace DeltaXAML.Internal;
 
 internal readonly struct PanelMeasureMixin : IMeasureMixin<PanelState>
@@ -17,8 +19,8 @@ internal readonly struct PanelMeasureMixin : IMeasureMixin<PanelState>
                     UiMeasureQueue.Add(in context, child, context.Available);
                 }
 
-                width = MathF.Max(width, child.DesiredSize.Width);
-                height = MathF.Max(height, child.DesiredSize.Height);
+                width = Maths.Max(width, child.DesiredSize.Width);
+                height = Maths.Max(height, child.DesiredSize.Height);
             }
         }
 
@@ -60,7 +62,7 @@ internal readonly struct GridMeasureMixin : IMeasureMixin<GridState>
                 }
             }
 
-            var columnCount = Math.Max(1, state.Columns.Length);
+            var columnCount = Maths.Max(1, state.Columns.Length);
             MeasureAuto(state.Columns, state.MeasuredColumns, children, true, columnCount);
             MeasureAuto(state.Rows, state.MeasuredRows, children, false, columnCount);
         }
@@ -94,14 +96,14 @@ internal readonly struct GridMeasureMixin : IMeasureMixin<GridState>
             {
                 var element = children[child];
                 var slot = columns
-                    ? element.HasGridColumn ? element.GridColumn : child % Math.Max(1, definitions.Length)
+                    ? element.HasGridColumn ? element.GridColumn : child % Maths.Max(1, definitions.Length)
                     : element.HasGridRow ? element.GridRow : child / gridColumnCount;
                 if (slot != definition)
                 {
                     continue;
                 }
 
-                measured[definition] = MathF.Max(
+                measured[definition] = Maths.Max(
                     measured[definition],
                     columns ? element.DesiredSize.Width : element.DesiredSize.Height);
             }
@@ -146,17 +148,17 @@ internal readonly struct GridArrangeMixin : IArrangeMixin<GridState>
         for (var i = 0; i < children.Count; i++)
         {
             var child = children[i];
-            var columnCount = Math.Max(1, state.Columns.Length);
-            var rowCount = Math.Max(1, state.Rows.Length);
-            var column = Math.Min(child.HasGridColumn ? child.GridColumn : i % columnCount, columnCount - 1);
-            var row = Math.Min(child.HasGridRow ? child.GridRow : i / columnCount, rowCount - 1);
+            var columnCount = Maths.Max(1, state.Columns.Length);
+            var rowCount = Maths.Max(1, state.Rows.Length);
+            var column = Maths.Min(child.HasGridColumn ? child.GridColumn : i % columnCount, columnCount - 1);
+            var row = Maths.Min(child.HasGridRow ? child.GridRow : i / columnCount, rowCount - 1);
             if (column < 0 || row < 0)
             {
                 continue;
             }
 
-            var columnSpan = Math.Min(child.GridColumnSpan, columnCount - column);
-            var rowSpan = Math.Min(child.GridRowSpan, rowCount - row);
+            var columnSpan = Maths.Min(child.GridColumnSpan, columnCount - column);
+            var rowSpan = Maths.Min(child.GridRowSpan, rowCount - row);
 
             UiArrangeQueue.Add(in context, child, new(
                 context.Bounds.X + Sum(state.ResolvedColumns, column),
@@ -209,7 +211,7 @@ internal readonly struct GridArrangeMixin : IArrangeMixin<GridState>
         {
             if (definitions[i].Unit == GridUnitType.Star)
             {
-                result[i] = MathF.Max(0, remaining) * definitions[i].Value / stars;
+                result[i] = Maths.Max(0, remaining) * definitions[i].Value / stars;
             }
         }
     }

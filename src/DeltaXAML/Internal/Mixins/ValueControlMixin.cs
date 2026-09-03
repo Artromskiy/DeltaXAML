@@ -1,3 +1,4 @@
+using Delta;
 using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
@@ -7,8 +8,8 @@ internal readonly struct SliderMeasureMixin : IMeasureMixin<SliderState>
     public static void Measure(ref SliderState state, in UiMeasureContext context)
     {
         state.DesiredSize = state.Orientation == UiOrientation.Horizontal
-            ? new UiSize(MathF.Min(120, context.Available.Width), 20)
-            : new UiSize(20, MathF.Min(120, context.Available.Height));
+            ? new UiSize(Maths.Min(120, context.Available.Width), 20)
+            : new UiSize(20, Maths.Min(120, context.Available.Height));
     }
 }
 
@@ -34,9 +35,9 @@ internal readonly struct SliderInputMixin
         }
 
         var position = state.Orientation == UiOrientation.Horizontal
-            ? (input.Position.x - state.Bounds.X) / MathF.Max(1, state.Bounds.Width)
-            : 1 - ((input.Position.y - state.Bounds.Y) / MathF.Max(1, state.Bounds.Height));
-        value = state.Minimum + Math.Clamp(position, 0, 1) * (state.Maximum - state.Minimum);
+            ? (input.Position.x - state.Bounds.X) / Maths.Max(1, state.Bounds.Width)
+            : 1 - ((input.Position.y - state.Bounds.Y) / Maths.Max(1, state.Bounds.Height));
+        value = state.Minimum + Maths.Clamp(position, 0, 1) * (state.Maximum - state.Minimum);
         return !value.Equals(state.Value);
     }
 
@@ -59,7 +60,7 @@ internal readonly struct SliderInputMixin
             return false;
         }
 
-        value = Math.Clamp(state.Value + direction * state.Step, state.Minimum, state.Maximum);
+        value = Maths.Clamp(state.Value + direction * state.Step, state.Minimum, state.Maximum);
         return !value.Equals(state.Value);
     }
 }
@@ -69,8 +70,8 @@ internal readonly struct ImageMeasureMixin : IMeasureMixin<ImageState>
     public static void Measure(ref ImageState state, in UiMeasureContext context)
     {
         state.DesiredSize = new(
-            MathF.Min(state.IntrinsicWidth, context.Available.Width),
-            MathF.Min(state.IntrinsicHeight, context.Available.Height));
+            Maths.Min(state.IntrinsicWidth, context.Available.Width),
+            Maths.Min(state.IntrinsicHeight, context.Available.Height));
     }
 }
 

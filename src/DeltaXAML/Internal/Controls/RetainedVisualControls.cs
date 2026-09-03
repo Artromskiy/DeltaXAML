@@ -1,4 +1,5 @@
 using System.Text;
+using Delta;
 
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 
@@ -98,8 +99,8 @@ internal sealed class Image : UiElement
     {
         get
         {
-            var width = MathF.Max(0, _state.IntrinsicWidth);
-            var height = MathF.Max(0, _state.IntrinsicHeight);
+            var width = Maths.Max(0, _state.IntrinsicWidth);
+            var height = Maths.Max(0, _state.IntrinsicHeight);
             if ((Delta.XAML.UiImageStretch)_state.Stretch == Delta.XAML.UiImageStretch.Fill || width <= 0 || height <= 0)
             {
                 return Bounds;
@@ -108,8 +109,8 @@ internal sealed class Image : UiElement
             var scale = (Delta.XAML.UiImageStretch)_state.Stretch switch
             {
                 Delta.XAML.UiImageStretch.None => 1,
-                Delta.XAML.UiImageStretch.UniformToFill => MathF.Max(Bounds.Width / width, Bounds.Height / height),
-                _ => MathF.Min(Bounds.Width / width, Bounds.Height / height),
+                Delta.XAML.UiImageStretch.UniformToFill => Maths.Max(Bounds.Width / width, Bounds.Height / height),
+                _ => Maths.Min(Bounds.Width / width, Bounds.Height / height),
             };
             var renderedWidth = width * scale;
             var renderedHeight = height * scale;
@@ -128,8 +129,8 @@ internal sealed class Image : UiElement
             return;
         }
 
-        _state.IntrinsicWidth = MathF.Max(0, width);
-        _state.IntrinsicHeight = MathF.Max(0, height);
+        _state.IntrinsicWidth = Maths.Max(0, width);
+        _state.IntrinsicHeight = Maths.Max(0, height);
         _state.Status = status;
         InvalidateChanged(UiDirtyFlags.Measure | UiDirtyFlags.Visual);
     }

@@ -1,3 +1,4 @@
+using Delta;
 using DeltaXAML.Internal;
 
 internal static class PanelGridArchitectureTests
@@ -80,7 +81,7 @@ internal static class PanelGridArchitectureTests
         Rows = rows,
         MeasuredColumns = new float[columns.Length],
         MeasuredRows = new float[rows.Length],
-        ResolvedColumns = new float[Math.Max(1, columns.Length)],
-        ResolvedRows = new float[Math.Max(1, rows.Length)],
+        ResolvedColumns = new float[Maths.Max(1, columns.Length)],
+        ResolvedRows = new float[Maths.Max(1, rows.Length)],
     };
 }
