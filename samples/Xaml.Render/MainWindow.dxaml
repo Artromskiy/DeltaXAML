@@ -2,7 +2,7 @@
   <Border Grid.Row="0" Background="#141517" BorderColor="#303238" BorderWidth="1" Padding="24,0,24,0">
     <TextBlock Text="DeltaXAML Render Runner" Foreground="#E8E9EB" FontSize="24" FontWeight="Bold" />
   </Border>
-  <Grid Grid.Row="1" Rows="*,Auto" Columns="*,*" Fill="true">
+  <Grid Grid.Row="1" Rows="*,Auto" Columns="*,*">
     <Border Grid.Column="0" Background="#18191C" BorderColor="#484B53" BorderWidth="1" CornerRadius="12" Padding="24,24,24,24">
       <StackPanel>
         <TextBlock Text="Compiled XAML" Foreground="#FF8A00" FontSize="14" FontWeight="Bold" />

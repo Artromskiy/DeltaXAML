@@ -193,6 +193,31 @@ public abstract class UiElement
         set => _retained.Height = value;
     }
 
+    /// <summary>Logical space outside this element's arranged bounds.</summary>
+    public UiThickness Margin
+    {
+        get
+        {
+            var value = _retained.Margin;
+            return new UiThickness(value.Left, value.Top, value.Right, value.Bottom);
+        }
+        set => _retained.Margin = new Retained.UiThickness(value.Left, value.Top, value.Right, value.Bottom);
+    }
+
+    /// <summary>Horizontal placement of this element in its parent slot.</summary>
+    public UiHorizontalAlignment HorizontalAlignment
+    {
+        get => _retained.HorizontalAlignment;
+        set => _retained.HorizontalAlignment = value;
+    }
+
+    /// <summary>Vertical placement of this element in its parent slot.</summary>
+    public UiVerticalAlignment VerticalAlignment
+    {
+        get => _retained.VerticalAlignment;
+        set => _retained.VerticalAlignment = value;
+    }
+
     public string TypeName => _retained.TypeName;
 
     public string? StyleKey
@@ -239,12 +264,6 @@ public abstract class UiElement
     {
         get => _retained.IsSelected;
         set => _retained.IsSelected = value;
-    }
-
-    public bool Fill
-    {
-        get => _retained.Fill;
-        set => _retained.Fill = value;
     }
 
     public UiColor Background
@@ -968,8 +987,9 @@ public abstract class UiElement
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
         "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => RetainedDirty.Visual,
-        "Width" or "Height" or "Padding" or
-        "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Visual,
+        "Width" or "Height" or "Margin" or "Padding" or
+        "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Arrange | RetainedDirty.Visual,
+        "HorizontalAlignment" or "VerticalAlignment" => RetainedDirty.Arrange | RetainedDirty.Visual,
         _ => RetainedDirty.Visual,
     };
 

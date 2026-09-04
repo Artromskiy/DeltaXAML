@@ -1,4 +1,4 @@
-<Panel Fill="true" Background="#101820">
+<Panel Background="#101820">
   <Resource x:Key="Accent" Type="Color" Value="#304860" />
   <TextBlock x:Key="SharedLabel" Text="resource" />
   <Style x:Key="PrimaryButton" TargetType="Button">

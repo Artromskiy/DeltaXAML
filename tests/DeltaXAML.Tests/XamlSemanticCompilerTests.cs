@@ -72,6 +72,9 @@ internal static partial class Program
         var buttonTextProperty = XamlCompiler.Compile(sourceId, "<Button Text=\"Save\" />", registry);
         Assert.True(HasCode(buttonTextProperty.Diagnostics, "XAML003"), "Button does not expose a separate Text property");
 
+        var removedFill = XamlCompiler.Compile(sourceId, "<Panel Fill=\"true\" />", registry);
+        Assert.True(HasCode(removedFill.Diagnostics, "XAML003"), "legacy element Fill is no longer part of the XAML property surface");
+
         var buttonTextContent = XamlCompiler.Compile(sourceId, "<Button>Save</Button>", registry);
         Assert.True(HasCode(buttonTextContent.Diagnostics, "XAML004"), "implicit Button text content remains compiler sugar, not runtime behavior");
 

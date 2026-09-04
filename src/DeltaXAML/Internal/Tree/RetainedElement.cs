@@ -22,6 +22,8 @@ internal partial class UiElement
     {
         Width = float.NaN,
         Height = float.NaN,
+        HorizontalAlignment = Delta.XAML.UiHorizontalAlignment.Stretch,
+        VerticalAlignment = Delta.XAML.UiVerticalAlignment.Stretch,
         IsEnabled = true,
         GridRowSpan = 1,
         GridColumnSpan = 1,
@@ -67,15 +69,17 @@ internal partial class UiElement
         Generation = ++_nextGeneration;
         _children = new(this);
         _properties = new(this);
-        _properties.InitializeDefault("Width", _state.Width, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
-        _properties.InitializeDefault("Height", _state.Height, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        _properties.InitializeDefault("Width", _state.Width, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        _properties.InitializeDefault("Height", _state.Height, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        _properties.InitializeDefault("Margin", _state.Margin, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        _properties.InitializeDefault("HorizontalAlignment", _state.HorizontalAlignment, UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        _properties.InitializeDefault("VerticalAlignment", _state.VerticalAlignment, UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
         _properties.InitializeDefault("Background", _state.Background, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderColor", _state.BorderColor, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderWidth", _state.BorderWidth, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderWidthUnits", _state.BorderWidthUnits, UiDirtyFlags.Visual);
         _properties.InitializeDefault("CornerRadius", _state.CornerRadius, UiDirtyFlags.Visual);
-        _properties.InitializeDefault("Padding", _state.Padding, UiDirtyFlags.Measure | UiDirtyFlags.Visual);
-        _properties.InitializeDefault("Fill", _state.Fill, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("Padding", _state.Padding, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
         _properties.InitializeDefault("IsEnabled", _state.IsEnabled, UiDirtyFlags.Visual);
         _properties.InitializeDefault("IsSelected", _state.IsSelected, UiDirtyFlags.Visual);
     }
@@ -92,9 +96,71 @@ internal partial class UiElement
     public UiVisibility Visibility { get; set; } = UiVisibility.Visible; public bool Focusable { get; set; }
     public Delta.XAML.UiParticipation Participation { get; private set; } = Delta.XAML.UiParticipation.All;
     internal bool ParticipatesIn(Delta.XAML.UiParticipation participation) => (Participation & participation) == participation;
-    public float Width { get => _state.Width; set => SetLocalProperty("Width", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual); }
-    public float Height { get => _state.Height; set => SetLocalProperty("Height", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual); }
-    public bool Fill { get => _state.Fill; set => SetLocalProperty("Fill", value, UiDirtyFlags.Visual); }
+    public float Width
+    {
+        get => _state.Width;
+        set
+        {
+            if (!ElementPlacementMixin.IsValidDimension(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Width must be NaN or finite and non-negative.");
+            }
+
+            SetLocalProperty("Width", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        }
+    }
+    public float Height
+    {
+        get => _state.Height;
+        set
+        {
+            if (!ElementPlacementMixin.IsValidDimension(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Height must be NaN or finite and non-negative.");
+            }
+
+            SetLocalProperty("Height", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        }
+    }
+    public UiThickness Margin
+    {
+        get => _state.Margin;
+        set
+        {
+            if (!ElementPlacementMixin.IsFinite(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Margin must contain only finite values.");
+            }
+
+            SetLocalProperty("Margin", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        }
+    }
+    public Delta.XAML.UiHorizontalAlignment HorizontalAlignment
+    {
+        get => _state.HorizontalAlignment;
+        set
+        {
+            if (value is Delta.XAML.UiHorizontalAlignment.Unknown)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            SetLocalProperty("HorizontalAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        }
+    }
+    public Delta.XAML.UiVerticalAlignment VerticalAlignment
+    {
+        get => _state.VerticalAlignment;
+        set
+        {
+            if (value is Delta.XAML.UiVerticalAlignment.Unknown)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            SetLocalProperty("VerticalAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        }
+    }
     public UiRect Bounds { get; protected set; }
     public UiRect Clip { get; protected set; }
     public UiSize DesiredSize { get; protected set; }
@@ -181,8 +247,19 @@ internal partial class UiElement
     }
     public string? AutomationName { get; set; }
     public UiAutomationRole AutomationRole { get; set; } = UiAutomationRole.Generic;
-    public UiThickness Margin { get; set; }
-    public UiThickness Padding { get => _state.Padding; set => SetLocalProperty("Padding", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual); }
+    public UiThickness Padding
+    {
+        get => _state.Padding;
+        set
+        {
+            if (!ElementPlacementMixin.IsFinite(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Padding must contain only finite values.");
+            }
+
+            SetLocalProperty("Padding", value, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
+        }
+    }
     internal Delta.XAML.UiGestureKind Gestures
     {
         get => (Delta.XAML.UiGestureKind)_state.GestureBits;

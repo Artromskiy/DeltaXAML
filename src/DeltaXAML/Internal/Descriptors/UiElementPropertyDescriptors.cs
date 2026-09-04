@@ -5,23 +5,76 @@ internal static class UiElementPropertiesGenerated
 {
     internal static bool TrySetWidth(ref UiElementState state, float value)
     {
-        if (state.Width.Equals(value))
+        if (!ElementPlacementMixin.IsValidDimension(value))
         {
             return false;
         }
 
-        state.Width = value;
+        if (!state.Width.Equals(value))
+        {
+            state.Width = value;
+        }
+
         return true;
     }
 
     internal static bool TrySetHeight(ref UiElementState state, float value)
     {
-        if (state.Height.Equals(value))
+        if (!ElementPlacementMixin.IsValidDimension(value))
         {
             return false;
         }
 
-        state.Height = value;
+        if (!state.Height.Equals(value))
+        {
+            state.Height = value;
+        }
+
+        return true;
+    }
+
+    internal static bool TrySetMargin(ref UiElementState state, UiThickness value)
+    {
+        if (!ElementPlacementMixin.IsFinite(value))
+        {
+            return false;
+        }
+
+        if (state.Margin != value)
+        {
+            state.Margin = value;
+        }
+
+        return true;
+    }
+
+    internal static bool TrySetHorizontalAlignment(ref UiElementState state, Delta.XAML.UiHorizontalAlignment value)
+    {
+        if (value is Delta.XAML.UiHorizontalAlignment.Unknown)
+        {
+            return false;
+        }
+
+        if (state.HorizontalAlignment != value)
+        {
+            state.HorizontalAlignment = value;
+        }
+
+        return true;
+    }
+
+    internal static bool TrySetVerticalAlignment(ref UiElementState state, Delta.XAML.UiVerticalAlignment value)
+    {
+        if (value is Delta.XAML.UiVerticalAlignment.Unknown)
+        {
+            return false;
+        }
+
+        if (state.VerticalAlignment != value)
+        {
+            state.VerticalAlignment = value;
+        }
+
         return true;
     }
 
@@ -73,23 +126,16 @@ internal static class UiElementPropertiesGenerated
 
     internal static bool TrySetPadding(ref UiElementState state, UiThickness value)
     {
-        if (state.Padding == value)
+        if (!ElementPlacementMixin.IsFinite(value))
         {
             return false;
         }
 
-        state.Padding = value;
-        return true;
-    }
-
-    internal static bool TrySetFill(ref UiElementState state, bool value)
-    {
-        if (state.Fill == value)
+        if (state.Padding != value)
         {
-            return false;
+            state.Padding = value;
         }
 
-        state.Fill = value;
         return true;
     }
 
@@ -114,4 +160,5 @@ internal static class UiElementPropertiesGenerated
         state.IsSelected = value;
         return true;
     }
+
 }

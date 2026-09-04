@@ -84,7 +84,8 @@ internal static class UiMeasureQueue
             return;
         }
 
-        if (!child.NeedsMeasure(available))
+        var contentAvailable = ElementPlacementMixin.MeasureAvailable(child, available);
+        if (!child.NeedsMeasure(contentAvailable))
         {
             return;
         }
@@ -92,7 +93,7 @@ internal static class UiMeasureQueue
         var id = new UiNodeId(child.Id.Value, child.Generation);
         if (nodes.TryGetNode(id, out _))
         {
-            requests.Add(new(id, available));
+            requests.Add(new(id, contentAvailable));
         }
     }
 }
@@ -341,12 +342,15 @@ internal static class UiMeasureStage
         ArgumentNullException.ThrowIfNull(childOrder);
         nodes.EnsureCurrent(root);
         queue.Clear();
-        if (!root.NeedsMeasure(available))
+        var rootAvailable = ElementPlacementMixin.MeasureAvailable(root, available);
+        if (!root.NeedsMeasure(rootAvailable))
         {
             return;
         }
 
-        queue.Add(new(new(root.Id.Value, root.Generation), available));
+        queue.Add(new(
+            new(root.Id.Value, root.Generation),
+            rootAvailable));
         for (var i = 0; i < queue.Count; i++)
         {
             var request = queue[i];
@@ -373,10 +377,13 @@ internal static class UiMeasureStage
             for (var childIndex = 0; childIndex < childOrder.Count; childIndex++)
             {
                 if (nodes.TryGetNode(childOrder[childIndex], out var childNode) &&
-                    childNode.Element is { } child &&
-                    child.NeedsMeasure(childAvailable))
+                    childNode.Element is { } child)
                 {
-                    queue.Add(new(childNode.Id, childAvailable));
+                    var availableForChild = ElementPlacementMixin.MeasureAvailable(child, childAvailable);
+                    if (child.NeedsMeasure(availableForChild))
+                    {
+                        queue.Add(new(childNode.Id, availableForChild));
+                    }
                 }
             }
         }
@@ -414,7 +421,7 @@ internal static class UiMeasureStage
         UiSize desired = new(
             float.IsNaN(element.Width) ? measured.Width : element.Width,
             float.IsNaN(element.Height) ? measured.Height : element.Height);
-        element.CompleteMeasure(available, desired);
+        element.CompleteMeasure(available, ElementPlacementMixin.IncludeMargin(element, desired));
     }
 }
 
@@ -483,10 +490,11 @@ internal static class UiArrangeQueue
             return;
         }
 
+        var arrangedBounds = ElementPlacementMixin.Arrange(child, bounds);
         var effectiveClip = UiRect.Intersect(context.Clip, clip);
-        if (nodes.TryGetNode(new(child.Id.Value, child.Generation), out var node) && child.NeedsArrange(bounds, effectiveClip))
+        if (nodes.TryGetNode(new(child.Id.Value, child.Generation), out var node) && child.NeedsArrange(arrangedBounds, effectiveClip))
         {
-            requests.Add(new(node.Id, bounds, effectiveClip));
+            requests.Add(new(node.Id, arrangedBounds, effectiveClip));
         }
     }
 }

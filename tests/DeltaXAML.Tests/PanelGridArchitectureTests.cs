@@ -32,7 +32,7 @@ internal static class PanelGridArchitectureTests
         retained.Add(first);
         retained.Add(second);
         RetainedLayoutTest.Layout(retained, new(200, 100), new(3, 4, 200, 100));
-        Assert.Equal(new UiRect(3, 4, 200, 100), first.Bounds, "retained Panel dispatches layout through generated mixins");
+        Assert.Equal(new UiRect(3, 4, 40, 10), first.Bounds, "retained Panel dispatches explicit child placement through generated mixins");
     }
 
     private static void GridUsesGeneratedLayoutAndReusableState()
@@ -41,7 +41,7 @@ internal static class PanelGridArchitectureTests
         var rows = new[] { GridLength.Fixed(20) };
         var first = new TextBlock { Width = 30, Height = 20 };
         var second = new TextBlock { Width = 50, Height = 20 };
-        var third = new TextBlock { Fill = true };
+        var third = new TextBlock();
         UiElement[] children = [first, second, third];
         var state = NewGridState(columns, rows);
 
@@ -70,7 +70,7 @@ internal static class PanelGridArchitectureTests
         retained.Add(second);
         retained.Add(third);
         RetainedLayoutTest.Layout(retained, new(200, 100), new(0, 0, 200, 20));
-        Assert.Equal(new UiRect(0, 0, 60, 20), first.Bounds, "retained Grid arranges the fixed column");
+        Assert.Equal(new UiRect(0, 0, 30, 20), first.Bounds, "retained Grid preserves explicit child width in the fixed column");
         Assert.Equal(new UiRect(60, 0, 50, 20), second.Bounds, "retained Grid arranges the auto column");
         Assert.Equal(new UiRect(110, 0, 90, 20), third.Bounds, "retained Grid distributes the remaining star space");
     }

@@ -18,7 +18,6 @@
                    FontKey="doto"
                    FontSize="48"
                    Foreground="#FFFFFF"
-                   Fill="true"
                    HorizontalTextAlignment="Center"
                    VerticalTextAlignment="Center" />
     </Border>

@@ -288,6 +288,7 @@ internal static partial class Program
         GeneratedAttachedTests.Run();
         FullCapabilityGeneratedTests.Run();
         LayoutDiagnosticsTests.Run();
+        LayoutPlacementTests.Run();
         TypedPropertyStateTests();
         PropertyPrecedenceTests();
         HiddenBindingTests();
@@ -472,12 +473,12 @@ internal static partial class Program
         grid.SetRows(GridLength.Fixed(20));
         var a = new Panel { Width = 30, Height = 20 };
         var b = new Panel { Width = 50, Height = 20 };
-        var c = new Panel { Fill = true };
+        var c = new Panel();
         grid.Add(a);
         grid.Add(b);
         grid.Add(c);
         RetainedLayoutTest.Layout(grid, new(200, 20), new(0, 0, 200, 20));
-        Assert.Equal(new UiRect(0, 0, 40, 20), a.Bounds, "grid fixed");
+        Assert.Equal(new UiRect(0, 0, 30, 20), a.Bounds, "grid fixed preserves explicit child width");
         Assert.Equal(new UiRect(40, 0, 50, 20), b.Bounds, "grid auto");
         Assert.Equal(new UiRect(90, 0, 110, 20), c.Bounds, "grid star");
     }

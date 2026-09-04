@@ -107,9 +107,11 @@ public static class UiElementProperties
 {
     public static UiProperty<float> Width { get; } = Create<float>("10000000-0000-4000-8000-000000000001", "Width", float.NaN);
     public static UiProperty<float> Height { get; } = Create<float>("10000000-0000-4000-8000-000000000002", "Height", float.NaN);
+    public static UiProperty<UiThickness> Margin { get; } = Create("10000000-0000-4000-8000-000000000016", "Margin", UiThickness.Zero);
+    public static UiProperty<UiHorizontalAlignment> HorizontalAlignment { get; } = Create("10000000-0000-4000-8000-000000000017", "HorizontalAlignment", UiHorizontalAlignment.Stretch);
+    public static UiProperty<UiVerticalAlignment> VerticalAlignment { get; } = Create("10000000-0000-4000-8000-000000000018", "VerticalAlignment", UiVerticalAlignment.Stretch);
     public static UiProperty<UiColor> Background { get; } = Create<UiColor>("10000000-0000-4000-8000-000000000003", "Background", default);
     public static UiProperty<UiThickness> Padding { get; } = Create("10000000-0000-4000-8000-000000000004", "Padding", UiThickness.Zero);
-    public static UiProperty<bool> Fill { get; } = Create("10000000-0000-4000-8000-000000000005", "Fill", false);
     public static UiProperty<bool> IsEnabled { get; } = Create("10000000-0000-4000-8000-000000000006", "IsEnabled", true);
     public static UiProperty<bool> IsSelected { get; } = Create("10000000-0000-4000-8000-000000000007", "IsSelected", false);
     public static UiProperty<string?> StyleKey { get; } = Create<string?>("10000000-0000-4000-8000-000000000008", "StyleKey", null);

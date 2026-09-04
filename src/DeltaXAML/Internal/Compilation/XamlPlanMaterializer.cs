@@ -273,9 +273,18 @@ internal static class XamlPlanMaterializer
 
         switch (name)
         {
-            case "Width" when TryFloat(value, out var w): e.Width = w; break;
-            case "Height" when TryFloat(value, out var h): e.Height = h; break;
-            case "Fill" when bool.TryParse(value, out var fill): e.Fill = fill; break;
+            case "Width" when TryDimension(value, out var w): e.Width = w; break;
+            case "Width": d.Add(new("XAML003", $"Invalid Width '{value}'. Expected NaN or a finite non-negative value.", line, 1)); break;
+            case "Height" when TryDimension(value, out var h): e.Height = h; break;
+            case "Height": d.Add(new("XAML003", $"Invalid Height '{value}'. Expected NaN or a finite non-negative value.", line, 1)); break;
+            case "Margin" when TryThickness(value, out var margin): e.Margin = margin; break;
+            case "Margin": d.Add(new("XAML003", $"Invalid Margin '{value}'. Expected four finite values.", line, 1)); break;
+            case "HorizontalAlignment" when Enum.TryParse(value, true, out Delta.XAML.UiHorizontalAlignment horizontalAlignment) && horizontalAlignment != Delta.XAML.UiHorizontalAlignment.Unknown:
+                e.HorizontalAlignment = horizontalAlignment;
+                break;
+            case "VerticalAlignment" when Enum.TryParse(value, true, out Delta.XAML.UiVerticalAlignment verticalAlignment) && verticalAlignment != Delta.XAML.UiVerticalAlignment.Unknown:
+                e.VerticalAlignment = verticalAlignment;
+                break;
             case "Background" when TryColor(value, out var color): e.Background = color; break;
             case "BorderColor" when TryColor(value, out var borderColor): e.BorderColor = borderColor; break;
             case "BorderWidth" when TryFloat(value, out var borderWidth): e.BorderWidth = borderWidth; break;
@@ -338,6 +347,7 @@ internal static class XamlPlanMaterializer
             case "ForegroundResource" when resources is not null: e.SetStyleResource("Foreground", resources, new(value), InvalidationFor("Foreground")); break;
             case "ForegroundResource": d.Add(new("XAML004", "ForegroundResource requires a resource store.", line, 1)); break;
             case "Padding" when TryThickness(value, out var padding): e.Padding = padding; break;
+            case "Padding": d.Add(new("XAML003", $"Invalid Padding '{value}'. Expected four finite values.", line, 1)); break;
             case "StyleKey": e.StyleKey = value; break;
             case "TemplateKey": e.TemplateKey = value; break;
             case "AutomationName": e.AutomationName = value; break;
@@ -387,7 +397,7 @@ internal static class XamlPlanMaterializer
 
     private static bool SupportsProperty(UiElement element, string name)
     {
-        if (name is "Width" or "Height" or "Fill" or "Background" or "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" or "Padding" or
+        if (name is "Width" or "Height" or "Margin" or "HorizontalAlignment" or "VerticalAlignment" or "Background" or "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" or "Padding" or
             "StyleKey" or "TemplateKey" or "AutomationName" or "AutomationRole" or
             "IsEnabled" or "IsSelected" or "BackgroundBrush")
         {
@@ -427,7 +437,7 @@ internal static class XamlPlanMaterializer
         "CornerRadius" => value is Delta.XAML.UiCornerRadii,
         "TextEffect" => value is UiResourceId,
         "BackgroundBrush" => value is Delta.XAML.UiBrush,
-        "Padding" => value is UiThickness or Delta.XAML.UiThickness,
+        "Padding" or "Margin" => value is UiThickness or Delta.XAML.UiThickness,
         "Width" or "Height" or "FontSize" or "Minimum" or "Maximum" or "Value" => value is
             byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
         "Step" => value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
@@ -440,10 +450,12 @@ internal static class XamlPlanMaterializer
         "Command" => value is Delta.XAML.UiCommandId,
         "CommandKey" => value is Delta.XAML.UiKeyGesture,
         "IsFocusScope" => value is bool,
-        "Fill" or "IsEnabled" or "IsSelected" or "IsReadOnly" or "AcceptsReturn" => value is bool,
+        "IsEnabled" or "IsSelected" or "IsReadOnly" or "AcceptsReturn" => value is bool,
         "MaxLines" or "MaxLength" => value is int or byte or sbyte or short or ushort or uint,
         "HorizontalTextAlignment" => value is Delta.XAML.UiTextHorizontalAlignment,
         "VerticalTextAlignment" => value is Delta.XAML.UiTextVerticalAlignment,
+        "HorizontalAlignment" => value is Delta.XAML.UiHorizontalAlignment,
+        "VerticalAlignment" => value is Delta.XAML.UiVerticalAlignment,
         "TextWrapping" => value is Delta.XAML.UiTextWrapping,
         "TextTrimming" => value is Delta.XAML.UiTextTrimming,
         "FontWeight" => value is Delta.XAML.UiFontWeight,
@@ -464,7 +476,8 @@ internal static class XamlPlanMaterializer
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => UiDirtyFlags.Visual,
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
-        "Width" or "Height" or "Padding" or "Source" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
+        "Width" or "Height" or "Margin" or "Padding" or "Source" => UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
+        "HorizontalAlignment" or "VerticalAlignment" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "Minimum" or "Maximum" or "Step" or "Orientation" or "SelectedIndex" or "IsOpen" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,
         "Stretch" or "Placeholder" or "ErrorSource" or "Tint" or "BackgroundBrush" => UiDirtyFlags.Visual,
         _ => UiDirtyFlags.Visual,
@@ -640,7 +653,30 @@ internal static class XamlPlanMaterializer
         return true;
     }
 
-    private static bool TryThickness(string value, out UiThickness result) { var parts = value.Split(',', StringSplitOptions.TrimEntries); result = default; if (parts.Length != 4) { return false; } var values = new float[4]; for (var i = 0; i < 4; i++) { if (!TryFloat(parts[i], out values[i])) { return false; } } result = new(values[0], values[1], values[2], values[3]); return true; }
+    private static bool TryDimension(string value, out float result) =>
+        TryFloat(value, out result) && ElementPlacementMixin.IsValidDimension(result);
+
+    private static bool TryThickness(string value, out UiThickness result)
+    {
+        var parts = value.Split(',', StringSplitOptions.TrimEntries);
+        result = default;
+        if (parts.Length != 4)
+        {
+            return false;
+        }
+
+        var values = new float[4];
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (!TryFloat(parts[i], out values[i]) || !float.IsFinite(values[i]))
+            {
+                return false;
+            }
+        }
+
+        result = new(values[0], values[1], values[2], values[3]);
+        return true;
+    }
     private static bool TryColor(string value, out UiColor color)
     {
         color = default;

@@ -183,11 +183,15 @@ internal static class UiDescriptorCatalog
         switch (key)
         {
             case UiPropertyKey.Width when value.UntypedValue is float width:
-                UiElementPropertiesGenerated.TrySetWidth(ref element.CommonState, width);
-                return true;
+                return UiElementPropertiesGenerated.TrySetWidth(ref element.CommonState, width);
             case UiPropertyKey.Height when value.UntypedValue is float height:
-                UiElementPropertiesGenerated.TrySetHeight(ref element.CommonState, height);
-                return true;
+                return UiElementPropertiesGenerated.TrySetHeight(ref element.CommonState, height);
+            case UiPropertyKey.Margin when value.UntypedValue is UiThickness margin:
+                return UiElementPropertiesGenerated.TrySetMargin(ref element.CommonState, margin);
+            case UiPropertyKey.HorizontalAlignment when value.UntypedValue is Delta.XAML.UiHorizontalAlignment horizontalAlignment:
+                return UiElementPropertiesGenerated.TrySetHorizontalAlignment(ref element.CommonState, horizontalAlignment);
+            case UiPropertyKey.VerticalAlignment when value.UntypedValue is Delta.XAML.UiVerticalAlignment verticalAlignment:
+                return UiElementPropertiesGenerated.TrySetVerticalAlignment(ref element.CommonState, verticalAlignment);
             case UiPropertyKey.Background when value.UntypedValue is UiColor background:
                 UiElementPropertiesGenerated.TrySetBackground(ref element.CommonState, background);
                 return true;
@@ -203,11 +207,7 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.BackgroundBrush when value.UntypedValue is Delta.XAML.UiBrush brush:
                 return TrySetBrush(element, brush);
             case UiPropertyKey.Padding when value.UntypedValue is UiThickness padding:
-                UiElementPropertiesGenerated.TrySetPadding(ref element.CommonState, padding);
-                return true;
-            case UiPropertyKey.Fill when value.UntypedValue is bool fill:
-                UiElementPropertiesGenerated.TrySetFill(ref element.CommonState, fill);
-                return true;
+                return UiElementPropertiesGenerated.TrySetPadding(ref element.CommonState, padding);
             case UiPropertyKey.IsEnabled when value.UntypedValue is bool enabled:
                 UiElementPropertiesGenerated.TrySetEnabled(ref element.CommonState, enabled);
                 return true;
@@ -232,9 +232,10 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.IsFocusScope when value.UntypedValue is bool isFocusScope:
                 element.IsFocusScope = isFocusScope;
                 return true;
-            case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Background or UiPropertyKey.BorderColor or
+            case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Margin or UiPropertyKey.HorizontalAlignment or UiPropertyKey.VerticalAlignment or
+                UiPropertyKey.Background or UiPropertyKey.BorderColor or
                 UiPropertyKey.BorderWidth or UiPropertyKey.BorderWidthUnits or UiPropertyKey.CornerRadius or UiPropertyKey.Padding or
-                UiPropertyKey.Fill or UiPropertyKey.IsEnabled or UiPropertyKey.IsSelected or UiPropertyKey.BackgroundBrush or
+                UiPropertyKey.IsEnabled or UiPropertyKey.IsSelected or UiPropertyKey.BackgroundBrush or
                 UiPropertyKey.AutomationName or UiPropertyKey.AutomationRole or UiPropertyKey.Gestures or UiPropertyKey.Command or
                 UiPropertyKey.CommandKey or UiPropertyKey.IsFocusScope:
                 return false;

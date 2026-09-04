@@ -2099,6 +2099,9 @@ internal static class CSharpArtifactEmitter
             "Command" => "global::Delta.XAML.UiCommandId",
             "CommandKey" => "global::Delta.XAML.UiKeyGesture",
             "BorderWidthUnits" => "global::Delta.XAML.Contract.PaintUnits",
+            "Margin" => "global::Delta.XAML.UiThickness",
+            "HorizontalAlignment" => "global::Delta.XAML.UiHorizontalAlignment",
+            "VerticalAlignment" => "global::Delta.XAML.UiVerticalAlignment",
             "IsFocusScope" => "global::System.Boolean",
             "Stretch" => "global::Delta.XAML.UiImageStretch",
             "HorizontalTextAlignment" => "global::Delta.XAML.UiTextHorizontalAlignment",
@@ -2798,6 +2801,16 @@ internal static class CSharpArtifactEmitter
                 borderWidthUnits is Delta.XAML.Contract.PaintUnits.Logical or Delta.XAML.Contract.PaintUnits.Device:
                 expression = "global::Delta.XAML.Contract.PaintUnits." + borderWidthUnits;
                 return true;
+            case XamlValueKind.Enum when propertyName == "HorizontalAlignment" &&
+                Enum.TryParse<Delta.XAML.UiHorizontalAlignment>(literal, false, out var elementHorizontalAlignment) &&
+                elementHorizontalAlignment != Delta.XAML.UiHorizontalAlignment.Unknown:
+                expression = "global::Delta.XAML.UiHorizontalAlignment." + elementHorizontalAlignment;
+                return true;
+            case XamlValueKind.Enum when propertyName == "VerticalAlignment" &&
+                Enum.TryParse<Delta.XAML.UiVerticalAlignment>(literal, false, out var elementVerticalAlignment) &&
+                elementVerticalAlignment != Delta.XAML.UiVerticalAlignment.Unknown:
+                expression = "global::Delta.XAML.UiVerticalAlignment." + elementVerticalAlignment;
+                return true;
             case XamlValueKind.Enum when propertyName == "HorizontalTextAlignment" && Enum.TryParse<Delta.XAML.UiTextHorizontalAlignment>(literal, false, out var horizontalAlignment) && horizontalAlignment != Delta.XAML.UiTextHorizontalAlignment.Unknown:
                 expression = "global::Delta.XAML.UiTextHorizontalAlignment." + horizontalAlignment;
                 return true;
@@ -2840,9 +2853,11 @@ internal static class CSharpArtifactEmitter
         {
             "Width" => "global::Delta.XAML.UiElementProperties.Width",
             "Height" => "global::Delta.XAML.UiElementProperties.Height",
+            "Margin" => "global::Delta.XAML.UiElementProperties.Margin",
+            "HorizontalAlignment" => "global::Delta.XAML.UiElementProperties.HorizontalAlignment",
+            "VerticalAlignment" => "global::Delta.XAML.UiElementProperties.VerticalAlignment",
             "Background" => "global::Delta.XAML.UiElementProperties.Background",
             "Padding" => "global::Delta.XAML.UiElementProperties.Padding",
-            "Fill" => "global::Delta.XAML.UiElementProperties.Fill",
             "IsEnabled" => "global::Delta.XAML.UiElementProperties.IsEnabled",
             "IsSelected" => "global::Delta.XAML.UiElementProperties.IsSelected",
             "StyleKey" => "global::Delta.XAML.UiElementProperties.StyleKey",

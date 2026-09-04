@@ -58,6 +58,10 @@ internal static class UiLayoutDiagnosticsJson
         WriteRequestedSize(writer, element.Width, element.Height);
         WriteThickness(writer, "margin", element.Margin);
         WriteThickness(writer, "padding", element.Padding);
+        if (TryGetTextBounds(element, out var textBounds))
+        {
+            WriteRect(writer, "textBounds", textBounds);
+        }
 
         writer.WriteStartArray("children");
         for (var index = 0; index < element.Children.Count; index++)
@@ -72,6 +76,25 @@ internal static class UiLayoutDiagnosticsJson
 
         writer.WriteEndArray();
         writer.WriteEndObject();
+    }
+
+    private static bool TryGetTextBounds(UiElement element, out UiRect bounds)
+    {
+        switch (element)
+        {
+            case TextBlock textBlock:
+                bounds = textBlock.State.Layout.TextBounds;
+                return true;
+            case TextBox textBox:
+                bounds = textBox.TextState.Layout.TextBounds;
+                return true;
+            case NumericEditor numericEditor:
+                bounds = numericEditor.TextState.Layout.TextBounds;
+                return true;
+            default:
+                bounds = default;
+                return false;
+        }
     }
 
     private static void WriteRect(Utf8JsonWriter writer, string name, UiRect value)

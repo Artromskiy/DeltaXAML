@@ -51,36 +51,13 @@ internal readonly struct StackPanelArrangeMixin : IArrangeMixin<StackPanelState>
         var cursor = state.Orientation == UiOrientation.Horizontal
             ? context.Bounds.X
             : context.Bounds.Y;
-        var fixedSize = 0f;
-        var fillCount = 0;
-        for (var i = 0; i < children.Count; i++)
-        {
-            var child = children[i];
-            if (child.Fill)
-            {
-                fillCount++;
-            }
-            else
-            {
-                fixedSize += state.Orientation == UiOrientation.Horizontal
-                    ? child.DesiredSize.Width
-                    : child.DesiredSize.Height;
-            }
-        }
-
-        var available = state.Orientation == UiOrientation.Horizontal
-            ? context.Bounds.Width
-            : context.Bounds.Height;
-        var remaining = Maths.Max(0, available - fixedSize);
         for (var i = 0; i < children.Count; i++)
         {
             var child = children[i];
             var desired = child.DesiredSize;
-            var main = child.Fill && fillCount > 0
-                ? remaining / fillCount
-                : state.Orientation == UiOrientation.Horizontal
-                    ? desired.Width
-                    : desired.Height;
+            var main = state.Orientation == UiOrientation.Horizontal
+                ? desired.Width
+                : desired.Height;
             UiArrangeQueue.Add(in context, child, state.Orientation == UiOrientation.Horizontal
                 ? new UiRect(cursor, context.Bounds.Y, main, context.Bounds.Height)
                 : new UiRect(context.Bounds.X, cursor, context.Bounds.Width, main));

@@ -42,7 +42,9 @@ string layoutJson = document.BuildLayoutDiagnosticsJson(indented: true);
 The root object contains `schemaVersion`, `layoutCompleted`, `viewport`,
 `dpiScale` and `root`. Each node contains `type`, `id`, `generation`,
 `visibility`, `participation`, `bounds`, `clip`, `desiredSize`,
-`requestedSize`, `margin`, `padding` and an ordered `children` array.
+`requestedSize`, `margin`, `padding` and an ordered `children` array. Text
+controls additionally contain `textBounds`, the final text layout box inside
+their element bounds; it is intentionally separate from element placement.
 `requestedSize.width` and `.height` are `null` when the corresponding XAML
 dimension is automatic/unset. `bounds` and `clip` are the final logical layout
 values, so this snapshot is suitable for comparing authored dimensions with
@@ -91,8 +93,7 @@ factories and typed setters construct the retained document without reflection.
 
 ```xml
 <StackPanel xmlns:x="urn:delta-xaml"
-            x:DataType="Game.HudModel"
-            Fill="true">
+            x:DataType="Game.HudModel">
     <Resource x:Key="Accent" Type="Color" Value="#304860" />
     <Style x:Key="ActionStyle" TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource Accent}" />
@@ -158,6 +159,29 @@ behavior is composed internally from typed state and mixins, so adding a
 custom control does not require choosing a deep framework base class.
 
 ## Properties
+
+Element placement is independent from content placement. Every `UiElement`
+exposes `Margin`, `HorizontalAlignment` and `VerticalAlignment`:
+
+```xml
+<Border Width="240"
+        Height="120"
+        Margin="8,4,8,4"
+        HorizontalAlignment="Center"
+        VerticalAlignment="Center">
+    <TextBlock Text="Rewards"
+               HorizontalTextAlignment="Center"
+               VerticalTextAlignment="Center" />
+</Border>
+```
+
+`Width` and `Height` are explicit when finite and automatic when `NaN`.
+Automatic dimensions with the default `Stretch` alignment occupy the parent
+slot after margin; `Start`, `Center` and `End` use the measured desired size.
+An explicit dimension always wins over `Stretch`, while alignment still sets
+its origin. `Margin` reduces the available slot and is included in the
+element's measured desired size. These values are logical units; DPI remains a
+document-level scale applied once during layout.
 
 Typed access is the normal application path:
 
@@ -353,7 +377,7 @@ separate `Text` property. A text label is an explicit `UiTextBlock` content
 child, so it uses the same text properties, bindings and renderer-neutral text
 path as every other text element.
 
-- common size, background, padding, fill, enabled/selected, style and template
+- common size, background, padding, enabled/selected, style and template
   properties;
 - text/font/foreground and numeric editor properties;
 - stack orientation and fixed/`Auto`/star grid definitions;

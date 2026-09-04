@@ -652,9 +652,11 @@ internal sealed class XamlSemanticRegistry
         var common = ImmutableArray.Create(
             Property("Width", "10000000-0000-4000-8000-000000000001", XamlValueKind.Single),
             Property("Height", "10000000-0000-4000-8000-000000000002", XamlValueKind.Single),
+            Property("Margin", "10000000-0000-4000-8000-000000000016", XamlValueKind.Thickness),
+            Property("HorizontalAlignment", "10000000-0000-4000-8000-000000000017", XamlValueKind.Enum),
+            Property("VerticalAlignment", "10000000-0000-4000-8000-000000000018", XamlValueKind.Enum),
             Property("Background", "10000000-0000-4000-8000-000000000003", XamlValueKind.Color),
             Property("Padding", "10000000-0000-4000-8000-000000000004", XamlValueKind.Thickness),
-            Property("Fill", "10000000-0000-4000-8000-000000000005", XamlValueKind.Boolean),
             Property("IsEnabled", "10000000-0000-4000-8000-000000000006", XamlValueKind.Boolean),
             Property("IsSelected", "10000000-0000-4000-8000-000000000007", XamlValueKind.Boolean),
             Property("StyleKey", "10000000-0000-4000-8000-000000000008", XamlValueKind.String),

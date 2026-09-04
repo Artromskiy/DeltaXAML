@@ -4,13 +4,15 @@ internal struct UiElementState
 {
     public float Width;
     public float Height;
+    public UiThickness Margin;
+    public Delta.XAML.UiHorizontalAlignment HorizontalAlignment;
+    public Delta.XAML.UiVerticalAlignment VerticalAlignment;
     public UiColor Background;
     public UiColor BorderColor;
     public float BorderWidth;
     public Delta.XAML.Contract.PaintUnits BorderWidthUnits;
     public Delta.XAML.UiCornerRadii CornerRadius;
     public UiThickness Padding;
-    public bool Fill;
     public bool IsEnabled;
     public bool IsSelected;
     public Guid CustomVisualType;

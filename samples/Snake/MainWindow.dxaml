@@ -1,6 +1,5 @@
 <Border xmlns:x="urn:delta-xaml"
         x:DataType="global::DeltaXaml.Samples.Snake.SnakeGame"
-        Fill="true"
         Padding="14,14,14,14"
         Background="#081325"
         CornerRadius="16">
@@ -15,7 +14,7 @@
   <Template x:Key="BoardCellTemplate" x:DataType="global::DeltaXaml.Samples.Snake.SnakeCell">
     <Border StyleKey="BoardCellStyle" Background="{Binding Color}" />
   </Template>
-  <Grid Fill="true" Rows="Auto,Auto,*,Auto">
+  <Grid Rows="Auto,Auto,*,Auto">
     <Border Grid.Row="0" Padding="18,18,18,18" Background="#101A2F" CornerRadius="16">
       <Grid Rows="Auto" Columns="*,Auto,Auto,Auto">
         <StackPanel>
@@ -43,9 +42,8 @@
       <TextBlock x:Name="StatusText" Text="Game running — arrows or WASD" FontSize="16" Foreground="#FFD36F" />
     </Border>
     <Border Grid.Row="2" Padding="12,12,12,12" Background="#1A2338" CornerRadius="16">
-      <Grid x:Name="BoardGrid" Fill="true">
+      <Grid x:Name="BoardGrid">
         <CollectionView x:Name="BoardItems"
-                        Fill="true"
                         ItemsSource="{Binding Cells}"
                         ItemTemplate="BoardCellTemplate" />
       </Grid>

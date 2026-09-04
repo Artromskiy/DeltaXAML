@@ -7,14 +7,14 @@ internal static class StackPanelArchitectureTests
         var state = new StackPanelState { Orientation = UiOrientation.Vertical };
         var first = new TextBlock { Width = 40, Height = 10 };
         var second = new TextBlock { Width = 60, Height = 20 };
-        var fill = new TextBlock { Fill = true };
-        UiElement[] children = [first, second, fill];
+        var third = new TextBlock { Width = 30, Height = 15 };
+        UiElement[] children = [first, second, third];
 
         RetainedLayoutTest.Measure(first, new(200, 100));
         RetainedLayoutTest.Measure(second, new(200, 100));
-        RetainedLayoutTest.Measure(fill, new(200, 100));
+        RetainedLayoutTest.Measure(third, new(200, 100));
         UiStackPanelGenerated.Measure(ref state, new(new(200, 100), 1, children));
-        Assert.Equal(new UiSize(60, 47.5f), state.DesiredSize, "typed StackPanel measure uses child desired sizes");
+        Assert.Equal(new UiSize(60, 45), state.DesiredSize, "typed StackPanel measure uses child desired sizes");
         UiStackPanelGenerated.Arrange(ref state, new(new(0, 0, 200, 100), new(0, 0, 200, 100), children));
         Assert.Equal(state.Bounds, new UiRect(0, 0, 200, 100), "typed arrange stores the parent bounds");
 
@@ -27,9 +27,9 @@ internal static class StackPanelArchitectureTests
         var retained = UiStackPanelGenerated.Create();
         retained.Add(first);
         retained.Add(second);
-        retained.Add(fill);
+        retained.Add(third);
         RetainedLayoutTest.Layout(retained, new(200, 100), new(0, 0, 200, 100));
-        Assert.Equal(fill.Bounds, new UiRect(0, 30, 200, 70), "retained StackPanel dispatches layout through generated mixins");
+        Assert.Equal(third.Bounds, new UiRect(0, 30, 30, 15), "retained StackPanel dispatches layout through generated mixins");
 
         retained.Orientation = UiOrientation.Vertical;
         var before = retained.LayoutVersion;
@@ -38,8 +38,8 @@ internal static class StackPanelArchitectureTests
         retained.Orientation = UiOrientation.Horizontal;
         Assert.True(retained.LayoutVersion > before, "StackPanel orientation invalidates layout");
         RetainedLayoutTest.Layout(retained, new(200, 100), new(0, 0, 200, 100));
-        Assert.Equal(new UiRect(0, 0, 40, 100), first.Bounds, "horizontal StackPanel preserves the first child width");
-        Assert.Equal(new UiRect(40, 0, 60, 100), second.Bounds, "horizontal StackPanel advances by child width");
-        Assert.Equal(new UiRect(100, 0, 100, 100), fill.Bounds, "horizontal StackPanel distributes remaining width");
+        Assert.Equal(new UiRect(0, 0, 40, 10), first.Bounds, "horizontal StackPanel preserves explicit child size");
+        Assert.Equal(new UiRect(40, 0, 60, 20), second.Bounds, "horizontal StackPanel advances by child width");
+        Assert.Equal(new UiRect(100, 0, 30, 15), third.Bounds, "horizontal StackPanel preserves explicit child size");
     }
 }

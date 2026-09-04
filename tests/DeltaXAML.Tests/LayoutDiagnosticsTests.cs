@@ -45,7 +45,7 @@ internal static class LayoutDiagnosticsTests
         var firstNode = rootNode.GetProperty("children")[0];
         Assert.Equal(0, firstNode.GetProperty("childIndex").GetInt32(), "hierarchy keeps child order");
         Assert.Equal("Border", firstNode.GetProperty("type").GetString(), "child type is reported");
-        Assert.Equal(100f, firstNode.GetProperty("bounds").GetProperty("width").GetSingle(), "panel layout bounds are reported");
+        Assert.Equal(40f, firstNode.GetProperty("bounds").GetProperty("width").GetSingle(), "panel layout preserves the child's explicit width");
         Assert.Equal(40f, firstNode.GetProperty("requestedSize").GetProperty("width").GetSingle(), "child requested width is reported separately from its arranged bounds");
         Assert.Equal(20f, firstNode.GetProperty("requestedSize").GetProperty("height").GetSingle(), "child requested height is reported separately from its arranged bounds");
 
@@ -56,7 +56,10 @@ internal static class LayoutDiagnosticsTests
         using var textDocument = new UiDocument(new UiTextBlock { Text = "diagnostic text" }, new EmptyTextService());
         textDocument.Layout(new float2(100, 30), 1);
         using var textJson = JsonDocument.Parse(textDocument.BuildLayoutDiagnosticsJson(false));
-        Assert.Equal("diagnostic text", textJson.RootElement.GetProperty("root").GetProperty("text").GetString(), "text content is reported with its layout node");
+        var textNode = textJson.RootElement.GetProperty("root");
+        Assert.Equal("diagnostic text", textNode.GetProperty("text").GetString(), "text content is reported with its layout node");
+        Assert.True(textNode.TryGetProperty("textBounds", out var textBounds) && textBounds.GetProperty("width").GetSingle() >= 0,
+            "text layout bounds are reported separately from the element bounds");
     }
 
     private static void GridChildrenDoNotIntersectWhenPlacedInDistinctCells()
@@ -64,7 +67,7 @@ internal static class LayoutDiagnosticsTests
         var grid = CreateDiagnosticGrid();
         for (var index = 0; index < 4; index++)
         {
-            var child = new UiBorder { Fill = true };
+            var child = new UiBorder();
             child.SetAttachedValue(UiGridAttachedProperties.Row, index / 2);
             child.SetAttachedValue(UiGridAttachedProperties.Column, index % 2);
             grid.Add(child);
@@ -85,7 +88,7 @@ internal static class LayoutDiagnosticsTests
         var grid = CreateDiagnosticGrid();
         for (var index = 0; index < 2; index++)
         {
-            var child = new UiBorder { Width = 30, Height = 30, Fill = true };
+            var child = new UiBorder { Width = 30, Height = 30 };
             child.SetAttachedValue(UiGridAttachedProperties.Row, index);
             child.SetAttachedValue(UiGridAttachedProperties.Column, index);
             grid.Add(child);

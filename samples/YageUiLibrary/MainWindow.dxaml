@@ -1,4 +1,4 @@
-<Grid xmlns:x="urn:delta-xaml" Rows="38,*" Fill="true">
+<Grid xmlns:x="urn:delta-xaml" Rows="38,*">
   <Resource x:Key="UiBackground" Type="Color" Value="#0B0C0E" />
   <Resource x:Key="Surface" Type="Color" Value="#141517" />
   <Resource x:Key="SurfaceRaised" Type="Color" Value="#18191C" />
@@ -61,7 +61,7 @@
   </Style>
 
   <Border Grid.Row="0" Background="{DynamicResource Surface}" BorderColor="{DynamicResource Border}" BorderWidth="1" Padding="10,0,10,0">
-    <Grid Columns="Auto,*,Auto" Rows="Auto" Fill="true">
+    <Grid Columns="Auto,*,Auto" Rows="Auto">
       <TextBlock Text="YAGE" Foreground="{DynamicResource Accent}" FontSize="14" FontWeight="Bold" />
       <TextBlock Grid.Column="0" Text="  Editor" Foreground="{DynamicResource TextMuted}" FontSize="12" />
       <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -75,8 +75,8 @@
     </Grid>
   </Border>
 
-  <ScrollViewer Grid.Row="1" Background="{DynamicResource UiBackground}" Fill="true">
-    <StackPanel Width="1280" Orientation="Vertical" Fill="true">
+  <ScrollViewer Grid.Row="1" Background="{DynamicResource UiBackground}">
+    <StackPanel Width="1280" Orientation="Vertical">
       <Border Padding="2,20,2,16">
         <Grid Columns="*,Auto" Rows="Auto">
           <StackPanel>

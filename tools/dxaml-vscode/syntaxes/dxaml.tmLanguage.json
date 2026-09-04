@@ -164,7 +164,7 @@
     },
     "style-attribute": {
       "name": "meta.attribute.style.dxaml",
-      "begin": "((?:Style|TargetType|BasedOn|Selector|Property|Value|Template|TemplateKey|StyleKey|Theme|ThemeKey|VisualState|State|Trigger|Action|Behavior|FontKey|FontSize|FontWeight|FontStyle|Foreground|Background|BorderColor|BorderWidth|CornerRadius|Padding|Margin|Width|Height|MinWidth|MinHeight|MaxWidth|MaxHeight|Rows|Columns|Fill|IsEnabled|IsVisible|Opacity|ClipToBounds|HorizontalAlignment|VerticalAlignment|HorizontalContentAlignment|VerticalContentAlignment|TextAlignment|TextWrapping|TextTrimming|MaxLines|LineHeight|TextDecorations|Placeholder|IsReadOnly|IsMultiline|MaxLength|ItemsSource|ItemTemplate|ItemTemplateSelector|Command|CommandParameter|BindingContext|StringFormat))(\\s*)(=)(\\s*)",
+      "begin": "((?:Style|TargetType|BasedOn|Selector|Property|Value|Template|TemplateKey|StyleKey|Theme|ThemeKey|VisualState|State|Trigger|Action|Behavior|FontKey|FontSize|FontWeight|FontStyle|Foreground|Background|BorderColor|BorderWidth|CornerRadius|Padding|Margin|Width|Height|MinWidth|MinHeight|MaxWidth|MaxHeight|Rows|Columns|IsEnabled|IsVisible|Opacity|ClipToBounds|HorizontalAlignment|VerticalAlignment|HorizontalContentAlignment|VerticalContentAlignment|TextAlignment|TextWrapping|TextTrimming|MaxLines|LineHeight|TextDecorations|Placeholder|IsReadOnly|IsMultiline|MaxLength|ItemsSource|ItemTemplate|ItemTemplateSelector|Command|CommandParameter|BindingContext|StringFormat))(\\s*)(=)(\\s*)",
       "end": "(?=\\s|/?>)",
       "beginCaptures": {
         "1": {

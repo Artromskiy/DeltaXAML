@@ -45,6 +45,24 @@ public enum UiParticipation
     All = Layout | Rendering | HitTesting,
 }
 
+public enum UiHorizontalAlignment : byte
+{
+    Unknown,
+    Start,
+    Center,
+    End,
+    Stretch,
+}
+
+public enum UiVerticalAlignment : byte
+{
+    Unknown,
+    Start,
+    Center,
+    End,
+    Stretch,
+}
+
 public interface IUiProperty
 {
     UiPropertyId Id { get; }
@@ -84,6 +102,12 @@ public abstract class UiElement
     public UiElement? Parent { get; }
     public IReadOnlyList<UiElement> Children { get; }
     protected IList<UiElement> MutableChildren { get; }
+
+    public float Width { get; set; }
+    public float Height { get; set; }
+    public UiThickness Margin { get; set; }
+    public UiHorizontalAlignment HorizontalAlignment { get; set; }
+    public UiVerticalAlignment VerticalAlignment { get; set; }
 
     public UiParticipation Participation { get; set; }
 

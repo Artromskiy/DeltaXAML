@@ -1,8 +1,8 @@
-<StackPanel Fill="true">
+<StackPanel>
   <Border Height="48" Background="#1F2933">
     <TextBlock Text="Delta Editor" FontKey="default" FontSize="18" Foreground="#E6ECF4" />
   </Border>
-  <Grid Fill="true" Columns="220,*,320" Rows="*">
+  <Grid Columns="220,*,320" Rows="*">
     <Border Background="#151B24">
       <TextBlock Text="Hierarchy" FontKey="default" FontSize="14" Foreground="#9BA6B6" />
     </Border>

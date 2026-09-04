@@ -246,7 +246,8 @@ internal static class XamlCompiler
                     continue;
                 }
 
-                if (TryParseValue(attribute.Value, property.ValueKind, attribute.Range, out var value))
+                if (TryParseValue(attribute.Value, property.ValueKind, attribute.Range, out var value) &&
+                    ValidatePlacementLiteral(property.Name, value, attribute.Range))
                 {
                     members.Add(new(property.Id, property.Name, value, attribute.Range, property.AttachedPropertyExpression));
                 }
@@ -581,7 +582,8 @@ internal static class XamlCompiler
                 return;
             }
 
-            if (TryParseValue(valueText, property.ValueKind, valueRange, out var value))
+            if (TryParseValue(valueText, property.ValueKind, valueRange, out var value) &&
+                ValidatePlacementLiteral(property.Name, value, valueRange))
             {
                 setters.Add(new(property.Id, property.Name, value, valueRange));
             }
@@ -1285,6 +1287,23 @@ internal static class XamlCompiler
             "NativeAutomationPeer" => $"Unsupported property 'NativeAutomationPeer' on '{lexicalName}'; set neutral AutomationName and AutomationRole metadata.",
             _ => $"Unsupported property '{propertyName}' on '{lexicalName}'.",
         };
+
+        private bool ValidatePlacementLiteral(string propertyName, XamlValuePlan value, SourceRange range)
+        {
+            if (propertyName is not ("Width" or "Height") || value.Kind != XamlValueKind.Single)
+            {
+                return true;
+            }
+
+            if (float.TryParse(value.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var dimension) &&
+                global::DeltaXAML.Internal.ElementPlacementMixin.IsValidDimension(dimension))
+            {
+                return true;
+            }
+
+            Report("XAML007", $"Value '{value.Literal.CanonicalText}' is not a valid {propertyName}.", range);
+            return false;
+        }
 
         private static bool TryCanonicalLiteral(
             string value,
