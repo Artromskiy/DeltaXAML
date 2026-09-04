@@ -258,7 +258,8 @@ internal readonly record struct UiMeasureContext(
     IReadOnlyList<UiElement>? Children = null,
     bool MeasureChildren = true,
     UiMeasureQueueBuffer? Requests = null,
-    UiNodeStore? Nodes = null);
+    UiNodeStore? Nodes = null,
+    UiTextMeasureMetrics TextMetrics = default);
 internal readonly record struct UiArrangeContext(
     UiRect Bounds,
     UiRect Clip,

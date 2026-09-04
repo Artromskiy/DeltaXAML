@@ -267,6 +267,7 @@ internal static partial class Program
         UnsupportedXamlTests();
         XamlGeneratorTests();
         TextBlockArchitectureTests.Run();
+        TextAlignmentTests.Run();
         StackPanelArchitectureTests.Run();
         ContentLayoutArchitectureTests.Run();
         PanelGridArchitectureTests.Run();
@@ -1411,10 +1412,9 @@ internal static partial class Program
         Assert.Equal(1, centeredDisplayList.Text.Length, "DPI centering reaches the display list");
         var centeredDraw = centeredDisplayList.Text[0];
         var shapedBounds = centeredDraw.Text.Runs.Span[0].Bounds;
-        Assert.Equal(
-            new Delta.float2(84 - shapedBounds.Left / 2, 45 - shapedBounds.Top / 2),
-            centeredDraw.BaselineOrigin,
-            "DPI conversion preserves the centered logical baseline");
+        Assert.True(Maths.Abs(centeredDraw.BaselineOrigin.x + (shapedBounds.Left + shapedBounds.Right) / 4 - 150) < 0.001f &&
+            Maths.Abs(centeredDraw.BaselineOrigin.y + (shapedBounds.Top + shapedBounds.Bottom) / 4 - 75) < 0.001f,
+            "DPI conversion centers the real glyph bounds");
     }
 
     private static void TextVersionTracksTextInputsOnly()

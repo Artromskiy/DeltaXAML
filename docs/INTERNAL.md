@@ -610,6 +610,19 @@ the corresponding `UiElementIdentity` entry aligned with `UiDisplayList.Order`;
 DeltaRender owns atlas packing, UV assignment, staging, shader selection and
 GPU lifetime.
 
+During the existing post-order measure traversal, the measure stage queries the
+document-owned `UiTextLayoutCache` for the current text element. The cache stores
+shaped bounds and font line height alongside the shaped payload; the measure context carries
+the current metrics without mutating the retained element or starting another
+tree traversal. Plain and rich text use the same cache lifetime, and visual
+extraction reuses it while aligning shaped glyph bounds within the arranged
+text area, including their baseline-relative offsets.
+The geometry-only internal harness can measure without a font service using
+its approximate metrics; a public document requires a registered font for
+successful text extraction. Missing fonts retain the existing diagnostic.
+Position, alignment, line-height and paint changes reuse shaping; text, font
+size, DPI and localization changes refresh the affected cache entries.
+
 `UiDisplayList` is a borrowed view over document-owned storage and is invalid
 after the next mutation or extraction, as defined by the frozen contract.
 
@@ -931,7 +944,8 @@ not by a second facade or tree:
 | `Internal/Mixins/**` | canonical algorithms | Stateless readonly algorithms behind static generic capability shapes. |
 | `Internal/Descriptors/**` | canonical dispatch | Compact runtime type indices, typed factories and typed state/property thunks. |
 | `Internal/Stages/UiRuntimeStages.cs` | canonical pipeline | Runs input, mutation, binding, style, measure, arrange and focus work over reusable queues. |
-| `Internal/Visuals/**` | canonical extraction | Writes frozen contract commands directly into reusable document-owned storage and owns shaped-text cache entries. |
+| `Internal/Text/UiTextLayoutCache.cs` | shared text preparation | Owns font, shaping, metrics and rich-paragraph layout caches shared by measure and extraction. |
+| `Internal/Visuals/**` | canonical extraction | Writes frozen contract commands directly into reusable document-owned storage; consumes the shared text cache without owning text preparation. |
 | `Internal/Compilation/XamlPlanMaterializer.cs` | explicit cold plan materializer | Used only when a caller chooses `IXamlLoader`; construction converges on the canonical retained owner and descriptors. |
 | `Internal/Bindings/UiInterpretedBinding.cs` | explicit cold string binding | Used only by the public string binding/source-loading entry point; generated production artifacts use typed compiled bindings. |
 | `UserApi/UiElement.cs` and `UserApi/Controls/**` | public identity/accessors | Thin shells over the canonical retained owner; no parallel relation or property storage. |

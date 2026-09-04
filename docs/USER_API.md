@@ -212,8 +212,17 @@ also expose `TextBoxProperties.PlaceholderText`, `IsReadOnly`,
 editors publish their placeholder through the same renderer-neutral text-run
 path; programmatic `SetText` remains available for host-controlled updates.
 
-These values are retained in typed state and applied while DeltaXAML measures
-and requests shaping. The frozen `UiTextDraw` carries the resulting shaped
+For these plain-text controls, text alignment positions the shaped glyph bounds
+inside the arranged text area: `Center` centers the visible glyph bounds on
+each requested axis; `Top`/`Bottom` and `Left`/`Right` align their corresponding
+edges. This is separate from positioning the control itself inside its parent.
+Measurement uses shaped advances and the font's ascent, descent and line gap;
+an explicit `LineHeight` overrides the default logical line height. DPI scales
+shaping once and the producer converts the baseline back to logical units.
+
+These values are retained in typed state. During the normal measure stage,
+DeltaXAML requests metrics and shaping through the injected text service; the
+same cache is reused during extraction. The frozen `UiTextDraw` carries the resulting shaped
 text and paint, but does not expose each layout/style property as a separate
 field; a renderer must not try to reconstruct wrapping, trimming or font
 selection from the draw record. DeltaXAML does not rasterize glyphs, and

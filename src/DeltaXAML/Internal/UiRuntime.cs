@@ -115,7 +115,8 @@ internal sealed class UiRuntime
         Delta.XAML.UiElement? publicRoot,
         Delta.XAML.IUiImageMetadataResolver? imageMetadataResolver = null,
         Delta.XAML.IUiGeneratedDocumentProgram? program = null,
-        Delta.XAML.UiDocument? document = null)
+        Delta.XAML.UiDocument? document = null,
+        Delta.XAML.UiTextLayoutCache? textLayout = null)
     {
         _semanticCommands.Clear();
         UiInputStage.Run(_input, _inputQueue);
@@ -158,7 +159,7 @@ internal sealed class UiRuntime
             _scaledTreeVersion = _retainedRoot.TreeVersion;
         }
         UiImageMetadataStage.Run(imageMetadataResolver, _nodes, _retainedRoot, _stageTraversal, _childOrder);
-        UiMeasureStage.Run(_nodes, _retainedRoot, viewport, _measureQueue, _childOrder);
+        UiMeasureStage.Run(_nodes, _retainedRoot, viewport, _measureQueue, _childOrder, textLayout);
         UiArrangeStage.Run(_nodes, _retainedRoot, new(0, 0, viewport.Width, viewport.Height), _arrangeQueue);
         UiFocusStage.Run(_input);
     }

@@ -1,6 +1,5 @@
 using Delta.Diagnostics;
 using Delta;
-using Delta.Text.Contract;
 using Delta.XAML.Contract;
 using Retained = DeltaXAML.Internal;
 using RetainedElement = DeltaXAML.Internal.UiElement;
@@ -9,63 +8,38 @@ namespace Delta.XAML;
 
 /// <summary>Extracts the retained tree into one reusable canonical display-list storage.</summary>
 /// <remarks>
-/// The stage owns only traversal and shaped-text cache entries. The document owns the canonical
-/// output buffers, while the retained tree, property store and runtime node index remain owned by
-/// the document/runtime. Returned spans are borrowed until the next mutation or extraction, as
-/// defined by <see cref="UiDisplayList"/>.
+/// The stage owns only traversal and visual extraction. Text metrics, shaping and paragraph layout
+/// are shared by the document-owned cache. The document owns the canonical output buffers, while
+/// the retained tree, property store and runtime node index remain owned by the document/runtime.
+/// Returned spans are borrowed until the next mutation or extraction, as defined by
+/// <see cref="UiDisplayList"/>.
 /// </remarks>
 internal sealed class UiVisualStage : IDisposable
 {
     private readonly Retained.UiRuntime _runtime;
-    private readonly ITextService _textService;
-    private readonly IUiFontResolver _fontResolver;
+    private readonly UiTextLayoutCache _textLayout;
     private readonly UiDisplayListStorage _storage;
-    private readonly Dictionary<string, FontInstanceId> _fontInstances = new(StringComparer.Ordinal);
-    private UiFontSlot[] _fontSlots = Array.Empty<UiFontSlot>();
-    private UiTextCacheEntry?[] _textCache = Array.Empty<UiTextCacheEntry?>();
-    private UiRichTextCacheEntry?[] _richTextCache = Array.Empty<UiRichTextCacheEntry?>();
-    private readonly FontInstanceId[] _singleFontFallback = new FontInstanceId[1];
     private readonly List<VisualVisit> _visualTraversal = new();
     private readonly List<Retained.UiNodeId> _visualChildOrder = new();
-    private int _textCacheCount;
     private uint _displayListVersion;
     private uint _displayListTreeVersion;
     private float2 _displayListViewport;
-    private UiLocalizationContext _localization = UiLocalizationContext.Invariant;
     private bool _hasDisplayList;
     private bool _disposed;
 
     internal UiVisualStage(
         Retained.UiRuntime runtime,
-        ITextService textService,
-        IUiFontResolver fontResolver,
+        UiTextLayoutCache textLayout,
         UiDisplayListStorage storage)
     {
         ArgumentNullException.ThrowIfNull(runtime);
-        ArgumentNullException.ThrowIfNull(textService);
-        ArgumentNullException.ThrowIfNull(fontResolver);
+        ArgumentNullException.ThrowIfNull(textLayout);
         ArgumentNullException.ThrowIfNull(storage);
         _runtime = runtime;
-        _textService = textService;
-        _fontResolver = fontResolver;
+        _textLayout = textLayout;
         _storage = storage;
     }
 
-    internal int TextCacheCount => _textCacheCount;
-
-    internal void SetLocalization(UiLocalizationContext localization)
-    {
-        var validated = localization.Validate();
-        if (_localization == validated)
-        {
-            return;
-        }
-
-        _localization = validated;
-        Array.Clear(_textCache);
-        _textCacheCount = 0;
-        _hasDisplayList = false;
-    }
 
     internal bool TryBuild(RetainedElement retainedRoot, out UiDisplayList displayList, out Diagnostic? diagnostic)
     {
@@ -104,7 +78,7 @@ internal sealed class UiVisualStage : IDisposable
             return false;
         }
 
-        PruneTextCache();
+        _textLayout.Prune(_runtime);
         _displayListVersion = retainedRoot.OutputVersion;
         _displayListTreeVersion = retainedRoot.TreeVersion;
         _displayListViewport = viewport;
@@ -121,46 +95,10 @@ internal sealed class UiVisualStage : IDisposable
         }
 
         _disposed = true;
-        foreach (var font in _fontInstances.Values)
-        {
-            _textService.CloseFont(font);
-        }
-
-        _fontInstances.Clear();
-        _fontSlots = Array.Empty<UiFontSlot>();
-        _textCache = Array.Empty<UiTextCacheEntry?>();
-        _richTextCache = Array.Empty<UiRichTextCacheEntry?>();
-        _textCacheCount = 0;
     }
 
     private UiDisplayList CurrentDisplayList() =>
         _storage.BorrowedView();
-
-    private void PruneTextCache()
-    {
-        for (var index = 1; index < _textCache.Length; index++)
-        {
-            var cache = _textCache[index];
-            var richCache = _richTextCache[index];
-            if (cache is null && richCache is null)
-            {
-                continue;
-            }
-
-            var generation = cache?.Generation ?? richCache?.Generation ?? 0;
-            var node = new Retained.UiNodeId((uint)index, generation);
-            if (!_runtime.TryGetNode(node, out _))
-            {
-                if (cache is not null)
-                {
-                    _textCache[index] = null;
-                    _textCacheCount--;
-                }
-
-                _richTextCache[index] = null;
-            }
-        }
-    }
 
     private bool TryUpdateVisuals(
         Retained.UiNodeId root,
@@ -369,7 +307,7 @@ internal sealed class UiVisualStage : IDisposable
             if ((current.Participation & UiParticipation.Rendering) != 0 && current is Retained.RichTextBlock richText)
             {
                 textIndex = _storage.TextCount;
-                if (!TryAppendRichText(richText, effective, clipId, out ownTextCount, out diagnostic))
+                if (!TryAppendRichText(richText, clipId, out ownTextCount, out diagnostic))
                 {
                     return false;
                 }
@@ -567,132 +505,22 @@ internal sealed class UiVisualStage : IDisposable
     }
 
     private bool TryBuildTextDraw(Retained.UiTextRun run, out UiTextDraw draw, out Diagnostic? diagnostic)
-    {
-        draw = default;
-        if (!TryResolveFont(run, out var font, out diagnostic))
-        {
-            return false;
-        }
-
-        var ownerIndex = checked((int)run.Owner.Value);
-        EnsureOwnerCapacity(ownerIndex);
-        var cache = _textCache[ownerIndex];
-        if (cache is null || !cache.Matches(run))
-        {
-            try
-            {
-                _singleFontFallback[0] = font;
-                var shaped = _textService.Shape(new TextShapeRequest(
-                    run.Text.AsMemory(),
-                    run.FontSize,
-                    _singleFontFallback,
-                    _localization.Direction,
-                    Language: _localization.Language));
-                cache = new UiTextCacheEntry(run, shaped);
-                if (_textCache[ownerIndex] is null)
-                {
-                    _textCacheCount++;
-                }
-
-                _textCache[ownerIndex] = cache;
-            }
-            catch (ArgumentException exception)
-            {
-                diagnostic = TextDiagnostic("XAML_TEXT_SHAPE_FAILED", exception.Message);
-                return false;
-            }
-            catch (NotSupportedException exception)
-            {
-                diagnostic = TextDiagnostic("XAML_TEXT_SHAPING_UNSUPPORTED", exception.Message);
-                return false;
-            }
-            catch (InvalidOperationException exception)
-            {
-                diagnostic = TextDiagnostic("XAML_TEXT_SHAPE_FAILED", exception.Message);
-                return false;
-            }
-        }
-
-        var bounds = ShapedBounds(cache.Shaped);
-        var textBounds = run.TextBounds.Width > 0 || run.TextBounds.Height > 0 ? run.TextBounds : run.Bounds;
-        var scale = run.LayoutScale > 0 ? run.LayoutScale : 1;
-        var baseline = new float2(textBounds.X - bounds.Left / scale, textBounds.Y - bounds.Top / scale);
-        var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
-        draw = UiTextDraw.WithPaint(
-            cache.Shaped,
-            baseline,
-            new UiTextPaint(
-                ToColor(run.Color),
-                ToColor(run.OutlineColor),
-                run.OutlineWidth,
-                new UiResourceId(run.TextEffectResource)),
-            clip);
-        diagnostic = null;
-        return true;
-    }
+        => _textLayout.TryBuildTextDraw(run, out draw, out diagnostic);
 
     private bool TryAppendRichText(
         Retained.RichTextBlock owner,
-        Retained.UiRect clipBounds,
         UiClipId clip,
         out int count,
         out Diagnostic? diagnostic)
     {
-        var ownerIndex = checked((int)owner.Id.Value);
-        EnsureOwnerCapacity(ownerIndex);
         var spans = owner.Spans.Span;
-        var direction = ResolveParagraphDirection(spans, _localization.Direction);
-        var cache = _richTextCache[ownerIndex];
-        if (cache is null || !cache.MatchesShaping(owner, spans, _localization, direction))
+        if (!_textLayout.TryGetRichTextLayout(owner, out var cache, out diagnostic))
         {
-            var shaped = new ShapedText[spans.Length];
-            var origins = new float2[spans.Length];
-            var bounds = new TextBounds[spans.Length];
-            for (var i = 0; i < spans.Length; i++)
-            {
-                var span = spans[i];
-                if (!TryResolveFontKey(span.FontKey, out var font, out diagnostic))
-                {
-                    count = 0;
-                    return false;
-                }
-
-                try
-                {
-                    _singleFontFallback[0] = font;
-                    shaped[i] = _textService.Shape(new TextShapeRequest(
-                        span.Text.AsMemory(),
-                        span.FontSize * owner.LayoutScale,
-                        _singleFontFallback,
-                        direction,
-                        Language: _localization.Language));
-                }
-                catch (ArgumentException exception)
-                {
-                    diagnostic = TextDiagnostic("XAML_RICH_TEXT_SHAPE_FAILED", exception.Message);
-                    count = 0;
-                    return false;
-                }
-                catch (InvalidOperationException exception)
-                {
-                    diagnostic = TextDiagnostic("XAML_RICH_TEXT_SHAPE_FAILED", exception.Message);
-                    count = 0;
-                    return false;
-                }
-                catch (NotSupportedException exception)
-                {
-                    diagnostic = TextDiagnostic("XAML_RICH_TEXT_SHAPING_UNSUPPORTED", exception.Message);
-                    count = 0;
-                    return false;
-                }
-
-                bounds[i] = ShapedBounds(shaped[i]);
-            }
-
-            LayoutRichRuns(shaped, bounds, origins, owner.Bounds.Width, direction);
-            cache = new(owner, spans, _localization, direction, shaped, origins, bounds);
-            _richTextCache[ownerIndex] = cache;
+            count = 0;
+            return false;
         }
+
+        cache.EnsureLayout(owner.Bounds.Width);
 
         EnsureCapacity(ref _storage.Text, _storage.TextCount + spans.Length);
         var hitCount = 0;
@@ -708,7 +536,7 @@ internal sealed class UiVisualStage : IDisposable
             if (spans[i].Link.IsValid)
             {
                 var shapedBounds = cache.Bounds[i];
-                var width = Advance(cache.Shaped[i], shapedBounds);
+                var width = UiTextLayoutCache.Advance(cache.Shaped[i], shapedBounds);
                 if (hits.Length <= hitCount)
                 {
                     Array.Resize(ref hits, Maths.Max(4, hitCount + 1));
@@ -733,209 +561,6 @@ internal sealed class UiVisualStage : IDisposable
         return true;
     }
 
-    private bool TryResolveFontKey(string fontKey, out FontInstanceId font, out Diagnostic? diagnostic)
-    {
-        if (_fontInstances.TryGetValue(fontKey, out font))
-        {
-            diagnostic = null;
-            return true;
-        }
-
-        if (!_fontResolver.TryResolve(fontKey, out var request))
-        {
-            diagnostic = TextDiagnostic("XAML_TEXT_FONT_NOT_FOUND", $"Font key '{fontKey}' was not registered.");
-            return false;
-        }
-
-        try
-        {
-            font = _textService.OpenFont(request);
-            _fontInstances.Add(fontKey, font);
-            diagnostic = null;
-            return true;
-        }
-        catch (ArgumentException exception)
-        {
-            diagnostic = TextDiagnostic("XAML_TEXT_FONT_OPEN_FAILED", exception.Message);
-            return false;
-        }
-        catch (InvalidOperationException exception)
-        {
-            diagnostic = TextDiagnostic("XAML_TEXT_FONT_OPEN_FAILED", exception.Message);
-            return false;
-        }
-    }
-
-    private bool TryResolveFont(Retained.UiTextRun run, out FontInstanceId font, out Diagnostic? diagnostic)
-    {
-        var ownerIndex = checked((int)run.Owner.Value);
-        EnsureOwnerCapacity(ownerIndex);
-        ref var slot = ref _fontSlots[ownerIndex];
-        if (slot.IsValid && slot.Generation == run.OwnerGeneration &&
-            string.Equals(slot.FontKey, run.FontKey, StringComparison.Ordinal))
-        {
-            font = slot.Font;
-            diagnostic = null;
-            return true;
-        }
-
-        if (!_fontInstances.TryGetValue(run.FontKey, out font))
-        {
-            if (!_fontResolver.TryResolve(run.FontKey, out var request))
-            {
-                diagnostic = TextDiagnostic("XAML_TEXT_FONT_NOT_FOUND", $"Font key '{run.FontKey}' was not registered.");
-                return false;
-            }
-
-            try
-            {
-                font = _textService.OpenFont(request);
-            }
-            catch (ArgumentException exception)
-            {
-                diagnostic = TextDiagnostic("XAML_TEXT_FONT_OPEN_FAILED", exception.Message);
-                return false;
-            }
-            catch (InvalidOperationException exception)
-            {
-                diagnostic = TextDiagnostic("XAML_TEXT_FONT_OPEN_FAILED", exception.Message);
-                return false;
-            }
-
-            _fontInstances.Add(run.FontKey, font);
-        }
-
-        slot = new UiFontSlot(run.OwnerGeneration, run.FontKey, font);
-        diagnostic = null;
-        return true;
-    }
-
-    private void EnsureOwnerCapacity(int ownerIndex)
-    {
-        if (ownerIndex < _fontSlots.Length)
-        {
-            return;
-        }
-
-        var length = Maths.Max(ownerIndex + 1, Maths.Max(8, _fontSlots.Length * 2));
-        Array.Resize(ref _fontSlots, length);
-        Array.Resize(ref _textCache, length);
-        Array.Resize(ref _richTextCache, length);
-    }
-
-    private static TextBounds ShapedBounds(ShapedText shaped)
-    {
-        var runs = shaped.Runs.Span;
-        if (runs.Length == 0)
-        {
-            return new TextBounds(0, 0, 0, 0);
-        }
-
-        var first = runs[0].Bounds;
-        var left = first.Left;
-        var top = first.Top;
-        var right = first.Right;
-        var bottom = first.Bottom;
-        for (var i = 1; i < runs.Length; i++)
-        {
-            var bounds = runs[i].Bounds;
-            left = Maths.Min(left, bounds.Left);
-            top = Maths.Min(top, bounds.Top);
-            right = Maths.Max(right, bounds.Right);
-            bottom = Maths.Max(bottom, bounds.Bottom);
-        }
-
-        return new TextBounds(left, top, right, bottom);
-    }
-
-    private static float Advance(ShapedText shaped, TextBounds bounds)
-    {
-        var runs = shaped.Runs.Span;
-        var advance = 0f;
-        for (var i = 0; i < runs.Length; i++)
-        {
-            advance += Maths.Abs(runs[i].AdvanceX);
-        }
-
-        return Maths.Max(bounds.Width, advance);
-    }
-
-    private static void LayoutRichRuns(
-        ShapedText[] shaped,
-        TextBounds[] bounds,
-        float2[] origins,
-        float availableWidth,
-        TextDirection direction)
-    {
-        var first = 0;
-        var lineWidth = 0f;
-        var lineTop = 0f;
-        for (var i = 0; i <= shaped.Length; i++)
-        {
-            var advance = i < shaped.Length ? Advance(shaped[i], bounds[i]) : 0;
-            var breakBefore = i == shaped.Length ||
-                (i > first && availableWidth > 0 && lineWidth + advance > availableWidth);
-            if (!breakBefore)
-            {
-                lineWidth += advance;
-                continue;
-            }
-
-            var ascent = 0f;
-            var descent = 0f;
-            for (var run = first; run < i; run++)
-            {
-                ascent = Maths.Max(ascent, Maths.Max(0, -bounds[run].Top));
-                descent = Maths.Max(descent, Maths.Max(0, bounds[run].Bottom));
-            }
-
-            var rightToLeft = direction == TextDirection.RightToLeft;
-            var cursor = rightToLeft && availableWidth > 0 ? availableWidth : 0;
-            for (var run = first; run < i; run++)
-            {
-                var runAdvance = Advance(shaped[run], bounds[run]);
-                var left = rightToLeft ? cursor - runAdvance : cursor;
-                origins[run] = new(left - bounds[run].Left, lineTop + ascent);
-                cursor += rightToLeft ? -runAdvance : runAdvance;
-            }
-
-            lineTop += Maths.Max(1, ascent + descent);
-            first = i;
-            lineWidth = advance;
-        }
-    }
-
-    private static TextDirection ResolveParagraphDirection(ReadOnlySpan<UiTextSpan> spans, TextDirection requested)
-    {
-        if (requested != TextDirection.Auto)
-        {
-            return requested;
-        }
-
-        for (var spanIndex = 0; spanIndex < spans.Length; spanIndex++)
-        {
-            var text = spans[spanIndex].Text;
-            for (var characterIndex = 0; characterIndex < text.Length; characterIndex++)
-            {
-                var character = text[characterIndex];
-                if (character is >= '\u0590' and <= '\u08FF')
-                {
-                    return TextDirection.RightToLeft;
-                }
-
-                if (char.IsLetter(character))
-                {
-                    return TextDirection.LeftToRight;
-                }
-            }
-        }
-
-        return TextDirection.LeftToRight;
-    }
-
-    private static Diagnostic TextDiagnostic(string code, string message) =>
-        new(new DiagnosticCode(code), DiagnosticSeverity.Error, message, null);
-
     private static Diagnostic NodeDiagnostic(Retained.UiNodeId node) =>
         new(new DiagnosticCode("XAML_NODE_STALE"), DiagnosticSeverity.Error, $"Visual node {node.Index}:{node.Generation} could not be resolved.", null);
 
@@ -955,118 +580,6 @@ internal sealed class UiVisualStage : IDisposable
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, nameof(UiVisualStage));
-    }
-
-    private readonly record struct UiFontSlot(uint Generation, string FontKey, FontInstanceId Font)
-    {
-        internal bool IsValid => Generation != 0 && Font.IsValid;
-    }
-
-    private sealed class UiTextCacheEntry
-    {
-        internal UiTextCacheEntry(Retained.UiTextRun run, ShapedText shaped)
-        {
-            Generation = run.OwnerGeneration;
-            GlyphRunKey = run.GlyphRunKey;
-            FontKey = run.FontKey;
-            Text = run.Text;
-            FontSize = run.FontSize;
-            Weight = run.Weight;
-            Style = run.Style;
-            Shaped = shaped;
-        }
-
-        internal uint Generation { get; }
-        internal string GlyphRunKey { get; }
-        internal string FontKey { get; }
-        internal string Text { get; }
-        internal float FontSize { get; }
-        internal Delta.XAML.UiFontWeight Weight { get; }
-        internal Delta.XAML.UiFontStyle Style { get; }
-        internal ShapedText Shaped { get; }
-
-        internal bool Matches(Retained.UiTextRun run) =>
-            Generation == run.OwnerGeneration &&
-            string.Equals(GlyphRunKey, run.GlyphRunKey, StringComparison.Ordinal) &&
-            string.Equals(FontKey, run.FontKey, StringComparison.Ordinal) &&
-            string.Equals(Text, run.Text, StringComparison.Ordinal) &&
-            FontSize.Equals(run.FontSize) &&
-            Weight == run.Weight &&
-            Style == run.Style;
-    }
-
-    private sealed class UiRichTextCacheEntry
-    {
-        private readonly uint _generation;
-        private readonly float _width;
-        private readonly float _scale;
-        private readonly TextDirection _direction;
-        private readonly string? _language;
-        private readonly string[] _text;
-        private readonly string[] _fontKeys;
-        private readonly float[] _fontSizes;
-
-        internal UiRichTextCacheEntry(
-            Retained.RichTextBlock owner,
-            ReadOnlySpan<UiTextSpan> spans,
-            UiLocalizationContext localization,
-            TextDirection direction,
-            ShapedText[] shaped,
-            float2[] origins,
-            TextBounds[] bounds)
-        {
-            _generation = owner.Generation;
-            _width = owner.Bounds.Width;
-            _scale = owner.LayoutScale;
-            _direction = direction;
-            _language = localization.Language;
-            _text = new string[spans.Length];
-            _fontKeys = new string[spans.Length];
-            _fontSizes = new float[spans.Length];
-            for (var i = 0; i < spans.Length; i++)
-            {
-                _text[i] = spans[i].Text;
-                _fontKeys[i] = spans[i].FontKey;
-                _fontSizes[i] = spans[i].FontSize;
-            }
-
-            Shaped = shaped;
-            Origins = origins;
-            Bounds = bounds;
-            HitRanges = Array.Empty<UiInlineHitRange>();
-        }
-
-        internal ShapedText[] Shaped { get; }
-        internal float2[] Origins { get; }
-        internal TextBounds[] Bounds { get; }
-        internal UiInlineHitRange[] HitRanges { get; set; }
-        internal uint Generation => _generation;
-
-        internal bool MatchesShaping(
-            Retained.RichTextBlock owner,
-            ReadOnlySpan<UiTextSpan> spans,
-            UiLocalizationContext localization,
-            TextDirection direction)
-        {
-            if (_generation != owner.Generation || !_width.Equals(owner.Bounds.Width) || !_scale.Equals(owner.LayoutScale) ||
-                _direction != direction || !string.Equals(_language, localization.Language, StringComparison.Ordinal) ||
-                _text.Length != spans.Length)
-            {
-                return false;
-            }
-
-            for (var i = 0; i < spans.Length; i++)
-            {
-                if (!string.Equals(_text[i], spans[i].Text, StringComparison.Ordinal) ||
-                    !string.Equals(_fontKeys[i], spans[i].FontKey, StringComparison.Ordinal) ||
-                    !_fontSizes[i].Equals(spans[i].FontSize))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
     }
 
     private readonly struct VisualVisit

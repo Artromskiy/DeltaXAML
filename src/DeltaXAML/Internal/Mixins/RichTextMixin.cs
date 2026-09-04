@@ -14,13 +14,21 @@ internal readonly struct RichTextLayoutMixin : IRichTextLayoutCapability<RichTex
 {
     public static void Measure(ref RichTextState state, in UiMeasureContext context)
     {
+        if (context.TextMetrics.IsValid)
+        {
+            state.DesiredSize = new(
+                Maths.Min(context.TextMetrics.Width, context.Available.Width),
+                Maths.Min(context.TextMetrics.Height, context.Available.Height));
+            return;
+        }
+
         var width = 0f;
         var height = 0f;
         for (var i = 0; i < state.Spans.Length; i++)
         {
             var span = state.Spans[i];
-            width += span.Text.Length * Maths.Max(1, span.FontSize * 0.55f);
-            height = Maths.Max(height, span.FontSize * 1.25f);
+            width += span.Text.Length * Maths.Max(1, span.FontSize * UiTextMeasureFallback.AverageGlyphWidthFactor);
+            height = Maths.Max(height, span.FontSize * UiTextMeasureFallback.LineHeightFactor);
         }
 
         state.DesiredSize = new(Maths.Min(width, context.Available.Width), Maths.Min(height, context.Available.Height));

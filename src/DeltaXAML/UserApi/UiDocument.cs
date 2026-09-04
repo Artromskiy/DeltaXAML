@@ -11,6 +11,7 @@ public sealed class UiDocument : IDisposable
     private readonly Retained.UiRuntime _runtime;
     private readonly UiTheme? _theme;
     private readonly UiDisplayListStorage _displayListStorage;
+    private readonly UiTextLayoutCache _textLayout;
     private readonly UiVisualStage _visuals;
     private readonly IUiImageMetadataResolver? _imageMetadataResolver;
     private readonly IUiGeneratedDocumentProgram? _program;
@@ -19,7 +20,7 @@ public sealed class UiDocument : IDisposable
     private bool _hasLayout;
     private bool _disposed;
 
-    internal int TextCacheCount => _visuals.TextCacheCount;
+    internal int TextCacheCount => _textLayout.TextCacheCount;
     internal UiDisplayListStorage DisplayListStorage => _displayListStorage;
 
     public UiDocument(UiElement root, ITextService textService)
@@ -49,7 +50,8 @@ public sealed class UiDocument : IDisposable
         _program = program;
         _runtime = new Retained.UiRuntime(root.RetainedElement);
         _displayListStorage = new UiDisplayListStorage();
-        _visuals = new UiVisualStage(_runtime, textService, resolvedFontResolver, _displayListStorage);
+        _textLayout = new UiTextLayoutCache(textService, resolvedFontResolver);
+        _visuals = new UiVisualStage(_runtime, _textLayout, _displayListStorage);
     }
 
     public UiElement Root { get; }
@@ -72,7 +74,7 @@ public sealed class UiDocument : IDisposable
 
             _localization = validated;
             Root.RetainedElement.InvalidateChanged(Retained.UiDirtyMask.Measure | Retained.UiDirtyMask.Text | Retained.UiDirtyMask.Visual);
-            _visuals.SetLocalization(validated);
+            _textLayout.SetLocalization(validated);
         }
     }
 
@@ -86,6 +88,7 @@ public sealed class UiDocument : IDisposable
         _disposed = true;
         _runtime.Dispose();
         _visuals.Dispose();
+        _textLayout.Dispose();
     }
 
     public void Dispatch(in UiInputEvent input)
@@ -143,7 +146,7 @@ public sealed class UiDocument : IDisposable
         Viewport = viewport;
         DpiScale = dpiScale;
         _displayListStorage.DpiScale = dpiScale;
-        _runtime.Layout(new(viewport.x, viewport.y), dpiScale, _theme, Root, _imageMetadataResolver, _program, this);
+        _runtime.Layout(new(viewport.x, viewport.y), dpiScale, _theme, Root, _imageMetadataResolver, _program, this, _textLayout);
         _hasLayout = true;
     }
 

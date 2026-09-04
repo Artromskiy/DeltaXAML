@@ -334,7 +334,8 @@ internal static class UiMeasureStage
         UiElement root,
         UiSize available,
         UiMeasureQueueBuffer queue,
-        List<UiNodeId> childOrder)
+        List<UiNodeId> childOrder,
+        Delta.XAML.UiTextLayoutCache? textLayout = null)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(root);
@@ -393,7 +394,7 @@ internal static class UiMeasureStage
             var request = queue[i];
             if (nodes.TryGetNode(request.Element, out var node) && node.Element is { } element)
             {
-                ExecuteMeasure(nodes, element, node.RuntimeType, request.Available, queue);
+                ExecuteMeasure(nodes, element, node.RuntimeType, request.Available, queue, textLayout);
             }
         }
     }
@@ -403,7 +404,8 @@ internal static class UiMeasureStage
         UiElement element,
         UiRuntimeTypeIndex runtimeType,
         UiSize available,
-        UiMeasureQueueBuffer requests)
+        UiMeasureQueueBuffer requests,
+        Delta.XAML.UiTextLayoutCache? textLayout)
     {
         if (element.CanSkipMeasure(available))
         {
@@ -417,7 +419,16 @@ internal static class UiMeasureStage
         }
 
         var children = nodes.GetLogicalChildren(new(element.Id.Value, element.Generation));
-        var measured = UiDescriptorCatalog.Measure(runtimeType, element, new(available, element.LayoutScale, children, true, requests, nodes));
+        var metrics = default(UiTextMeasureMetrics);
+        if (textLayout is not null)
+        {
+            textLayout.TryMeasureText(runtimeType, element, out metrics);
+        }
+
+        var measured = UiDescriptorCatalog.Measure(
+            runtimeType,
+            element,
+            new(available, element.LayoutScale, children, true, requests, nodes, metrics));
         UiSize desired = new(
             float.IsNaN(element.Width) ? measured.Width : element.Width,
             float.IsNaN(element.Height) ? measured.Height : element.Height);

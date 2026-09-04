@@ -32,8 +32,11 @@ internal readonly struct TextBlockMeasureMixin : IMeasureMixin<TextBlockState>
     public static void Measure(ref TextBlockState state, in UiMeasureContext context)
     {
         var size = state.Visual.FontSize;
-        var lineHeight = state.Layout.LineHeight > 0 ? state.Layout.LineHeight : size * 1.25f;
-        var naturalWidth = state.Text.Length * size * 0.55f;
+        var lineHeight = state.Layout.LineHeight > 0 ? state.Layout.LineHeight
+            : context.TextMetrics.IsValid ? context.TextMetrics.Height : size * UiTextMeasureFallback.LineHeightFactor;
+        var naturalWidth = context.TextMetrics.IsValid
+            ? context.TextMetrics.Width
+            : state.Text.Length * size * UiTextMeasureFallback.AverageGlyphWidthFactor;
         var availableWidth = Maths.Max(0, context.Available.Width);
         var lineCount = 1;
         if (state.Layout.Wrapping is not (Delta.XAML.UiTextWrapping.Unknown or Delta.XAML.UiTextWrapping.NoWrap) &&
