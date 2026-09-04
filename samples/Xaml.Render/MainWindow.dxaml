@@ -1,0 +1,24 @@
+<Grid xmlns:x="urn:delta-xaml" Width="1280" Height="860" Background="#0B0C0E" Rows="64,*">
+  <Border Grid.Row="0" Background="#141517" BorderColor="#303238" BorderWidth="1" Padding="24,0,24,0">
+    <TextBlock Text="DeltaXAML Render Runner" Foreground="#E8E9EB" FontSize="24" FontWeight="Bold" />
+  </Border>
+  <Grid Grid.Row="1" Rows="*,Auto" Columns="*,*" Fill="true">
+    <Border Grid.Column="0" Background="#18191C" BorderColor="#484B53" BorderWidth="1" CornerRadius="12" Padding="24,24,24,24">
+      <StackPanel>
+        <TextBlock Text="Compiled XAML" Foreground="#FF8A00" FontSize="14" FontWeight="Bold" />
+        <TextBlock Text="One retained document, one canonical display list" Foreground="#E8E9EB" FontSize="22" />
+        <TextBlock Text="DeltaXAML owns layout and neutral text; the renderer owns shaders and GPU resources." Foreground="#B9BBC1" FontSize="13" />
+      </StackPanel>
+    </Border>
+    <Border Grid.Column="1" Background="#141517" BorderColor="#303238" BorderWidth="1" CornerRadius="12" Padding="24,24,24,24">
+      <StackPanel>
+        <TextBlock Text="Shader-backed visuals" Foreground="#28B98E" FontSize="14" FontWeight="Bold" />
+        <Border Background="#2878D0" BorderColor="#D9EEFF" BorderWidth="2" CornerRadius="28" Width="220" Height="140" />
+        <TextBlock Text="Rounded rectangle + SDF text path" Foreground="#B9BBC1" FontSize="13" />
+      </StackPanel>
+    </Border>
+    <Border Grid.Row="1" Grid.ColumnSpan="2" Background="#101113" BorderColor="#303238" BorderWidth="1" Padding="24,14,24,14">
+      <TextBlock Text="Windowed by default · --headless for offscreen validation · --frames N for bounded runs" Foreground="#7C7F87" FontSize="12" />
+    </Border>
+  </Grid>
+</Grid>

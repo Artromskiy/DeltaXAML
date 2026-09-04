@@ -1,0 +1,317 @@
+<Grid xmlns:x="urn:delta-xaml" Rows="38,*" Fill="true">
+  <Resource x:Key="UiBackground" Type="Color" Value="#0B0C0E" />
+  <Resource x:Key="Surface" Type="Color" Value="#141517" />
+  <Resource x:Key="SurfaceRaised" Type="Color" Value="#18191C" />
+  <Resource x:Key="SurfaceHover" Type="Color" Value="#222428" />
+  <Resource x:Key="Input" Type="Color" Value="#101113" />
+  <Resource x:Key="Border" Type="Color" Value="#303238" />
+  <Resource x:Key="BorderStrong" Type="Color" Value="#484B53" />
+  <Resource x:Key="Text" Type="Color" Value="#E8E9EB" />
+  <Resource x:Key="TextSecondary" Type="Color" Value="#B9BBC1" />
+  <Resource x:Key="TextMuted" Type="Color" Value="#7C7F87" />
+  <Resource x:Key="Accent" Type="Color" Value="#FF8A00" />
+  <Resource x:Key="AccentRed" Type="Color" Value="#FF4B31" />
+  <Resource x:Key="AccentViolet" Type="Color" Value="#7929D8" />
+  <Resource x:Key="AccentBlue" Type="Color" Value="#3787E8" />
+  <Resource x:Key="AccentCyan" Type="Color" Value="#28A8BD" />
+  <Resource x:Key="AccentGreen" Type="Color" Value="#28B98E" />
+  <Resource x:Key="Warning" Type="Color" Value="#FF9408" />
+
+  <Style x:Key="Card" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+    <Setter Property="BorderColor" Value="{DynamicResource Border}" />
+    <Setter Property="BorderWidth" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="12,12,12,12" />
+  </Style>
+  <Style x:Key="SectionTitle" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="Bold" />
+  </Style>
+  <Style x:Key="BodyText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+  <Style x:Key="MutedText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+    <Setter Property="FontSize" Value="10" />
+  </Style>
+  <Style x:Key="Input" TargetType="TextBox">
+    <Setter Property="Background" Value="{DynamicResource Input}" />
+    <Setter Property="BorderColor" Value="{DynamicResource Border}" />
+    <Setter Property="BorderWidth" Value="1" />
+    <Setter Property="Padding" Value="8,6,8,6" />
+    <Setter Property="Foreground" Value="{DynamicResource Text}" />
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+  <Style x:Key="Button" TargetType="Button">
+    <Setter Property="Background" Value="{DynamicResource SurfaceRaised}" />
+    <Setter Property="BorderColor" Value="{DynamicResource Border}" />
+    <Setter Property="BorderWidth" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="10,6,10,6" />
+  </Style>
+  <Style x:Key="PrimaryButton" TargetType="Button">
+    <Setter Property="Background" Value="{DynamicResource AccentViolet}" />
+    <Setter Property="BorderColor" Value="{DynamicResource AccentBlue}" />
+    <Setter Property="BorderWidth" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="10,6,10,6" />
+  </Style>
+
+  <Border Grid.Row="0" Background="{DynamicResource Surface}" BorderColor="{DynamicResource Border}" BorderWidth="1" Padding="10,0,10,0">
+    <Grid Columns="Auto,*,Auto" Rows="Auto" Fill="true">
+      <TextBlock Text="YAGE" Foreground="{DynamicResource Accent}" FontSize="14" FontWeight="Bold" />
+      <TextBlock Grid.Column="0" Text="  Editor" Foreground="{DynamicResource TextMuted}" FontSize="12" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal">
+        <Button StyleKey="Button"><TextBlock Text="File" Foreground="{DynamicResource TextSecondary}" /></Button>
+        <Button StyleKey="Button"><TextBlock Text="Edit" Foreground="{DynamicResource TextSecondary}" /></Button>
+        <Button StyleKey="Button"><TextBlock Text="View" Foreground="{DynamicResource TextSecondary}" /></Button>
+        <Button StyleKey="Button"><TextBlock Text="Window" Foreground="{DynamicResource TextSecondary}" /></Button>
+        <Button StyleKey="Button"><TextBlock Text="Help" Foreground="{DynamicResource TextSecondary}" /></Button>
+      </StackPanel>
+      <TextBlock Grid.Column="2" Text="DESIGN SYSTEM" Foreground="{DynamicResource TextMuted}" FontSize="10" />
+    </Grid>
+  </Border>
+
+  <ScrollViewer Grid.Row="1" Background="{DynamicResource UiBackground}" Fill="true">
+    <StackPanel Width="1280" Orientation="Vertical" Fill="true">
+      <Border Padding="2,20,2,16">
+        <Grid Columns="*,Auto" Rows="Auto">
+          <StackPanel>
+            <TextBlock Text="EDITOR DESIGN SYSTEM" StyleKey="SectionTitle" />
+            <TextBlock Text="UI Controls" Foreground="{DynamicResource Text}" FontSize="28" FontWeight="Bold" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal">
+            <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource Border}" BorderWidth="1" CornerRadius="4" Padding="8,5,8,5">
+              <TextBlock Text="Inter UI" StyleKey="MutedText" />
+            </Border>
+            <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource AccentViolet}" BorderWidth="1" CornerRadius="4" Padding="8,5,8,5">
+              <TextBlock Text="Typed XAML" Foreground="{DynamicResource TextSecondary}" FontSize="10" />
+            </Border>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid Columns="*,*,*,*" Rows="Auto,Auto,Auto,Auto,Auto,Auto">
+        <Border Grid.Row="0" Grid.Column="0" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="TABS" StyleKey="SectionTitle" />
+            <Border Background="{DynamicResource Input}" BorderColor="{DynamicResource Border}" BorderWidth="1" CornerRadius="4" Padding="4,4,4,4">
+              <StackPanel Orientation="Horizontal">
+                <Button StyleKey="PrimaryButton"><TextBlock Text="Game" Foreground="#FFFFFF" /></Button>
+                <Button StyleKey="Button"><TextBlock Text="Scene" StyleKey="MutedText" /></Button>
+                <Button StyleKey="Button"><TextBlock Text="Entities" StyleKey="MutedText" /></Button>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="0" Grid.Column="1" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="RENDERER PREVIEW" StyleKey="SectionTitle" />
+            <Border Height="110" Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource Border}" BorderWidth="1" Padding="10,10,10,10">
+              <Grid Columns="*,*" Rows="*,*">
+                <Border Width="28" Height="28" Background="{DynamicResource Accent}" CornerRadius="4" />
+                <Border Grid.Column="1" Width="28" Height="28" Background="{DynamicResource AccentRed}" CornerRadius="4" />
+                <Border Grid.Row="1" Width="28" Height="28" Background="{DynamicResource AccentViolet}" CornerRadius="4" />
+                <Border Grid.Row="1" Grid.Column="1" Width="28" Height="28" Background="{DynamicResource AccentBlue}" CornerRadius="4" />
+              </Grid>
+            </Border>
+            <TextBlock Text="Entity transforms rendered as retained visual nodes" StyleKey="MutedText" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="0" Grid.Column="2" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="BUTTONS" StyleKey="SectionTitle" />
+            <StackPanel Orientation="Horizontal">
+              <Button StyleKey="PrimaryButton"><TextBlock Text="Primary" Foreground="#FFFFFF" /></Button>
+              <Button StyleKey="Button"><TextBlock Text="Secondary" StyleKey="BodyText" /></Button>
+              <Button StyleKey="Button" IsEnabled="False"><TextBlock Text="Disabled" StyleKey="MutedText" /></Button>
+            </StackPanel>
+            <Button StyleKey="Button"><TextBlock Text="Small active action" Foreground="{DynamicResource Accent}" FontSize="10" /></Button>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="0" Grid.Column="3" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="PANEL MENUS" StyleKey="SectionTitle" />
+            <StackPanel Orientation="Horizontal">
+              <Button StyleKey="Button"><TextBlock Text="□" StyleKey="BodyText" /></Button>
+              <Button StyleKey="Button"><TextBlock Text="+ Create" StyleKey="BodyText" /></Button>
+              <Button StyleKey="Button"><TextBlock Text="+ Add Component" StyleKey="BodyText" /></Button>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="PANEL TOOLBAR" StyleKey="SectionTitle" />
+            <Border Background="{DynamicResource Input}" BorderColor="{DynamicResource Border}" BorderWidth="1" CornerRadius="4" Padding="5,5,5,5">
+              <StackPanel Orientation="Horizontal">
+                <Button StyleKey="Button"><TextBlock Text="+ Create" StyleKey="BodyText" /></Button>
+                <Button StyleKey="Button"><TextBlock Text="Filter" StyleKey="BodyText" /></Button>
+                <Button StyleKey="Button"><TextBlock Text="⋯" StyleKey="BodyText" /></Button>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Grid.Column="0" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="INPUTS" StyleKey="SectionTitle" />
+            <TextBlock Text="Text Input" StyleKey="MutedText" />
+            <TextBox StyleKey="Input" Text="PlayerController" />
+            <TextBlock Text="Dropdown" StyleKey="MutedText" />
+            <Button StyleKey="Button"><TextBlock Text="Web (Single HTML)" StyleKey="BodyText" /></Button>
+            <TextBlock Text="Numeric" StyleKey="MutedText" />
+            <TextBox StyleKey="Input" Text="5" />
+            <TextBlock Text="Search controls..." StyleKey="MutedText" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Grid.Column="1" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="SELECTION" StyleKey="SectionTitle" />
+            <ToggleButton IsSelected="true"><TextBlock Text="✓  Checkbox" StyleKey="BodyText" /></ToggleButton>
+            <ToggleButton><TextBlock Text="○  Unchecked" StyleKey="BodyText" /></ToggleButton>
+            <ToggleButton IsSelected="true"><TextBlock Text="●  Toggle On" Foreground="{DynamicResource AccentCyan}" FontSize="11" /></ToggleButton>
+            <Slider Minimum="0" Maximum="100" Value="75" />
+            <TextBlock Text="Slider                                      75" StyleKey="MutedText" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Grid.Column="2" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="INSPECTOR COMPONENT" StyleKey="SectionTitle" />
+            <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource Border}" BorderWidth="1" Padding="8,8,8,8">
+              <StackPanel>
+                <TextBlock Text="▼  Transform" Foreground="{DynamicResource Text}" FontSize="14" FontWeight="Bold" />
+                <TextBlock Text="Position X" StyleKey="MutedText" />
+                <TextBox StyleKey="Input" Text="1.250" />
+                <TextBlock Text="Rotation Y" StyleKey="MutedText" />
+                <TextBox StyleKey="Input" Text="90.00" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Grid.Column="3" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="PROJECT ASSETS" StyleKey="SectionTitle" />
+            <Border Background="{DynamicResource SurfaceHover}" BorderColor="{DynamicResource AccentViolet}" BorderWidth="1" Padding="8,7,8,7">
+              <TextBlock Text="◉  player.glb                 Model" Foreground="{DynamicResource Accent}" FontSize="10" />
+            </Border>
+            <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource Border}" BorderWidth="1" Padding="8,7,8,7">
+              <TextBlock Text="▤  ground.png            Texture" StyleKey="MutedText" />
+            </Border>
+            <TextBlock Text="No preview selected" StyleKey="MutedText" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Grid.Column="0" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="ICONS" StyleKey="SectionTitle" />
+            <Grid Columns="Auto,Auto,Auto,Auto,Auto,Auto" Rows="Auto,Auto">
+              <Button StyleKey="Button"><TextBlock Text="▶" StyleKey="BodyText" /></Button>
+              <Button Grid.Column="1" StyleKey="Button"><TextBlock Text="■" StyleKey="BodyText" /></Button>
+              <Button Grid.Column="2" StyleKey="Button"><TextBlock Text="+" StyleKey="BodyText" /></Button>
+              <Button Grid.Column="3" StyleKey="Button"><TextBlock Text="□" StyleKey="BodyText" /></Button>
+              <Button Grid.Column="4" StyleKey="Button"><TextBlock Text="⚙" StyleKey="BodyText" /></Button>
+              <Button Grid.Column="5" StyleKey="Button"><TextBlock Text="⋯" StyleKey="BodyText" /></Button>
+              <Button Grid.Row="1" StyleKey="Button"><TextBlock Text="▦" StyleKey="BodyText" /></Button>
+              <Button Grid.Row="1" Grid.Column="1" StyleKey="Button"><TextBlock Text="◫" StyleKey="BodyText" /></Button>
+              <Button Grid.Row="1" Grid.Column="2" StyleKey="Button"><TextBlock Text="▱" StyleKey="BodyText" /></Button>
+              <Button Grid.Row="1" Grid.Column="3" StyleKey="Button"><TextBlock Text="↗" StyleKey="BodyText" /></Button>
+              <Button Grid.Row="1" Grid.Column="4" StyleKey="Button"><TextBlock Text="⌕" StyleKey="BodyText" /></Button>
+              <Button Grid.Row="1" Grid.Column="5" StyleKey="Button"><TextBlock Text="⌁" StyleKey="BodyText" /></Button>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Grid.Column="1" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="BADGES AND STATUS" StyleKey="SectionTitle" />
+            <StackPanel Orientation="Horizontal">
+              <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource Border}" BorderWidth="1" CornerRadius="4" Padding="6,4,6,4"><TextBlock Text="v1.0.0" StyleKey="MutedText" /></Border>
+              <Border Background="{DynamicResource AccentViolet}" CornerRadius="4" Padding="6,4,6,4"><TextBlock Text="Active" Foreground="#FFFFFF" FontSize="10" /></Border>
+              <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource AccentCyan}" BorderWidth="1" CornerRadius="4" Padding="6,4,6,4"><TextBlock Text="Web" Foreground="{DynamicResource AccentCyan}" FontSize="10" /></Border>
+            </StackPanel>
+            <TextBlock Text="●  Success" Foreground="{DynamicResource AccentGreen}" FontSize="10" />
+            <TextBlock Text="●  Warning" Foreground="{DynamicResource Warning}" FontSize="10" />
+            <TextBlock Text="●  Error" Foreground="{DynamicResource AccentRed}" FontSize="10" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Grid.Column="2" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="NODE MARKERS" StyleKey="SectionTitle" />
+            <StackPanel Orientation="Horizontal">
+              <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource Border}" BorderWidth="1" CornerRadius="4" Padding="6,4,6,4"><TextBlock Text="● Dot" StyleKey="BodyText" /></Border>
+              <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource Border}" BorderWidth="1" CornerRadius="4" Padding="6,4,6,4"><TextBlock Text="○ Collapsed" StyleKey="BodyText" /></Border>
+              <Border Background="{DynamicResource SurfaceRaised}" BorderColor="{DynamicResource AccentBlue}" BorderWidth="1" CornerRadius="4" Padding="6,4,6,4"><TextBlock Text="▼ Expanded" StyleKey="BodyText" /></Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Grid.Column="3" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="LIST AND TREE" StyleKey="SectionTitle" />
+            <TextBlock Text="⌄  ◉  Root" StyleKey="BodyText" />
+            <TextBlock Text="  ⌄  ◉  Player" StyleKey="BodyText" />
+            <Border Background="{DynamicResource AccentViolet}" CornerRadius="3" Padding="6,4,6,4"><TextBlock Text="      Model" Foreground="#FFFFFF" FontSize="10" /></Border>
+            <TextBlock Text="      ◉  Collider" StyleKey="MutedText" />
+            <TextBlock Text="No matching items" StyleKey="MutedText" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="4" Grid.Column="0" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="SEMANTIC COLORS" StyleKey="SectionTitle" />
+            <Grid Columns="32,32,32,32,32" Rows="Auto,Auto">
+              <Border Width="32" Height="22" Background="{DynamicResource AccentGreen}" CornerRadius="3" />
+              <Border Grid.Column="1" Width="32" Height="22" Background="{DynamicResource Warning}" CornerRadius="3" />
+              <Border Grid.Column="2" Width="32" Height="22" Background="{DynamicResource AccentRed}" CornerRadius="3" />
+              <Border Grid.Column="3" Width="32" Height="22" Background="{DynamicResource AccentBlue}" CornerRadius="3" />
+              <Border Grid.Column="4" Width="32" Height="22" Background="{DynamicResource AccentCyan}" CornerRadius="3" />
+              <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Text="Success   Warning   Error   Info   Neutral" StyleKey="MutedText" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="4" Grid.Column="1" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="COLOR STYLES" StyleKey="SectionTitle" />
+            <Border Background="{DynamicResource SurfaceHover}" BorderColor="{DynamicResource Accent}" BorderWidth="1" CornerRadius="4" Padding="8,6,8,6"><TextBlock Text="Spectrum text" Foreground="{DynamicResource Accent}" FontWeight="Bold" FontSize="12" /></Border>
+            <Border Background="{DynamicResource AccentViolet}" CornerRadius="4" Padding="8,6,8,6"><TextBlock Text="Spectrum background" Foreground="#FFFFFF" FontSize="11" /></Border>
+            <TextBlock Text="●  Spectrum text" Foreground="{DynamicResource AccentRed}" FontSize="10" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Row="4" Grid.Column="2" Grid.ColumnSpan="2" StyleKey="Card">
+          <StackPanel>
+            <TextBlock Text="TYPOGRAPHY" StyleKey="SectionTitle" />
+            <Grid Columns="*,*,*" Rows="Auto">
+              <Border BorderColor="{DynamicResource Border}" BorderWidth="1" Padding="8,8,8,8"><TextBlock Text="Inter  Interface labels and panel chrome" StyleKey="BodyText" /></Border>
+              <Border Grid.Column="1" BorderColor="{DynamicResource Border}" BorderWidth="1" Padding="8,8,8,8"><TextBlock Text="const fps = 60;" Foreground="{DynamicResource AccentGreen}" FontSize="10" /></Border>
+              <StackPanel Grid.Column="2">
+                <Border Height="12" Background="{DynamicResource Accent}" CornerRadius="3" />
+                <Border Height="12" Background="{DynamicResource AccentViolet}" CornerRadius="3" />
+                <Border Height="12" Background="{DynamicResource AccentCyan}" CornerRadius="3" />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Background="{DynamicResource Surface}" BorderColor="{DynamicResource Border}" BorderWidth="1" CornerRadius="4" Padding="10,8,10,8">
+        <Grid Columns="Auto,*" Rows="Auto">
+          <TextBlock Text="Interaction" StyleKey="MutedText" />
+          <TextBlock Grid.Column="1" Text="Static sample — controls intentionally have no application logic" StyleKey="MutedText" />
+        </Grid>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</Grid>

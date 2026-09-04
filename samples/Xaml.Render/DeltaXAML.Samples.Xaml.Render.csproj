@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DeltaXaml.Samples.Xaml.Render</RootNamespace>
+    <AssemblyName>DeltaXAML.Samples.Xaml.Render</AssemblyName>
+    <RuntimeIdentifiers>osx-arm64;win-x64;linux-x64</RuntimeIdentifiers>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Keep public producer dependencies as PackageReference. The workspace
+      NuGet workflow supplies local packages first; CI resolves the same IDs
+      from NuGet.org without changing this sample project.
+    -->
+    <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
+    <PackageReference Include="DeltaMaths" Version="*" />
+    <PackageReference Include="DeltaText" Version="*" />
+    <PackageReference Include="DeltaXAML" Version="*" />
+    <PackageReference Include="DeltaXAML.Contract" Version="*" />
+    <ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.Generator.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.Compiler.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.Contract.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/Delta.Diagnostics.Contract.dll" />
+    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaMaths.dll" />
+    <PackageReference Include="DeltaRender" Version="*" />
+    <PackageReference Include="DeltaRender.Platform.SDL3" Version="*" />
+    <PackageReference Include="DeltaRender.Vulkan" Version="*" />
+    <PackageReference Include="DeltaShader.Contract" Version="*" />
+
+    <!-- These adapters are not published packages in the current producer workflow. -->
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Text/DeltaRender.Text.csproj" />
+    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.XAML/DeltaRender.XAML.csproj" />
+    <ProjectReference Include="../../../DeltaShader/src/DeltaShader.UI/DeltaShader.UI.csproj">
+      <AdditionalProperties>DeltaShaderPublishPath=$(TargetDir)DeltaShader\DeltaShader.UI\</AdditionalProperties>
+    </ProjectReference>
+    <ProjectReference Include="../../../DeltaShader/src/DeltaShader.Text/DeltaShader.Text.csproj">
+      <AdditionalProperties>DeltaShaderPublishPath=$(TargetDir)DeltaShader\DeltaShader.Text\</AdditionalProperties>
+    </ProjectReference>
+
+    <!-- 3.4.12.6 matches the compiler supported by the current SDK. -->
+    <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
+    <PackageReference Include="Silk.NET.MoltenVK.Native" Version="*" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace" />
+    <AdditionalFiles Include="MainWindow.dxaml"
+                     DeltaXamlClassName="MainWindowArtifact"
+                     DeltaXamlNamespace="DeltaXaml.Samples.Xaml.Render.Generated" />
+    <AdditionalFiles Include="../YageUiLibrary/MainWindow.dxaml"
+                     DeltaXamlClassName="YageArtifact"
+                     DeltaXamlNamespace="DeltaXaml.Samples.Xaml.Render.Generated" />
+    <AdditionalFiles Include="../RoundedRectangle.Render/RoundedRectangle.dxaml"
+                     DeltaXamlClassName="RoundedRectangleArtifact"
+                     DeltaXamlNamespace="DeltaXaml.Samples.Xaml.Render.Generated" />
+    <AdditionalFiles Include="../RoundedRectangle.Render/GridTwoRows.dxaml"
+                     DeltaXamlClassName="GridTwoRowsArtifact"
+                     DeltaXamlNamespace="DeltaXaml.Samples.Xaml.Render.Generated" />
+    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
+          Link="Assets/NotoSans-Regular.ttf"
+          CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
+             Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
+      <Link>libMoltenVK.dylib</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/MoltenVK_icd.json"
+             Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
+      <Link>MoltenVK_icd.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>
