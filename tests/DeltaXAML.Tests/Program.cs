@@ -1318,6 +1318,7 @@ internal static partial class Program
         var text = new TextBlock { Text = "dpi" };
         var runtime = new UiRuntime(text);
         runtime.Layout(new(100, 40), 1);
+        var firstDesiredSize = text.DesiredSize;
         Assert.True(
             UiDescriptorCatalog.TryGetTextRun(
                 new UiRuntimeTypeIndex(1),
@@ -1328,6 +1329,7 @@ internal static partial class Program
         var firstLayoutVersion = text.LayoutVersion;
 
         runtime.Layout(new(100, 40), 2);
+        Assert.Equal(firstDesiredSize, text.DesiredSize, "DPI keeps retained text measurement in logical units");
         Assert.True(
             UiDescriptorCatalog.TryGetTextRun(
                 new UiRuntimeTypeIndex(1),
@@ -1371,6 +1373,48 @@ internal static partial class Program
         dpiDocument.Layout(new(100, 40), 2);
         _ = dpiDocument.BuildDisplayList();
         Assert.Equal(2, shaping.ShapeCount, "unchanged DPI preserves the shaped-text cache");
+
+        var centered = new TextBlock
+        {
+            Text = "Delta",
+            FontSize = 48,
+            Width = 300,
+            Height = 150,
+            HorizontalTextAlignment = Library.UiTextHorizontalAlignment.Center,
+            VerticalTextAlignment = Library.UiTextVerticalAlignment.Center,
+        };
+        var centeredRuntime = new UiRuntime(centered);
+        centeredRuntime.Layout(new(300, 150), 2);
+        Assert.True(
+            UiDescriptorCatalog.TryGetTextRun(
+                new UiRuntimeTypeIndex(1),
+                centered,
+                new(centered.Id, centered.Generation, centered.LayoutScale, centered.TextRunVersion),
+                out var centeredRun),
+            "DPI centering fixture emits a text run");
+        Assert.Equal(new UiRect(84, 45, 132, 60), centeredRun.TextBounds, "DPI centering uses logical text bounds");
+
+        using var centeredDocument = new Library.UiDocument(
+            new Library.UiTextBlock
+            {
+                Text = "Delta",
+                FontSize = 48,
+                Width = 300,
+                Height = 150,
+                HorizontalTextAlignment = Library.UiTextHorizontalAlignment.Center,
+                VerticalTextAlignment = Library.UiTextVerticalAlignment.Center,
+            },
+            shaping,
+            fonts);
+        centeredDocument.Layout(new(300, 150), 2);
+        var centeredDisplayList = centeredDocument.BuildDisplayList();
+        Assert.Equal(1, centeredDisplayList.Text.Length, "DPI centering reaches the display list");
+        var centeredDraw = centeredDisplayList.Text[0];
+        var shapedBounds = centeredDraw.Text.Runs.Span[0].Bounds;
+        Assert.Equal(
+            new Delta.float2(84 - shapedBounds.Left / 2, 45 - shapedBounds.Top / 2),
+            centeredDraw.BaselineOrigin,
+            "DPI conversion preserves the centered logical baseline");
     }
 
     private static void TextVersionTracksTextInputsOnly()

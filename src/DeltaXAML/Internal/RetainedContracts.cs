@@ -247,6 +247,7 @@ internal readonly record struct UiTextRun(
     internal Delta.XAML.UiTextTrimming Trimming { get; init; }
     internal int MaxLines { get; init; }
     internal float LineHeight { get; init; }
+    internal float LayoutScale { get; init; } = 1f;
     internal Delta.XAML.UiFontWeight Weight { get; init; }
     internal Delta.XAML.UiFontStyle Style { get; init; }
     internal Delta.XAML.UiTextDecorations Decorations { get; init; }

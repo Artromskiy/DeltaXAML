@@ -19,8 +19,8 @@ internal readonly struct RichTextLayoutMixin : IRichTextLayoutCapability<RichTex
         for (var i = 0; i < state.Spans.Length; i++)
         {
             var span = state.Spans[i];
-            width += span.Text.Length * Maths.Max(1, span.FontSize * context.DpiScale * 0.55f);
-            height = Maths.Max(height, span.FontSize * context.DpiScale * 1.25f);
+            width += span.Text.Length * Maths.Max(1, span.FontSize * 0.55f);
+            height = Maths.Max(height, span.FontSize * 1.25f);
         }
 
         state.DesiredSize = new(Maths.Min(width, context.Available.Width), Maths.Min(height, context.Available.Height));

@@ -12,8 +12,8 @@
 
   <ItemGroup>
     <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
-    <PackageReference Include="DeltaMaths" Version="0.0.10.6046" />
-    <PackageReference Include="DeltaText" Version="0.0.7.6914" />
+    <PackageReference Include="DeltaMaths" Version="*" />
+    <PackageReference Include="DeltaText" Version="*" />
     <PackageReference Include="DeltaRender" Version="*" />
     <PackageReference Include="DeltaRender.Platform.SDL3" Version="*" />
     <PackageReference Include="DeltaRender.Vulkan" Version="*" />

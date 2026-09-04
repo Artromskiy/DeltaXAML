@@ -31,9 +31,8 @@ internal readonly struct TextBlockMeasureMixin : IMeasureMixin<TextBlockState>
 {
     public static void Measure(ref TextBlockState state, in UiMeasureContext context)
     {
-        var scale = context.DpiScale > 0 ? context.DpiScale : 1;
-        var size = state.Visual.FontSize * scale;
-        var lineHeight = state.Layout.LineHeight > 0 ? state.Layout.LineHeight * scale : size * 1.25f;
+        var size = state.Visual.FontSize;
+        var lineHeight = state.Layout.LineHeight > 0 ? state.Layout.LineHeight : size * 1.25f;
         var naturalWidth = state.Text.Length * size * 0.55f;
         var availableWidth = Maths.Max(0, context.Available.Width);
         var lineCount = 1;
@@ -112,6 +111,7 @@ internal readonly struct TextBlockVisualMixin : IVisualMixin<TextBlockState>
             state.Visual.TextEffectResource)
         {
             TextBounds = state.Layout.TextBounds,
+            LayoutScale = context.LayoutScale,
             HorizontalAlignment = state.Layout.HorizontalAlignment,
             VerticalAlignment = state.Layout.VerticalAlignment,
             Wrapping = state.Layout.Wrapping,

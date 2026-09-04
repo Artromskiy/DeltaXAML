@@ -615,7 +615,8 @@ internal sealed class UiVisualStage : IDisposable
 
         var bounds = ShapedBounds(cache.Shaped);
         var textBounds = run.TextBounds.Width > 0 || run.TextBounds.Height > 0 ? run.TextBounds : run.Bounds;
-        var baseline = new float2(textBounds.X - bounds.Left, textBounds.Y - bounds.Top);
+        var scale = run.LayoutScale > 0 ? run.LayoutScale : 1;
+        var baseline = new float2(textBounds.X - bounds.Left / scale, textBounds.Y - bounds.Top / scale);
         var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
         draw = UiTextDraw.WithPaint(
             cache.Shaped,

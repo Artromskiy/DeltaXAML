@@ -158,8 +158,7 @@ internal sealed class UiRuntime
             _scaledTreeVersion = _retainedRoot.TreeVersion;
         }
         UiImageMetadataStage.Run(imageMetadataResolver, _nodes, _retainedRoot, _stageTraversal, _childOrder);
-        var scaled = new UiSize(viewport.Width * dpiScale, viewport.Height * dpiScale);
-        UiMeasureStage.Run(_nodes, _retainedRoot, scaled, _measureQueue, _childOrder);
+        UiMeasureStage.Run(_nodes, _retainedRoot, viewport, _measureQueue, _childOrder);
         UiArrangeStage.Run(_nodes, _retainedRoot, new(0, 0, viewport.Width, viewport.Height), _arrangeQueue);
         UiFocusStage.Run(_input);
     }
