@@ -130,7 +130,7 @@ public static class UiElementProperties
         new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);
 }
 
-/// <summary>Typed text properties for <see cref="TextBlock"/> and text editors.</summary>
+/// <summary>Typed text properties for <see cref="UiTextBlock"/> and text editors.</summary>
 public static class TextBlockProperties
 {
     public static UiProperty<string> Text { get; } = Create("20000000-0000-4000-8000-000000000001", "Text", string.Empty);
@@ -154,7 +154,7 @@ public static class TextBlockProperties
         new(new UiPropertyId(Guid.Parse(id)), name, defaultValue);
 }
 
-/// <summary>Typed editor-only text properties shared by <see cref="TextBox"/> and <see cref="UiNumericEditor"/>.</summary>
+/// <summary>Typed editor-only text properties shared by <see cref="UiTextBox"/> and <see cref="UiNumericEditor"/>.</summary>
 public static class TextBoxProperties
 {
     public static UiProperty<string> PlaceholderText { get; } = Create("21000000-0000-4000-8000-000000000001", "PlaceholderText", string.Empty);

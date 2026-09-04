@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Delta;
 using Delta.Render;
 using Delta.Render.Platform.SDL3;
@@ -21,8 +22,23 @@ namespace DeltaXaml.Samples.RoundedRectangle.Render;
 
 internal static class Program
 {
+    private const uint LogicalSampleWidth = 800;
+    private const uint LogicalSampleHeight = 500;
+    private const float SampleDpiScale = 2f;
+    private const uint SampleWidth = LogicalSampleWidth * 2;
+    private const uint SampleHeight = LogicalSampleHeight * 2;
+
     private static readonly FontSourceId SampleFontId =
         new(new Guid("B1BD4F0D-4A43-4A15-B5DF-DBF9A5A1A8E3"));
+
+    private static readonly FontSourceId DotoFontId =
+        new(new Guid("E4A8C3D7-8F2B-4E6A-9D41-2C7B6F5A0139"));
+
+    // Doto's ROND axis is the four-byte OpenType tag 'ROND'.
+    private static readonly FontVariation[] DotoVariations =
+    [
+        new(new OpenTypeTag(0x524F4E44u), 100f),
+    ];
 
     private static async Task<int> Main(string[] args)
     {
@@ -41,13 +57,13 @@ internal static class Program
                     assertNoBlackPixels,
                     xamlPath,
                     watch,
-                    ParsePath(args, "--layout-json", "/tmp/delta-grid-two-rows-layout.json"),
-                    ParsePath(args, "--readback", "/tmp/delta-grid-two-rows.ppm")).ConfigureAwait(false);
+                    ParsePath(args, "--layout-json", "/tmp/delta-rounded-rectangle-layout.json"),
+                    ParsePath(args, "--readback", "/tmp/delta-rounded-rectangle.ppm")).ConfigureAwait(false);
             }
 
             var factory = new Sdl3WindowFactory();
             var createResult = factory.CreateWindow(
-                new WindowConfiguration("DeltaXAML Rounded Rectangle", 800, 500, true, true));
+                new WindowConfiguration("DeltaXAML Rounded Rectangle", SampleWidth, SampleHeight, true, true));
             if (!createResult.Succeeded || createResult.Window is not { } window)
             {
                 await Console.Error.WriteLineAsync("Window creation failed.").ConfigureAwait(false);
@@ -89,7 +105,7 @@ internal static class Program
         var program = LoadRoundedProgram();
         var solidProgram = LoadSolidProgram();
         var textProgram = LoadTextProgram();
-        using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(800, 500));
+        using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(SampleWidth, SampleHeight));
         var metrics = window.Metrics;
         var extent = metrics.DrawableExtent;
         return await RunFramesAsync(
@@ -125,11 +141,11 @@ internal static class Program
             LoadDocument(sourcePath, textService, fonts),
             GetPathStamp(sourcePath));
         await using var renderer = new VulkanRenderer(new VulkanRendererOptions());
-        await using var session = renderer.CreateHeadlessSession(800, 500);
+        await using var session = renderer.CreateHeadlessSession(SampleWidth, SampleHeight);
         var program = LoadRoundedProgram();
         var solidProgram = LoadSolidProgram();
         var textProgram = LoadTextProgram();
-        using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(800, 500));
+        using var textFeature = new TextRenderFeature(session, textService, textProgram, new PixelExtent(SampleWidth, SampleHeight));
         return await RunFramesAsync(
             null,
             session,
@@ -137,7 +153,7 @@ internal static class Program
             program,
             solidProgram,
             textFeature,
-            new PixelExtent(800, 500),
+            new PixelExtent(SampleWidth, SampleHeight),
             frameLimit,
             profile,
             assertNoBlackPixels: assertNoBlackPixels,
@@ -209,12 +225,14 @@ internal static class Program
             }
             else
             {
-                metrics = new WindowMetrics(extent.Width, extent.Height, 1);
+                metrics = new WindowMetrics(LogicalSampleWidth, LogicalSampleHeight, SampleDpiScale)
+                {
+                    DrawableWidth = SampleWidth,
+                    DrawableHeight = SampleHeight,
+                };
             }
 
-            var nextExtent = window is null
-                ? new PixelExtent(metrics.Width, metrics.Height)
-                : metrics.DrawableExtent;
+            var nextExtent = metrics.DrawableExtent;
             if (nextExtent != extent)
             {
                 session.ResizeTarget(in nextExtent);
@@ -423,14 +441,21 @@ internal static class Program
 
     private static UiFontCatalog LoadFonts()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "NotoSans-Regular.ttf");
-        if (!File.Exists(path))
+        var defaultPath = Path.Combine(AppContext.BaseDirectory, "Assets", "NotoSans-Regular.ttf");
+        var dotoPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Doto-Variable.ttf");
+        if (!File.Exists(defaultPath))
         {
-            throw new FileNotFoundException($"Rounded rectangle sample font was not found: {path}");
+            throw new FileNotFoundException($"Rounded rectangle sample font was not found: {defaultPath}");
+        }
+
+        if (!File.Exists(dotoPath))
+        {
+            throw new FileNotFoundException($"Rounded rectangle sample Doto font was not found: {dotoPath}");
         }
 
         var fonts = new UiFontCatalog();
-        fonts.Register("default", SampleFontId, File.ReadAllBytes(path));
+        fonts.Register("default", SampleFontId, File.ReadAllBytes(defaultPath));
+        fonts.Register("doto", DotoFontId, File.ReadAllBytes(dotoPath), variations: DotoVariations);
         return fonts;
     }
 

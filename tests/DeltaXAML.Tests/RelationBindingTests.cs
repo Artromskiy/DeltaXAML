@@ -11,13 +11,13 @@ internal static class RelationBindingTests
 
     private static void SelfAndFixedRelationsStayTyped()
     {
-        var text = new TextBlock { Text = "self" };
+        var text = new UiTextBlock { Text = "self" };
         using var self = new UiRelationBinding<TextPlan, string>(text, UiBindingSource.Self, UiBindingMode.TwoWay);
         Assert.Equal("self", self.ReadValue(), "Self resolves directly to the retained target");
         Assert.True(self.TryWriteValue("changed", out var diagnostic) && diagnostic is null, "a generated two-way relation writes through its typed plan");
         Assert.Equal("changed", text.Text, "the typed relation write updates the source element");
 
-        var owner = new TextBlock { Text = "owner" };
+        var owner = new UiTextBlock { Text = "owner" };
         using var templateOwner = new UiRelationBinding<TextPlan, string>(text, UiBindingSource.TemplateOwner(owner));
         Assert.Equal("owner", templateOwner.ReadValue(), "TemplateOwner is fixed during template construction");
         using var named = new UiRelationBinding<TextPlan, string>(text, UiBindingSource.NamedElement(owner));
@@ -28,7 +28,7 @@ internal static class RelationBindingTests
     {
         var first = new UiPanel { Width = 40 };
         var second = new UiPanel { Width = 80 };
-        var child = new TextBlock();
+        var child = new UiTextBlock();
         first.Add(child);
         using var relation = new UiRelationBinding<WidthPlan, float>(child, UiBindingSource.Ancestor(UiKnownTypes.Panel));
         Assert.Equal(40f, relation.ReadValue(), "ancestor relation resolves from the initial structural generation");
@@ -40,20 +40,20 @@ internal static class RelationBindingTests
 
     private static void MultiBindingUsesFixedTypedSources()
     {
-        UiElement[] sources = [new TextBlock { Text = "left" }, new TextBlock { Text = "right" }];
+        UiElement[] sources = [new UiTextBlock { Text = "left" }, new UiTextBlock { Text = "right" }];
         using var binding = new UiMultiBinding<JoinPlan, string>(sources);
         Assert.Equal("left/right", binding.ReadValue(), "multi-source binding evaluates one static typed function");
-        sources[0] = new TextBlock { Text = "mutated-array" };
+        sources[0] = new UiTextBlock { Text = "mutated-array" };
         Assert.Equal("left/right", binding.ReadValue(), "multi binding owns a stable source relation snapshot");
     }
 
     private readonly struct TextPlan : IUiRelationBindingPlan<TextPlan, string>
     {
-        public static string Read(UiElement source) => ((TextBlock)source).Text;
+        public static string Read(UiElement source) => ((UiTextBlock)source).Text;
 
         public static bool TryWrite(UiElement source, string value)
         {
-            ((TextBlock)source).Text = value;
+            ((UiTextBlock)source).Text = value;
             return true;
         }
     }
@@ -72,6 +72,6 @@ internal static class RelationBindingTests
     private readonly struct JoinPlan : IUiMultiBindingPlan<JoinPlan, string>
     {
         public static string Read(ReadOnlySpan<UiElement> sources) =>
-            $"{((TextBlock)sources[0]).Text}/{((TextBlock)sources[1]).Text}";
+            $"{((UiTextBlock)sources[0]).Text}/{((UiTextBlock)sources[1]).Text}";
     }
 }

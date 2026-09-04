@@ -12,7 +12,7 @@ The two current renderer integration adapters are still project references
 because their producer projects are explicitly non-packable.
 
 The host selects one generated artifact with `--sample`: `main-window` (the
-runner fixture), `yage`, `rounded`, or `grid-two-rows`. Each selection creates
+runner fixture), `yage` or `rounded`. Each selection creates
 one `UiDocument` and sends its borrowed `UiDisplayList` to
 `UiDisplayListGraphFeature`. Shader SPIR-V, ABI and typed packing come from the
 shared DeltaShader UI/Text producer projects. DeltaXAML itself remains

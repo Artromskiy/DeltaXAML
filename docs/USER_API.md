@@ -149,7 +149,8 @@ sealed types over the same retained tree:
 - `UiPanel` and layout containers;
 - `UiBorder` and content presenters;
 - `UiButton`, `UiToggleButton` and command controls;
-- `TextBlock`, `TextBox` and numeric editors;
+- `UiTextBlock`, `UiTextBox` and numeric editors (XAML tags remain
+  `<TextBlock>`, `<TextBox>` and `<NumericEditor>`);
 - `UiScrollViewer` and item presentation controls.
 
 Their public inheritance is not the behavior-reuse mechanism. Reusable
@@ -178,8 +179,8 @@ Default < Style/Trigger < Binding < Local < Handle < Animation
 Property metadata determines whether a change affects measure, arrange,
 visual extraction or hit testing.
 
-Text controls expose a compact layout and editing surface. `TextBlock` and the
-text side of `TextBox`/`UiNumericEditor` support `HorizontalTextAlignment`,
+Text controls expose a compact layout and editing surface. `UiTextBlock` and the
+text side of `UiTextBox`/`UiNumericEditor` support `HorizontalTextAlignment`,
 `VerticalTextAlignment`, `TextWrapping`, `TextTrimming`, `MaxLines`,
 `LineHeight`, `FontWeight`, `FontStyle` and `TextDecorations`. The controls
 also expose `TextBoxProperties.PlaceholderText`, `IsReadOnly`,
@@ -348,7 +349,7 @@ with `Span` declarations. The following source features compile to typed
 artifacts:
 
 `UiButton` and `UiToggleButton` are single-content controls and do not expose a
-separate `Text` property. A text label is an explicit `TextBlock` content
+separate `Text` property. A text label is an explicit `UiTextBlock` content
 child, so it uses the same text properties, bindings and renderer-neutral text
 path as every other text element.
 

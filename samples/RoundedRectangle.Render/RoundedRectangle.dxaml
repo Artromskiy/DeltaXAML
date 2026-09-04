@@ -2,18 +2,24 @@
       xmlns:x="urn:delta-xaml"
       Width="800"
       Height="500"
-      Background="#808080"
-      Rows="*,300,*"
-      Columns="*,300,*">
-    <Panel/>
-    <Panel/>
-    <Panel/>
-    <Panel/>
-    <Border Width="300"
-            Height="300"
-            Background="#2878D0"
-            BorderColor="#D9EEFF"
+      Background="#666666"
+      Rows="*,Auto,*"
+      Columns="*,Auto,*">
+    <Border Grid.Row="1"
+            Grid.Column="1"
+            Width="300"
+            Height="150"
+            Background="#383838"
+            BorderColor="#ffffff"
             BorderWidth="1"
             BorderWidthUnits="Device"
-            CornerRadius="0,0,0,300"/>
+            CornerRadius="30,30,30,30">
+        <TextBlock Text="Delta"
+                   FontKey="doto"
+                   FontSize="48"
+                   Foreground="#FFFFFF"
+                   Fill="true"
+                   HorizontalTextAlignment="Center"
+                   VerticalTextAlignment="Center" />
+    </Border>
 </Grid>

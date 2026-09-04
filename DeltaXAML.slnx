@@ -6,6 +6,5 @@
   <Project Path="samples/Snake/DeltaXAML.Samples.Snake.csproj" />
   <Project Path="samples/YageUiLibrary/DeltaXAML.Samples.YageUiLibrary.csproj" />
   <Project Path="samples/Xaml.Render/DeltaXAML.Samples.Xaml.Render.csproj" />
-  <Project Path="samples/RoundedRectangle.Headless/DeltaXAML.Samples.RoundedRectangle.Headless.csproj" />
   <Project Path="tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj" />
 </Solution>

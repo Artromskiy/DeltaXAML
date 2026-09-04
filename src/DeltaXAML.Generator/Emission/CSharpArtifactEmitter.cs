@@ -2607,7 +2607,8 @@ internal static class CSharpArtifactEmitter
         {
             return type.Name.LocalName switch
             {
-                "TextBlock" or "TextBox" => "global::Delta.XAML." + type.Name.LocalName,
+                "TextBlock" => "global::Delta.XAML.UiTextBlock",
+                "TextBox" => "global::Delta.XAML.UiTextBox",
                 _ => "global::Delta.XAML.Ui" + type.Name.LocalName,
             };
         }

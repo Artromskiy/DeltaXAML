@@ -255,9 +255,8 @@ internal static class Program
             "MAIN" or "MAIN-WINDOW" => CreatePage(new MainWindowArtifact(textService, fonts)),
             "YAGE" => CreatePage(new YageArtifact(textService, fonts)),
             "ROUNDED" or "ROUNDED-RECTANGLE" => CreatePage(new RoundedRectangleArtifact(textService, fonts)),
-            "GRID" or "GRID-TWO-ROWS" => CreatePage(new GridTwoRowsArtifact(textService, fonts)),
             _ => throw new ArgumentException(
-                $"Unknown XAML sample '{sample}'. Use main-window, yage, rounded or grid-two-rows.",
+                $"Unknown XAML sample '{sample}'. Use main-window, yage or rounded.",
                 nameof(sample)),
         };
     }
@@ -269,9 +268,6 @@ internal static class Program
         new(artifact.Document, artifact);
 
     private static RenderedPage CreatePage(RoundedRectangleArtifact artifact) =>
-        new(artifact.Document, artifact);
-
-    private static RenderedPage CreatePage(GridTwoRowsArtifact artifact) =>
         new(artifact.Document, artifact);
 
     private static UiFontCatalog LoadFonts()

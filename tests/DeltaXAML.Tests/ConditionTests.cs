@@ -10,7 +10,7 @@ internal static class ConditionTests
 
     private static void GeneratedConditionUsesCanonicalPrecedenceAndSemanticQueue()
     {
-        var target = new TextBlock { Text = "condition", Foreground = new UiColor(1, 2, 3) };
+        var target = new UiTextBlock { Text = "condition", Foreground = new UiColor(1, 2, 3) };
         var context = new ConditionContext();
         var program = new ConditionProgram(context, target);
         using var text = new EmptyTextService();
@@ -41,7 +41,7 @@ internal static class ConditionTests
         public static bool Evaluate(in ConditionContext context) => context.Armed;
     }
 
-    private sealed class ConditionProgram(ConditionContext context, TextBlock target) : IUiGeneratedDocumentProgram
+    private sealed class ConditionProgram(ConditionContext context, UiTextBlock target) : IUiGeneratedDocumentProgram
     {
         private bool _active;
 

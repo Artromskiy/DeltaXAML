@@ -204,7 +204,7 @@ internal static class ArchitectureGate
     }
 
     private static bool IsUserControlName(string name) =>
-        name.StartsWith("Ui", StringComparison.Ordinal) || name is "TextBlock" or "TextBox";
+        name.StartsWith("Ui", StringComparison.Ordinal);
 
     private static void InspectRuntimePaths(string root, List<string> violations)
     {

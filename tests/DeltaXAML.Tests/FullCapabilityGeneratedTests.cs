@@ -15,21 +15,21 @@ internal static class FullCapabilityGeneratedTests
 
         var surface = Find<UiPanel>(artifact, "Surface");
         Assert.Equal(UiBrushKind.LinearGradient, surface.BackgroundBrush.Kind, "generated brush resources use the canonical custom-visual path");
-        var condition = Find<TextBlock>(artifact, "ConditionTarget");
+        var condition = Find<UiTextBlock>(artifact, "ConditionTarget");
         Assert.Equal(new UiColor(51, 204, 102), condition.Foreground, "a generated data condition writes the trigger precedence slot");
         Assert.Equal(1, artifact.Document.SemanticCommands.Length, "the data-condition action is deferred as one semantic command");
-        var behavior = Find<TextBlock>(artifact, "BehaviorTarget");
+        var behavior = Find<UiTextBlock>(artifact, "BehaviorTarget");
         Assert.True(behavior.IsSelected, "the descriptor-bound behavior runs from generated inline state");
         var list = Find<UiCollectionView>(artifact, "List");
         Assert.Equal(5, list.ItemsHost.Children.Count, "viewport-driven realization uses visible rows plus bounded overscan");
         var firstRow = list.ItemsHost.Children[0];
         var picker = Find<UiPicker>(artifact, "Choice");
         Assert.Equal(3, picker.Items.ItemsHost.Children.Count, "picker reuses the same typed template presenter");
-        Assert.True(picker.Header.Content is TextBlock { Text: "One" }, "generated picker presents its selected typed item without host composition");
+        Assert.True(picker.Header.Content is UiTextBlock { Text: "One" }, "generated picker presents its selected typed item without host composition");
         var action = Find<UiButton>(artifact, "Action");
         Assert.Equal(UiGestureKind.Tap | UiGestureKind.LongPress, action.Gestures, "gesture capabilities compile as descriptor data");
         Assert.True(action.Command.IsValid && action.IsFocusScope, "command identity and focus-scope policy compile without delegates");
-        var contextMulti = Find<TextBlock>(artifact, "ContextMulti");
+        var contextMulti = Find<UiTextBlock>(artifact, "ContextMulti");
         Assert.Equal("True:4", contextMulti.Text, "multi bindings combine typed context and retained relation sources");
         model.Armed = false;
         artifact.Document.Layout(new float2(220, 240), 1);

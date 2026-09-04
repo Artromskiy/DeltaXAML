@@ -7,12 +7,12 @@ namespace DeltaXaml.Samples.Snake;
 internal sealed class SnakeView
 {
     private readonly UiItemsControl _cells;
-    private readonly TextBlock _score;
-    private readonly TextBlock _best;
-    private readonly TextBlock _status;
+    private readonly UiTextBlock _score;
+    private readonly UiTextBlock _best;
+    private readonly UiTextBlock _status;
     private readonly UiButton _newGame;
     private readonly UiButton _pause;
-    private readonly TextBlock _pauseLabel;
+    private readonly UiTextBlock _pauseLabel;
     private int _rows;
     private int _columns;
 
@@ -21,12 +21,12 @@ internal sealed class SnakeView
         var board = Find<UiCollectionView>(page, "BoardItems");
         _cells = board.ItemsHost;
 
-        _score = Find<TextBlock>(page, "ScoreText");
-        _best = Find<TextBlock>(page, "BestText");
-        _status = Find<TextBlock>(page, "StatusText");
+        _score = Find<UiTextBlock>(page, "ScoreText");
+        _best = Find<UiTextBlock>(page, "BestText");
+        _status = Find<UiTextBlock>(page, "StatusText");
         _newGame = Find<UiButton>(page, "NewGameButton");
         _pause = Find<UiButton>(page, "PauseButton");
-        _pauseLabel = _pause.Content is TextBlock label
+        _pauseLabel = _pause.Content is UiTextBlock label
             ? label
             : throw new InvalidOperationException("The generated PauseButton content must be a TextBlock.");
     }

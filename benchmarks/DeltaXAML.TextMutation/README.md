@@ -5,7 +5,7 @@ does not use BenchmarkDotNet and is not part of the normal test harness.
 
 It reports six cases:
 
-- `setter-only`: repeated `TextBlock.Text` mutation and invalidation;
+- `setter-only`: repeated `UiTextBlock.Text` mutation and invalidation;
 - `unchanged pipeline`: warm `Layout` plus `BuildDisplayList` without a text change;
 - `text mutation`: the same pipeline while alternating between two existing strings.
 - `cached shaped text`: the mutation pipeline with both fixture strings shaped
@@ -18,7 +18,7 @@ It reports six cases:
   `Layout`/`BuildDisplayList` frames without changing their text.
 
 Pass `--5000-textboxes` for a separate large retained-tree probe. It creates
-5000 `TextBox` controls containing the same character, reports managed
+5000 `UiTextBox` controls containing the same character, reports managed
 construction/retained-heap bytes, process private bytes and working set, and
 measures repeated same-text setters plus warm layout/display frames. The
 process-memory figures include the .NET runtime, JIT and loaded dependencies;

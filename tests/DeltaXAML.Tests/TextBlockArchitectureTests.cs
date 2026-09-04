@@ -112,7 +112,7 @@ internal static class TextBlockArchitectureTests
             new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), new Library.UiResourceCatalog()));
 
         Assert.True(result.Success, "XAML loader accepts the text layout dialect");
-        if (result.Root is not Library.TextBlock text)
+        if (result.Root is not Library.UiTextBlock text)
         {
             throw new InvalidOperationException("XAML loader did not create a TextBlock.");
         }

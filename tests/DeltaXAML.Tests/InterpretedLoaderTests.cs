@@ -29,7 +29,7 @@ internal static class InterpretedLoaderTests
         var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
         var result = loader.Load("<Button><TextBlock Text=\"Save\" /></Button>", in context);
 
-        Assert.True(result.Success && result.Root is UiButton { Content: TextBlock { Text: "Save" } }, "interpreted loader attaches button content through the retained content slot");
+        Assert.True(result.Success && result.Root is UiButton { Content: UiTextBlock { Text: "Save" } }, "interpreted loader attaches button content through the retained content slot");
     }
 
     private static void LoadsCompositeChildren()
@@ -48,7 +48,7 @@ internal static class InterpretedLoaderTests
             throw new InvalidOperationException("Composite loader roots are missing.");
         }
 
-        Assert.True(collection.ItemsHost.Children.Count == 1 && collection.ItemsHost.Children[0] is TextBlock { Text: "Row" }, "collection view routes child content to its generated items host");
+        Assert.True(collection.ItemsHost.Children.Count == 1 && collection.ItemsHost.Children[0] is UiTextBlock { Text: "Row" }, "collection view routes child content to its generated items host");
         Assert.True(menu.ItemsHost.Children.Count == 1 && menu.ItemsHost.Children[0] is UiButton, "menu routes child content to its generated items host");
     }
 
@@ -83,7 +83,7 @@ internal static class InterpretedLoaderTests
             in context);
 
         Assert.True(result.Success && result.Root is UiGrid { Children.Count: 1 }, "interpreted grid accepts literal brushes and attached placement");
-        if (result.Root is not UiGrid grid || grid.Children[0] is not TextBlock child)
+        if (result.Root is not UiGrid grid || grid.Children[0] is not UiTextBlock child)
         {
             throw new InvalidOperationException("interpreted grid child missing");
         }
@@ -181,7 +181,7 @@ internal static class InterpretedLoaderTests
         var loader = new XamlLoader();
         var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
         var interpreted = loader.Load(source, in context);
-        Assert.True(interpreted.Success && interpreted.Root is UiToggleButton { Content: TextBlock }, $"the parity fixture loads through the cold path ({DescribeDiagnostics(interpreted)})");
+        Assert.True(interpreted.Success && interpreted.Root is UiToggleButton { Content: UiTextBlock }, $"the parity fixture loads through the cold path ({DescribeDiagnostics(interpreted)})");
         if (interpreted.Root is not { } interpretedRoot)
         {
             throw new InvalidOperationException("Parity fixture root is missing.");
@@ -204,8 +204,8 @@ internal static class InterpretedLoaderTests
         Assert.Equal(generated.Document.Root.Children.Count, interpretedDocument.Root.Children.Count, "generated and interpreted paths preserve the same child count");
         Assert.Equal(generated.Document.Root.Bounds, interpretedDocument.Root.Bounds, "generated and interpreted paths compute the same root bounds");
         Assert.Equal(generated.Document.Root.Background, interpretedDocument.Root.Background, "generated and interpreted paths preserve the same root background");
-        if (generated.Document.Root.Children[0] is not TextBlock generatedTextBlock ||
-            interpretedDocument.Root.Children[0] is not TextBlock interpretedTextBlock)
+        if (generated.Document.Root.Children[0] is not UiTextBlock generatedTextBlock ||
+            interpretedDocument.Root.Children[0] is not UiTextBlock interpretedTextBlock)
         {
             throw new InvalidOperationException("Parity fixture text child is missing.");
         }
@@ -362,8 +362,8 @@ internal static class InterpretedLoaderTests
         var loader = new XamlLoader();
         var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver(), new BindingResolver());
         var interpreted = loader.Load(source, in context);
-        Assert.True(interpreted.Success && interpreted.Root is TextBox, $"the binding parity fixture loads through the cold path ({DescribeDiagnostics(interpreted)})");
-        if (interpreted.Root is not TextBox interpretedRoot)
+        Assert.True(interpreted.Success && interpreted.Root is UiTextBox, $"the binding parity fixture loads through the cold path ({DescribeDiagnostics(interpreted)})");
+        if (interpreted.Root is not UiTextBox interpretedRoot)
         {
             throw new InvalidOperationException("Binding parity root is missing.");
         }
@@ -402,7 +402,7 @@ internal static class InterpretedLoaderTests
         Assert.True(updatedInterpretedDisplay.Identities[0].Version > initialInterpretedIdentity.Version, "binding update advances interpreted text version");
     }
 
-    private static string GetRootText(UiElement root) => root is TextBox textBox ? textBox.Text : string.Empty;
+    private static string GetRootText(UiElement root) => root is UiTextBox textBox ? textBox.Text : string.Empty;
 
     private static bool ContainsDiagnostic(XamlLoadResult result, string text)
     {

@@ -4,13 +4,13 @@ using Delta.XAML.Contract;
 namespace Delta.XAML;
 
 /// <summary>Retained text element for code-authored composition.</summary>
-public class TextBlock : UiElement
+public class UiTextBlock : UiElement
 {
     private Retained.TextBlock TextElement => (Retained.TextBlock)RetainedElement;
 
-    public TextBlock() : base(Retained.TextBlockGenerated.Create(), null) { }
+    public UiTextBlock() : base(Retained.TextBlockGenerated.Create(), null) { }
 
-    internal TextBlock(Retained.TextBlock element)
+    internal UiTextBlock(Retained.TextBlock element)
         : base(element, null) { }
 
     public string Text { get => TextElement.Text; set => TextElement.Text = value; }

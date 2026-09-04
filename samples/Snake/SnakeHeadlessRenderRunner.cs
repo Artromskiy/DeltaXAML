@@ -39,6 +39,7 @@ internal static class SnakeHeadlessRenderRunner
         int framesInFlight = ParsePositiveInt(args, "--slots", DefaultFramesInFlight);
         var grid = SnakeArguments.ParseGrid(args);
         string layoutJsonPath = ParsePath(args, "--layout-json", "/tmp/delta-snake-layout.json");
+        string readbackPath = ParsePath(args, "--readback", "/tmp/delta-snake.ppm");
         string profileReportPath = GetOption(args, "--profile-report", string.Empty);
         var fonts = new UiFontCatalog();
         string fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "LuckiestGuy-Regular.ttf");
@@ -88,8 +89,9 @@ internal static class SnakeHeadlessRenderRunner
             extent,
             textFeature: textFeature,
             solidVisualProgram: solidVisualProgram);
+        var readbackFeature = new HeadlessReadbackFeature(session.Target, Width, Height);
         var graph = session.CreateRenderGraph();
-        IRenderFeature[] features = [uiFeature];
+        IRenderFeature[] features = [uiFeature, readbackFeature];
         int measuredFrameCount = Maths.Max(0, frameCount - skipFrames);
         var profiles = new List<HeadlessProfile>(measuredFrameCount);
         var layoutNanoseconds = new List<double>(measuredFrameCount);
@@ -138,6 +140,15 @@ internal static class SnakeHeadlessRenderRunner
         {
             WriteRawProfiles(profileReportPath, profiles);
         }
+
+        var pixels = new byte[checked((int)((ulong)Width * Height * 4))];
+        if (!readbackFeature.Readback.IsValid || graph.CopyReadback(readbackFeature.Readback, pixels) != pixels.Length)
+        {
+            throw new InvalidOperationException("Snake headless Vulkan readback did not complete.");
+        }
+
+        SavePpm(pixels, Width, Height, readbackPath);
+        Console.WriteLine($"readback: path={readbackPath}, non-zero-pixels={CountNonZeroPixels(pixels)}");
 
         Console.WriteLine("DeltaXAML Snake headless render");
         Console.WriteLine($"frames={frameCount}, skip={skipFrames}, measured={measuredFrameCount}, profiles={profiles.Count}, slots={framesInFlight}, layout-json={layoutJsonPath}");
@@ -300,6 +311,36 @@ internal static class SnakeHeadlessRenderRunner
         }
     }
 
+    private static void SavePpm(byte[] pixels, int width, int height, string path)
+    {
+        ArgumentNullException.ThrowIfNull(pixels);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        using var stream = File.Create(path);
+        using var writer = new StreamWriter(stream, leaveOpen: true);
+        writer.Write($"P6\n{width} {height}\n255\n");
+        writer.Flush();
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            stream.WriteByte(pixels[index]);
+            stream.WriteByte(pixels[index + 1]);
+            stream.WriteByte(pixels[index + 2]);
+        }
+    }
+
+    private static int CountNonZeroPixels(ReadOnlySpan<byte> pixels)
+    {
+        var count = 0;
+        for (var index = 0; index < pixels.Length; index += 4)
+        {
+            if ((pixels[index] | pixels[index + 1] | pixels[index + 2] | pixels[index + 3]) != 0)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     private static string FormatNanoseconds(double nanoseconds)
     {
         if (nanoseconds >= 1_000_000_000)
@@ -409,6 +450,17 @@ internal static class SnakeHeadlessRenderRunner
                 counters.DescriptorBindCount,
                 counters.UploadBytes,
                 report.Capabilities.GpuTimestamps);
+        }
+    }
+
+    private sealed class HeadlessReadbackFeature(RenderTargetHandle target, int width, int height) : IRenderFeature
+    {
+        internal RenderGraphReadbackHandle Readback { get; private set; }
+
+        public void AddPasses(IRenderGraphBuilder graph, ulong frameNumber)
+        {
+            var texture = graph.ImportTarget(target);
+            Readback = graph.ReadbackTexture(texture, new PixelRect(0, 0, width, height));
         }
     }
 }

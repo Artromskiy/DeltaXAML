@@ -4,13 +4,13 @@ using Delta.XAML.Contract;
 namespace Delta.XAML;
 
 /// <summary>Convenience retained text editor for code-authored composition.</summary>
-public class TextBox : UiElement
+public class UiTextBox : UiElement
 {
     private Retained.TextBox StateOwner => (Retained.TextBox)RetainedElement;
 
-    public TextBox() : base(Retained.TextBoxGenerated.Create(), null) { }
+    public UiTextBox() : base(Retained.TextBoxGenerated.Create(), null) { }
 
-    internal TextBox(Retained.TextBox element) : base(element, null) { }
+    internal UiTextBox(Retained.TextBox element) : base(element, null) { }
 
     public string Text { get => StateOwner.Text; set => StateOwner.Text = value; }
 

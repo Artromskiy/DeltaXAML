@@ -31,7 +31,7 @@ using Delta.XAML;
 using Delta.XAML.Contract;
 
 var root = new UiPanel();
-root.Add(new TextBlock { Text = "Hello, DeltaXAML", FontSize = 18 });
+root.Add(new UiTextBlock { Text = "Hello, DeltaXAML", FontSize = 18 });
 using var document = new UiDocument(root, textService);
 
 document.Layout(new float2(800, 450), 1.0f);
@@ -76,8 +76,6 @@ different tree.
   build-time XAML semantic compiler.
 - [`DeltaXAML.Generator`](https://www.nuget.org/packages/DeltaXAML.Generator) —
   source-generator package for compiled XAML.
-- [`RoundedRectangle.Headless`](samples/RoundedRectangle.Headless/README.md) —
-  headless retained layout and display-list example.
 - [`RoundedRectangle.Render`](samples/RoundedRectangle.Render/README.md) —
   DeltaRender-backed rounded-rectangle example.
 - [`Snake`](samples/Snake/README.md) — interactive XAML game sample.

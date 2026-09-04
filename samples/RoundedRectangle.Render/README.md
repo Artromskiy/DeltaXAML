@@ -34,23 +34,6 @@ Use `--frames N` for a bounded run. The host requires an SDL3
 display, Vulkan/MoltenVK and compatible checked-out DeltaRender/DeltaShader
 artifacts. DeltaXAML itself remains renderer-neutral.
 
-For a minimal layout/debug comparison, [`GridTwoRows.dxaml`](GridTwoRows.dxaml)
-contains one `Grid` with two 100x100 `Border` squares in rows 0 and 2. Headless
-mode can write both the Vulkan readback and the layout diagnostics consumed by
-the external SVG tool:
-
-```bash
-dotnet run --project samples/RoundedRectangle.Render/DeltaXAML.Samples.RoundedRectangle.Render.csproj \
-  -c Release -r osx-arm64 --no-build -- --headless --frames 1 \
-  --xaml GridTwoRows.dxaml \
-  --readback /tmp/delta-grid-two-rows.ppm \
-  --layout-json /tmp/delta-grid-two-rows-layout.json
-
-python3 tools/layout-json-to-svg.py \
-  /tmp/delta-grid-two-rows-layout.json \
-  /tmp/delta-grid-two-rows-debug.svg
-```
-
 Add `--profile` to print post-warmup averages/minimums/maximums for
 `UiDocument.Layout`, `BuildDisplayList`, `UiDisplayListGraphFeature.Consume`,
 `IRenderGraph.Build` and `IRenderGraph.Execute`. The execute value includes CPU

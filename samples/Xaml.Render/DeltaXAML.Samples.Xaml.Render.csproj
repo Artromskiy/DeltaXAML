@@ -63,9 +63,6 @@
     <AdditionalFiles Include="../RoundedRectangle.Render/RoundedRectangle.dxaml"
                      DeltaXamlClassName="RoundedRectangleArtifact"
                      DeltaXamlNamespace="DeltaXaml.Samples.Xaml.Render.Generated" />
-    <AdditionalFiles Include="../RoundedRectangle.Render/GridTwoRows.dxaml"
-                     DeltaXamlClassName="GridTwoRowsArtifact"
-                     DeltaXamlNamespace="DeltaXaml.Samples.Xaml.Render.Generated" />
     <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
           Link="Assets/NotoSans-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />

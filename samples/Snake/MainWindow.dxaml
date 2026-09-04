@@ -7,6 +7,9 @@
   <Resource x:Key="BoardCellColor" Type="Color" Value="#1A2338" />
   <Style x:Key="BoardCellStyle" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource BoardCellColor}" />
+    <Setter Property="BorderColor" Value="#34415E" />
+    <Setter Property="BorderWidth" Value="1" />
+    <Setter Property="BorderWidthUnits" Value="Device" />
     <Setter Property="CornerRadius" Value="4" />
   </Style>
   <Template x:Key="BoardCellTemplate" x:DataType="global::DeltaXaml.Samples.Snake.SnakeCell">

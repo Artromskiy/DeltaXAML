@@ -210,7 +210,7 @@ internal static partial class Program
         typedStyle.Set(Library.TextBlockProperties.FontSize, 18f);
         typedStyle.SetResource(Library.TextBlockProperties.Foreground, typedResourceId);
         typedStyle.SetState(Library.UiStyleState.Focused, Library.TextBlockProperties.FontSize, 20f);
-        var styledText = new Library.TextBlock { StyleKey = "Typed" };
+        var styledText = new Library.UiTextBlock { StyleKey = "Typed" };
         var typedTheme = new Library.UiTheme();
         typedTheme.Add(typedStyle);
         typedTheme.Apply(styledText);
@@ -225,7 +225,7 @@ internal static partial class Program
         compiledStyle.Set(Library.TextBlockProperties.FontSize, 21f);
         var compiledTheme = new Library.UiTheme();
         compiledTheme.RegisterStyle(compiledStyleId, compiledStyle);
-        var compiledText = new Library.TextBlock();
+        var compiledText = new Library.UiTextBlock();
         compiledText.SetCompiledStyle(compiledStyleId);
         compiledTheme.Apply(compiledText);
         Assert.Equal(21f, compiledText.FontSize, "compiled style identity applies without a name lookup");
@@ -235,7 +235,7 @@ internal static partial class Program
         var typedTemplateHost = new Library.UiContentControl();
         typedTemplateHost.SetCompiledTemplate(typedTemplateId);
         typedTheme.Apply(typedTemplateHost);
-        Assert.True(typedTemplateHost.Content is Library.TextBlock typedTemplateContent && typedTemplateContent.Text == "templated", "typed template identity selects a retained template");
+        Assert.True(typedTemplateHost.Content is Library.UiTextBlock typedTemplateContent && typedTemplateContent.Text == "templated", "typed template identity selects a retained template");
 
         var bindingRegistry = XamlSemanticRegistry.CreateBuiltIns();
         bindingRegistry.RegisterBinding(new(
@@ -337,7 +337,7 @@ internal static partial class Program
         Assert.Equal(1, batchedNotifications, "batched binding refreshes through the explicit batch boundary");
 
         var directModel = new BindingModel { Name = "Direct" };
-        var directText = new Library.TextBlock();
+        var directText = new Library.UiTextBlock();
         using var directBinding = new UiCompiledBinding<BindingModel, string>(
             directModel,
             static model => model.Name,
@@ -354,7 +354,7 @@ internal static partial class Program
         Assert.Equal("Queued", directText.Text, "typed binding stage applies the queued value");
 
         var sourceManagedModel = new BindingModel { Name = "ManagedInitial" };
-        var sourceManagedText = new Library.TextBlock();
+        var sourceManagedText = new Library.UiTextBlock();
         using var sourceManagedBinding = new UiCompiledBinding<BindingModel, string>(
             sourceManagedModel,
             static model => model.Name,

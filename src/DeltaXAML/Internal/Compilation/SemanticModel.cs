@@ -790,13 +790,19 @@ internal sealed class XamlSemanticRegistry
         string name,
         string id,
         XamlContentKind contentKind,
-        ImmutableArray<XamlPropertyDefinition> properties) =>
+        ImmutableArray<XamlPropertyDefinition> properties)
+    {
+        var publicTypeName = name switch
+        {
+            "TextBlock" => "UiTextBlock",
+            "TextBox" => "UiTextBox",
+            _ => "Ui" + name,
+        };
         registry.RegisterType(new(
             new UiTypeId(Guid.Parse(id)),
             new XamlQualifiedName(string.Empty, name),
             contentKind,
             properties,
-            name is "TextBlock" or "TextBox"
-                ? $"new global::Delta.XAML.{name}()"
-                : $"new global::Delta.XAML.Ui{name}()"));
+            $"new global::Delta.XAML.{publicTypeName}()"));
+    }
 }

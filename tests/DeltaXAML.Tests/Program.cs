@@ -158,13 +158,13 @@ sealed class CustomLibraryTypeResolver : Library.IXamlTypeResolver
 sealed class LabelTemplateFactory : Library.IUiTemplateFactory
 {
     public Library.UiElement Create(Library.UiElement owner, Library.UiResourceCatalog resources) =>
-        new Library.TextBlock { Text = "templated" };
+        new Library.UiTextBlock { Text = "templated" };
 }
 
 sealed class ReplacementTemplateFactory : Library.IUiTemplateFactory
 {
     public Library.UiElement Create(Library.UiElement owner, Library.UiResourceCatalog resources) =>
-        new Library.TextBlock { Text = "replacement" };
+        new Library.UiTextBlock { Text = "replacement" };
 }
 
 sealed class UpperConverter : Library.IUiValueConverter
@@ -454,7 +454,7 @@ internal static partial class Program
 
     private static void TypedPropertyCatalog()
     {
-        var text = new Library.TextBlock();
+        var text = new Library.UiTextBlock();
         text.SetValue(Library.TextBlockProperties.Text, "typed text");
         text.SetValue(Library.TextBlockProperties.Foreground, new Library.UiColor(10, 20, 30));
         text.SetValue(Library.UiElementProperties.Width, 120f);
@@ -591,7 +591,7 @@ internal static partial class Program
     private static void PublicInputPreservesKeyModifiers()
     {
         var root = new Library.UiStackPanel();
-        var text = new Library.TextBox { Width = 100, Height = 20 };
+        var text = new Library.UiTextBox { Width = 100, Height = 20 };
         text.SetText("abc");
         root.Add(text);
         using var textService = new EmptyTextService();
@@ -623,7 +623,7 @@ internal static partial class Program
 
     private static void QueuedTextInputOwnsItsSnapshot()
     {
-        var text = new Library.TextBox { Width = 100, Height = 20 };
+        var text = new Library.UiTextBox { Width = 100, Height = 20 };
         var root = new Library.UiPanel();
         root.Add(text);
         using var textService = new EmptyTextService();
@@ -662,7 +662,7 @@ internal static partial class Program
         retainedRuntime.Dispose();
 
         var keyboardRoot = new Library.UiPanel();
-        var keyboardText = new Library.TextBox { Width = 100, Height = 20 };
+        var keyboardText = new Library.UiTextBox { Width = 100, Height = 20 };
         keyboardRoot.Add(keyboardText);
         keyboardRoot.Add(new Library.UiButton { Width = 100, Height = 20 });
         using var keyboardTextService = new EmptyTextService();
@@ -683,8 +683,8 @@ internal static partial class Program
     private static void ImeFocusAndCaptureLifecycle()
     {
         var root = new Library.UiStackPanel();
-        var first = new Library.TextBox { Width = 100, Height = 20 };
-        var second = new Library.TextBox { Width = 100, Height = 20 };
+        var first = new Library.UiTextBox { Width = 100, Height = 20 };
+        var second = new Library.UiTextBox { Width = 100, Height = 20 };
         var button = new Library.UiButton { Width = 100, Height = 20 };
         root.Add(first);
         root.Add(second);
@@ -950,7 +950,7 @@ internal static partial class Program
     private static void DocumentDisposesBindingSubscriptions()
     {
         var model = new BindingModel { Name = "before" };
-        var text = new Library.TextBlock { BindingContext = model };
+        var text = new Library.UiTextBlock { BindingContext = model };
         text.SetBinding("Text", new Library.UiBindingExpression("Name"));
         using var textService = new EmptyTextService();
         var document = new Library.UiDocument(text, textService);
@@ -1037,7 +1037,7 @@ internal static partial class Program
             retainedAlias is DeltaXAML.Internal.UiResourceReference { HasResourceId: true, ResourceId: var retainedTarget } &&
             retainedTarget == targetId.Value, "resource catalog preserves a reference's stable target identity");
         Assert.True(catalog.TryResolve(aliasId, out var resolvedAlias) && resolvedAlias is Library.UiColor { R: 30, G: 40, B: 50 }, "resource aliases resolve through their stable identity");
-        var typedResourceText = new Library.TextBlock();
+        var typedResourceText = new Library.UiTextBlock();
         typedResourceText.SetDynamicResource("Foreground", catalog, aliasId);
         Assert.Equal(new Library.UiColor(30, 40, 50), typedResourceText.Foreground, "typed dynamic resource keeps its stable identity");
         catalog.Set(targetId, new Library.UiColor(31, 41, 51));
@@ -1080,8 +1080,8 @@ internal static partial class Program
             "default",
             new TextContract.FontSourceId(new Guid("E7C9B4D5-FD99-4D2A-8A6C-4A2A5B8F2FCB")),
             File.ReadAllBytes(fontPath));
-        var text = new Library.TextBlock { Text = "A", Width = 240, Height = 40 };
-        var unchangedText = new Library.TextBlock { Text = "unchanged", Width = 240, Height = 40 };
+        var text = new Library.UiTextBlock { Text = "A", Width = 240, Height = 40 };
+        var unchangedText = new Library.UiTextBlock { Text = "unchanged", Width = 240, Height = 40 };
         var root = new Library.UiPanel { Background = new(1, 2, 3) };
         root.Add(text);
         root.Add(unchangedText);
@@ -1138,7 +1138,7 @@ internal static partial class Program
             BorderWidthUnits = LibraryContract.PaintUnits.Device,
             CornerRadius = new Library.UiCornerRadii(2, 4, 6, 8),
         };
-        var text = new Library.TextBlock
+        var text = new Library.UiTextBlock
         {
             Text = "Outlined",
             Width = 120,
@@ -1178,8 +1178,8 @@ internal static partial class Program
         var loaded = loader.Load(
             "<TextBlock Text=\"A\" TextEffect=\"{DynamicResource TextEffect}\" OutlineColor=\"#FF8040\" OutlineWidth=\"1\" />",
             in context);
-        Assert.True(loaded.Success && loaded.Root is Library.TextBlock, "XAML accepts text paint properties and dynamic effect resources");
-        if (loaded.Root is Library.TextBlock loadedText)
+        Assert.True(loaded.Success && loaded.Root is Library.UiTextBlock, "XAML accepts text paint properties and dynamic effect resources");
+        if (loaded.Root is Library.UiTextBlock loadedText)
         {
             Assert.Equal(effect, loadedText.TextEffect, "dynamic text effect resolves to the resource identity");
             Assert.Equal(1f, loadedText.OutlineWidth, "XAML preserves outline width");
@@ -1254,8 +1254,8 @@ internal static partial class Program
             "default",
             new TextContract.FontSourceId(new Guid("B67E4FD5-9A68-49F1-BB7E-3C841779B0C3")),
             File.ReadAllBytes(fontPath));
-        var changed = new Library.TextBlock { Text = "A", Width = 100, Height = 20 };
-        var stable = new Library.TextBlock { Text = "unchanged", Width = 100, Height = 20 };
+        var changed = new Library.UiTextBlock { Text = "A", Width = 100, Height = 20 };
+        var stable = new Library.UiTextBlock { Text = "unchanged", Width = 100, Height = 20 };
         var root = new Library.UiPanel();
         root.Add(changed);
         root.Add(stable);
@@ -1284,8 +1284,8 @@ internal static partial class Program
             new TextContract.FontSourceId(new Guid("5B9AA8C5-4B0A-4AE4-8B6D-9E2F6C2D46B0")),
             File.ReadAllBytes(fontPath));
         var root = new Library.UiPanel { Width = 100, Height = 40 };
-        var removed = new Library.TextBlock { Text = "removed", Width = 100, Height = 20 };
-        var retained = new Library.TextBlock { Text = "retained", Width = 100, Height = 20 };
+        var removed = new Library.UiTextBlock { Text = "removed", Width = 100, Height = 20 };
+        var retained = new Library.UiTextBlock { Text = "retained", Width = 100, Height = 20 };
         root.Add(removed);
         root.Add(retained);
         using var textService = new CountingTextService();
@@ -1359,7 +1359,7 @@ internal static partial class Program
             File.ReadAllBytes(fontPath));
         using var shaping = new CountingTextService();
         using var dpiDocument = new Library.UiDocument(
-            new Library.TextBlock { Text = "dpi", Width = 100, Height = 40 },
+            new Library.UiTextBlock { Text = "dpi", Width = 100, Height = 40 },
             shaping,
             fonts);
         dpiDocument.Layout(new(100, 40), 1);
@@ -1574,13 +1574,13 @@ internal static partial class Program
         if (loaded.Root is not { } loadedRoot) { throw new InvalidOperationException("binding root missing"); }
         var model = new BindingModel { Name = "Ada" };
         loadedRoot.BindingContext = model;
-        if (loadedRoot.Children[0] is not Library.TextBlock boundText) { throw new InvalidOperationException("bound text missing"); }
+        if (loadedRoot.Children[0] is not Library.UiTextBlock boundText) { throw new InvalidOperationException("bound text missing"); }
         Assert.True(boundText.Text == "ADA", "binding context and converter update target");
         model.Name = "Grace";
         Assert.True(boundText.Text == "GRACE", "source notification updates target");
         var parsed = Library.UiBindingExpression.Parse("{Binding Path=Name, Mode=TwoWay}");
         Assert.Equal(Library.UiBindingMode.TwoWay, parsed.Mode, "binding parser preserves the declared mode");
-        var compiledText = new Library.TextBox();
+        var compiledText = new Library.UiTextBox();
         using var compiled = new Library.UiCompiledBinding<BindingModel, string>(model, source => source.Name, (source, value) => source.Name = value, Library.UiBindingMode.TwoWay);
         compiledText.SetBinding("Text", compiled);
         Assert.Equal("Grace", compiledText.Text, "compiled binding initializes the target");
@@ -1590,7 +1590,7 @@ internal static partial class Program
         Assert.Equal("Mina", model.Name, "compiled two-way binding writes the source");
 
         var lateContextRoot = new Library.UiPanel { BindingContext = model };
-        var lateContextText = new Library.TextBlock();
+        var lateContextText = new Library.UiTextBlock();
         using var lateContextBinding = new Library.UiCompiledBinding<BindingModel, string>(model, source => source.Name);
         lateContextText.SetBinding("Text", lateContextBinding);
         lateContextRoot.Add(lateContextText);
@@ -1605,7 +1605,7 @@ internal static partial class Program
             deepParent = child;
         }
 
-        var deepText = new Library.TextBlock();
+        var deepText = new Library.UiTextBlock();
         deepText.SetBinding("Text", new Library.UiBindingExpression("Name"));
         deepParent.Add(deepText);
         using var deepTextService = new EmptyTextService();
@@ -1636,14 +1636,14 @@ internal static partial class Program
             default)));
         document.Dispatch(LibraryContract.UiInputEvent.FromText(new LibraryContract.UiTextInput("Bob".AsMemory())));
         document.Layout(new Delta.float2(100, 30), 1);
-        if (twoWayRoot.Children[0] is not Library.TextBox editText) { throw new InvalidOperationException("edit text missing"); }
+        if (twoWayRoot.Children[0] is not Library.UiTextBox editText) { throw new InvalidOperationException("edit text missing"); }
         Assert.True(editText.Text == "Bob" && editModel.Name == "Bob", "two-way text edit writes the source");
     }
 
     private static void RuntimeStagesAreOrdered()
     {
         var model = new BindingModel { Name = "before" };
-        var text = new Library.TextBlock { Width = 100, Height = 20 };
+        var text = new Library.UiTextBlock { Width = 100, Height = 20 };
         var root = new Library.UiPanel();
         root.Add(text);
         using var binding = new Library.UiCompiledBinding<BindingModel, string>(model, source => source.Name);
@@ -1662,7 +1662,7 @@ internal static partial class Program
     private static void BindingTargetWritesReenterTheStagePipeline()
     {
         var model = new BindingModel { Name = "before" };
-        var text = new Library.TextBox { Width = 100, Height = 20 };
+        var text = new Library.UiTextBox { Width = 100, Height = 20 };
         using var binding = new Library.UiCompiledBinding<BindingModel, string>(
             model,
             static source => source.Name,
@@ -1683,7 +1683,7 @@ internal static partial class Program
     private static void BindingStageSkipsCleanSubtrees()
     {
         var oneTimeModel = new BindingModel { Name = "one-time" };
-        var oneTimeText = new Library.TextBlock();
+        var oneTimeText = new Library.UiTextBlock();
         using var oneTimeBinding = new Library.UiCompiledBinding<BindingModel, string>(
             oneTimeModel,
             static model => model.Name,
@@ -1767,11 +1767,11 @@ internal static partial class Program
         var model = new BindingModel { Name = "generated binding" };
         using var bindingText = new CountingTextService();
         using var bound = new DeltaXaml.Generated.BoundTextArtifact(model, bindingText, fonts);
-        Assert.True(bound.Document.Root is Library.TextBox { Text: "GENERATED BINDING" }, "x:DataType binding and converter apply through generated typed accessors");
+        Assert.True(bound.Document.Root is Library.UiTextBox { Text: "GENERATED BINDING" }, "x:DataType binding and converter apply through generated typed accessors");
         model.Name = "updated binding";
         bound.Document.Layout(new(320, 80), 1);
-        Assert.True(bound.Document.Root is Library.TextBox { Text: "UPDATED BINDING" }, "generated source notification refreshes through the binding stage");
-        if (bound.Document.Root is not Library.TextBox boundEditor)
+        Assert.True(bound.Document.Root is Library.UiTextBox { Text: "UPDATED BINDING" }, "generated source notification refreshes through the binding stage");
+        if (bound.Document.Root is not Library.UiTextBox boundEditor)
         {
             throw new InvalidOperationException("Generated bound text editor missing.");
         }
@@ -1786,7 +1786,7 @@ internal static partial class Program
         Assert.True(compositionDisplay.Visuals.Length >= 2, "generated style contributes retained visual output");
         Assert.True(compositionDisplay.Text.Length == 1, "generated template contributes one retained text leaf");
         var templatedButton = (Library.UiButton)composition.Document.Root.Children[0];
-        var templatedLabel = (Library.TextBlock)templatedButton.Children[0];
+        var templatedLabel = (Library.UiTextBlock)templatedButton.Children[0];
         Assert.Equal(templatedButton.Background, templatedLabel.Background, "TemplateBinding reads the owner through a generated relation plan");
         var initialButtonVisual = compositionDisplay.Visuals[1];
         Assert.True(composition.TryGetResourceId("Accent", out var accent), "generated artifact exposes its stable resource identity");
@@ -1885,8 +1885,8 @@ internal static partial class Program
         theme.Apply(deepRoot);
         Assert.Equal(17f, deep.Width, "theme application traverses deep trees without recursive stack growth");
 
-        var text = new Library.TextBlock { StyleKey = "Body" };
-        var other = new Library.TextBlock();
+        var text = new Library.UiTextBlock { StyleKey = "Body" };
+        var other = new Library.UiTextBlock();
         theme.Apply(text);
         Assert.Equal(firstColor, text.Foreground, "resource-backed style resolves through the user API");
         Assert.Equal(18f, text.FontSize, "style value uses the retained style source");
@@ -1928,8 +1928,8 @@ internal static partial class Program
         Assert.Equal(secondColor, text.Foreground, "leaving a visual state restores the base resource style");
 
         var styleRoot = new Library.UiPanel();
-        var styled = new Library.TextBlock { StyleKey = "Body" };
-        var unrelated = new Library.TextBlock { StyleKey = "Alternate" };
+        var styled = new Library.UiTextBlock { StyleKey = "Body" };
+        var unrelated = new Library.UiTextBlock { StyleKey = "Alternate" };
         styleRoot.Add(styled);
         styleRoot.Add(unrelated);
         theme.Apply(styleRoot);
@@ -1946,8 +1946,8 @@ internal static partial class Program
         var dynamicLoaded = loader.Load(
             "<TextBlock Foreground=\"{DynamicResource TextColor}\" />",
             new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), resources));
-        Assert.True(dynamicLoaded.Success && dynamicLoaded.Root is Library.TextBlock, "DynamicResource markup loads through the public facade");
-        if (dynamicLoaded.Root is not Library.TextBlock dynamicText) { throw new InvalidOperationException("dynamic resource text missing"); }
+        Assert.True(dynamicLoaded.Success && dynamicLoaded.Root is Library.UiTextBlock, "DynamicResource markup loads through the public facade");
+        if (dynamicLoaded.Root is not Library.UiTextBlock dynamicText) { throw new InvalidOperationException("dynamic resource text missing"); }
         Assert.Equal(secondColor, dynamicText.Foreground, "DynamicResource uses the named resource catalog");
         var dynamicTextVersion = dynamicText.RetainedElement.TextVersion;
         resources.Set("TextColor", firstColor);
@@ -1956,8 +1956,8 @@ internal static partial class Program
         var staticLoaded = loader.Load(
             "<TextBlock Foreground=\"{StaticResource TextColor}\" />",
             new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), resources));
-        Assert.True(staticLoaded.Success && staticLoaded.Root is Library.TextBlock, "StaticResource markup loads through the public facade");
-        if (staticLoaded.Root is not Library.TextBlock staticText) { throw new InvalidOperationException("static resource text missing"); }
+        Assert.True(staticLoaded.Success && staticLoaded.Root is Library.UiTextBlock, "StaticResource markup loads through the public facade");
+        if (staticLoaded.Root is not Library.UiTextBlock staticText) { throw new InvalidOperationException("static resource text missing"); }
         Assert.Equal(firstColor, staticText.Foreground, "StaticResource resolves its initial value");
         resources.Set("TextColor", secondColor);
         Assert.Equal(firstColor, staticText.Foreground, "StaticResource does not subscribe to later catalog changes");
@@ -1989,13 +1989,13 @@ internal static partial class Program
         var host = new Library.UiContentControl { TemplateKey = "Label" };
         theme.RegisterTemplate("Label", new Library.UiTemplate(new LabelTemplateFactory()));
         theme.Apply(host);
-        Assert.True(host.Content is Library.TextBlock templated && templated.Text == "templated", "template creates one retained child");
+        Assert.True(host.Content is Library.UiTextBlock templated && templated.Text == "templated", "template creates one retained child");
         theme.RegisterTemplate("OtherLabel", new Library.UiTemplate(new ReplacementTemplateFactory()));
         using var templateTextService = new EmptyTextService();
         using var templateDocument = new Library.UiDocument(host, templateTextService, null, theme);
         host.TemplateKey = "OtherLabel";
         templateDocument.Layout(new Delta.float2(100, 30), 1);
-        Assert.True(host.Content is Library.TextBlock replacement && replacement.Text == "replacement", "template key change replaces only the retained template child");
+        Assert.True(host.Content is Library.UiTextBlock replacement && replacement.Text == "replacement", "template key change replaces only the retained template child");
         host.TemplateKey = null;
         templateDocument.Layout(new Delta.float2(100, 30), 1);
         Assert.True(host.Content is null, "clearing template key removes the retained template child");
@@ -2006,23 +2006,23 @@ internal static partial class Program
         items.SetItems(values, value =>
         {
             created++;
-            return new Library.TextBlock { Text = value?.ToString() ?? string.Empty };
+            return new Library.UiTextBlock { Text = value?.ToString() ?? string.Empty };
         });
         items.SetItems(values, value =>
         {
             created++;
-            return new Library.TextBlock { Text = value?.ToString() ?? string.Empty };
+            return new Library.UiTextBlock { Text = value?.ToString() ?? string.Empty };
         });
         Assert.Equal(2, created, "unchanged collection items reuse retained rows");
         items.SetItems(new object?[] { "one", "three" }, value =>
         {
             created++;
-            return new Library.TextBlock { Text = value?.ToString() ?? string.Empty };
+            return new Library.UiTextBlock { Text = value?.ToString() ?? string.Empty };
         });
         Assert.Equal(3, created, "only changed collection item creates a replacement row");
 
         var clipboard = new Library.UiClipboard();
-        var editor = new Library.TextBox { Clipboard = clipboard };
+        var editor = new Library.UiTextBox { Clipboard = clipboard };
         editor.SetText("hello");
         editor.SelectAll();
         editor.Copy();
@@ -2030,12 +2030,12 @@ internal static partial class Program
         editor.SetText("changed");
         Assert.True(editor.Undo() && editor.Text == "hello", "public text editor exposes retained undo");
 
-        var hostWrite = new Library.TextBlock { Text = "before" };
+        var hostWrite = new Library.UiTextBlock { Text = "before" };
         var textHandle = hostWrite.GetHandle("Text");
         Assert.True(textHandle.IsValid && hostWrite.TrySet(textHandle, "after", out var handleDiagnostic) && handleDiagnostic is null && hostWrite.Text == "after", "public handle performs a generation-safe host write");
 
         var composition = new Library.UiPanel();
-        var compositionText = new Library.TextBlock { Text = "stable" };
+        var compositionText = new Library.UiTextBlock { Text = "stable" };
         composition.Add(compositionText);
         Assert.True(ReferenceEquals(composition.Children, composition.Children), "public children view is retained");
         Assert.True(ReferenceEquals(compositionText, composition.Children[0]), "code-authored child wrapper is retained");
@@ -2129,7 +2129,7 @@ internal static partial class Program
     private static void ParticipationBoundary()
     {
         var root = new Library.UiPanel { Background = new Library.UiColor(10, 20, 30) };
-        root.Add(new Library.TextBlock { Text = "hidden" });
+        root.Add(new Library.UiTextBlock { Text = "hidden" });
         root.Participation = Library.UiParticipation.None;
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(root, textService);
@@ -2476,7 +2476,7 @@ internal static partial class Program
         {
             typeof(Library.UiPanel), typeof(Library.UiStackPanel), typeof(Library.UiItemsControl),
             typeof(Library.UiBorder), typeof(Library.UiGrid), typeof(Library.UiContentControl),
-            typeof(Library.UiButton), typeof(Library.UiToggleButton), typeof(Library.TextBlock), typeof(Library.TextBox),
+            typeof(Library.UiButton), typeof(Library.UiToggleButton), typeof(Library.UiTextBlock), typeof(Library.UiTextBox),
             typeof(Library.UiNumericEditor), typeof(Library.UiScrollViewer),
         };
         for (var i = 0; i < publicControls.Length; i++)
