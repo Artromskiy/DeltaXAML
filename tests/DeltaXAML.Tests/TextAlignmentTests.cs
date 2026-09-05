@@ -27,9 +27,16 @@ internal static class TextAlignmentTests
                 document.Layout(new(300, 150), scale);
                 var display = document.BuildDisplayList();
                 var draw = display.Text[0];
-                AssertCentered(draw, scale, 150, 75);
                 var run = draw.Text.Runs.Span[0];
                 var metrics = service.GetFontMetrics(run.Font, run.PixelsPerEm);
+                AssertMetricAligned(
+                    text,
+                    draw,
+                    scale,
+                    metrics,
+                    UiTextHorizontalAlignment.Center,
+                    UiTextVerticalAlignment.Center,
+                    text.LineHeight);
                 var desired = text.RetainedElement.DesiredSize;
                 Near((metrics.Ascent + metrics.Descent + metrics.LineGap) / scale, desired.Height, "real font line height");
                 Near(Maths.Max(run.AdvanceX, run.Bounds.Width) / scale, desired.Width, "real shaped width");
@@ -37,7 +44,14 @@ internal static class TextAlignmentTests
                 var count = service.ShapeCount;
                 document.Layout(new(400, 200), scale);
                 var resized = document.BuildDisplayList().Text[0];
-                AssertCentered(resized, scale, 200, 100);
+                AssertMetricAligned(
+                    text,
+                    resized,
+                    scale,
+                    metrics,
+                    UiTextHorizontalAlignment.Center,
+                    UiTextVerticalAlignment.Center,
+                    text.LineHeight);
                 Assert.True(ReferenceEquals(draw.Text, resized.Text), "resize reuses shaping");
                 Assert.Equal(count, service.ShapeCount, "resize does not reshape text");
             }
@@ -45,21 +59,45 @@ internal static class TextAlignmentTests
 
         text.LineHeight = 100;
         document.Layout(new(400, 200), 2);
-        AssertCentered(document.BuildDisplayList().Text[0], 2, 200, 100);
+        var explicitLineHeightDraw = document.BuildDisplayList().Text[0];
+        var explicitLineHeightMetrics = service.GetFontMetrics(
+            explicitLineHeightDraw.Text.Runs.Span[0].Font,
+            explicitLineHeightDraw.Text.Runs.Span[0].PixelsPerEm);
+        AssertMetricAligned(
+            text,
+            explicitLineHeightDraw,
+            2,
+            explicitLineHeightMetrics,
+            UiTextHorizontalAlignment.Center,
+            UiTextVerticalAlignment.Center,
+            text.LineHeight);
         Near(100, text.RetainedElement.DesiredSize.Height, "explicit line height remains logical");
         text.VerticalTextAlignment = UiTextVerticalAlignment.Bottom;
         text.HorizontalTextAlignment = UiTextHorizontalAlignment.Right;
         document.Layout(new(400, 200), 2);
         var bottom = document.BuildDisplayList().Text[0];
-        var bounds = bottom.Text.Runs.Span[0].Bounds;
-        Near(200, bottom.BaselineOrigin.y + bounds.Bottom / 2, "bottom aligns ink bottom");
-        Near(400, bottom.BaselineOrigin.x + bounds.Right / 2, "right aligns ink right");
+        var bottomMetrics = service.GetFontMetrics(bottom.Text.Runs.Span[0].Font, bottom.Text.Runs.Span[0].PixelsPerEm);
+        AssertMetricAligned(
+            text,
+            bottom,
+            2,
+            bottomMetrics,
+            UiTextHorizontalAlignment.Right,
+            UiTextVerticalAlignment.Bottom,
+            text.LineHeight);
         text.VerticalTextAlignment = UiTextVerticalAlignment.Top;
         text.HorizontalTextAlignment = UiTextHorizontalAlignment.Left;
         document.Layout(new(400, 200), 2);
         var top = document.BuildDisplayList().Text[0];
-        Near(0, top.BaselineOrigin.y + bounds.Top / 2, "top aligns ink top");
-        Near(0, top.BaselineOrigin.x + bounds.Left / 2, "left aligns ink left");
+        var topMetrics = service.GetFontMetrics(top.Text.Runs.Span[0].Font, top.Text.Runs.Span[0].PixelsPerEm);
+        AssertMetricAligned(
+            text,
+            top,
+            2,
+            topMetrics,
+            UiTextHorizontalAlignment.Left,
+            UiTextVerticalAlignment.Top,
+            text.LineHeight);
 
         text.Text = "abc אבג 123";
         text.VerticalTextAlignment = UiTextVerticalAlignment.Center;
@@ -67,7 +105,15 @@ internal static class TextAlignmentTests
         document.Layout(new(400, 200), 2);
         var mixed = document.BuildDisplayList().Text[0];
         Assert.True(mixed.Text.Runs.Length > 1, "mixed-direction fixture has several runs");
-        AssertCentered(mixed, 2, 200, 100);
+        var mixedMetrics = service.GetFontMetrics(mixed.Text.Runs.Span[0].Font, mixed.Text.Runs.Span[0].PixelsPerEm);
+        AssertMetricAligned(
+            text,
+            mixed,
+            2,
+            mixedMetrics,
+            UiTextHorizontalAlignment.Center,
+            UiTextVerticalAlignment.Center,
+            text.LineHeight);
 
         for (var i = 0; i < 20; i++)
         {
@@ -99,21 +145,48 @@ internal static class TextAlignmentTests
         };
         using var editorDocument = new UiDocument(editor, service, fonts);
         editorDocument.Layout(new(300, 150), 2);
-        AssertCentered(editorDocument.BuildDisplayList().Text[0], 2, 150, 75);
+        var editorDraw = editorDocument.BuildDisplayList().Text[0];
+        var editorMetrics = service.GetFontMetrics(editorDraw.Text.Runs.Span[0].Font, editorDraw.Text.Runs.Span[0].PixelsPerEm);
+        AssertMetricAligned(
+            editor,
+            editorDraw,
+            2,
+            editorMetrics,
+            UiTextHorizontalAlignment.Center,
+            UiTextVerticalAlignment.Center,
+            editor.LineHeight);
         var placeholderWidth = editor.RetainedElement.DesiredSize.Width;
         editor.PlaceholderText = "Wide placeholder";
         editorDocument.Layout(new(600, 150), 2);
-        AssertCentered(editorDocument.BuildDisplayList().Text[0], 2, 300, 75);
+        editorDraw = editorDocument.BuildDisplayList().Text[0];
+        AssertMetricAligned(
+            editor,
+            editorDraw,
+            2,
+            editorMetrics,
+            UiTextHorizontalAlignment.Center,
+            UiTextVerticalAlignment.Center,
+            editor.LineHeight);
         Assert.True(editor.RetainedElement.DesiredSize.Width > placeholderWidth, "placeholder mutations remeasure displayed text");
-        using var numberDocument = new UiDocument(new UiNumericEditor
+        var number = new UiNumericEditor
         {
             Text = "123",
             FontSize = 48,
             HorizontalTextAlignment = UiTextHorizontalAlignment.Center,
             VerticalTextAlignment = UiTextVerticalAlignment.Center,
-        }, service, fonts);
+        };
+        using var numberDocument = new UiDocument(number, service, fonts);
         numberDocument.Layout(new(300, 150), 2);
-        AssertCentered(numberDocument.BuildDisplayList().Text[0], 2, 150, 75);
+        var numberDraw = numberDocument.BuildDisplayList().Text[0];
+        var numberMetrics = service.GetFontMetrics(numberDraw.Text.Runs.Span[0].Font, numberDraw.Text.Runs.Span[0].PixelsPerEm);
+        AssertMetricAligned(
+            number,
+            numberDraw,
+            2,
+            numberMetrics,
+            UiTextHorizontalAlignment.Center,
+            UiTextVerticalAlignment.Center,
+            number.LineHeight);
 
         var rich = new UiRichTextBlock
         {
@@ -135,24 +208,49 @@ internal static class TextAlignmentTests
         Assert.Equal(richShapeCount, service.ShapeCount, "rich-text resize reuses shaped spans without a second shape pass");
     }
 
-    private static void AssertCentered(UiTextDraw draw, float scale, float x, float y)
+    private static void AssertMetricAligned(
+        UiElement element,
+        UiTextDraw draw,
+        float scale,
+        FontMetrics metrics,
+        UiTextHorizontalAlignment horizontal,
+        UiTextVerticalAlignment vertical,
+        float explicitLineHeight)
     {
-        var left = float.PositiveInfinity;
-        var top = float.PositiveInfinity;
-        var right = float.NegativeInfinity;
-        var bottom = float.NegativeInfinity;
-        var pen = draw.BaselineOrigin * scale;
+        var bounds = element.RetainedElement.Bounds;
+        var desired = element.RetainedElement.DesiredSize;
+        var textWidth = Maths.Min(desired.Width, Maths.Max(0, bounds.Width));
+        var textHeight = Maths.Min(desired.Height, Maths.Max(0, bounds.Height));
+        var horizontalFactor = horizontal switch
+        {
+            UiTextHorizontalAlignment.Center => 0.5f,
+            UiTextHorizontalAlignment.Right => 1f,
+            _ => 0f,
+        };
+        var verticalFactor = vertical switch
+        {
+            UiTextVerticalAlignment.Center => 0.5f,
+            UiTextVerticalAlignment.Bottom => 1f,
+            _ => 0f,
+        };
+        var lineHeight = explicitLineHeight > 0
+            ? explicitLineHeight
+            : (metrics.Ascent + metrics.Descent + metrics.LineGap) / scale;
+        var naturalLineHeight = (metrics.Ascent + metrics.Descent + metrics.LineGap) / scale;
+        var lineTop = bounds.Y + (bounds.Height - textHeight) * verticalFactor;
+        var advanceWidth = 0f;
         foreach (var run in draw.Text.Runs.Span)
         {
-            left = Maths.Min(left, pen.x + run.Bounds.Left);
-            top = Maths.Min(top, pen.y + run.Bounds.Top);
-            right = Maths.Max(right, pen.x + run.Bounds.Right);
-            bottom = Maths.Max(bottom, pen.y + run.Bounds.Bottom);
-            pen += new float2(run.AdvanceX, run.AdvanceY);
+            advanceWidth += Maths.Abs(run.AdvanceX) / scale;
         }
 
-        Near(x, (left + right) / (2 * scale), "horizontal ink center");
-        Near(y, (top + bottom) / (2 * scale), "vertical ink center");
+        var expected = new float2(
+            bounds.X + (bounds.Width - textWidth) * horizontalFactor +
+            (textWidth - advanceWidth) * horizontalFactor,
+            lineTop + (textHeight - lineHeight) * verticalFactor +
+            metrics.Ascent / scale + Maths.Max(0, lineHeight - naturalLineHeight) * 0.5f);
+        Near(expected.x, draw.BaselineOrigin.x, "baseline horizontal alignment");
+        Near(expected.y, draw.BaselineOrigin.y, "baseline vertical alignment");
     }
 
     private static void Near(float expected, float actual, string message) =>

@@ -1411,10 +1411,31 @@ internal static partial class Program
         var centeredDisplayList = centeredDocument.BuildDisplayList();
         Assert.Equal(1, centeredDisplayList.Text.Length, "DPI centering reaches the display list");
         var centeredDraw = centeredDisplayList.Text[0];
-        var shapedBounds = centeredDraw.Text.Runs.Span[0].Bounds;
-        Assert.True(Maths.Abs(centeredDraw.BaselineOrigin.x + (shapedBounds.Left + shapedBounds.Right) / 4 - 150) < 0.001f &&
-            Maths.Abs(centeredDraw.BaselineOrigin.y + (shapedBounds.Top + shapedBounds.Bottom) / 4 - 75) < 0.001f,
-            "DPI conversion centers the real glyph bounds");
+        var centeredShapedRuns = centeredDraw.Text.Runs.Span;
+        var centeredShapedRun = centeredShapedRuns[0];
+        var centeredFontMetrics = shaping.GetFontMetrics(centeredShapedRun.Font, centeredShapedRun.PixelsPerEm);
+        var centeredAdvance = 0f;
+        for (var i = 0; i < centeredShapedRuns.Length; i++)
+        {
+            centeredAdvance += Maths.Abs(centeredShapedRuns[i].AdvanceX) / 2;
+        }
+
+        var centeredElement = centeredDocument.Root.RetainedElement;
+        var centeredBounds = centeredElement.Bounds;
+        var centeredDesired = centeredElement.DesiredSize;
+        var expectedCenteredBaselineX =
+            centeredBounds.X + (centeredBounds.Width - centeredDesired.Width) * 0.5f +
+            (centeredDesired.Width - centeredAdvance) * 0.5f;
+        var naturalLineHeight = (centeredFontMetrics.Ascent + centeredFontMetrics.Descent + centeredFontMetrics.LineGap) / 2;
+        var expectedCenteredBaselineY =
+            centeredBounds.Y + (centeredBounds.Height - centeredDesired.Height) * 0.5f + centeredFontMetrics.Ascent / 2 +
+            Maths.Max(0, centeredDesired.Height - naturalLineHeight) * 0.5f;
+        Assert.True(
+            Maths.Abs(expectedCenteredBaselineX - centeredDraw.BaselineOrigin.x) < 0.001f,
+            $"DPI conversion preserves the horizontal line origin: expected={expectedCenteredBaselineX}, actual={centeredDraw.BaselineOrigin.x}");
+        Assert.True(
+            Maths.Abs(expectedCenteredBaselineY - centeredDraw.BaselineOrigin.y) < 0.001f,
+            $"DPI conversion positions the baseline from font metrics: expected={expectedCenteredBaselineY}, actual={centeredDraw.BaselineOrigin.y}");
     }
 
     private static void TextVersionTracksTextInputsOnly()

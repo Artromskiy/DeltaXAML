@@ -10,6 +10,10 @@ from pathlib import Path
 
 
 PALETTE = ("#2563EB", "#059669", "#D97706", "#9333EA", "#DB2777", "#0891B2")
+BACKGROUND_COLOR = "#000000"
+FOREGROUND_COLOR = "#F8FAFC"
+TEXT_LAYOUT_COLOR = "#06B6D4"
+CLIP_COLOR = "#DC2626"
 
 
 def number(value: float) -> str:
@@ -41,20 +45,31 @@ def emit_node(node: dict, depth: int, output: list[str]) -> None:
     output.append(
         f'    <rect x="{number(x)}" y="{number(y)}" '
         f'width="{number(width)}" height="{number(height)}" '
-        f'fill="{color}" fill-opacity="0.12" stroke="{color}" '
+        f'fill="none" stroke="{color}" '
         f'stroke-opacity="0.9" stroke-width="1" />'
     )
     output.append(
         f'    <rect x="{number(clip_x)}" y="{number(clip_y)}" '
         f'width="{number(clip_width)}" height="{number(clip_height)}" '
-        f'fill="none" stroke="#DC2626" stroke-opacity="0.7" '
+        f'fill="none" stroke="{CLIP_COLOR}" stroke-opacity="0.7" '
         f'stroke-width="0.8" stroke-dasharray="4 3" />'
     )
+    text_x, text_y = x + 4, y + 16
+    if "textBounds" in node:
+        text_x, text_y, text_width, text_height = rect(node["textBounds"])
+        output.append(
+            f'    <rect x="{number(text_x)}" y="{number(text_y)}" '
+            f'width="{number(text_width)}" height="{number(text_height)}" '
+            f'fill="none" stroke="{TEXT_LAYOUT_COLOR}" stroke-opacity="0.95" '
+            f'stroke-width="1" stroke-dasharray="6 3" />'
+        )
+        text_x += 4
+        text_y += 16
     if "text" in node:
         text = html.escape(str(node["text"]))
         output.append(
-            f'    <text x="{number(x + 4)}" y="{number(y + 16)}" '
-            f'font-family="sans-serif" font-size="12" fill="#111827">{text}</text>'
+            f'    <text x="{number(text_x)}" y="{number(text_y)}" '
+            f'font-family="sans-serif" font-size="12" fill="{FOREGROUND_COLOR}">{text}</text>'
         )
     for index, child in enumerate(node.get("children", ())):
         emit_node(child, depth + 1, output)
@@ -69,15 +84,17 @@ def render(source: Path, destination: Path) -> None:
     output = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{number(width)}" '
         f'height="{number(height)}" viewBox="0 0 {number(width)} {number(height)}">',
-        "  <rect width=\"100%\" height=\"100%\" fill=\"#F8FAFC\" />",
+        f'  <rect width="100%" height="100%" fill="{BACKGROUND_COLOR}" />',
         "  <g id=\"layout\" shape-rendering=\"geometricPrecision\">",
     ]
     emit_node(document["root"], 0, output)
     output.extend(
         [
             "  </g>",
-            '  <g id="legend" font-family="monospace" font-size="12" fill="#111827">',
-            '    <text x="8" y="16">solid = bounds; red dashed = clip</text>',
+            f'  <g id="legend" font-family="monospace" font-size="12" fill="{FOREGROUND_COLOR}">',
+            '    <text x="8" y="16">solid outline = bounds</text>',
+            f'    <text x="8" y="32" fill="{TEXT_LAYOUT_COLOR}">cyan dashed = TextBounds</text>',
+            f'    <text x="8" y="48" fill="{CLIP_COLOR}">red dashed = clip</text>',
             "  </g>",
             "</svg>",
         ]

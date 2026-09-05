@@ -100,22 +100,26 @@ internal sealed class UiTextLayoutCache : IDisposable
         }
 
         var scale = EffectiveScale(run.LayoutScale);
-        var textBounds = run.TextBounds.Width > 0 || run.TextBounds.Height > 0 ? run.TextBounds : run.Bounds;
-        var horizontalOffset = (textBounds.Width - cache.Bounds.Width / scale) * (run.HorizontalAlignment switch
+        var textLayoutBounds = run.TextBounds.Width > 0 || run.TextBounds.Height > 0 ? run.TextBounds : run.Bounds;
+        var advanceWidth = AdvanceWidth(cache.Shaped) / scale;
+        var naturalLineHeight = cache.LineHeight / scale;
+        var lineHeight = run.LineHeight > 0 ? run.LineHeight / scale : naturalLineHeight;
+        var leading = Maths.Max(0, lineHeight - naturalLineHeight) * 0.5f;
+        var horizontalOffset = (textLayoutBounds.Width - advanceWidth) * (run.HorizontalAlignment switch
         {
             UiTextHorizontalAlignment.Center => 0.5f,
             UiTextHorizontalAlignment.Right => 1f,
             _ => 0f,
         });
-        var verticalOffset = (textBounds.Height - cache.Bounds.Height / scale) * (run.VerticalAlignment switch
+        var verticalOffset = (textLayoutBounds.Height - lineHeight) * (run.VerticalAlignment switch
         {
             UiTextVerticalAlignment.Center => 0.5f,
             UiTextVerticalAlignment.Bottom => 1f,
             _ => 0f,
         });
         var baseline = new float2(
-            textBounds.X + horizontalOffset - cache.Bounds.Left / scale,
-            textBounds.Y + verticalOffset - cache.Bounds.Top / scale);
+            textLayoutBounds.X + horizontalOffset,
+            textLayoutBounds.Y + verticalOffset + cache.Ascent / scale + leading);
         var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
         draw = UiTextDraw.WithPaint(
             cache.Shaped,
@@ -426,7 +430,7 @@ internal sealed class UiTextLayoutCache : IDisposable
         return new TextBounds(left, top, right, bottom);
     }
 
-    internal static float Advance(ShapedText shaped, TextBounds bounds)
+    internal static float AdvanceWidth(ShapedText shaped)
     {
         var runs = shaped.Runs.Span;
         var advance = 0f;
@@ -435,7 +439,12 @@ internal sealed class UiTextLayoutCache : IDisposable
             advance += Maths.Abs(runs[i].AdvanceX);
         }
 
-        return Maths.Max(bounds.Width, advance);
+        return advance;
+    }
+
+    internal static float Advance(ShapedText shaped, TextBounds bounds)
+    {
+        return Maths.Max(bounds.Width, AdvanceWidth(shaped));
     }
 
     private static void LayoutRichRuns(
@@ -537,6 +546,7 @@ internal sealed class UiTextLayoutCache : IDisposable
             Style = run.Style;
             Shaped = shaped;
             Bounds = ShapedBounds(shaped);
+            Ascent = metrics.Ascent;
             LineHeight = metrics.Ascent + metrics.Descent + metrics.LineGap;
         }
 
@@ -549,6 +559,7 @@ internal sealed class UiTextLayoutCache : IDisposable
         internal Delta.XAML.UiFontStyle Style { get; }
         internal ShapedText Shaped { get; }
         internal TextBounds Bounds { get; }
+        internal float Ascent { get; }
         internal float LineHeight { get; }
 
         internal bool Matches(Retained.UiTextRun run) =>

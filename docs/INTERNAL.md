@@ -615,8 +615,9 @@ document-owned `UiTextLayoutCache` for the current text element. The cache store
 shaped bounds and font line height alongside the shaped payload; the measure context carries
 the current metrics without mutating the retained element or starting another
 tree traversal. Plain and rich text use the same cache lifetime, and visual
-extraction reuses it while aligning shaped glyph bounds within the arranged
-text area, including their baseline-relative offsets.
+extraction reuses it while aligning the measured text advance and line box
+within the arranged text area; shaped bounds still provide the natural measured
+extent and glyph placement remains baseline-relative.
 The geometry-only internal harness can measure without a font service using
 its approximate metrics; a public document requires a registered font for
 successful text extraction. Missing fonts retain the existing diagnostic.
