@@ -22,15 +22,8 @@
     <PackageReference Include="DeltaText" Version="*" />
     <PackageReference Include="DeltaXAML" Version="*" />
     <PackageReference Include="DeltaXAML.Contract" Version="*" />
-    <ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.Generator.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.Compiler.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.Contract.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/Delta.Diagnostics.Contract.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaMaths.dll" />
+    <PackageReference Include="DeltaXAML.Compiler" Version="*" />
+    <PackageReference Include="DeltaXAML.Generator" Version="*" PrivateAssets="all" />
     <PackageReference Include="DeltaRender" Version="*" />
     <PackageReference Include="DeltaRender.Platform.SDL3" Version="*" />
     <PackageReference Include="DeltaRender.Vulkan" Version="*" />

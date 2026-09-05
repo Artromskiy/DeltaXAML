@@ -11,15 +11,9 @@
   <ItemGroup>
     <PackageReference Include="DeltaXAML" Version="*" />
     <PackageReference Include="DeltaXAML.Contract" Version="*" />
+    <PackageReference Include="DeltaXAML.Compiler" Version="*" />
+    <PackageReference Include="DeltaXAML.Generator" Version="*" PrivateAssets="all" />
     <PackageReference Include="DeltaText" Version="*" />
-    <ProjectReference Include="../../src/DeltaXAML.Generator/DeltaXAML.Generator.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.Compiler.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.Contract.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaXAML.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/Delta.Diagnostics.Contract.dll" />
-    <Analyzer Include="../../src/DeltaXAML.Generator/bin/Release/net8.0/DeltaMaths.dll" />
   </ItemGroup>
 
   <ItemGroup>
