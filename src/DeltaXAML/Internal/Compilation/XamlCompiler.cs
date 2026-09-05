@@ -1907,23 +1907,17 @@ internal static class XamlCompiler
 
         private static bool TryThickness(string value, out string canonical)
         {
-            var parts = value.Split(',', StringSplitOptions.TrimEntries);
             canonical = string.Empty;
-            if (parts.Length != 4)
+            if (!ThicknessLiteralParser.TryParse(value, out var thickness))
             {
                 return false;
             }
 
-            var parsed = new float[4];
-            for (var i = 0; i < parsed.Length; i++)
-            {
-                if (!float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out parsed[i]) || !float.IsFinite(parsed[i]))
-                {
-                    return false;
-                }
-            }
-
-            canonical = string.Join(',', parsed.Select(static value => value.ToString("R", CultureInfo.InvariantCulture)));
+            canonical = string.Join(',',
+                thickness.Left.ToString("R", CultureInfo.InvariantCulture),
+                thickness.Top.ToString("R", CultureInfo.InvariantCulture),
+                thickness.Right.ToString("R", CultureInfo.InvariantCulture),
+                thickness.Bottom.ToString("R", CultureInfo.InvariantCulture));
             return true;
         }
 

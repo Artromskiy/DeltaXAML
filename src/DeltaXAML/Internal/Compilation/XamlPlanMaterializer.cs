@@ -278,7 +278,7 @@ internal static class XamlPlanMaterializer
             case "Height" when TryDimension(value, out var h): e.Height = h; break;
             case "Height": d.Add(new("XAML003", $"Invalid Height '{value}'. Expected NaN or a finite non-negative value.", line, 1)); break;
             case "Margin" when TryThickness(value, out var margin): e.Margin = margin; break;
-            case "Margin": d.Add(new("XAML003", $"Invalid Margin '{value}'. Expected four finite values.", line, 1)); break;
+            case "Margin": d.Add(new("XAML003", $"Invalid Margin '{value}'. Expected one, two or four finite values.", line, 1)); break;
             case "HorizontalAlignment" when Enum.TryParse(value, true, out Delta.XAML.UiHorizontalAlignment horizontalAlignment) && horizontalAlignment != Delta.XAML.UiHorizontalAlignment.Unknown:
                 e.HorizontalAlignment = horizontalAlignment;
                 break;
@@ -347,7 +347,7 @@ internal static class XamlPlanMaterializer
             case "ForegroundResource" when resources is not null: e.SetStyleResource("Foreground", resources, new(value), InvalidationFor("Foreground")); break;
             case "ForegroundResource": d.Add(new("XAML004", "ForegroundResource requires a resource store.", line, 1)); break;
             case "Padding" when TryThickness(value, out var padding): e.Padding = padding; break;
-            case "Padding": d.Add(new("XAML003", $"Invalid Padding '{value}'. Expected four finite values.", line, 1)); break;
+            case "Padding": d.Add(new("XAML003", $"Invalid Padding '{value}'. Expected one, two or four finite values.", line, 1)); break;
             case "StyleKey": e.StyleKey = value; break;
             case "TemplateKey": e.TemplateKey = value; break;
             case "AutomationName": e.AutomationName = value; break;
@@ -658,23 +658,13 @@ internal static class XamlPlanMaterializer
 
     private static bool TryThickness(string value, out UiThickness result)
     {
-        var parts = value.Split(',', StringSplitOptions.TrimEntries);
         result = default;
-        if (parts.Length != 4)
+        if (!ThicknessLiteralParser.TryParse(value, out var thickness))
         {
             return false;
         }
 
-        var values = new float[4];
-        for (var i = 0; i < values.Length; i++)
-        {
-            if (!TryFloat(parts[i], out values[i]) || !float.IsFinite(values[i]))
-            {
-                return false;
-            }
-        }
-
-        result = new(values[0], values[1], values[2], values[3]);
+        result = new(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom);
         return true;
     }
     private static bool TryColor(string value, out UiColor color)

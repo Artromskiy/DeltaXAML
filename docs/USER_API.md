@@ -183,6 +183,9 @@ its origin. `Margin` reduces the available slot and is included in the
 element's measured desired size. These values are logical units; DPI remains a
 document-level scale applied once during layout.
 
+`Margin` and `Padding` accept one value for all sides, two values for horizontal
+and vertical sides, or four values in left, top, right, bottom order.
+
 Typed access is the normal application path:
 
 ```csharp

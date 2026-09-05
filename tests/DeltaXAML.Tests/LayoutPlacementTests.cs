@@ -17,6 +17,7 @@ internal static class LayoutPlacementTests
         StretchAndMarginUseTheSameElementPlacementPath();
         PlacementPropertiesInvalidateOnlyTheirRequiredStages();
         XamlAndGeneratedPathsExposeElementPlacementProperties();
+        CompactThicknessLiteralsExpandForMarginAndPadding();
         InvalidPlacementValuesAreRejectedAtEveryEntryPoint();
         TextPlacementIsIndependentFromElementPlacement();
         AutomaticPlacementStaysInsideAResizedViewport();
@@ -166,6 +167,30 @@ internal static class LayoutPlacementTests
         var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
         var loaded = loader.Load("<Border Width=\"-1\" Padding=\"0,0,Infinity,0\" />", in context);
         Assert.True(!loaded.Success && loaded.Diagnostics.Length != 0, "invalid placement literals produce a loader diagnostic");
+    }
+
+    private static void CompactThicknessLiteralsExpandForMarginAndPadding()
+    {
+        const string source = "<Border Margin=\"10\" Padding=\"2,3\" />";
+        var registry = XamlSemanticRegistry.CreateBuiltIns();
+        var plan = XamlCompiler.Compile(
+            new SourceId(new Guid("EAE3E9FC-8E8C-45F1-9AA1-5D7F54A1C09E")),
+            source,
+            registry);
+        Assert.True(plan.Success, "compact Margin and Padding literals compile");
+        Assert.True(CSharpArtifactEmitter.TryEmit(plan, registry, "Generated", "CompactThicknessArtifact", out var artifact, out _), "compact thickness literals emit through the generated path");
+        Assert.True(artifact.Contains("new global::Delta.XAML.UiThickness(10f, 10f, 10f, 10f)", StringComparison.Ordinal), "one thickness value expands to all sides in generated code");
+        Assert.True(artifact.Contains("new global::Delta.XAML.UiThickness(2f, 3f, 2f, 3f)", StringComparison.Ordinal), "two thickness values expand to horizontal and vertical sides in generated code");
+
+        var loader = new XamlLoader();
+        var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
+        var loaded = loader.Load(source, in context);
+        Assert.True(loaded.Success && loaded.Root is UiBorder, "interpreted loader accepts compact thickness literals");
+        if (loaded.Root is UiBorder border)
+        {
+            Assert.Equal(new PublicThickness(10, 10, 10, 10), border.Margin, "one Margin value applies to every side");
+            Assert.Equal(new PublicThickness(2, 3, 2, 3), border.Padding, "two Padding values apply to horizontal and vertical sides");
+        }
     }
 
     private static void TextPlacementIsIndependentFromElementPlacement()

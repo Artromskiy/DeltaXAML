@@ -3160,24 +3160,13 @@ internal static class CSharpArtifactEmitter
     {
         expression = string.Empty;
         error = string.Empty;
-        var parts = value.Split(',', StringSplitOptions.TrimEntries);
-        if (parts.Length != 4)
+        if (!ThicknessLiteralParser.TryParse(value, out var thickness))
         {
-            error = $"Thickness literal '{value}' is invalid.";
+            error = $"Thickness literal '{value}' must contain one, two or four finite values.";
             return false;
         }
 
-        var values = new float[4];
-        for (var i = 0; i < values.Length; i++)
-        {
-            if (!float.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]) || !float.IsFinite(values[i]))
-            {
-                error = $"Thickness literal '{value}' is invalid.";
-                return false;
-            }
-        }
-
-        expression = $"new global::Delta.XAML.UiThickness({values[0].ToString("R", CultureInfo.InvariantCulture)}f, {values[1].ToString("R", CultureInfo.InvariantCulture)}f, {values[2].ToString("R", CultureInfo.InvariantCulture)}f, {values[3].ToString("R", CultureInfo.InvariantCulture)}f)";
+        expression = $"new global::Delta.XAML.UiThickness({thickness.Left.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Top.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Right.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Bottom.ToString("R", CultureInfo.InvariantCulture)}f)";
         return true;
     }
 
