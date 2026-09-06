@@ -70,3 +70,44 @@ Candidate acceptance coverage:
 - unsupported geometry/effect diagnostics without a solid-rectangle fallback;
 - semantic custom visual registration and typed-parameter validation at the
   DeltaRender adapter boundary.
+
+## Development-host XAML hot reload
+
+Provide a development-only hot-reload session for `.dxaml` hosts. This is an
+IDE/sample-host capability, not part of the retained UI kernel, renderer
+contract or Release runtime.
+
+The first implementation can use a debounced file watcher and a full reload:
+
+```text
+source save -> parse/load -> diagnostics -> frame-boundary swap
+            -> Layout(viewport, dpi) -> BuildDisplayList -> render
+```
+
+Keep the last valid document active when a save is temporarily incomplete or
+invalid, and report source-range diagnostics without stopping the render loop.
+Reuse the host's text, font, image, resource and binding services; a shader or
+renderer rebuild is not needed for layout-only edits. The watcher must use an
+explicit source root and must not search for assets through hard-coded probe
+paths.
+
+The follow-up implementation should compile a semantic reload patch and apply
+it to the existing document at a frame boundary. Match unchanged nodes through
+stable generated identity/name-scope entries, update only affected properties,
+resources, styles and child order, and preserve binding context, focus,
+selection, scroll and input state where identity remains valid. A temporary
+candidate document is acceptable during validation for the initial host-only
+full-reload mode, but there must be one active retained document and one
+canonical `Dispatch -> Layout -> BuildDisplayList` path after the swap.
+
+Supported edits should include property values, text, layout, styles, resources
+and child add/remove/reorder. Changes that introduce new C# types, handlers,
+packages, root types or generated-only declarations should produce a clear
+reload diagnostic and require a rebuild/restart. As-you-type and on-save modes
+can share the same session; on-save is the safer default for incomplete XML.
+
+Acceptance should cover: valid edit, invalid edit with last-good-frame
+retention, resource/style invalidation, child reorder, stable identity/state
+preservation, resize/DPI after reload, no duplicate active document/tree, and a
+renderer-independent headless host test. The existing `RoundedRectangle.Render
+--watch` behavior is a prototype reference, not the final shared API.

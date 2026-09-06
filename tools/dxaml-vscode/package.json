@@ -2,9 +2,12 @@
   "name": "delta-xaml-language",
   "displayName": "DeltaXAML Language",
   "description": "Syntax highlighting for the DeltaXAML .dxaml dialect.",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "artromskiy",
   "license": "MIT",
+  "scripts": {
+    "test": "node test/grammar-smoke.mjs"
+  },
   "engines": {
     "vscode": ">=1.85.0"
   },
@@ -30,6 +33,12 @@
         "language": "delta-xaml",
         "scopeName": "source.dxaml",
         "path": "./syntaxes/dxaml.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "delta-xaml",
+        "path": "./snippets/dxaml.code-snippets"
       }
     ]
   }

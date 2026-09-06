@@ -29,6 +29,7 @@
       "close": "}"
     }
   ],
+  "autoCloseBefore": ">\n\t ",
   "surroundingPairs": [
     [
       "\"",
@@ -43,5 +44,15 @@
       "}"
     ]
   ],
-  "wordPattern": "(-?\\d*\\.\\d+|[A-Za-z_][\\w.-]*)"
+  "wordPattern": "(-?\\d*\\.\\d+|[A-Za-z_][\\w.-]*)",
+  "folding": {
+    "markers": {
+      "start": "^\\s*<!--\\s*#?region\\b",
+      "end": "^\\s*<!--\\s*#?endregion\\b"
+    }
+  },
+  "indentationRules": {
+    "increaseIndentPattern": "<(?!(?:/|!))([A-Za-z_][\\w:.-]*)\\b[^<>]*>(?!\\s*</\\1\\s*>)",
+    "decreaseIndentPattern": "^\\s*</[A-Za-z_][\\w:.-]*\\s*>"
+  }
 }

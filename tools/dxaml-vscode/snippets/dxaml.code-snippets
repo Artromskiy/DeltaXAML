@@ -1,0 +1,41 @@
+{
+  "DeltaXAML root": {
+    "prefix": "dxaml",
+    "body": [
+      "<Grid xmlns=\"urn:delta-xaml\"",
+      "      xmlns:x=\"urn:delta-xaml\"",
+      "      Width=\"${1:800}\" Height=\"${2:500}\">",
+      "  $0",
+      "</Grid>"
+    ],
+    "description": "Create a DeltaXAML root document"
+  },
+  "DeltaXAML border": {
+    "prefix": "dborder",
+    "body": [
+      "<Border Background=\"${1:#20242C}\"",
+      "        Padding=\"${2:12}\"",
+      "        CornerRadius=\"${3:8}\">",
+      "  $0",
+      "</Border>"
+    ],
+    "description": "Create a styled DeltaXAML Border"
+  },
+  "DeltaXAML text block": {
+    "prefix": "dtext",
+    "body": [
+      "<TextBlock Text=\"${1:Text}\"",
+      "           FontSize=\"${2:16}\"",
+      "           HorizontalTextAlignment=\"${3:Left}\"",
+      "           VerticalTextAlignment=\"${4:Top}\" />"
+    ],
+    "description": "Create a DeltaXAML TextBlock"
+  },
+  "DeltaXAML text binding": {
+    "prefix": "dbinding",
+    "body": [
+      "{Binding Path=${1:Property}, Mode=${2:OneWay}, StringFormat=${3:{0}}}"
+    ],
+    "description": "Create a compiled-style binding expression"
+  }
+}

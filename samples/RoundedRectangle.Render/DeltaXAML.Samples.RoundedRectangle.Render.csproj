@@ -11,25 +11,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DeltaXAML" Version="*" />
-    <PackageReference Include="DeltaXAML.Compiler" Version="*" />
-    <PackageReference Include="DeltaXAML.Generator" Version="*" PrivateAssets="all" />
-    <PackageReference Include="DeltaXAML.Contract" Version="*" />
-    <PackageReference Include="Delta.Diagnostics.Contract" Version="*" />
-    <PackageReference Include="DeltaMaths" Version="*" />
-    <PackageReference Include="DeltaText" Version="*" />
-    <PackageReference Include="DeltaRender" Version="*" />
-    <PackageReference Include="DeltaRender.Platform.SDL3" Version="*" />
-    <PackageReference Include="DeltaRender.Vulkan" Version="*" />
-    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.Text/DeltaRender.Text.csproj" />
-    <ProjectReference Include="../../../DeltaRender/src/DeltaRender.XAML/DeltaRender.XAML.csproj" />
-    <ProjectReference Include="../../../DeltaShader/src/DeltaShader.UI/DeltaShader.UI.csproj">
-      <AdditionalProperties>DeltaShaderPublishPath=$(TargetDir)DeltaShader\DeltaShader.UI\</AdditionalProperties>
-    </ProjectReference>
-    <ProjectReference Include="../../../DeltaShader/src/DeltaShader.Text/DeltaShader.Text.csproj">
-      <AdditionalProperties>DeltaShaderPublishPath=$(TargetDir)DeltaShader\DeltaShader.Text\</AdditionalProperties>
-    </ProjectReference>
-    <PackageReference Include="SDL3-CS" Version="*" />
+    <PackageReference Include="DeltaRender.UI" Version="*" />
+    <!-- 3.4.12.6 matches the compiler supported by the current SDK. -->
+    <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
     <PackageReference Include="Silk.NET.MoltenVK.Native" Version="*" GeneratePathProperty="true" />
   </ItemGroup>
 

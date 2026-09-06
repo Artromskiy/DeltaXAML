@@ -3,16 +3,19 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <RuntimeIdentifiers>osx-arm64;win-x64;linux-x64</RuntimeIdentifiers>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>DeltaXaml.Samples.Snake</RootNamespace>
-    <AssemblyName>DeltaXAML.Samples.Snake</AssemblyName>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>DeltaXaml.Samples.UiLibraryDemo</RootNamespace>
+    <AssemblyName>DeltaXAML.Samples.UI.Library.Demo</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="DeltaRender.UI" Version="*" />
-    <!-- 3.4.12.6 matches the compiler supported by the current SDK. -->
+    <PackageReference Include="DeltaXAML" Version="*" />
+    <PackageReference Include="DeltaXAML.Contract" Version="*" />
+    <PackageReference Include="DeltaXAML.Compiler" Version="*" />
+    <PackageReference Include="DeltaText" Version="*" />
     <PackageReference Include="SDL3-CS" Version="3.4.12.6" />
     <PackageReference Include="Silk.NET.MoltenVK.Native" Version="*" GeneratePathProperty="true" />
   </ItemGroup>
@@ -21,11 +24,11 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlClassName" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="DeltaXamlNamespace" />
     <AdditionalFiles Include="MainWindow.dxaml"
-                     DeltaXamlClassName="SnakeArtifact"
-                     DeltaXamlNamespace="DeltaXaml.Samples.Snake.Generated" />
+                     DeltaXamlClassName="UiLibraryDemoArtifact"
+                     DeltaXamlNamespace="DeltaXaml.Samples.UiLibraryDemo.Generated" />
     <None Update="MainWindow.dxaml" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Assets/LuckiestGuy-Regular.ttf"
-          Link="Assets/LuckiestGuy-Regular.ttf"
+    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
+          Link="Assets/NotoSans-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
              Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
@@ -38,4 +41,5 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
 </Project>

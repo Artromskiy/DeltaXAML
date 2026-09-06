@@ -1,0 +1,4 @@
+<Grid xmlns:x="urn:delta-xaml" Background="#0B0C0E">
+  <ItemsControl x:Name="VerticalGridLines" />
+  <ItemsControl x:Name="HorizontalGridLines" />
+</Grid>

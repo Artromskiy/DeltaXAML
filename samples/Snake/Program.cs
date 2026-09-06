@@ -1,3 +1,5 @@
+using Delta.Render.UI;
+
 namespace DeltaXaml.Samples.Snake;
 
 internal static class Program
@@ -5,24 +7,17 @@ internal static class Program
     private static async Task<int> Main(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);
-        if (!HasFlag(args, "--headless"))
-        {
-            return await SnakeWindowRunner.RunAsync(args).ConfigureAwait(false);
-        }
-
-        return await SnakeHeadlessRenderRunner.RunAsync(args).ConfigureAwait(false);
-    }
-
-    private static bool HasFlag(string[] args, string option)
-    {
-        for (var index = 0; index < args.Length; index++)
-        {
-            if (string.Equals(args[index], option, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        var fonts = SnakeFonts.Load();
+        var grid = SnakeArguments.ParseGrid(args);
+        return await UiRenderHost.RunAsync(
+            args,
+            new UiRenderHostOptions(
+                "MainWindow.dxaml",
+                "DeltaXAML Snake",
+                Width: 980,
+                Height: 760,
+                DefaultHeadlessFrames: 600),
+            fonts,
+            (textService, _) => new SnakeRenderContent(grid, textService, fonts)).ConfigureAwait(false);
     }
 }

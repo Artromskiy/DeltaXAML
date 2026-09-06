@@ -1,10 +1,11 @@
 # Rounded rectangle renderer sample
 
-This sample loads [`RoundedRectangle.dxaml`](RoundedRectangle.dxaml) through the
-DeltaXAML `XamlLoader`, builds one retained `UiDocument`, and submits its
-canonical `UiDisplayList` through `DeltaRender.XAML.UiDisplayListGraphFeature`.
-The rounded rectangle uses the generated `DeltaShader.UI` rounded-rectangle
-artifacts and four independent corner radii.
+This sample supplies [`RoundedRectangle.dxaml`](RoundedRectangle.dxaml), font
+registrations and defaults to the reusable `DeltaRender.UI` host. The host
+loads one retained `UiDocument`, propagates resize/DPI, builds the canonical
+`UiDisplayList`, and submits it through `DeltaRender.XAML` with the generated
+`DeltaShader.UI` artifacts. The rounded rectangle uses four independent corner
+radii.
 
 This sample does not own or copy compiled shaders. Obtain the producer-owned
 `ShaderArtifact`/`ShaderAbi`, generated `VertexAbi`/`FragmentAbi` and typed
@@ -30,9 +31,10 @@ dotnet run --project samples/RoundedRectangle.Render/DeltaXAML.Samples.RoundedRe
   -c Release -r osx-arm64 -- --watch
 ```
 
-Use `--frames N` for a bounded run. The host requires an SDL3
-display, Vulkan/MoltenVK and compatible checked-out DeltaRender/DeltaShader
-artifacts. DeltaXAML itself remains renderer-neutral.
+Use `--frames N` for a bounded run. Add `--xaml path` when watching a source
+file outside the output directory. The host requires an SDL3 display,
+Vulkan/MoltenVK and compatible DeltaRender/DeltaShader artifacts. DeltaXAML
+itself remains renderer-neutral.
 
 Add `--profile` to print post-warmup averages/minimums/maximums for
 `UiDocument.Layout`, `BuildDisplayList`, `UiDisplayListGraphFeature.Consume`,

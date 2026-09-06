@@ -1,22 +1,18 @@
 # DeltaXAML XAML Render sample
 
-This is the in-repository renderer host for compiled `.dxaml` documents. The
-host itself is not a NuGet package and is not a runtime dependency of other
-samples. Public DeltaXAML, DeltaRender and DeltaShader contracts are consumed
-through `PackageReference`; local development resolves them with the
-workspace NuGet feed described in [`docs/NUGET_WORKFLOW.md`](../../../docs/NUGET_WORKFLOW.md).
-The generator is a build-time local project reference because the current
-published generator package does not load its companion analyzer assemblies
-with this SDK; this does not add a runtime dependency or a second XAML path.
-The two current renderer integration adapters are still project references
-because their producer projects are explicitly non-packable.
+This is a sample consumer for compiled `.dxaml` documents. It consumes the
+single `DeltaRender.UI` NuGet bundle; the bundle owns the renderer-side
+DeltaXAML adapter, generated UI/text shader assemblies and feature factories.
+Local development resolves it with the workspace NuGet feed described in
+[`docs/NUGET_WORKFLOW.md`](../../../docs/NUGET_WORKFLOW.md). The sample owns
+only its XAML fixtures, document lifetime, window/headless loop and assets.
 
-The host selects one generated artifact with `--sample`: `main-window` (the
-runner fixture), `yage` or `rounded`. Each selection creates
-one `UiDocument` and sends its borrowed `UiDisplayList` to
-`UiDisplayListGraphFeature`. Shader SPIR-V, ABI and typed packing come from the
-shared DeltaShader UI/Text producer projects. DeltaXAML itself remains
-independent of SDL, Vulkan and DeltaRender.
+The host selects one `.dxaml` source with `--sample`: `main-window`,
+`ui-library-demo`, `grid-only` or `rounded`. Each selection creates one
+`UiDocument` and sends its borrowed `UiDisplayList` to
+`UiDisplayListGraphFeature`. Shader SPIR-V, ABI and typed packing are supplied
+by the `DeltaRender.UI` bundle. DeltaXAML itself remains independent of SDL,
+Vulkan and DeltaRender.
 
 From the DeltaXAML repository root:
 
@@ -31,7 +27,7 @@ Run an existing static XAML fixture through the same host:
 dotnet run --project samples/Xaml.Render/DeltaXAML.Samples.Xaml.Render.csproj \
   -c Release -r osx-arm64 -- --headless --sample rounded --frames 1
 dotnet run --project samples/Xaml.Render/DeltaXAML.Samples.Xaml.Render.csproj \
-  -c Release -r osx-arm64 -- --headless --sample yage --frames 1
+  -c Release -r osx-arm64 -- --headless --sample ui-library-demo --frames 1
 ```
 
 For an offscreen check and a PPM readback:
@@ -43,6 +39,6 @@ dotnet run --project samples/Xaml.Render/DeltaXAML.Samples.Xaml.Render.csproj \
 ```
 
 The default mode is windowed and runs until the window is closed. The headless
-mode is bounded by `--frames`; it does not create an SDL window. The interactive
-`Snake` sample keeps its own game/input loop and is not folded into this static
-document selector.
+mode is bounded by `--frames`; it does not create an SDL window. Dynamic
+samples such as `Snake` use the same `UiRenderHost` through its content hook,
+while keeping their game model and input policy local to the sample.

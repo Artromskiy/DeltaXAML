@@ -12,13 +12,25 @@
       "include": "#cdata"
     },
     {
+      "include": "#doctype"
+    },
+    {
       "include": "#processing-instruction"
+    },
+    {
+      "include": "#property-element"
     },
     {
       "include": "#tag"
     },
     {
       "include": "#markup-extension"
+    },
+    {
+      "include": "#entity"
+    },
+    {
+      "include": "#bare-ampersand"
     },
     {
       "include": "#color"
@@ -38,14 +50,19 @@
       "begin": "<!\\[CDATA\\[",
       "end": "\\]\\]>"
     },
+    "doctype": {
+      "name": "meta.tag.doctype.xml.dxaml",
+      "begin": "<!DOCTYPE\\b",
+      "end": ">"
+    },
     "processing-instruction": {
       "name": "keyword.control.processing-instruction.xml.dxaml",
       "begin": "<\\?",
       "end": "\\?>"
     },
-    "tag": {
-      "name": "meta.tag.xml.dxaml",
-      "begin": "(<)(/?)(?:(Border|Panel|Grid|StackPanel|TextBlock|TextBox|NumericEditor|Button|ContentControl|ItemsControl|CollectionView|ScrollViewer|Image|Slider|Picker|Overlay|Canvas|Path|Shape)(?=\\s|/?>)|(Resource|Style|Setter|Template|DataTemplate|DataTemplateSelector|Trigger|DataTrigger|MultiTrigger|VisualState|VisualStateGroup|Behavior|Binding|MultiBinding|Span|Run|GradientStop|SolidColorBrush|LinearGradientBrush|RadialGradientBrush)(?=\\s|/?>)|([A-Za-z_][\\w:.-]*))(?=\\s|/?>)",
+    "property-element": {
+      "name": "meta.tag.property.xml.dxaml",
+      "begin": "(<)(/?)([A-Za-z_][\\w:.-]*\\.[A-Za-z_][\\w:.-]*)(?=\\s|/?>)",
       "end": "(/?>)",
       "beginCaptures": {
         "1": {
@@ -55,13 +72,42 @@
           "name": "punctuation.definition.tag.end.xml.dxaml"
         },
         "3": {
-          "name": "entity.name.type.control.dxaml"
+          "name": "entity.name.tag.xml.property-element.dxaml"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.end.xml.dxaml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#directive-attribute"
+        },
+        {
+          "include": "#attribute"
+        }
+      ]
+    },
+    "tag": {
+      "name": "meta.tag.xml.dxaml",
+      "begin": "(<)(/?)(?:(?:(?:[A-Za-z_][\\w.-]*:)?(Border|Panel|Grid|StackPanel|TextBlock|TextBox|NumericEditor|Button|ToggleButton|ContentControl|ItemsControl|CollectionView|ScrollViewer|Image|Slider|Picker|Overlay|Canvas|Path|Shape|RichTextBlock|TabView|Menu))(?=\\s|/?>)|(?:(?:[A-Za-z_][\\w.-]*:)?(Resource|Style|Setter|Template|DataTemplate|DataTemplateSelector|Trigger|DataTrigger|MultiTrigger|TriggerAction|VisualState|VisualStateGroup|Behavior|Binding|MultiBinding|Span|Run|GradientStop|SolidColorBrush|LinearGradientBrush|RadialGradientBrush))(?=\\s|/?>)|([A-Za-z_][\\w:.-]*))(?=\\s|/?>)",
+      "end": "(/?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.xml.dxaml"
+        },
+        "2": {
+          "name": "punctuation.definition.tag.end.xml.dxaml"
+        },
+        "3": {
+          "name": "entity.name.tag.xml.control.dxaml"
         },
         "4": {
-          "name": "entity.name.type.markup.dxaml"
+          "name": "entity.name.tag.xml.markup.dxaml"
         },
         "5": {
-          "name": "entity.name.type.custom.dxaml"
+          "name": "entity.name.tag.xml.custom.dxaml"
         }
       },
       "endCaptures": {
@@ -80,7 +126,7 @@
           "include": "#event-attribute"
         },
         {
-          "include": "#style-attribute"
+          "include": "#property-attribute"
         },
         {
           "include": "#attribute"
@@ -96,12 +142,15 @@
         },
         {
           "include": "#enum"
+        },
+        {
+          "include": "#entity"
         }
       ]
     },
     "directive-attribute": {
       "name": "meta.attribute.directive.dxaml",
-      "begin": "((?:xmlns(?::[A-Za-z_][\\w.-]*)?|x:[A-Za-z_][\\w.-]*|d:[A-Za-z_][\\w.-]*|mc:[A-Za-z_][\\w.-]*))(\\s*)(=)(\\s*)",
+      "begin": "((?:xmlns(?::[A-Za-z_][\\w.-]*)?|x:(?:Class|Name|Key|DataType|TypeArguments|Reference|FactoryMethod)|d:[A-Za-z_][\\w.-]*|mc:[A-Za-z_][\\w.-]*))(\\s*)(=)(\\s*)",
       "end": "(?=\\s|/?>)",
       "beginCaptures": {
         "1": {
@@ -122,11 +171,11 @@
     },
     "attached-attribute": {
       "name": "meta.attribute.attached.dxaml",
-      "begin": "((?:[A-Za-z_][\\w.-]*\\.)[A-Za-z_][\\w.-]*)(\\s*)(=)(\\s*)",
+      "begin": "((?:Grid|Canvas|ScrollViewer|AutomationProperties|SemanticProperties|Style|VisualStateManager|[A-Za-z_][\\w-]*)\\.[A-Za-z_][\\w.-]*)(\\s*)(=)(\\s*)",
       "end": "(?=\\s|/?>)",
       "beginCaptures": {
         "1": {
-          "name": "variable.other.property.attached.dxaml"
+          "name": "entity.other.attribute-name.xml.attached.dxaml"
         },
         "3": {
           "name": "keyword.operator.assignment.dxaml"
@@ -143,7 +192,7 @@
     },
     "event-attribute": {
       "name": "meta.attribute.event.dxaml",
-      "begin": "((?:[A-Za-z_][\\w.-]*)(?:Click|Tapped|Pressed|Released|PointerEntered|PointerExited|PointerMoved|TextChanged|SelectionChanged|ValueChanged|FocusGained|FocusLost|Command))(\\s*)(=)(\\s*)",
+      "begin": "((?:[A-Za-z_][\\w.-]*\\.)?(?:Click|Clicked|Tapped|Pressed|Released|PointerEntered|PointerExited|PointerMoved|PointerPressed|PointerReleased|TextChanged|SelectionChanged|ValueChanged|FocusGained|FocusLost|KeyDown|KeyUp|Completed|Scrolled))(\\s*)(=)(\\s*)",
       "end": "(?=\\s|/?>)",
       "beginCaptures": {
         "1": {
@@ -162,13 +211,13 @@
         }
       ]
     },
-    "style-attribute": {
-      "name": "meta.attribute.style.dxaml",
-      "begin": "((?:Style|TargetType|BasedOn|Selector|Property|Value|Template|TemplateKey|StyleKey|Theme|ThemeKey|VisualState|State|Trigger|Action|Behavior|FontKey|FontSize|FontWeight|FontStyle|Foreground|Background|BorderColor|BorderWidth|CornerRadius|Padding|Margin|Width|Height|MinWidth|MinHeight|MaxWidth|MaxHeight|Rows|Columns|IsEnabled|IsVisible|Opacity|ClipToBounds|HorizontalAlignment|VerticalAlignment|HorizontalContentAlignment|VerticalContentAlignment|TextAlignment|TextWrapping|TextTrimming|MaxLines|LineHeight|TextDecorations|Placeholder|IsReadOnly|IsMultiline|MaxLength|ItemsSource|ItemTemplate|ItemTemplateSelector|Command|CommandParameter|BindingContext|StringFormat))(\\s*)(=)(\\s*)",
+    "property-attribute": {
+      "name": "meta.attribute.property.dxaml",
+      "begin": "((?:Style|TargetType|BasedOn|Selector|Property|Value|Template|TemplateKey|StyleKey|Theme|ThemeKey|VisualState|State|Trigger|Action|Behavior|FontKey|FontSize|FontWeight|FontStyle|Foreground|Background|Fill|Stroke|BorderColor|BorderWidth|BorderWidthUnits|CornerRadius|Padding|Margin|Width|Height|MinWidth|MinHeight|MaxWidth|MaxHeight|Rows|Columns|GridLinesVisibility|Orientation|IsEnabled|IsVisible|Opacity|ClipToBounds|HorizontalAlignment|VerticalAlignment|HorizontalContentAlignment|VerticalContentAlignment|TextAlignment|HorizontalTextAlignment|VerticalTextAlignment|TextWrapping|TextTrimming|MaxLines|LineHeight|TextDecorations|LetterSpacing|Placeholder|IsReadOnly|IsMultiline|MaxLength|CaretIndex|SelectionStart|SelectionLength|ItemsSource|ItemTemplate|ItemTemplateSelector|Command|CommandParameter|BindingContext|StringFormat|Source|Content|Text|Value|Minimum|Maximum|Step|SelectedIndex|SelectedItem|IsChecked|ImageSource|SourceKey|ResourceKey|LocalizationKey))(\\s*)(=)(\\s*)",
       "end": "(?=\\s|/?>)",
       "beginCaptures": {
         "1": {
-          "name": "entity.other.attribute-name.property.dxaml"
+          "name": "entity.other.attribute-name.xml.property.dxaml"
         },
         "3": {
           "name": "keyword.operator.assignment.dxaml"
@@ -189,7 +238,7 @@
       "end": "(?=\\s|/?>)",
       "beginCaptures": {
         "1": {
-          "name": "entity.other.attribute-name.property.dxaml"
+          "name": "entity.other.attribute-name.xml.dxaml"
         },
         "3": {
           "name": "keyword.operator.assignment.dxaml"
@@ -207,17 +256,17 @@
     "quoted-value": {
       "patterns": [
         {
-          "name": "string.quoted.double.dxaml",
+          "name": "string.quoted.double.xml.dxaml",
           "begin": "\\\"",
           "end": "\\\"",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dxaml"
+              "name": "punctuation.definition.string.begin.xml.dxaml"
             }
           },
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dxaml"
+              "name": "punctuation.definition.string.end.xml.dxaml"
             }
           },
           "patterns": [
@@ -228,6 +277,9 @@
               "include": "#color"
             },
             {
+              "include": "#resource-key"
+            },
+            {
               "include": "#number"
             },
             {
@@ -235,21 +287,24 @@
             },
             {
               "include": "#enum"
+            },
+            {
+              "include": "#entity"
             }
           ]
         },
         {
-          "name": "string.quoted.single.dxaml",
+          "name": "string.quoted.single.xml.dxaml",
           "begin": "'",
           "end": "'",
           "beginCaptures": {
             "0": {
-              "name": "punctuation.definition.string.begin.dxaml"
+              "name": "punctuation.definition.string.begin.xml.dxaml"
             }
           },
           "endCaptures": {
             "0": {
-              "name": "punctuation.definition.string.end.dxaml"
+              "name": "punctuation.definition.string.end.xml.dxaml"
             }
           },
           "patterns": [
@@ -260,6 +315,9 @@
               "include": "#color"
             },
             {
+              "include": "#resource-key"
+            },
+            {
               "include": "#number"
             },
             {
@@ -267,18 +325,21 @@
             },
             {
               "include": "#enum"
+            },
+            {
+              "include": "#entity"
             }
           ]
         }
       ]
     },
     "unquoted-value": {
-      "name": "string.unquoted.dxaml",
+      "name": "string.unquoted.xml.dxaml",
       "match": "[^\\s/>]+"
     },
     "markup-extension": {
       "name": "meta.embedded.markup-extension.dxaml",
-      "begin": "(\\{)(?=\\s*(?:Binding|DynamicResource|StaticResource|TemplateBinding|RelativeSource|MultiBinding|x:[A-Za-z]+|Command|OnPlatform|OnIdiom|StringFormat)\\b)",
+      "begin": "(\\{)(?=\\s*(?:Binding|DynamicResource|StaticResource|TemplateBinding|RelativeSource|MultiBinding|x:(?:Null|Type|Static|Reference)|Command|OnPlatform|OnIdiom|StringFormat)\\b)",
       "end": "(\\})",
       "beginCaptures": {
         "1": {
@@ -296,12 +357,20 @@
           "name": "support.function.markup-extension.dxaml"
         },
         {
-          "match": "\\b(Path|Mode|Source|ElementName|AncestorType|AncestorLevel|RelativeSource|Converter|ConverterParameter|UpdateSourceTrigger|FallbackValue|TargetNullValue|StringFormat|CommandParameter)(?=\\s*=)",
+          "match": "\\b(x:(?:Null|Type|Static|Reference))\\b",
+          "name": "support.function.markup-extension.dxaml"
+        },
+        {
+          "match": "\\b(Path|Mode|Source|ElementName|AncestorType|AncestorLevel|RelativeSource|Converter|ConverterParameter|UpdateSourceTrigger|FallbackValue|TargetNullValue|StringFormat|CommandParameter|Property|Values|Condition|EnterActions|ExitActions)(?=\\s*=)",
           "name": "variable.parameter.markup-extension.dxaml"
         },
         {
           "match": "=",
           "name": "keyword.operator.assignment.dxaml"
+        },
+        {
+          "match": "[,;]",
+          "name": "punctuation.separator.argument.dxaml"
         },
         {
           "match": "\\b(OneTime|OneWay|TwoWay|OneWayToSource|Default|Compiled|Explicit|PropertyChanged|LostFocus)\\b",
@@ -317,8 +386,22 @@
           "include": "#boolean"
         },
         {
-          "match": "\\b(x:(?:Null|Type|Static|Reference)|null)\\b",
+          "include": "#entity"
+        },
+        {
+          "match": "\\b(null|x:Null)\\b",
           "name": "constant.language.null.dxaml"
+        },
+        {
+          "match": "\\b(DynamicResource|StaticResource)\\s+([A-Za-z_][\\w.-]*)",
+          "captures": {
+            "1": {
+              "name": "support.function.resource-reference.dxaml"
+            },
+            "2": {
+              "name": "variable.other.resource-key.dxaml"
+            }
+          }
         },
         {
           "match": "[^,}\\s]+",
@@ -326,8 +409,12 @@
         }
       ]
     },
+    "resource-key": {
+      "name": "variable.other.resource-key.dxaml",
+      "match": "(?<=Resource\\s)[A-Za-z_][\\w.-]*"
+    },
     "color": {
-      "name": "constant.other.color.dxaml",
+      "name": "constant.other.color.rgb-value.dxaml",
       "match": "#[0-9A-Fa-f]{3,8}\\b"
     },
     "number": {
@@ -340,10 +427,18 @@
     },
     "enum": {
       "name": "constant.language.enum.dxaml",
-      "match": "\\b(?:Auto|Star|Fill|Visible|Collapsed|Horizontal|Vertical|Center|Left|Right|Top|Bottom|Stretch|Uniform|UniformToFill|Wrap|NoWrap|CharacterEllipsis|WordEllipsis|Device|Logical|None|Normal|Hovered|Pressed|Focused|Disabled|Invalid|Selected|OneTime|OneWay|TwoWay|Grid|Stack|Row|Column)\\b"
+      "match": "\\b(?:Auto|Star|Pixel|Fill|Visible|Collapsed|Hidden|Horizontal|Vertical|Center|Left|Right|Top|Bottom|Stretch|Uniform|UniformToFill|Wrap|NoWrap|CharacterEllipsis|WordEllipsis|Device|Logical|None|Normal|Italic|Bold|Regular|Hovered|Pressed|Focused|Disabled|Invalid|Selected|Unchecked|Checked|OneTime|OneWay|TwoWay|Grid|Stack|Row|Column|Start|End)\\b"
+    },
+    "entity": {
+      "name": "constant.character.entity.xml.dxaml",
+      "match": "&(?:amp|lt|gt|quot|apos|#\\d+|#x[0-9A-Fa-f]+);"
+    },
+    "bare-ampersand": {
+      "name": "invalid.illegal.unescaped-ampersand.xml.dxaml",
+      "match": "&(?!amp;|lt;|gt;|quot;|apos;|#\\d+;|#x[0-9A-Fa-f]+;)"
     },
     "text-content": {
-      "name": "string.unquoted.text.dxaml",
+      "name": "string.unquoted.text.xml.dxaml",
       "match": "(?<=>)(?=[^<]*\\S)[^<]+(?=<)"
     }
   }

@@ -4,7 +4,7 @@
   <Project Path="src/DeltaXAML.Compiler/DeltaXAML.Compiler.csproj" />
   <Project Path="src/DeltaXAML.Generator/DeltaXAML.Generator.csproj" />
   <Project Path="samples/Snake/DeltaXAML.Samples.Snake.csproj" />
-  <Project Path="samples/YageUiLibrary/DeltaXAML.Samples.YageUiLibrary.csproj" />
+  <Project Path="samples/UI-Library-Demo/DeltaXAML.Samples.UI.Library.Demo.csproj" />
   <Project Path="samples/Xaml.Render/DeltaXAML.Samples.Xaml.Render.csproj" />
   <Project Path="tests/DeltaXAML.Tests/DeltaXAML.Tests.csproj" />
 </Solution>
