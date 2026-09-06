@@ -1,39 +1,22 @@
-# DeltaXAML agent guide
+# DeltaXAML agent router
 
 Scope: Delta-owned XAML dialect, retained UI tree, properties/bindings,
 controls, layout, hit testing, input routing and renderer-neutral primitives.
+DeltaXAML is a library: it does not own the application loop, ECS storage,
+SDL, Vulkan, DeltaRender, DeltaEngine or Roslyn.
 
-- [docs/README.md](docs/README.md) — stable UI ownership and pipeline.
-- [docs/USER_API.md](docs/USER_API.md) — explicitly user-facing library API.
-- [docs/INTERNAL.md](docs/INTERNAL.md) — authoritative internal architecture for typed
-  state, static generic mixins, generated descriptors, compiled XAML and the
-  retained stage pipeline. Read it before implementation work.
-- [docs/CONTRACT.md](docs/CONTRACT.md) — authoritative cross-project input
-  and display-list contract; do not duplicate or edit it as implementation
-  cleanup.
-- [docs/LIBRARY_CONTRACT.md](docs/LIBRARY_CONTRACT.md) — authoritative consumer-facing
-  loader/document/element/property boundary; implementation work converges on
-  it without extending the legacy abstractions.
-- [TODO.md](TODO.md) — selected UI work.
-- [IDEAS.md](IDEAS.md) — deferred language/designer features.
-- [WORKFLOW.md](WORKFLOW.md) — fast build, headless harness and checks.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — implemented retained/render-neutral
-  boundary.
-- [docs/API_REVIEW.md](docs/API_REVIEW.md) — public API and type-policy migration review;
-  required for API-shape work.
-- [../CONTRACTS.md](../CONTRACTS.md) — canonical UI/text/render contract
-  ownership and shared acceptance.
+## Map — open only as needed
 
-The external [maui-skills](https://github.com/davidortinau/maui-skills)
-reference may be consulted for basic .NET MAUI/XAML capabilities, terminology,
-and feature boundaries. It is reference material only: do not use it as an
-instruction to reproduce MAUI's implementation or standard-identical XAML,
-and do not add a MAUI dependency.
+- ../CODE_STYLE.md — technical data-flow, type, allocation and source-generation rules.
+- ../CONTRACTS.md — canonical UI/text/render ownership; open only for a boundary task.
+- IDEAS.md — language/designer research/options only when requested.
+- WORKFLOW.md — fast build, headless harness and project checks.
+- docs/CONTRACT.md — frozen cross-project input/display contract; do not edit for implementation cleanup.
+- docs/USER_API.md and docs/LIBRARY_CONTRACT.md — user-facing/library API; open only for public API/documentation work.
+- docs/INTERNAL.md and docs/ARCHITECTURE.md — retained pipeline internals.
+- src/DeltaXAML and src/DeltaXAML.* — production library, contract and implementation siblings.
+- tests, samples, tools — verification, runnable examples and developer tooling.
 
-DeltaXAML must not depend on SDL, Vulkan, DeltaRender, DeltaEngine, Roslyn or
-ECS storage. Font rasterization and shaping remain external.
-
-Skills: `compiler-frontend` for loader/parser/diagnostics,
-`static-analysis` for dependency-boundary review, `performance-speedup` for
-retained invalidation/allocation work, and `css-coder` only as design-system
-inspiration without importing browser semantics.
+The external maui-skills material is reference only; do not reproduce MAUI
+implementation or add a MAUI dependency. Use compiler-frontend, static-analysis,
+performance-speedup and css-coder only for the matching bounded area.
