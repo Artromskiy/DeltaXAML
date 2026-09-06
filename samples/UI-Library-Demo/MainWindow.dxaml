@@ -1,4 +1,14 @@
 <Grid xmlns:x="urn:delta-xaml" Background="#0B0C0E">
-  <ItemsControl x:Name="VerticalGridLines" />
-  <ItemsControl x:Name="HorizontalGridLines" />
+  <Grid>
+    <ItemsControl x:Name="VerticalGridLines" />
+    <ItemsControl x:Name="HorizontalGridLines" />
+  </Grid>
+  <Border Width="568" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#141517" BorderColor="#303238" BorderWidth="1" CornerRadius="8" Padding="24,20,24,24">
+    <StackPanel>
+      <TextBlock Text="TABS" Foreground="#B9BBC1" FontSize="23" FontWeight="Bold" />
+      <StackPanel>
+        <Button x:Name="RenderBreaker" Background="#777777" Width="100" Height="44" Margin="0,0,2,0"/>
+      </StackPanel>
+      </StackPanel>
+  </Border>
 </Grid>

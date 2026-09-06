@@ -1,16 +1,15 @@
 # UI Library Demo
 
-This is a DeltaXAML editor-style UI library sample. It demonstrates a dark
-design-system composition with:
-toolbar, tabs, renderer preview, buttons, inputs, selection, inspector,
-assets, status, tree/list and typography cards. It uses one generated
-`.dxaml` artifact, resource-backed styles and the existing DeltaXAML controls.
+This is a minimal DeltaXAML panel sample. It renders a generated square grid
+behind one centered Tabs panel. The logical cell size follows the current
+viewport, so cells stay square in headless and windowed resolutions.
 
-Avalonia-only selectors, `Window`, transforms, `UniformGrid` and drawing
-brushes are intentionally represented by the closest supported DeltaXAML
-composition instead of a host-built substitute tree.
+The composition uses regular DeltaXAML controls and nested content; there is no
+host-built substitute tree. The executable wires the generated artifact directly
+to `VulkanRenderer`, `TextRenderFeature`, `UiDisplayListGraphFeature`, and a
+small sample-owned render graph. `DeltaRender.UI` is not required.
 
-Run the sample through the shared host and inspect the hierarchy snapshot:
+Run the sample directly and inspect the hierarchy snapshot:
 
 ```sh
 dotnet run --project samples/UI-Library-Demo/DeltaXAML.Samples.UI.Library.Demo.csproj \
@@ -18,9 +17,9 @@ dotnet run --project samples/UI-Library-Demo/DeltaXAML.Samples.UI.Library.Demo.c
   --layout-json /tmp/delta-ui-library-demo-layout.json
 ```
 
-The demo uses `DeltaRender.UI` directly. Its grid background is generated into
-the named `ItemsControl` hosts during content setup; the XAML file contains no
-repeated line declarations.
+The sample uses `DeltaRender.UI` directly. Its grid lines are generated into
+the named `ItemsControl` hosts; the XAML file contains no repeated line
+declarations.
 
 Windowed mode runs until the window is closed:
 

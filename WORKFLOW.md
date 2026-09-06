@@ -30,74 +30,19 @@ secret. The code-metrics wrapper recognizes the local workspace location when
 the variable is not already set. Package vulnerability auditing remains
 enabled.
 
-## NuGet release protocol
+## NuGet package details
 
-The aligned release set for this repository is `0.0.14`:
-`DeltaXAML`, `DeltaXAML.Contract`, `DeltaXAML.Compiler` and
-`DeltaXAML.Generator`. Pack all four packages from the same checked-out
-commit after the normal Release build. Use a temporary output directory and
-make the package version explicit so a stale project property cannot publish
-an older version:
+Use the root [`dev` and `release` workflow`](../docs/NUGET_WORKFLOW.md); it is
+the only supported pack, restore and publish entry point. It reads package
+versions from the project files and stages all DeltaXAML packages from one
+checkout, so this document intentionally contains no version literals or
+manual push commands.
 
-```bash
-package_dir="$(mktemp -d "${TMPDIR:-/tmp}/deltaxaml-pack.XXXXXX")"
-dotnet restore DeltaXAML.slnx
-dotnet pack src/DeltaXAML/DeltaXAML.csproj -c Release --no-restore \
-  -p:PackageVersion=0.0.14 -o "$package_dir"
-dotnet pack src/DeltaXAML.Contract/DeltaXAML.Contract.csproj -c Release --no-restore \
-  -p:PackageVersion=0.0.14 -o "$package_dir"
-dotnet pack src/DeltaXAML.Compiler/DeltaXAML.Compiler.csproj -c Release --no-restore \
-  -p:PackageVersion=0.0.14 -o "$package_dir"
-dotnet pack src/DeltaXAML.Generator/DeltaXAML.Generator.csproj -c Release --no-restore \
-  -p:PackageVersion=0.0.14 -o "$package_dir"
-```
-
-Before publishing, verify that the directory contains exactly these four
-`.nupkg` files and inspect their contents. `DeltaXAML.Generator.0.0.14.nupkg`
-must be self-contained: its `analyzers/dotnet/cs/` directory contains the
-generator, compiler, diagnostics and other non-framework analyzer assemblies
-it needs at build time. It must not rely on a package dependency or on a
-checkout-relative DLL path.
-The runtime and contract packages must expose their normal `lib/net8.0/`
-assets; source projects and `bin/`/`obj/` files are not package members.
-
-```bash
-find "$package_dir" -maxdepth 1 -type f -name '*.nupkg' -print
-test "$(find "$package_dir" -maxdepth 1 -type f -name '*.nupkg' | wc -l | tr -d ' ')" -eq 4
-unzip -l "$package_dir/DeltaXAML.Generator.0.0.14.nupkg" \
-  | grep 'analyzers/dotnet/cs/'
-unzip -l "$package_dir/DeltaXAML.0.0.14.nupkg" | grep 'lib/net8.0/'
-unzip -l "$package_dir/DeltaXAML.Contract.0.0.14.nupkg" | grep 'lib/net8.0/'
-for package in "$package_dir"/*.nupkg; do
-  unzip -t "$package"
-  unzip -p "$package" '*.nuspec' \
-    | grep -E '<id>|<version>|<repository|<dependency'
-done
-```
-
-Publish only after the package inspection succeeds. The API key is supplied
-only by the shell environment variable `NUGET_API_KEY`; never put it in a
-project file, command-line literal, repository file or committed log. This
-protocol targets NuGet.org:
-
-```bash
-: "${NUGET_API_KEY:?Set NUGET_API_KEY in the shell; do not store it in the repository}"
-nuget_source='https://api.nuget.org/v3/index.json'
-for package in \
-  "$package_dir/DeltaXAML.Contract.0.0.14.nupkg" \
-  "$package_dir/DeltaXAML.0.0.14.nupkg" \
-  "$package_dir/DeltaXAML.Compiler.0.0.14.nupkg" \
-  "$package_dir/DeltaXAML.Generator.0.0.14.nupkg"; do
-  dotnet nuget push "$package" \
-    --source "$nuget_source" \
-    --api-key "$NUGET_API_KEY" \
-    --skip-duplicate
-done
-```
-
-Do not run the push step as part of a local verification or without an
-explicit release authorization. Remove the temporary package directory after
-the release is complete.
+The release set is `DeltaXAML`, `DeltaXAML.Contract`, `DeltaXAML.Compiler` and
+`DeltaXAML.Generator`. The generator package must carry its complete analyzer
+payload under `analyzers/dotnet/cs/`; runtime and contract packages expose only
+their normal framework assets. Package-content and ownership changes belong in
+the root workflow and the project files, not in a second copy of pack logic.
 
 ## Repository layout (mandatory)
 

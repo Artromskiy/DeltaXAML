@@ -9,8 +9,21 @@ internal static class LayoutDiagnosticsTests
         GridChildrenDoNotIntersectWhenPlacedInDistinctCells();
         GridChildrenStayInsideGridWhenRequestedSizeIsLarger();
 
-        var root = new UiPanel { Width = 100, Height = 80, Padding = new(3, 4, 5, 6) };
-        var first = new UiBorder { Width = 40, Height = 20 };
+        var root = new UiPanel
+        {
+            Width = 100,
+            Height = 80,
+            Padding = new(3, 4, 5, 6),
+            Background = new(1, 2, 3, 4),
+            BorderColor = new(5, 6, 7, 8),
+        };
+        var first = new UiBorder
+        {
+            Width = 40,
+            Height = 20,
+            Background = new(9, 10, 11),
+            BorderColor = new(12, 13, 14, 15),
+        };
         var nested = new UiBorder { Width = 12, Height = 8 };
         first.SetChild(nested);
         root.Add(first);
@@ -30,12 +43,15 @@ internal static class LayoutDiagnosticsTests
 
         using var parsed = JsonDocument.Parse(firstJson);
         var jsonRoot = parsed.RootElement;
-        Assert.Equal(2, jsonRoot.GetProperty("schemaVersion").GetInt32(), "layout diagnostics schema is versioned");
+        Assert.Equal(3, jsonRoot.GetProperty("schemaVersion").GetInt32(), "layout diagnostics schema is versioned");
         Assert.True(jsonRoot.GetProperty("layoutCompleted").GetBoolean(), "layout diagnostics mark a completed layout");
         Assert.Equal(100f, jsonRoot.GetProperty("viewport").GetProperty("width").GetSingle(), "viewport width is reported");
         Assert.Equal(80f, jsonRoot.GetProperty("viewport").GetProperty("height").GetSingle(), "viewport height is reported");
 
         var rootNode = jsonRoot.GetProperty("root");
+        var rootColors = rootNode.GetProperty("colors");
+        Assert.Equal("#01020304", rootColors.GetProperty("background").GetString(), "background color is reported as RGBA");
+        Assert.Equal("#05060708", rootColors.GetProperty("borderColor").GetString(), "border color is reported as RGBA");
         Assert.Equal("Panel", rootNode.GetProperty("type").GetString(), "root type is reported");
         Assert.Equal(100f, rootNode.GetProperty("bounds").GetProperty("width").GetSingle(), "root arranged width is reported");
         Assert.Equal(80f, rootNode.GetProperty("bounds").GetProperty("height").GetSingle(), "root arranged height is reported");
@@ -48,6 +64,9 @@ internal static class LayoutDiagnosticsTests
         Assert.Equal(40f, firstNode.GetProperty("bounds").GetProperty("width").GetSingle(), "panel layout preserves the child's explicit width");
         Assert.Equal(40f, firstNode.GetProperty("requestedSize").GetProperty("width").GetSingle(), "child requested width is reported separately from its arranged bounds");
         Assert.Equal(20f, firstNode.GetProperty("requestedSize").GetProperty("height").GetSingle(), "child requested height is reported separately from its arranged bounds");
+        var firstColors = firstNode.GetProperty("colors");
+        Assert.Equal("#090A0BFF", firstColors.GetProperty("background").GetString(), "child background color is reported as RGBA");
+        Assert.Equal("#0C0D0E0F", firstColors.GetProperty("borderColor").GetString(), "child border color is reported as RGBA");
 
         var nestedNode = firstNode.GetProperty("children")[0];
         Assert.Equal(12f, nestedNode.GetProperty("requestedSize").GetProperty("width").GetSingle(), "nested requested width is reported");
@@ -58,8 +77,10 @@ internal static class LayoutDiagnosticsTests
         using var textJson = JsonDocument.Parse(textDocument.BuildLayoutDiagnosticsJson(false));
         var textNode = textJson.RootElement.GetProperty("root");
         Assert.Equal("diagnostic text", textNode.GetProperty("text").GetString(), "text content is reported with its layout node");
+        Assert.Equal("#FFFFFFFF", textNode.GetProperty("colors").GetProperty("foreground").GetString(), "text foreground color is reported as RGBA");
         Assert.True(textNode.TryGetProperty("textBounds", out var textBounds) && textBounds.GetProperty("width").GetSingle() >= 0,
             "text layout bounds are reported separately from the element bounds");
+
     }
 
     private static void GridChildrenDoNotIntersectWhenPlacedInDistinctCells()

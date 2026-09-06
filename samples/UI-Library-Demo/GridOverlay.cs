@@ -4,46 +4,40 @@ namespace DeltaXaml.Samples.UiLibraryDemo;
 
 internal static class GridOverlay
 {
-    private const int VerticalLineCount = 20;
-    private const int HorizontalLineCount = 27;
-    private static readonly UiColor LineColor = new(255, 255, 255, 13);
+    private const int GridColumns = 24;
+    private const int GridRows = 16;
+    private static readonly UiColor _lineColor = new(30, 33, 38, 255);
 
-    internal static void Populate(UiItemsControl verticalLines, UiItemsControl horizontalLines)
+    internal static void Update(UiItemsControl verticalLines, UiItemsControl horizontalLines)
     {
-        ArgumentNullException.ThrowIfNull(verticalLines);
-        ArgumentNullException.ThrowIfNull(horizontalLines);
-
-        AddVerticalLines(verticalLines);
-        AddHorizontalLines(horizontalLines);
+        EnsureLines(verticalLines, GridColumns, true);
+        EnsureLines(horizontalLines, GridRows, false);
     }
 
-    private static void AddVerticalLines(UiItemsControl host)
+    private static void EnsureLines(UiItemsControl host, int count, bool vertical)
     {
-        for (var index = 0; index < VerticalLineCount; index++)
+        while (host.Children.Count > count)
         {
-            host.Add(new UiBorder
-            {
-                Width = 1,
-                Background = LineColor,
-                HorizontalAlignment = UiHorizontalAlignment.End,
-            });
+            host.Remove(host.Children[^1]);
         }
 
-        host.SetGridDimensions(VerticalLineCount, 1);
-    }
-
-    private static void AddHorizontalLines(UiItemsControl host)
-    {
-        for (var index = 0; index < HorizontalLineCount; index++)
+        while (host.Children.Count < count)
         {
-            host.Add(new UiBorder
-            {
-                Height = 1,
-                Background = LineColor,
-                VerticalAlignment = UiVerticalAlignment.End,
-            });
+            host.Add(vertical
+                ? new UiBorder
+                {
+                    Width = 1,
+                    Background = _lineColor,
+                    HorizontalAlignment = UiHorizontalAlignment.Center,
+                }
+                : new UiBorder
+                {
+                    Height = 1,
+                    Background = _lineColor,
+                    VerticalAlignment = UiVerticalAlignment.Center,
+                });
         }
 
-        host.SetGridDimensions(1, HorizontalLineCount);
+        host.SetGridDimensions(vertical ? count : 1, vertical ? 1 : count);
     }
 }

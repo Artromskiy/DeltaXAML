@@ -417,7 +417,7 @@ internal static class Program
 
     private sealed class CountingTextService : IProbeTextService
     {
-        private readonly SixLaborsTextService _inner = new();
+        private readonly DeltaTextService _inner = new();
 
         public int ShapeCount { get; private set; }
 
@@ -444,7 +444,7 @@ internal static class Program
 
     private sealed class ReusingTextService : IProbeTextService
     {
-        private readonly SixLaborsTextService _inner = new();
+        private readonly DeltaTextService _inner = new();
         private ShapedText? _a;
         private ShapedText? _b;
 

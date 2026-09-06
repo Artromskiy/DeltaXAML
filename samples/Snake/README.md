@@ -32,8 +32,8 @@ dotnet run --project samples/Snake/DeltaXAML.Samples.Snake.csproj \
   -c Release --no-restore -- --grid 16x12 --frames 600
 ```
 
-Enable window profiling with `--profiling` (the legacy `--profile` spelling is
-also accepted). Completed frame profiles are printed by the renderer profiler:
+Enable window profiling with `--profiling`. Completed frame profiles are
+printed by the renderer profiler:
 
 ```bash
 dotnet run --project samples/Snake/DeltaXAML.Samples.Snake.csproj \

@@ -41,10 +41,14 @@ string layoutJson = document.BuildLayoutDiagnosticsJson(indented: true);
 
 The root object contains `schemaVersion`, `layoutCompleted`, `viewport`,
 `dpiScale` and `root`. Each node contains `type`, `id`, `generation`,
-`visibility`, `participation`, `bounds`, `clip`, `desiredSize`,
-`requestedSize`, `margin`, `padding` and an ordered `children` array. Text
-controls additionally contain `textBounds`, the final text layout box inside
-their element bounds; it is intentionally separate from element placement.
+`visibility`, `participation`, `colors`, `bounds`, `clip`, `desiredSize`,
+`requestedSize`, `margin`, `padding` and an ordered `children` array. `colors`
+contains RGBA hex strings for `background` and `borderColor`; text controls
+also expose `foreground` and `outlineColor`, while image controls expose
+`tint`. A custom visual additionally exposes its effective `customVisualColor`.
+Text controls additionally contain `textBounds`, the final text layout box
+inside their element bounds; it is intentionally separate from element
+placement.
 `requestedSize.width` and `.height` are `null` when the corresponding XAML
 dimension is automatic/unset. `bounds` and `clip` are the final logical layout
 values, so this snapshot is suitable for comparing authored dimensions with

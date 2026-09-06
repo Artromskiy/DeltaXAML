@@ -19,7 +19,8 @@ renderer-neutral display data.
 Add the library package to a `net8.0` application:
 
 ```xml
-<PackageReference Include="DeltaXAML" Version="0.0.14" />
+<PackageReference Include="DeltaXAML" Version="*" />
+<PackageReference Include="DeltaText" Version="*" />
 ```
 
 Create a document with the public library API, lay it out, then consume the
@@ -27,11 +28,15 @@ resulting display list:
 
 ```csharp
 using Delta;
+using Delta.Text;
+using Delta.Text.Contract;
 using Delta.XAML;
 using Delta.XAML.Contract;
+using System;
 
 var root = new UiPanel();
 root.Add(new UiTextBlock { Text = "Hello, DeltaXAML", FontSize = 18 });
+using var textService = new DeltaTextService();
 using var document = new UiDocument(root, textService);
 
 document.Layout(new float2(800, 450), 1.0f);

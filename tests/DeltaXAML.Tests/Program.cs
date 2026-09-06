@@ -208,7 +208,7 @@ sealed class EmptyTextService : TextContract.ITextService
 
 sealed class CountingTextService : TextContract.ITextService
 {
-    private readonly SixLaborsTextService _inner = new();
+    private readonly DeltaTextService _inner = new();
 
     public int ShapeCount { get; private set; }
 

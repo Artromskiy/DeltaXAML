@@ -8,7 +8,7 @@ namespace DeltaXAML.Internal;
 /// <summary>Serializes the authoritative retained tree for cold layout diagnostics.</summary>
 internal static class UiLayoutDiagnosticsJson
 {
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
 
     internal static string Write(
         UiElement root,
@@ -52,6 +52,7 @@ internal static class UiLayoutDiagnosticsJson
 
         writer.WriteString("visibility", VisibilityName(element.Visibility));
         writer.WriteString("participation", element.Participation.ToString());
+        WriteColors(writer, element);
         WriteRect(writer, "bounds", element.Bounds);
         WriteRect(writer, "clip", element.Clip);
         WriteSize(writer, "desiredSize", element.DesiredSize);
@@ -77,6 +78,41 @@ internal static class UiLayoutDiagnosticsJson
         writer.WriteEndArray();
         writer.WriteEndObject();
     }
+
+    private static void WriteColors(Utf8JsonWriter writer, UiElement element)
+    {
+        writer.WriteStartObject("colors");
+        WriteColor(writer, "background", element.Background);
+        WriteColor(writer, "borderColor", element.BorderColor);
+        switch (element)
+        {
+            case TextBlock textBlock:
+                WriteColor(writer, "foreground", textBlock.Foreground);
+                WriteColor(writer, "outlineColor", textBlock.OutlineColor);
+                break;
+            case TextBox textBox:
+                WriteColor(writer, "foreground", textBox.Foreground);
+                WriteColor(writer, "outlineColor", textBox.OutlineColor);
+                break;
+            case NumericEditor numericEditor:
+                WriteColor(writer, "foreground", numericEditor.Foreground);
+                WriteColor(writer, "outlineColor", numericEditor.OutlineColor);
+                break;
+            case Image image:
+                WriteColor(writer, "tint", image.Tint);
+                break;
+        }
+
+        if (element.HasCustomVisual)
+        {
+            WriteColor(writer, "customVisualColor", element.CustomVisualColor);
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static void WriteColor(Utf8JsonWriter writer, string name, UiColor value) =>
+        writer.WriteString(name, $"#{value.R:X2}{value.G:X2}{value.B:X2}{value.A:X2}");
 
     private static bool TryGetTextBounds(UiElement element, out UiRect bounds)
     {
