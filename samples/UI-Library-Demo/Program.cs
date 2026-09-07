@@ -95,14 +95,20 @@ internal static class Program
                 break;
             }
 
+            if (options.SyntheticScroll)
+            {
+                DispatchSyntheticScroll(content.Document);
+            }
+
             var metrics = GetMetrics(window, options, extent);
             extent = ResizeIfNeeded(session, pipeline, extent, metrics.DrawableExtent);
-            content.AdvanceFrame();
+            content.AdvanceFrame(metrics.Width, metrics.Height);
 
             content.Document.Layout(new float2(metrics.Width, metrics.Height), metrics.DpiScale);
             var displayList = content.Document.BuildDisplayList();
             if (!pipeline.Render(displayList, (ulong)frame, out var diagnostics))
             {
+                WriteLayout(content.Document, options.LayoutPath);
                 await Console.Error.WriteLineAsync(diagnostics).ConfigureAwait(false);
                 return 1;
             }
@@ -163,10 +169,51 @@ internal static class Program
                 case SDL.EventType.KeyUp:
                     DispatchKey(document, @event);
                     break;
+                case SDL.EventType.MouseWheel:
+                case SDL.EventType.MouseMotion:
+                case SDL.EventType.MouseButtonDown:
+                case SDL.EventType.MouseButtonUp:
+                    DispatchPointer(document, @event);
+                    break;
             }
         }
 
         return !window.IsClosed;
+    }
+
+    private static void DispatchPointer(UiDocument document, SDL.Event @event)
+    {
+        var buttons = new UiPointerButtons((ulong)SDL.GetMouseState(out var x, out var y));
+        var kind = (SDL.EventType)@event.Type switch
+        {
+            SDL.EventType.MouseWheel => UiPointerEventKind.Wheel,
+            SDL.EventType.MouseButtonDown => UiPointerEventKind.ButtonDown,
+            SDL.EventType.MouseButtonUp => UiPointerEventKind.ButtonUp,
+            _ => UiPointerEventKind.Move,
+        };
+        var wheel = kind == UiPointerEventKind.Wheel ? new float2(@event.Wheel.X, @event.Wheel.Y) : default;
+        var button = kind is UiPointerEventKind.ButtonDown or UiPointerEventKind.ButtonUp
+            ? new UiPointerButton(@event.Button.Button) : UiPointerButton.None;
+        var pointer = new UiPointerEvent(kind, UiPointerDeviceKind.Mouse, 1, new(x, y), default, wheel, button, buttons, 0, default);
+        var input = UiInputEvent.FromPointingDevice(in pointer);
+        document.Dispatch(in input);
+    }
+
+    private static void DispatchSyntheticScroll(UiDocument document)
+    {
+        var pointer = new UiPointerEvent(
+            UiPointerEventKind.Wheel,
+            UiPointerDeviceKind.Mouse,
+            1,
+            new float2(640, 430),
+            default,
+            new float2(0, -1),
+            UiPointerButton.None,
+            default,
+            0,
+            default);
+        var input = UiInputEvent.FromPointingDevice(in pointer);
+        document.Dispatch(in input);
     }
 
     private static void DispatchKey(UiDocument document, SDL.Event @event)
@@ -184,16 +231,15 @@ internal static class Program
 
     private static UiFontCatalog LoadFonts()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "NotoSans-Regular.ttf");
-        if (!File.Exists(path))
-        {
-            throw new FileNotFoundException($"UI library demo font was not found: {path}");
-        }
-
         var fonts = new UiFontCatalog();
-        fonts.Register("default", SampleFontId, File.ReadAllBytes(path));
+        fonts.Register("default", SampleFontId, ReadFont("Inter-Medium.ttf"));
+        fonts.Register("semibold", new(new Guid("823696F0-1802-4C25-A48B-CC4E6AFC3543")), ReadFont("Inter-Semibold.ttf"));
+        fonts.Register("mono", new(new Guid("122538D2-EFAD-4627-BA67-A77E5A5CBB3F")), ReadFont("JetBrainsMono-Medium.ttf"));
+        fonts.Register("symbols", new(new Guid("6959BA8E-FF6B-4190-8530-ECFAE1D8D001")), ReadFont("MaterialSymbols.ttf"));
         return fonts;
     }
+
+    private static byte[] ReadFont(string name) => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", name));
 
     private static void WriteLayout(UiDocument document, string? path)
     {

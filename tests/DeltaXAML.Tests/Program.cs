@@ -844,11 +844,14 @@ internal static partial class Program
         using var textService = new EmptyTextService();
         using var document = new Library.UiDocument(scroll, textService);
         document.Layout(new(100, 40), 1);
+        var initial = document.BuildDisplayList();
+        var initialFirstBounds = initial.Visuals[0].Bounds;
         scroll.ScrollBy(0, 20);
         document.Layout(new(100, 40), 1);
         var list = document.BuildDisplayList();
         Assert.Equal(2, list.Visuals.Length, "scroll retains both commands");
         Assert.Equal(0, list.Text.Length, "plain scrolling content has no text runs");
+        Assert.True(initialFirstBounds != list.Visuals[0].Bounds, "scroll updates descendant visual bounds in the incremental display list");
         foreach (var command in list.Visuals)
         {
             Assert.True(list.Clips[command.Clip.Value].Bounds.z <= 100 && list.Clips[command.Clip.Value].Bounds.w <= 40, "scroll clips to viewport");

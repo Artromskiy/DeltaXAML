@@ -1,43 +1,23 @@
+using Delta;
 using Delta.XAML;
 
 namespace DeltaXaml.Samples.UiLibraryDemo;
 
-internal static class GridOverlay
+// Equal item slots over a rounded-up extent keep the grid square at any viewport size.
+// Templates own the line controls; resize changes only counts and host dimensions.
+internal sealed class GridOverlay(
+    UiCollectionView vertical, UiCollectionView horizontal,
+    GridLines columns, GridLines rows, int pitch)
 {
-    private const int GridColumns = 24;
-    private const int GridRows = 16;
-    private static readonly UiColor _lineColor = new(30, 33, 38, 255);
-
-    internal static void Update(UiItemsControl verticalLines, UiItemsControl horizontalLines)
+    internal void Resize(float width, float height)
     {
-        EnsureLines(verticalLines, GridColumns, true);
-        EnsureLines(horizontalLines, GridRows, false);
-    }
-
-    private static void EnsureLines(UiItemsControl host, int count, bool vertical)
-    {
-        while (host.Children.Count > count)
-        {
-            host.Remove(host.Children[^1]);
-        }
-
-        while (host.Children.Count < count)
-        {
-            host.Add(vertical
-                ? new UiBorder
-                {
-                    Width = 1,
-                    Background = _lineColor,
-                    HorizontalAlignment = UiHorizontalAlignment.Center,
-                }
-                : new UiBorder
-                {
-                    Height = 1,
-                    Background = _lineColor,
-                    VerticalAlignment = UiVerticalAlignment.Center,
-                });
-        }
-
-        host.SetGridDimensions(vertical ? count : 1, vertical ? 1 : count);
+        var columnCount = Maths.Max(1, (int)Maths.Ceil(width / pitch));
+        var rowCount = Maths.Max(1, (int)Maths.Ceil(height / pitch));
+        columns.Resize(columnCount);
+        rows.Resize(rowCount);
+        vertical.Width = columnCount * pitch;
+        horizontal.Height = rowCount * pitch;
+        vertical.ItemsHost.SetGridDimensions(columnCount, 1);
+        horizontal.ItemsHost.SetGridDimensions(1, rowCount);
     }
 }

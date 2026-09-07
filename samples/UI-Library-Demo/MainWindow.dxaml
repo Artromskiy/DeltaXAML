@@ -1,14 +1,427 @@
-<Grid xmlns:x="urn:delta-xaml" Background="#0B0C0E">
-  <Grid>
-    <ItemsControl x:Name="VerticalGridLines" />
-    <ItemsControl x:Name="HorizontalGridLines" />
-  </Grid>
-  <Border Width="568" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#141517" BorderColor="#303238" BorderWidth="1" CornerRadius="8" Padding="24,20,24,24">
-    <StackPanel>
-      <TextBlock Text="TABS" Foreground="#B9BBC1" FontSize="23" FontWeight="Bold" />
-      <StackPanel>
-        <Button x:Name="RenderBreaker" Background="#777777" Width="100" Height="44" Margin="0,0,2,0"/>
-      </StackPanel>
-      </StackPanel>
-  </Border>
+<?xml version="1.0"?>
+<Grid xmlns="urn:delta-xaml" xmlns:x="urn:delta-xaml" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoModel" Background="#0B0C0E">
+  <!-- Theme: the existing compiler requires explicit StyleKey, not implicit CSS selectors. -->
+  <Resource x:Key="Surface" Type="Color" Value="#141517F5"/>
+  <Resource x:Key="Line" Type="Color" Value="#303238"/>
+  <Resource x:Key="Text" Type="Color" Value="#E8E9EB"/>
+  <Resource x:Key="Secondary" Type="Color" Value="#B9BBC1"/>
+  <Resource x:Key="Muted" Type="Color" Value="#7C7F87"/>
+  <Resource x:Key="Accent" Type="Color" Value="#FF8A00"/>
+  <Style x:Key="Card" TargetType="Border">
+    <Setter Property="Background" Value="{StaticResource Surface}"/>
+    <Setter Property="BorderColor" Value="{StaticResource Line}"/>
+    <Setter Property="BorderWidth" Value="1"/>
+    <Setter Property="CornerRadius" Value="5"/>
+    <Setter Property="Padding" Value="13"/>
+    <Setter Property="Margin" Value="5"/>
+    <Setter Property="VerticalAlignment" Value="Start"/>
+  </Style>
+  <Style x:Key="Heading" TargetType="TextBlock">
+    <Setter Property="FontKey" Value="semibold"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{StaticResource Secondary}"/>
+    <Setter Property="Margin" Value="0,0,0,13"/>
+  </Style>
+  <Style x:Key="Label" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    <Setter Property="VerticalTextAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="Caption" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+    <Setter Property="VerticalTextAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="Button" TargetType="Button">
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="BorderColor" Value="{StaticResource Line}"/>
+    <Setter Property="BorderWidth" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <VisualState Name="Hover">
+      <Setter Property="Background" Value="#222428"/>
+    </VisualState>
+    <VisualState Name="Pressed">
+      <Setter Property="Background" Value="#282A2E"/>
+    </VisualState>
+  </Style>
+  <Style x:Key="Badge" TargetType="Border">
+    <Setter Property="Height" Value="22"/>
+    <Setter Property="Padding" Value="8,0"/>
+    <Setter Property="Background" Value="#18191C"/>
+    <Setter Property="BorderColor" Value="{StaticResource Line}"/>
+    <Setter Property="BorderWidth" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+  </Style>
+  <Style x:Key="Field" TargetType="TextBox">
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="Padding" Value="9,0"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{StaticResource Text}"/>
+    <Setter Property="Background" Value="#101113"/>
+    <Setter Property="BorderColor" Value="{StaticResource Line}"/>
+    <Setter Property="BorderWidth" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="VerticalTextAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="Inset" TargetType="Border">
+    <Setter Property="Background" Value="#101113"/>
+    <Setter Property="BorderColor" Value="#222429"/>
+    <Setter Property="BorderWidth" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="9"/>
+  </Style>
+  <!-- Typed templates construct repeated controls, badges, swatches and grid lines. -->
+  <Template x:Key="Tab" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Button Height="22" CornerRadius="3" Background="{Binding Color}" IsEnabled="{Binding Enabled}">
+      <TextBlock StyleKey="Label" Text="{Binding Label}" HorizontalTextAlignment="Center"/>
+    </Button>
+  </Template>
+  <Template x:Key="Action" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Button StyleKey="Button" Background="{Binding Color}" BorderColor="{Binding Stroke}" IsEnabled="{Binding Enabled}" Margin="0,0,7,7">
+      <TextBlock StyleKey="Label" Text="{Binding Label}" Foreground="{Binding Enabled, Converter=EnabledText}" HorizontalTextAlignment="Center"/>
+    </Button>
+  </Template>
+  <Template x:Key="BadgeItem" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Border StyleKey="Badge" BorderColor="{Binding Stroke}" Margin="0,0,7,0">
+      <TextBlock StyleKey="Label" Text="{Binding Label}" Foreground="{Binding Color}"/>
+    </Border>
+  </Template>
+  <Template x:Key="MenuButton" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Button StyleKey="Button" Background="#18191C" Margin="0,0,7,7" Padding="9,0">
+      <Grid Columns="16,*,12">
+        <TextBlock StyleKey="Label" FontKey="symbols" Text="&#xE145;" FontSize="14"/>
+        <TextBlock Grid.Column="1" StyleKey="Label" Text="{Binding Label}"/>
+        <TextBlock Grid.Column="2" StyleKey="Label" FontKey="symbols" Text="&#xE5CF;" FontSize="14"/>
+      </Grid>
+    </Button>
+  </Template>
+  <Template x:Key="Icon" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Button StyleKey="Button" Padding="0" Width="30" Margin="0,0,6,6" Background="#141517">
+      <TextBlock StyleKey="Label" FontKey="symbols" FontSize="18" Text="{Binding Label}" Foreground="{Binding Color}" HorizontalTextAlignment="Center"/>
+    </Button>
+  </Template>
+  <Template x:Key="Status" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Grid Columns="9,*">
+      <Border Width="5" Height="5" CornerRadius="2.5" Background="{Binding Color}" HorizontalAlignment="Start" VerticalAlignment="Center"/>
+      <TextBlock Grid.Column="1" StyleKey="Caption" Text="{Binding Label}" Foreground="{Binding Color}"/>
+    </Grid>
+  </Template>
+  <Template x:Key="Marker" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Border StyleKey="Badge" BorderColor="{Binding Stroke}">
+      <Grid Columns="16,*">
+        <TextBlock StyleKey="Label" FontKey="symbols" FontSize="14" Text="{Binding Glyph}"/>
+        <TextBlock Grid.Column="1" StyleKey="Label" Text="{Binding Label}"/>
+      </Grid>
+    </Border>
+  </Template>
+  <Template x:Key="Swatch" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <StackPanel Margin="0,0,7,0">
+      <Border Height="28" CornerRadius="3" Background="{Binding Color}"/>
+      <TextBlock StyleKey="Caption" FontSize="9" Text="{Binding Label}" Foreground="{Binding Color}" HorizontalTextAlignment="Center" Margin="0,6,0,0"/>
+    </StackPanel>
+  </Template>
+  <Template x:Key="VerticalLine" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Border Width="1" HorizontalAlignment="Start" Background="#17181A"/>
+  </Template>
+  <Template x:Key="HorizontalLine" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
+    <Border Height="1" VerticalAlignment="Start" Background="#17181A"/>
+  </Template>
+  <CollectionView x:Name="VerticalGridLines" HorizontalAlignment="Start" ItemsSource="{Binding VerticalLines}" ItemTemplate="VerticalLine"/>
+  <CollectionView x:Name="HorizontalGridLines" VerticalAlignment="Start" ItemsSource="{Binding HorizontalLines}" ItemTemplate="HorizontalLine"/>
+  <ScrollViewer x:Name="PageScroll">
+    <StackPanel Margin="13" Width="{Binding PageWidth}">
+      <Grid Columns="*,Auto" Rows="Auto,15" Margin="7,7,7,11">
+        <StackPanel>
+          <TextBlock Text="EDITOR DESIGN SYSTEM" FontKey="mono" FontSize="9" Foreground="{StaticResource Accent}"/>
+          <TextBlock Text="UI Controls" FontSize="20" FontWeight="Bold" Margin="0,4,0,0"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="End">
+          <Border StyleKey="Badge" Margin="0,0,7,0">
+            <TextBlock StyleKey="Label" Text="Inter UI"/>
+          </Border>
+          <Border StyleKey="Badge" BorderColor="{StaticResource Accent}">
+            <TextBlock StyleKey="Label" Text="JetBrains Mono Data"/>
+          </Border>
+        </StackPanel>
+        <Border Grid.Row="1" Grid.ColumnSpan="2" Height="1" VerticalAlignment="End" Background="{StaticResource Line}"/>
+      </Grid>
+      <!-- Only responsive slot selection is code; DeltaXAML owns measure and arrange. -->
+      <Grid x:Name="Cards" Columns="*,*,*,*" Rows="Auto,Auto,Auto,Auto,Auto,Auto">
+        <Border StyleKey="Card" AutomationName="Tabs">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="TABS"/>
+            <CollectionView x:Name="Tabs" Height="22" ItemsSource="{Binding Tabs}" ItemTemplate="Tab"/>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="CSS Renderer Preview">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="CSS RENDERER PREVIEW"/>
+            <Border BorderWidth="1" BorderColor="#222429" Height="130" Background="#101012">
+              <Grid x:Name="PreviewStage">
+                <CollectionView x:Name="PreviewVertical" HorizontalAlignment="Start" ItemsSource="{Binding PreviewVertical}" ItemTemplate="VerticalLine"/>
+                <CollectionView x:Name="PreviewHorizontal" VerticalAlignment="Start" ItemsSource="{Binding PreviewHorizontal}" ItemTemplate="HorizontalLine"/>
+                <Border Width="22" Height="22" Background="#7929D85C" BorderColor="{StaticResource Accent}" BorderWidth="1" CornerRadius="4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Grid>
+            </Border>
+            <TextBlock StyleKey="Caption" Text="Entity transforms rendered as nested DOM nodes" TextWrapping="Word" Margin="0,7,0,0"/>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Buttons">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="BUTTONS"/>
+            <CollectionView x:Name="Actions" Height="74" ItemsSource="{Binding Actions}" ItemTemplate="Action"/>
+            <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+              <Button StyleKey="Button" Width="48" Height="24" Margin="0,0,7,0">
+                <TextBlock StyleKey="Label" FontSize="10" Text="Small" HorizontalTextAlignment="Center"/>
+              </Button>
+              <Button StyleKey="Button" Width="64" Background="{StaticResource Accent}" BorderColor="{StaticResource Accent}">
+                <TextBlock StyleKey="Label" Text="Active" HorizontalTextAlignment="Center"/>
+              </Button>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Panel Menus">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="PANEL MENUS"/>
+            <CollectionView x:Name="Menus" Height="37" ItemsSource="{Binding Menus}" ItemTemplate="MenuButton"/>
+            <Button StyleKey="Button" Width="30" Padding="0" HorizontalAlignment="Start" Background="#18191C">
+              <TextBlock StyleKey="Label" Text="&#x2022;&#x2022;&#x2022;" HorizontalTextAlignment="Center"/>
+            </Button>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Panel Toolbar">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="PANEL TOOLBAR"/>
+            <Border Height="31" BorderWidth="1" BorderColor="#222429">
+              <StackPanel Orientation="Horizontal">
+                <Button StyleKey="Button" BorderWidth="0">
+                  <TextBlock StyleKey="Label" Text="+ Create"/>
+                </Button>
+                <Button StyleKey="Button" BorderWidth="0" Margin="5,0">
+                  <TextBlock StyleKey="Label" Text="+ Filter"/>
+                </Button>
+                <Button StyleKey="Button" Width="30" Padding="0" BorderWidth="0">
+                  <TextBlock StyleKey="Label" Text="&#x2022;&#x2022;&#x2022;" HorizontalTextAlignment="Center"/>
+                </Button>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Inputs">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="INPUTS"/>
+            <Grid Columns="*,*" Rows="Auto,Auto,Auto">
+              <StackPanel Margin="0,0,5,10">
+                <TextBlock StyleKey="Caption" Text="Text Input" Margin="0,0,0,5"/>
+                <TextBox StyleKey="Field" Text="PlayerController"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="5,0,0,10">
+                <TextBlock StyleKey="Caption" Text="Dropdown" Margin="0,0,0,5"/>
+                <Button StyleKey="Button" Background="#18191C">
+                  <TextBlock StyleKey="Label" Text="Web (Single HTML) &#x2304;" FontSize="10"/>
+                </Button>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Margin="0,0,5,10">
+                <TextBlock StyleKey="Caption" Text="Numeric" Margin="0,0,0,5"/>
+                <NumericEditor Height="30" Value="5" Padding="9,0" Background="#101113" BorderColor="{StaticResource Line}" BorderWidth="1" CornerRadius="3" FontSize="12" VerticalTextAlignment="Center"/>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.Column="1" Margin="5,0,0,10">
+                <TextBlock StyleKey="Caption" Text="Disabled" Margin="0,0,0,5"/>
+                <TextBox StyleKey="Field" Text="Read only" IsEnabled="false" IsReadOnly="true" Foreground="#51545B"/>
+              </StackPanel>
+              <TextBox Grid.Row="2" Grid.ColumnSpan="2" StyleKey="Field" PlaceholderText="&#x2315;  Search controls..."/>
+            </Grid>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Selection">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="SELECTION"/>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+              <ToggleButton Width="14" Height="14" Background="{StaticResource Accent}" CornerRadius="2">
+                <TextBlock FontKey="symbols" Text="&#xE5CA;" Foreground="#101113" FontSize="12"/>
+              </ToggleButton>
+              <TextBlock StyleKey="Label" Text="Checkbox" Margin="8,0,0,0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+              <ToggleButton Width="14" Height="14" BorderWidth="1" BorderColor="#7C7F87" Background="#303238" CornerRadius="2"/>
+              <TextBlock StyleKey="Label" Text="Unchecked" Margin="8,0,0,0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+              <ToggleButton Width="25" Height="14" CornerRadius="7" Background="{StaticResource Accent}"/>
+              <TextBlock StyleKey="Label" Text="Toggle On" Margin="8,0,0,0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+              <ToggleButton Width="25" Height="14" CornerRadius="7" Background="#303238"/>
+              <TextBlock StyleKey="Label" Text="Toggle Off" Margin="8,0,0,0"/>
+            </StackPanel>
+            <Grid Columns="40,*,25" Height="20">
+              <TextBlock StyleKey="Label" Text="Slider"/>
+              <Grid Grid.Column="1" Margin="5,0,9,0">
+                <Border Height="4" Background="#303238" CornerRadius="2" VerticalAlignment="Center"/>
+                <Grid Columns="3*,*">
+                  <Border Height="4" Background="{StaticResource Accent}" VerticalAlignment="Center"/>
+                  <Border Grid.Column="0" Width="14" Height="14" HorizontalAlignment="End" CornerRadius="7" Background="{StaticResource Accent}"/>
+                </Grid>
+              </Grid>
+              <TextBlock Grid.Column="2" StyleKey="Label" Text="75" HorizontalTextAlignment="Right"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Inspector Component">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="INSPECTOR COMPONENT"/>
+            <Border BorderWidth="1" BorderColor="#222429">
+              <StackPanel>
+                <Border Height="30" Padding="9,0" Background="#18191C">
+                  <Grid Columns="*,12">
+                    <TextBlock StyleKey="Label" Text="&#x2304;  Transform" FontWeight="SemiBold"/>
+                    <TextBlock Grid.Column="1" StyleKey="Caption" Text="&#x22EE;"/>
+                  </Grid>
+                </Border>
+                <Grid Columns="*,1.5*" Rows="30,8,30" Margin="10">
+                  <TextBlock StyleKey="Caption" Text="Position X"/>
+                  <TextBox Grid.Column="1" StyleKey="Field" Text="1.250"/>
+                  <TextBlock Grid.Row="2" StyleKey="Caption" Text="Rotation Y"/>
+                  <TextBox Grid.Row="2" Grid.Column="1" StyleKey="Field" Text="90.00&#xB0;"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Project Assets">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="PROJECT ASSETS"/>
+            <Grid Columns="*,*" Rows="56,10,40">
+              <Border StyleKey="Inset" Background="#301D21" BorderColor="{StaticResource Accent}" Margin="0,0,5,0">
+                <Grid Columns="22,*">
+                  <TextBlock StyleKey="Label" FontKey="symbols" Text="&#xEAD5;" FontSize="18"/>
+                  <StackPanel Grid.Column="1">
+                    <TextBlock StyleKey="Label" Text="player.glb" FontWeight="SemiBold"/>
+                    <TextBlock StyleKey="Caption" Text="Model" Margin="0,3,0,0"/>
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <Border Grid.Column="1" StyleKey="Inset" Background="#18191C" BorderColor="{StaticResource Line}" Margin="5,0,0,0">
+                <Grid Columns="22,*">
+                  <TextBlock StyleKey="Label" FontKey="symbols" Text="&#xE3C4;" FontSize="18"/>
+                  <StackPanel Grid.Column="1">
+                    <TextBlock StyleKey="Label" Text="ground.png" FontWeight="SemiBold"/>
+                    <TextBlock StyleKey="Caption" Text="Texture" Margin="0,3,0,0"/>
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <Border Grid.Row="2" Grid.ColumnSpan="2" StyleKey="Inset" Background="#10111300">
+                <TextBlock StyleKey="Caption" Text="No preview selected" HorizontalTextAlignment="Center"/>
+              </Border>
+            </Grid>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Icons">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="ICONS"/>
+            <CollectionView x:Name="Icons" Height="72" ItemsSource="{Binding Icons}" ItemTemplate="Icon"/>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Badges and Status">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="BADGES AND STATUS"/>
+            <CollectionView x:Name="Badges" Height="22" ItemsSource="{Binding Badges}" ItemTemplate="BadgeItem"/>
+            <CollectionView x:Name="Status" Height="44" Margin="0,10,0,0" ItemsSource="{Binding Colors}" ItemTemplate="Status" VirtualizationCount="5"/>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Node Markers">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="NODE MARKERS"/>
+            <CollectionView x:Name="Markers" Height="88" ItemsSource="{Binding Markers}" ItemTemplate="Marker"/>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="List and Tree">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="LIST AND TREE"/>
+            <Grid Height="24" Columns="24,*" Margin="7,0,0,0">
+              <TextBlock StyleKey="Label" FontKey="symbols" Text="&#xE5CF;&#xEAD5;"/>
+              <TextBlock Grid.Column="1" StyleKey="Label" Text="Root"/>
+            </Grid>
+            <Grid Height="24" Columns="24,*" Margin="25,0,0,0">
+              <TextBlock StyleKey="Label" FontKey="symbols" Text="&#xE5CF;&#xEAD5;"/>
+              <TextBlock Grid.Column="1" StyleKey="Label" Text="Player"/>
+            </Grid>
+            <Border Height="24" Background="#222428">
+              <Grid Columns="14,*" Margin="42,0,0,0">
+                <TextBlock StyleKey="Label" FontKey="symbols" Text="&#xEAD5;"/>
+                <TextBlock Grid.Column="1" StyleKey="Label" Text="Model"/>
+              </Grid>
+            </Border>
+            <Grid Height="24" Columns="14,*" Margin="42,0,0,0">
+              <TextBlock StyleKey="Label" FontKey="symbols" Text="&#xEAD5;"/>
+              <TextBlock Grid.Column="1" StyleKey="Label" Text="Collider"/>
+            </Grid>
+            <Border StyleKey="Inset" Height="30" Padding="7,3" Background="#10111300">
+              <TextBlock StyleKey="Caption" Text="No matching items" HorizontalTextAlignment="Center"/>
+            </Border>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Semantic Colors">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="SEMANTIC COLORS"/>
+            <CollectionView x:Name="Colors" Height="48" ItemsSource="{Binding Colors}" ItemTemplate="Swatch"/>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Color Styles">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="COLOR STYLES"/>
+            <Border StyleKey="Inset" Margin="0,0,0,8">
+              <StackPanel>
+                <TextBlock StyleKey="Label" Text="Spectrum text" Foreground="#D83CA5" FontWeight="SemiBold"/>
+                <TextBlock StyleKey="Caption" Text="Pointer-aware text paint" Margin="0,3,0,0"/>
+              </StackPanel>
+            </Border>
+            <Border StyleKey="Inset" Background="#2C2030" Margin="0,0,0,8">
+              <StackPanel>
+                <TextBlock StyleKey="Label" Text="Spectrum background" FontWeight="SemiBold"/>
+                <TextBlock StyleKey="Caption" Text="Pointer-aware background paint" Margin="0,3,0,0"/>
+              </StackPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <ToggleButton Width="25" Height="14" CornerRadius="7" Background="#303238"/>
+              <TextBlock StyleKey="Label" Text="Spectrum text" Margin="8,0,0,0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <ToggleButton Width="25" Height="14" CornerRadius="7" Background="#303238"/>
+              <TextBlock StyleKey="Label" Text="Spectrum background" Margin="8,0,0,0"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Border StyleKey="Card" AutomationName="Typography">
+          <StackPanel>
+            <TextBlock StyleKey="Heading" Text="TYPOGRAPHY"/>
+            <Grid Columns="0.55*,1*,0.65*" Height="56">
+              <Border StyleKey="Inset" Margin="0,0,5,0">
+                <StackPanel>
+                  <TextBlock StyleKey="Label" FontSize="16" Text="Inter"/>
+                  <TextBlock StyleKey="Caption" Text="Interface labels, controls and panel chrome" Margin="0,5,0,0"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="1" StyleKey="Inset" Margin="5,0">
+                <TextBlock StyleKey="Label" FontKey="mono" FontSize="10" Foreground="#66C43C" Text="const fps = 60; // JetBrains Mono for code and data"/>
+              </Border>
+              <Grid Grid.Column="2" Rows="*,5,*,5,*" Margin="5,0,0,0">
+                <Border CornerRadius="3" Background="#FF8A00"/>
+                <Border Grid.Row="2" CornerRadius="3" Background="#D83CA5"/>
+                <Border Grid.Row="4" CornerRadius="3" Background="#28A8BD"/>
+              </Grid>
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+      <Border StyleKey="Inset" Height="34" Padding="11,0" Background="#141517" BorderColor="{StaticResource Line}" Margin="5,5,5,0">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock StyleKey="Caption" Text="Interaction" Margin="0,0,12,0"/>
+          <TextBlock StyleKey="Label" FontKey="mono" FontSize="10" Text="Ready"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
 </Grid>

@@ -7,6 +7,7 @@ namespace DeltaXaml.Samples.UiLibraryDemo;
 
 internal sealed record SampleOptions(
     bool Headless,
+    bool SyntheticScroll,
     uint Width,
     uint Height,
     float Dpi,
@@ -22,6 +23,7 @@ internal sealed record SampleOptions(
     internal static SampleOptions Parse(string[] args)
     {
         var headless = HasFlag(args, "--headless");
+        var syntheticScroll = HasFlag(args, "--synthetic-scroll");
         var width = ParseUInt(args, "--width", DefaultWidth);
         var height = ParseUInt(args, "--height", DefaultHeight);
         var dpi = ParseFloat(args, "--dpi", 1f);
@@ -30,6 +32,7 @@ internal sealed record SampleOptions(
 
         return new(
             headless,
+            syntheticScroll,
             width,
             height,
             dpi,

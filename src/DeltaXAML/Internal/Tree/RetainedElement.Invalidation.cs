@@ -198,12 +198,22 @@ internal partial class UiElement
 
     internal void SetArrangeFrame(UiRect bounds, UiRect clip)
     {
+        if (Bounds != bounds || Clip != clip)
+        {
+            DirtyFlags |= UiDirtyFlags.Visual;
+        }
+
         Bounds = bounds;
         Clip = clip;
     }
 
     internal void SetNonParticipatingArrange(UiRect clip)
     {
+        if (Bounds != default || Clip != clip)
+        {
+            DirtyFlags |= UiDirtyFlags.Visual;
+        }
+
         Bounds = default;
         Clip = clip;
     }

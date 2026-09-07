@@ -71,7 +71,8 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
             return true;
         }
 
-        diagnostics = $"Graph execution failed: {result.Status}{Environment.NewLine}{result.Diagnostics}";
+        diagnostics = $"Graph execution failed: {result.Status}{Environment.NewLine}" +
+                      string.Join(Environment.NewLine, result.Diagnostics.ToArray());
         return false;
     }
 

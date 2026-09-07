@@ -27,9 +27,7 @@
                      DeltaXamlClassName="UiLibraryDemoArtifact"
                      DeltaXamlNamespace="DeltaXaml.Samples.UiLibraryDemo.Generated" />
     <None Update="MainWindow.dxaml" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
-          Link="Assets/NotoSans-Regular.ttf"
-          CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets/*.ttf;Assets/*.txt" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"
              Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
       <Link>libMoltenVK.dylib</Link>
