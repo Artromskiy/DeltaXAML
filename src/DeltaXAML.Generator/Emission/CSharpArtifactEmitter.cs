@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
 using System.Text;
 using Delta.Diagnostics;
 using Delta.XAML;
@@ -1552,33 +1551,43 @@ internal static class CSharpArtifactEmitter
 
     private static string EffectResourceExpression(int siteIndex, EffectSite site)
     {
-        var strokeOrOutline = EffectLayerExpression(siteIndex, site, site.Plan.Target == UiEffectTarget.Text
-            ? XamlEffectLayerKind.Outline
-            : XamlEffectLayerKind.Stroke);
+        var stroke = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.Stroke);
         var outerShadow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.OuterShadow);
-        var insetShadow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.InsetShadow);
-        var glow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.Glow);
+        var innerShadow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.InnerShadow);
+        var outerGlow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.OuterGlow);
+        var innerGlow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.InnerGlow);
         var cachedMask = site.Plan.CachedMask.IsValid
             ? ResourceIdExpression(site.Plan.CachedMask)
             : "default";
         var outsets = EffectOutsetsExpression(site.Plan.Outsets);
         var builder = new StringBuilder();
-        builder.Append(site.Plan.Target == UiEffectTarget.Text
+        return builder.Append(site.Plan.Target == UiEffectTarget.Text
                 ? "global::Delta.XAML.UiEffects.CreateText("
                 : "global::Delta.XAML.UiEffects.CreateVisual(")
             .Append(ResourceIdExpression(site.Plan.Resource)).Append(", ")
-            .Append(strokeOrOutline).Append(", ")
-            .Append(outerShadow).Append(", ");
-        if (site.Plan.Target == UiEffectTarget.Visual)
-        {
-            builder.Append(insetShadow).Append(", ");
-        }
-
-        return builder.Append(glow)
+            .Append(EffectCapabilitiesExpression(site.Plan)).Append(", ")
+            .Append(stroke).Append(", ")
+            .Append(outerShadow).Append(", ")
+            .Append(innerShadow).Append(", ")
+            .Append(outerGlow).Append(", ")
+            .Append(innerGlow)
             .Append(", global::Delta.XAML.Contract.PaintUnits.").Append(site.Plan.Units)
             .Append(", global::Delta.XAML.Contract.UiEffectQuality.").Append(site.Plan.Quality)
             .Append(", ").Append(cachedMask).Append(", ").Append(outsets).Append(')')
             .ToString();
+    }
+
+    private static string EffectCapabilitiesExpression(XamlEffectPlan plan)
+    {
+        var capabilities = new List<string>(plan.Layers.Length);
+        for (var i = 0; i < plan.Layers.Length; i++)
+        {
+            capabilities.Add("global::Delta.XAML.Contract.UiEffectCapabilities." + plan.Layers[i].Kind);
+        }
+
+        return capabilities.Count == 0
+            ? "global::Delta.XAML.Contract.UiEffectCapabilities.None"
+            : string.Join(" | ", capabilities);
     }
 
     private static string EffectLayerExpression(int siteIndex, EffectSite site, XamlEffectLayerKind kind)
@@ -3318,7 +3327,7 @@ internal static class CSharpArtifactEmitter
             units = "global::Delta.XAML.Contract.PaintUnits." + parsedUnits;
         }
 
-        var resource = CreateImplicitEffectResourceId(source, node);
+        var resource = XamlImplicitEffectIdentity.Create(source, node);
         var variable = "implicitEffect" + effectIndex.ToString(CultureInfo.InvariantCulture);
         effectIndex++;
         writer.Append("        var ").Append(variable)
@@ -3340,8 +3349,8 @@ internal static class CSharpArtifactEmitter
         SourceId source,
         ref int effectIndex)
     {
-        if (node.InlineEffect is not null || HasMember(node, "EffectSet") || HasMember(node, "TextEffect") || HasMember(node, "BorderWidth") ||
-            !TryGetLiteralMember(node, "OutlineWidth", out var widthMember) ||
+        if (node.InlineEffect is not null || HasMember(node, "EffectSet") || HasMember(node, "BorderWidth") ||
+            !TryGetLiteralMember(node, "StrokeWidth", out var widthMember) ||
             widthMember.Kind != XamlValueKind.Single ||
             !float.TryParse(widthMember.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var width) ||
             !float.IsFinite(width) || width <= 0)
@@ -3350,7 +3359,7 @@ internal static class CSharpArtifactEmitter
         }
 
         var color = "new global::Delta.float4(0, 0, 0, 0)";
-        if (TryGetLiteralMember(node, "OutlineColor", out var colorMember))
+        if (TryGetLiteralMember(node, "StrokeColor", out var colorMember))
         {
             if (colorMember.Kind != XamlValueKind.Color ||
                 !TryColorVector(colorMember.Literal.CanonicalText, out color))
@@ -3359,11 +3368,11 @@ internal static class CSharpArtifactEmitter
             }
         }
 
-        var resource = CreateImplicitEffectResourceId(source, node, "text");
+        var resource = XamlImplicitEffectIdentity.Create(source, node, "text");
         var variable = "implicitEffect" + effectIndex.ToString(CultureInfo.InvariantCulture);
         effectIndex++;
         writer.Append("        var ").Append(variable)
-            .Append(" = global::Delta.XAML.Contract.UiEffectResource.CreateTextOutline(")
+            .Append(" = global::Delta.XAML.Contract.UiEffectResource.CreateTextStroke(")
             .Append(ResourceIdExpression(resource)).Append(", ")
             .Append(color).Append(", ")
             .Append(width.ToString("R", CultureInfo.InvariantCulture)).AppendLine("f);");
@@ -3423,20 +3432,6 @@ internal static class CSharpArtifactEmitter
             (blue / 255f).ToString("R", CultureInfo.InvariantCulture), "f, ",
             (alpha / 255f).ToString("R", CultureInfo.InvariantCulture), "f)");
         return true;
-    }
-
-    private static UiResourceId CreateImplicitEffectResourceId(SourceId source, XamlObjectPlan node, string target = "visual")
-    {
-        var identity = string.Concat(
-            "DeltaXAML.ImplicitEffect/",
-            source.Value.ToString("D"), "/",
-            target, "/",
-            node.Name.Namespace, "/",
-            node.Name.LocalName, "/",
-            node.Range.Start.Offset.ToString(CultureInfo.InvariantCulture), "/",
-            node.Range.End.Offset.ToString(CultureInfo.InvariantCulture));
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
-        return new UiResourceId(new Guid(bytes.AsSpan(0, 16)));
     }
 
     private static bool IsBuiltInChildrenOwner(string name) => name is "Panel" or "StackPanel" or "Grid" or "ItemsControl" or "Overlay";
@@ -3587,9 +3582,8 @@ internal static class CSharpArtifactEmitter
             "FontKey" => "global::Delta.XAML.TextBlockProperties.FontKey",
             "FontSize" => "global::Delta.XAML.TextBlockProperties.FontSize",
             "Foreground" => "global::Delta.XAML.TextBlockProperties.Foreground",
-            "OutlineColor" => "global::Delta.XAML.TextBlockProperties.OutlineColor",
-            "OutlineWidth" => "global::Delta.XAML.TextBlockProperties.OutlineWidth",
-            "TextEffect" => "global::Delta.XAML.TextBlockProperties.TextEffect",
+            "StrokeColor" => "global::Delta.XAML.TextBlockProperties.StrokeColor",
+            "StrokeWidth" => "global::Delta.XAML.TextBlockProperties.StrokeWidth",
             "HorizontalTextAlignment" => "global::Delta.XAML.TextBlockProperties.HorizontalTextAlignment",
             "VerticalTextAlignment" => "global::Delta.XAML.TextBlockProperties.VerticalTextAlignment",
             "TextWrapping" => "global::Delta.XAML.TextBlockProperties.TextWrapping",

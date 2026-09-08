@@ -25,11 +25,9 @@ public class UiTextBlock : UiElement
         set => TextElement.Foreground = ToRetainedColor(value);
     }
 
-    public UiColor OutlineColor { get => ToPublicColor(TextElement.OutlineColor); set => TextElement.OutlineColor = ToRetainedColor(value); }
+    public UiColor StrokeColor { get => ToPublicColor(TextElement.StrokeColor); set => TextElement.StrokeColor = ToRetainedColor(value); }
 
-    public float OutlineWidth { get => TextElement.OutlineWidth; set => TextElement.OutlineWidth = value; }
-
-    public UiResourceId TextEffect { get => new(TextElement.TextEffectResource); set => TextElement.TextEffect = value; }
+    public float StrokeWidth { get => TextElement.StrokeWidth; set => TextElement.StrokeWidth = value; }
 
     public UiTextHorizontalAlignment HorizontalTextAlignment { get => TextElement.HorizontalTextAlignment; set => TextElement.HorizontalTextAlignment = value; }
 

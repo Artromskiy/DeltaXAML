@@ -91,11 +91,11 @@ internal sealed class UiDisplayListBatcherWorkload
     internal static UiDisplayListWorkloadExpectation Expected(UiDisplayListWorkloadFrame frame) =>
         frame switch
         {
-            UiDisplayListWorkloadFrame.Base => new(3_500, 1_500, ClipCount, BaseEntryCount, BaseEntryCount, 0, 0, 0, 0, 4_322_472_588_939_357_607UL, 10_472_038_030_714_807_168UL, 11_502_093_786_682_144_992UL),
-            UiDisplayListWorkloadFrame.Paint => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 715, 0, 4_322_472_588_939_357_607UL, 3_670_341_982_941_390_629UL, 15_646_396_072_114_877_765UL),
-            UiDisplayListWorkloadFrame.Clip => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 0, 52, 4_322_472_588_939_357_607UL, 6_994_414_399_541_355_392UL, 12_416_847_575_092_672_736UL),
-            UiDisplayListWorkloadFrame.Reorder => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, BaseEntryCount - 1, 0, 0, 7_877_403_130_303_307_063UL, 2_505_298_112_372_981_814UL, 14_279_818_913_022_107_894UL),
-            UiDisplayListWorkloadFrame.Churn => new(3_527, 1_509, ClipCount, 5_036, 300, 264, 0, 0, 0, 15_779_854_436_547_583_369UL, 8_839_513_177_550_138_512UL, 12_001_700_888_170_988_086UL),
+            UiDisplayListWorkloadFrame.Base => new(3_500, 1_500, ClipCount, BaseEntryCount, BaseEntryCount, 0, 0, 0, 0, 4_322_472_588_939_357_607UL, 1_661_072_465_338_250_153UL, 13_832_432_337_851_313_865UL),
+            UiDisplayListWorkloadFrame.Paint => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 715, 0, 4_322_472_588_939_357_607UL, 10_105_320_343_452_927_734UL, 9_103_573_521_980_863_414UL),
+            UiDisplayListWorkloadFrame.Clip => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 0, 52, 4_322_472_588_939_357_607UL, 11_027_676_578_378_265_513UL, 522_897_026_293_657_289UL),
+            UiDisplayListWorkloadFrame.Reorder => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, BaseEntryCount - 1, 0, 0, 7_877_403_130_303_307_063UL, 11_250_173_101_799_841_837UL, 353_556_234_144_412_541UL),
+            UiDisplayListWorkloadFrame.Churn => new(3_527, 1_509, ClipCount, 5_036, 300, 264, 0, 0, 0, 15_779_854_436_547_583_369UL, 4_898_413_177_917_673_832UL, 13_604_246_579_395_876_398UL),
             _ => throw new ArgumentOutOfRangeException(nameof(frame), frame, "Unknown workload frame."),
         };
 
@@ -127,8 +127,6 @@ internal sealed class UiDisplayListBatcherWorkload
             AppendGuid(ref hash, visual.VisualType.Value);
             AppendFloat4(ref hash, visual.Bounds);
             AppendFloat4(ref hash, visual.Paint.FillColor);
-            AppendFloat4(ref hash, visual.Paint.StrokeColor);
-            Add(ref hash, BitConverter.SingleToUInt32Bits(visual.Paint.StrokeWidth));
             AppendFloat4(ref hash, visual.Paint.CornerRadii);
             AppendEffectSet(ref hash, visual.Paint.EffectSet);
             Add(ref hash, (uint)visual.Clip.Value);
@@ -152,9 +150,6 @@ internal sealed class UiDisplayListBatcherWorkload
             Add(ref hash, BitConverter.SingleToUInt32Bits(text.BaselineOrigin.x));
             Add(ref hash, BitConverter.SingleToUInt32Bits(text.BaselineOrigin.y));
             AppendFloat4(ref hash, text.Paint.FillColor);
-            AppendFloat4(ref hash, text.Paint.OutlineColor);
-            Add(ref hash, BitConverter.SingleToUInt32Bits(text.Paint.OutlineWidth));
-            AppendGuid(ref hash, text.Paint.EffectResource.Value);
             AppendEffectSet(ref hash, text.Paint.EffectSet);
             Add(ref hash, (uint)text.Clip.Value);
         }
@@ -223,11 +218,13 @@ internal sealed class UiDisplayListBatcherWorkload
                 1 => UiVisualKind.RoundedRectangle,
                 _ => UiVisualKind.Border,
             };
+            var effectSet = kind == UiVisualKind.Border
+                ? EffectSet(entry, variant, UiEffectTarget.Visual, 0)
+                : UiEffectSet.None;
             var paint = new UiVisualPaint(
                 Color(entry, variant),
-                Color(entry + 3, variant + 2),
-                1 + entry % 4 + variant,
-                Radii(entry, variant));
+                Radii(entry, variant),
+                effectSet);
             _visuals[visualCount] = UiVisualDraw.WithPaint(
                 kind,
                 default,
@@ -241,11 +238,10 @@ internal sealed class UiDisplayListBatcherWorkload
             return;
         }
 
+        var strokeWidth = 0.5f + (entry % 3) * 0.25f + variant;
         var textPaint = new UiTextPaint(
             Color(entry + 11, variant),
-            Color(entry + 17, variant + 1),
-            0.5f + (entry % 3) * 0.25f + variant,
-            Resource(0x2000 + entry % 9 + variant * 97));
+            EffectSet(entry, variant, UiEffectTarget.Text, strokeWidth));
         var generation = entry < BaseEntryCount ? 1u : 2u;
         var version = paintChanged ? 2u : 1u;
         _text[textCount] = UiTextDraw.WithPaint(
@@ -260,6 +256,17 @@ internal sealed class UiDisplayListBatcherWorkload
 
     private static float4 Bounds(int entry) =>
         new(entry % 100 * 8, entry / 100 * 6, 64 + entry % 4, 24 + entry % 3);
+
+    private static UiEffectSet EffectSet(int entry, int variant, UiEffectTarget target, float outset)
+    {
+        var outsets = new float4(outset, outset, outset, outset);
+        return new(
+            Resource(0x3000 + entry % 17 + variant * 97),
+            target,
+            UiEffectCapabilities.Stroke,
+            UiEffectQuality.Analytic,
+            outsets);
+    }
 
     private static float4 Color(int seed, int variant)
     {

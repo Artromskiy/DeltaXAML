@@ -187,11 +187,12 @@ internal sealed class UiVisualStage : IDisposable
                 visualCount++;
             }
 
+            var textUsesAncestorClip = UsesAncestorClip(current, UiEffectTarget.Text);
             var hasText = TryGetElementTextRun(
                 node.RuntimeType,
                 current,
-                effective,
-                new UiClipId(current.DisplayClipIndex),
+                textUsesAncestorClip ? visit.Clip : effective,
+                textUsesAncestorClip ? visit.ParentClip : selfClip,
                 out var run);
             if (hasText != (current.DisplayTextIndex >= 0) ||
                 (hasText && current.DisplayTextIndex != textCount))
@@ -296,6 +297,8 @@ internal sealed class UiVisualStage : IDisposable
             var visualIndex = -1;
             var textIndex = -1;
             var ownTextCount = 0;
+            var textUsesAncestorClip = UsesAncestorClip(current, UiEffectTarget.Text);
+            var textClip = textUsesAncestorClip ? visit.ParentClip : clipId;
 
             if (TryGetVisualDraw(current, VisualClip(current, clipId, visit.ParentClip), out var visual))
             {
@@ -308,7 +311,7 @@ internal sealed class UiVisualStage : IDisposable
             if ((current.Participation & UiParticipation.Rendering) != 0 && current is Retained.RichTextBlock richText)
             {
                 textIndex = _storage.TextCount;
-                if (!TryAppendRichText(richText, clipId, out ownTextCount, out diagnostic))
+                if (!TryAppendRichText(richText, textClip, out ownTextCount, out diagnostic))
                 {
                     return false;
                 }
@@ -330,8 +333,8 @@ internal sealed class UiVisualStage : IDisposable
             else if (TryGetElementTextRun(
                     node.RuntimeType,
                     current,
-                    effective,
-                    clipId,
+                    textUsesAncestorClip ? visit.Clip : effective,
+                    textClip,
                     out var run))
             {
                 EnsureCapacity(ref _storage.Text, _storage.TextCount + 1);
@@ -448,9 +451,11 @@ internal sealed class UiVisualStage : IDisposable
             return true;
         }
 
+        var effectSet = element.EffectSet.Target == UiEffectTarget.Visual
+            ? element.EffectSet
+            : UiEffectSet.None;
         var hasFill = element.Background.A > 0;
-        var hasStroke = element.BorderWidth > 0;
-        if (!hasFill && !hasStroke)
+        if (!hasFill && !effectSet.IsValid)
         {
             visual = default;
             return false;
@@ -459,37 +464,32 @@ internal sealed class UiVisualStage : IDisposable
         var bounds = element.Bounds;
         var radii = NormalizeCornerRadii(element.CornerRadius, bounds.Width, bounds.Height);
         var rounded = radii != Delta.XAML.UiCornerRadii.Zero;
-        var kind = rounded
-            ? hasStroke ? UiVisualKind.Border : UiVisualKind.RoundedRectangle
-            : hasStroke ? UiVisualKind.Border : UiVisualKind.SolidRectangle;
+        var kind = rounded ? UiVisualKind.RoundedRectangle : UiVisualKind.SolidRectangle;
         visual = UiVisualDraw.WithPaint(
             kind,
             default,
             ToFloat4(bounds),
             new UiVisualPaint(
                 ToColor(element.Background),
-                ToColor(element.BorderColor),
-                element.BorderWidth,
-                new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft))
-            {
-                Units = element.BorderWidthUnits,
-                EffectSet = element.EffectSet.Target == UiEffectTarget.Visual
-                    ? element.EffectSet
-                    : UiEffectSet.None,
-            },
+                new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft),
+                effectSet),
             clip,
             UiResourceId.Empty);
         return true;
     }
 
     private static UiClipId VisualClip(RetainedElement element, UiClipId self, UiClipId ancestor)
+        => UsesAncestorClip(element, UiEffectTarget.Visual) ? ancestor : self;
+
+    private static bool UsesAncestorClip(RetainedElement element, UiEffectTarget target)
     {
-        var outsets = element.EffectSet.Target == UiEffectTarget.Visual
-            ? element.EffectSet.Outsets
-            : default;
-        return outsets.x > 0 || outsets.y > 0 || outsets.z > 0 || outsets.w > 0
-            ? ancestor
-            : self;
+        if (element.EffectSet.Target != target)
+        {
+            return false;
+        }
+
+        var outsets = element.EffectSet.Outsets;
+        return outsets.x > 0 || outsets.y > 0 || outsets.z > 0 || outsets.w > 0;
     }
 
     private static UiCornerRadii NormalizeCornerRadii(UiCornerRadii radii, float width, float height)

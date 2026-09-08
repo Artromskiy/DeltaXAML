@@ -27,9 +27,9 @@ public sealed class BindingModel : INotifyPropertyChanged
 public sealed class EffectBindingModel : INotifyPropertyChanged
 {
     private Delta.XAML.UiColor _accent = new(64, 128, 255);
-    private Delta.XAML.UiColor _glowColor = new(32, 96, 255);
+    private Delta.XAML.UiColor _outerGlowColor = new(32, 96, 255);
     private float _strokeWidth = 2;
-    private float _glowRadius = 6;
+    private float _outerGlowRadius = 6;
 
     public Delta.XAML.UiColor Accent
     {
@@ -37,10 +37,10 @@ public sealed class EffectBindingModel : INotifyPropertyChanged
         set => Set(ref _accent, value, nameof(Accent));
     }
 
-    public Delta.XAML.UiColor GlowColor
+    public Delta.XAML.UiColor OuterGlowColor
     {
-        get => _glowColor;
-        set => Set(ref _glowColor, value, nameof(GlowColor));
+        get => _outerGlowColor;
+        set => Set(ref _outerGlowColor, value, nameof(OuterGlowColor));
     }
 
     public float StrokeWidth
@@ -49,10 +49,10 @@ public sealed class EffectBindingModel : INotifyPropertyChanged
         set => Set(ref _strokeWidth, value, nameof(StrokeWidth));
     }
 
-    public float GlowRadius
+    public float OuterGlowRadius
     {
-        get => _glowRadius;
-        set => Set(ref _glowRadius, value, nameof(GlowRadius));
+        get => _outerGlowRadius;
+        set => Set(ref _outerGlowRadius, value, nameof(OuterGlowRadius));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

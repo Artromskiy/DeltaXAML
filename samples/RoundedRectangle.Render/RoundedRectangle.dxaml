@@ -14,14 +14,20 @@
         <Border.EffectSet>
             <EffectSet>
                 <Stroke Color="#28A8BD" Width="5" />
-                <Glow Color="#28A8BD" Radius="6" />
+                <OuterGlow Color="#28A8BD" Radius="6" />
             </EffectSet>
         </Border.EffectSet>
-        <TextBlock Text="Web"
+        <TextBlock Text="Delta"
                    FontKey="doto"
                    FontSize="48"
                    Foreground="#FFFFFF"
                    HorizontalTextAlignment="Center"
-                   VerticalTextAlignment="Center" />
+                   VerticalTextAlignment="Center">
+            <TextBlock.EffectSet>
+                <EffectSet>
+                    <OuterShadow Color="#E0000000" Radius="1.5" Offset="0,60" />
+                </EffectSet>
+            </TextBlock.EffectSet>
+        </TextBlock>
     </Border>
 </Grid>

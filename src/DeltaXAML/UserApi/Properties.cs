@@ -140,9 +140,8 @@ public static class TextBlockProperties
     public static UiProperty<string> FontKey { get; } = Create("20000000-0000-4000-8000-000000000002", "FontKey", "default");
     public static UiProperty<float> FontSize { get; } = Create("20000000-0000-4000-8000-000000000003", "FontSize", 14f);
     public static UiProperty<UiColor> Foreground { get; } = Create("20000000-0000-4000-8000-000000000004", "Foreground", new UiColor(255, 255, 255));
-    public static UiProperty<UiColor> OutlineColor { get; } = Create<UiColor>("20000000-0000-4000-8000-000000000005", "OutlineColor", default);
-    public static UiProperty<float> OutlineWidth { get; } = Create<float>("20000000-0000-4000-8000-000000000006", "OutlineWidth", 0f);
-    public static UiProperty<Delta.XAML.Contract.UiResourceId> TextEffect { get; } = Create<Delta.XAML.Contract.UiResourceId>("20000000-0000-4000-8000-000000000007", "TextEffect", Delta.XAML.Contract.UiResourceId.Empty);
+    public static UiProperty<UiColor> StrokeColor { get; } = Create<UiColor>("20000000-0000-4000-8000-000000000005", "StrokeColor", default);
+    public static UiProperty<float> StrokeWidth { get; } = Create<float>("20000000-0000-4000-8000-000000000006", "StrokeWidth", 0f);
     public static UiProperty<UiTextHorizontalAlignment> HorizontalTextAlignment { get; } = Create("20000000-0000-4000-8000-000000000008", "HorizontalTextAlignment", UiTextHorizontalAlignment.Left);
     public static UiProperty<UiTextVerticalAlignment> VerticalTextAlignment { get; } = Create("20000000-0000-4000-8000-000000000009", "VerticalTextAlignment", UiTextVerticalAlignment.Top);
     public static UiProperty<UiTextWrapping> TextWrapping { get; } = Create("20000000-0000-4000-8000-00000000000A", "TextWrapping", UiTextWrapping.NoWrap);

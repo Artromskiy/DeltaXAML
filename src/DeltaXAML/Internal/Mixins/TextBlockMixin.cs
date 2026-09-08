@@ -108,10 +108,7 @@ internal readonly struct TextBlockVisualMixin : IVisualMixin<TextBlockState>
             context.Owner,
             context.OwnerGeneration,
             context.Version,
-            default,
-            state.Visual.OutlineColor,
-            state.Visual.OutlineWidth,
-            state.Visual.TextEffectResource)
+            default)
         {
             TextBounds = state.Layout.TextBounds,
             LayoutScale = context.LayoutScale,

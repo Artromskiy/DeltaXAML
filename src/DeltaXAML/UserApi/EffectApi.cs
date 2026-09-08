@@ -6,10 +6,7 @@ namespace Delta.XAML;
 /// <summary>Convenient authoring value for a visual stroke.</summary>
 public readonly record struct UiStrokeEffect(UiColor Color, float Width);
 
-/// <summary>Convenient authoring value for a text outline.</summary>
-public readonly record struct UiOutlineEffect(UiColor Color, float Width);
-
-/// <summary>Convenient authoring value for an outer or inset shadow.</summary>
+/// <summary>Convenient authoring value for an outer or inner shadow.</summary>
 public readonly record struct UiShadowEffect(
     UiColor Color,
     float Radius,
@@ -17,7 +14,7 @@ public readonly record struct UiShadowEffect(
     float Spread = 0,
     float Intensity = 1);
 
-/// <summary>Convenient authoring value for an outer glow.</summary>
+/// <summary>Convenient authoring value for an outer or inner glow.</summary>
 public readonly record struct UiGlowEffect(
     UiColor Color,
     float Radius,
@@ -32,9 +29,11 @@ public sealed class UiVisualEffects
 
     public UiShadowEffect? OuterShadow { get; init; }
 
-    public UiShadowEffect? InsetShadow { get; init; }
+    public UiShadowEffect? InnerShadow { get; init; }
 
-    public UiGlowEffect? Glow { get; init; }
+    public UiGlowEffect? OuterGlow { get; init; }
+
+    public UiGlowEffect? InnerGlow { get; init; }
 
     public PaintUnits Units { get; init; } = PaintUnits.Logical;
 
@@ -53,11 +52,15 @@ public sealed class UiVisualEffects
 /// <summary>Cold authoring description for one text effect set.</summary>
 public sealed class UiTextEffects
 {
-    public UiOutlineEffect? Outline { get; init; }
+    public UiStrokeEffect? Stroke { get; init; }
 
     public UiShadowEffect? OuterShadow { get; init; }
 
-    public UiGlowEffect? Glow { get; init; }
+    public UiShadowEffect? InnerShadow { get; init; }
+
+    public UiGlowEffect? OuterGlow { get; init; }
+
+    public UiGlowEffect? InnerGlow { get; init; }
 
     public PaintUnits Units { get; init; } = PaintUnits.Logical;
 
@@ -77,10 +80,17 @@ public static class UiEffects
         ArgumentNullException.ThrowIfNull(effects);
         return CreateVisual(
             resource,
+            Capabilities(
+                effects.Stroke.HasValue,
+                effects.OuterShadow.HasValue,
+                effects.InnerShadow.HasValue,
+                effects.OuterGlow.HasValue,
+                effects.InnerGlow.HasValue),
             effects.Stroke is { } stroke ? Layer(stroke.Color, width: stroke.Width) : default,
             effects.OuterShadow is { } outer ? Layer(outer) : default,
-            effects.InsetShadow is { } inset ? Layer(inset) : default,
-            effects.Glow is { } glow ? Layer(glow) : default,
+            effects.InnerShadow is { } innerShadow ? Layer(innerShadow) : default,
+            effects.OuterGlow is { } outerGlow ? Layer(outerGlow) : default,
+            effects.InnerGlow is { } innerGlow ? Layer(innerGlow) : default,
             effects.Units,
             effects.Quality,
             effects.CachedMask,
@@ -92,9 +102,17 @@ public static class UiEffects
         ArgumentNullException.ThrowIfNull(effects);
         return CreateText(
             resource,
-            effects.Outline is { } outline ? Layer(outline.Color, width: outline.Width) : default,
+            Capabilities(
+                effects.Stroke.HasValue,
+                effects.OuterShadow.HasValue,
+                effects.InnerShadow.HasValue,
+                effects.OuterGlow.HasValue,
+                effects.InnerGlow.HasValue),
+            effects.Stroke is { } stroke ? Layer(stroke.Color, width: stroke.Width) : default,
             effects.OuterShadow is { } outer ? Layer(outer) : default,
-            effects.Glow is { } glow ? Layer(glow) : default,
+            effects.InnerShadow is { } innerShadow ? Layer(innerShadow) : default,
+            effects.OuterGlow is { } outerGlow ? Layer(outerGlow) : default,
+            effects.InnerGlow is { } innerGlow ? Layer(innerGlow) : default,
             effects.Units,
             effects.Quality,
             effects.CachedMask,
@@ -107,10 +125,12 @@ public static class UiEffects
     /// </summary>
     public static UiEffectResource CreateVisual(
         UiResourceId resource,
+        UiEffectCapabilities capabilities,
         UiEffectLayer stroke = default,
         UiEffectLayer outerShadow = default,
-        UiEffectLayer insetShadow = default,
-        UiEffectLayer glow = default,
+        UiEffectLayer innerShadow = default,
+        UiEffectLayer outerGlow = default,
+        UiEffectLayer innerGlow = default,
         PaintUnits units = PaintUnits.Logical,
         UiEffectQuality quality = UiEffectQuality.Analytic,
         UiResourceId cachedMask = default,
@@ -118,10 +138,12 @@ public static class UiEffects
         CreateCore(
             resource,
             UiEffectTarget.Visual,
+            capabilities,
             stroke,
             outerShadow,
-            insetShadow,
-            glow,
+            innerShadow,
+            outerGlow,
+            innerGlow,
             units,
             quality,
             cachedMask,
@@ -133,9 +155,12 @@ public static class UiEffects
     /// </summary>
     public static UiEffectResource CreateText(
         UiResourceId resource,
-        UiEffectLayer outline = default,
+        UiEffectCapabilities capabilities,
+        UiEffectLayer stroke = default,
         UiEffectLayer outerShadow = default,
-        UiEffectLayer glow = default,
+        UiEffectLayer innerShadow = default,
+        UiEffectLayer outerGlow = default,
+        UiEffectLayer innerGlow = default,
         PaintUnits units = PaintUnits.Logical,
         UiEffectQuality quality = UiEffectQuality.Analytic,
         UiResourceId cachedMask = default,
@@ -143,10 +168,12 @@ public static class UiEffects
         CreateCore(
             resource,
             UiEffectTarget.Text,
-            outline,
+            capabilities,
+            stroke,
             outerShadow,
-            default,
-            glow,
+            innerShadow,
+            outerGlow,
+            innerGlow,
             units,
             quality,
             cachedMask,
@@ -162,10 +189,12 @@ public static class UiEffects
     private static UiEffectResource CreateCore(
         UiResourceId resource,
         UiEffectTarget target,
-        UiEffectLayer strokeOrOutline,
+        UiEffectCapabilities capabilities,
+        UiEffectLayer stroke,
         UiEffectLayer outerShadow,
-        UiEffectLayer insetShadow,
-        UiEffectLayer glow,
+        UiEffectLayer innerShadow,
+        UiEffectLayer outerGlow,
+        UiEffectLayer innerGlow,
         PaintUnits units,
         UiEffectQuality quality,
         UiResourceId cachedMask,
@@ -176,12 +205,12 @@ public static class UiEffects
             throw new ArgumentException("A stable effect resource identity is required.", nameof(resource));
         }
 
-        var capabilities = Capabilities(target, strokeOrOutline, outerShadow, insetShadow, glow);
         var parameters = new UiEffectParameters(
-            strokeOrOutline,
+            stroke,
             outerShadow,
-            insetShadow,
-            glow,
+            innerShadow,
+            outerGlow,
+            innerGlow,
             cachedMask)
         {
             Units = units,
@@ -192,40 +221,43 @@ public static class UiEffects
             parameters);
         if (!result.IsValid)
         {
-            throw new ArgumentException("Effect layers must be finite, non-negative, non-empty and valid for the selected target and quality.");
+            throw new ArgumentException("Effect layers must be finite, non-negative and valid for the selected target and quality.");
         }
 
         return result;
     }
 
     private static UiEffectCapabilities Capabilities(
-        UiEffectTarget target,
-        UiEffectLayer strokeOrOutline,
-        UiEffectLayer outerShadow,
-        UiEffectLayer insetShadow,
-        UiEffectLayer glow)
+        bool stroke,
+        bool outerShadow,
+        bool innerShadow,
+        bool outerGlow,
+        bool innerGlow)
     {
         var result = UiEffectCapabilities.None;
-        if (!strokeOrOutline.IsEmpty)
+        if (stroke)
         {
-            result |= target == UiEffectTarget.Text
-                ? UiEffectCapabilities.Outline
-                : UiEffectCapabilities.Stroke;
+            result |= UiEffectCapabilities.Stroke;
         }
 
-        if (!outerShadow.IsEmpty)
+        if (outerShadow)
         {
             result |= UiEffectCapabilities.OuterShadow;
         }
 
-        if (!insetShadow.IsEmpty)
+        if (innerShadow)
         {
-            result |= UiEffectCapabilities.InsetShadow;
+            result |= UiEffectCapabilities.InnerShadow;
         }
 
-        if (!glow.IsEmpty)
+        if (outerGlow)
         {
-            result |= UiEffectCapabilities.Glow;
+            result |= UiEffectCapabilities.OuterGlow;
+        }
+
+        if (innerGlow)
+        {
+            result |= UiEffectCapabilities.InnerGlow;
         }
 
         return result;
@@ -233,17 +265,17 @@ public static class UiEffects
 
     private static float4 DeriveOutsets(UiEffectTarget target, UiEffectParameters parameters)
     {
-        var hasOutwardPaint = !parameters.OuterShadow.IsEmpty || !parameters.Glow.IsEmpty ||
-            (target == UiEffectTarget.Text && !parameters.StrokeOrOutline.IsEmpty);
+        var hasOutwardPaint = !parameters.OuterShadow.IsEmpty || !parameters.OuterGlow.IsEmpty ||
+            (target == UiEffectTarget.Text && !parameters.Stroke.IsEmpty);
         if (parameters.Units == PaintUnits.Device && hasOutwardPaint)
         {
             throw new ArgumentException("Outward device-unit effects require explicit logical Outsets because preparation has no DPI context.");
         }
 
         var result = default(float4);
-        if (target == UiEffectTarget.Text && !parameters.StrokeOrOutline.IsEmpty)
+        if (target == UiEffectTarget.Text && !parameters.Stroke.IsEmpty)
         {
-            Expand(ref result, parameters.StrokeOrOutline.Width, default);
+            Expand(ref result, parameters.Stroke.Width, default);
         }
 
         if (!parameters.OuterShadow.IsEmpty)
@@ -251,9 +283,9 @@ public static class UiEffects
             Expand(ref result, parameters.OuterShadow.BlurRadius + parameters.OuterShadow.Spread, parameters.OuterShadow.Offset);
         }
 
-        if (!parameters.Glow.IsEmpty)
+        if (!parameters.OuterGlow.IsEmpty)
         {
-            Expand(ref result, parameters.Glow.BlurRadius + parameters.Glow.Spread, parameters.Glow.Offset);
+            Expand(ref result, parameters.OuterGlow.BlurRadius + parameters.OuterGlow.Spread, parameters.OuterGlow.Offset);
         }
 
         return result;

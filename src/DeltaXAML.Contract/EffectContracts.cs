@@ -15,11 +15,11 @@ public enum UiEffectTarget : byte
 public enum UiEffectCapabilities : byte
 {
     None = 0,
-    Stroke = 1 << 0,
-    Outline = 1 << 1,
-    OuterShadow = 1 << 2,
-    InsetShadow = 1 << 3,
-    Glow = 1 << 4,
+    Stroke = 0x01,
+    OuterShadow = 0x02,
+    InnerShadow = 0x04,
+    OuterGlow = 0x08,
+    InnerGlow = 0x10,
 }
 
 /// <summary>Quality tier selected when an effect resource is prepared.</summary>
@@ -60,10 +60,11 @@ public readonly record struct UiEffectLayer(
 /// selected by <see cref="UiEffectSet.Capabilities"/> and are not shader ABI types.
 /// </summary>
 public readonly record struct UiEffectParameters(
-    UiEffectLayer StrokeOrOutline,
+    UiEffectLayer Stroke,
     UiEffectLayer OuterShadow,
-    UiEffectLayer InsetShadow,
-    UiEffectLayer Glow,
+    UiEffectLayer InnerShadow,
+    UiEffectLayer OuterGlow,
+    UiEffectLayer InnerGlow,
     UiResourceId CachedMask)
 {
     /// <summary>Gets an empty parameter payload.</summary>
@@ -75,8 +76,9 @@ public readonly record struct UiEffectParameters(
 
     internal bool IsValidFor(UiEffectSet effectSet)
     {
-        if (!StrokeOrOutline.IsFiniteNonNegative() || !OuterShadow.IsFiniteNonNegative() ||
-            !InsetShadow.IsFiniteNonNegative() || !Glow.IsFiniteNonNegative() ||
+        if (!Stroke.IsFiniteNonNegative() || !OuterShadow.IsFiniteNonNegative() ||
+            !InnerShadow.IsFiniteNonNegative() || !OuterGlow.IsFiniteNonNegative() ||
+            !InnerGlow.IsFiniteNonNegative() ||
             Units is not (PaintUnits.Logical or PaintUnits.Device))
         {
             return false;
@@ -92,16 +94,17 @@ public readonly record struct UiEffectParameters(
             return false;
         }
 
-        return Matches(UiEffectCapabilities.Stroke | UiEffectCapabilities.Outline, StrokeOrOutline, effectSet) &&
+        return Matches(UiEffectCapabilities.Stroke, Stroke, effectSet) &&
             Matches(UiEffectCapabilities.OuterShadow, OuterShadow, effectSet) &&
-            Matches(UiEffectCapabilities.InsetShadow, InsetShadow, effectSet) &&
-            Matches(UiEffectCapabilities.Glow, Glow, effectSet);
+            Matches(UiEffectCapabilities.InnerShadow, InnerShadow, effectSet) &&
+            Matches(UiEffectCapabilities.OuterGlow, OuterGlow, effectSet) &&
+            Matches(UiEffectCapabilities.InnerGlow, InnerGlow, effectSet);
     }
 
     private static bool Matches(UiEffectCapabilities capabilities, UiEffectLayer layer, UiEffectSet effectSet)
     {
         var selected = (effectSet.Capabilities & capabilities) != UiEffectCapabilities.None;
-        return selected ? !layer.IsEmpty : layer.IsEmpty;
+        return selected || layer.IsEmpty;
     }
 }
 
@@ -133,29 +136,37 @@ public readonly record struct UiEffectResource(
                 default,
                 default,
                 default,
+                default,
                 default)
             {
                 Units = units,
             });
     }
 
-    /// <summary>Creates a text analytic outline resource from XAML paint sugar.</summary>
-    public static UiEffectResource CreateTextOutline(
+    /// <summary>Creates a text analytic stroke resource from XAML paint sugar.</summary>
+    public static UiEffectResource CreateTextStroke(
         UiResourceId resource,
         float4 color,
         float width,
-        PaintUnits units = PaintUnits.Logical)
+        PaintUnits units = PaintUnits.Logical,
+        float4? outsets = null)
     {
+        var paintOutsets = outsets ?? (units == PaintUnits.Logical
+            ? new float4(width, width, width, width)
+            : throw new ArgumentException(
+                "A device-unit text stroke requires explicit logical outsets because the contract has no DPI context.",
+                nameof(outsets)));
         var set = new UiEffectSet(
             resource,
             UiEffectTarget.Text,
-            UiEffectCapabilities.Outline,
+            UiEffectCapabilities.Stroke,
             UiEffectQuality.Analytic,
-            default);
+            paintOutsets);
         return new(
             set,
             new UiEffectParameters(
                 new UiEffectLayer(color, default, width, 0, 0, 1),
+                default,
                 default,
                 default,
                 default,
@@ -182,9 +193,9 @@ public readonly record struct UiEffectSet(
     float4 Outsets)
 {
     private const UiEffectCapabilities KnownCapabilities =
-        UiEffectCapabilities.Stroke | UiEffectCapabilities.Outline |
-        UiEffectCapabilities.OuterShadow | UiEffectCapabilities.InsetShadow |
-        UiEffectCapabilities.Glow;
+        UiEffectCapabilities.Stroke | UiEffectCapabilities.OuterShadow |
+        UiEffectCapabilities.InnerShadow | UiEffectCapabilities.OuterGlow |
+        UiEffectCapabilities.InnerGlow;
 
     /// <summary>Gets an empty effect set.</summary>
     public static UiEffectSet None => default;
@@ -194,7 +205,6 @@ public readonly record struct UiEffectSet(
         => Resource.IsValid && (Target is UiEffectTarget.Visual or UiEffectTarget.Text) &&
             Capabilities != UiEffectCapabilities.None &&
             (Capabilities & ~KnownCapabilities) == UiEffectCapabilities.None &&
-            (Capabilities & ~AllowedCapabilities(Target)) == UiEffectCapabilities.None &&
             (Quality is UiEffectQuality.Analytic or UiEffectQuality.CachedMask) &&
             IsFiniteNonNegative(Outsets);
 
@@ -205,15 +215,6 @@ public readonly record struct UiEffectSet(
     private static bool IsFiniteNonNegative(float4 value)
         => IsFiniteNonNegative(value.x) && IsFiniteNonNegative(value.y) &&
             IsFiniteNonNegative(value.z) && IsFiniteNonNegative(value.w);
-
-    private static UiEffectCapabilities AllowedCapabilities(UiEffectTarget target) => target switch
-    {
-        UiEffectTarget.Visual => UiEffectCapabilities.Stroke | UiEffectCapabilities.OuterShadow |
-            UiEffectCapabilities.InsetShadow | UiEffectCapabilities.Glow,
-        UiEffectTarget.Text => UiEffectCapabilities.Outline | UiEffectCapabilities.OuterShadow |
-            UiEffectCapabilities.Glow,
-        _ => UiEffectCapabilities.None,
-    };
 
     private static bool IsFiniteNonNegative(float value)
         => float.IsFinite(value) && value >= 0;

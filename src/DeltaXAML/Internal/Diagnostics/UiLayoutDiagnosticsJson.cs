@@ -8,7 +8,7 @@ namespace DeltaXAML.Internal;
 /// <summary>Serializes the authoritative retained tree for cold layout diagnostics.</summary>
 internal static class UiLayoutDiagnosticsJson
 {
-    private const int SchemaVersion = 3;
+    private const int SchemaVersion = 4;
 
     internal static string Write(
         UiElement root,
@@ -88,15 +88,15 @@ internal static class UiLayoutDiagnosticsJson
         {
             case TextBlock textBlock:
                 WriteColor(writer, "foreground", textBlock.Foreground);
-                WriteColor(writer, "outlineColor", textBlock.OutlineColor);
+                WriteColor(writer, "strokeColor", textBlock.StrokeColor);
                 break;
             case TextBox textBox:
                 WriteColor(writer, "foreground", textBox.Foreground);
-                WriteColor(writer, "outlineColor", textBox.OutlineColor);
+                WriteColor(writer, "strokeColor", textBox.StrokeColor);
                 break;
             case NumericEditor numericEditor:
                 WriteColor(writer, "foreground", numericEditor.Foreground);
-                WriteColor(writer, "outlineColor", numericEditor.OutlineColor);
+                WriteColor(writer, "strokeColor", numericEditor.StrokeColor);
                 break;
             case Image image:
                 WriteColor(writer, "tint", image.Tint);

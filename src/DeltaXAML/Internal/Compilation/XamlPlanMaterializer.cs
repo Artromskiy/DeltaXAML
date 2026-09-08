@@ -1,5 +1,6 @@
 using System.Globalization;
 using Delta;
+using Delta.Diagnostics;
 using DeltaXAML.Compiler;
 using Delta.XAML.Contract;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
@@ -46,11 +47,12 @@ internal static class XamlPlanMaterializer
             }
         }
 
-        var root = Materialize(plan.Root, factory, resources, diagnostics);
+        var root = Materialize(plan.Source, plan.Root, factory, resources, diagnostics);
         return new(root, diagnostics);
     }
 
     private static UiElement? Materialize(
+        SourceId source,
         XamlObjectPlan plan,
         Func<string, string, UiElement?>? factory,
         UiResourceStore? resources,
@@ -89,10 +91,14 @@ internal static class XamlPlanMaterializer
                 element.EffectSet = effect.Set;
             }
         }
+        else
+        {
+            ApplyImplicitEffect(source, plan, element, resources, diagnostics);
+        }
 
         for (var i = 0; i < plan.Children.Length; i++)
         {
-            var child = Materialize(plan.Children[i], factory, resources, diagnostics);
+            var child = Materialize(source, plan.Children[i], factory, resources, diagnostics);
             if (child is not null && !TryAttachChild(element, child))
             {
                 diagnostics.Add(new(
@@ -147,6 +153,59 @@ internal static class XamlPlanMaterializer
         return element;
     }
 
+    private static void ApplyImplicitEffect(
+        SourceId source,
+        XamlObjectPlan plan,
+        UiElement element,
+        UiResourceStore? resources,
+        List<XamlMaterializerDiagnostic> diagnostics)
+    {
+        if (element.EffectSet.IsValid)
+        {
+            return;
+        }
+
+        UiEffectResource effect;
+        if (element.BorderWidth > 0)
+        {
+            effect = UiEffectResource.CreateVisualStroke(
+                XamlImplicitEffectIdentity.Create(source, plan),
+                ToColor(element.BorderColor),
+                element.BorderWidth,
+                element.BorderWidthUnits);
+        }
+        else if (element is TextBlock { StrokeWidth: > 0 } text)
+        {
+            effect = UiEffectResource.CreateTextStroke(
+                XamlImplicitEffectIdentity.Create(source, plan, "text"),
+                ToColor(text.StrokeColor),
+                text.StrokeWidth);
+        }
+        else
+        {
+            return;
+        }
+
+        if (resources is null)
+        {
+            diagnostics.Add(new(
+                "XAML020",
+                "Stroke convenience properties require a mutable UiResourceCatalog in the cold loader or the generated XAML path.",
+                plan.Range.Start.Line + 1,
+                plan.Range.Start.Column + 1));
+            return;
+        }
+
+        resources.Set(effect.Set.Resource.Value, effect);
+        element.EffectSet = effect.Set;
+    }
+
+    private static float4 ToColor(UiColor color) => new(
+        color.R / 255f,
+        color.G / 255f,
+        color.B / 255f,
+        color.A / 255f);
+
     private static bool TryMaterializeEffect(
         XamlEffectPlan plan,
         List<XamlMaterializerDiagnostic> diagnostics,
@@ -170,12 +229,11 @@ internal static class XamlPlanMaterializer
             }
         }
 
-        var strokeOrOutline = MaterializeLayer(plan, plan.Target == UiEffectTarget.Text
-            ? XamlEffectLayerKind.Outline
-            : XamlEffectLayerKind.Stroke);
+        var stroke = MaterializeLayer(plan, XamlEffectLayerKind.Stroke);
         var outerShadow = MaterializeLayer(plan, XamlEffectLayerKind.OuterShadow);
-        var insetShadow = MaterializeLayer(plan, XamlEffectLayerKind.InsetShadow);
-        var glow = MaterializeLayer(plan, XamlEffectLayerKind.Glow);
+        var innerShadow = MaterializeLayer(plan, XamlEffectLayerKind.InnerShadow);
+        var outerGlow = MaterializeLayer(plan, XamlEffectLayerKind.OuterGlow);
+        var innerGlow = MaterializeLayer(plan, XamlEffectLayerKind.InnerGlow);
         float4? outsets = null;
         if (plan.Outsets is { } outsetsPlan &&
             ThicknessLiteralParser.TryParse(outsetsPlan.Literal.CanonicalText, out var parsedOutsets))
@@ -188,19 +246,24 @@ internal static class XamlPlanMaterializer
             effect = plan.Target == UiEffectTarget.Text
                 ? Delta.XAML.UiEffects.CreateText(
                     plan.Resource,
-                    strokeOrOutline,
+                    EffectCapabilities(plan),
+                    stroke,
                     outerShadow,
-                    glow,
+                    innerShadow,
+                    outerGlow,
+                    innerGlow,
                     plan.Units,
                     plan.Quality,
                     plan.CachedMask,
                     outsets)
                 : Delta.XAML.UiEffects.CreateVisual(
                     plan.Resource,
-                    strokeOrOutline,
+                    EffectCapabilities(plan),
+                    stroke,
                     outerShadow,
-                    insetShadow,
-                    glow,
+                    innerShadow,
+                    outerGlow,
+                    innerGlow,
                     plan.Units,
                     plan.Quality,
                     plan.CachedMask,
@@ -270,6 +333,25 @@ internal static class XamlPlanMaterializer
 
         color = new(parsed.R / 255f, parsed.G / 255f, parsed.B / 255f, parsed.A / 255f);
         return true;
+    }
+
+    private static UiEffectCapabilities EffectCapabilities(XamlEffectPlan plan)
+    {
+        var capabilities = UiEffectCapabilities.None;
+        for (var i = 0; i < plan.Layers.Length; i++)
+        {
+            capabilities |= plan.Layers[i].Kind switch
+            {
+                XamlEffectLayerKind.Stroke => UiEffectCapabilities.Stroke,
+                XamlEffectLayerKind.OuterShadow => UiEffectCapabilities.OuterShadow,
+                XamlEffectLayerKind.InnerShadow => UiEffectCapabilities.InnerShadow,
+                XamlEffectLayerKind.OuterGlow => UiEffectCapabilities.OuterGlow,
+                XamlEffectLayerKind.InnerGlow => UiEffectCapabilities.InnerGlow,
+                _ => UiEffectCapabilities.None,
+            };
+        }
+
+        return capabilities;
     }
 
     private static bool TryEffectOffset(string value, out float2 offset)
@@ -528,9 +610,8 @@ internal static class XamlPlanMaterializer
             case "IsOpen" when e is Picker picker && bool.TryParse(value, out var pickerOpen): picker.IsOpen = pickerOpen; break;
             case "SelectedIndex" when e is TabView tabs && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var tabIndex): tabs.SelectedIndex = tabIndex; break;
             case "Foreground" when TryColor(value, out var fg): e.SetLocal("Foreground", fg, InvalidationFor("Foreground")); break;
-            case "OutlineColor" when TryColor(value, out var outlineColor): e.SetLocal("OutlineColor", outlineColor, InvalidationFor("OutlineColor")); break;
-            case "OutlineWidth" when TryFloat(value, out var outlineWidth): e.SetLocal("OutlineWidth", outlineWidth, InvalidationFor("OutlineWidth")); break;
-            case "TextEffect" when Guid.TryParse(value, out var effect): e.SetLocal("TextEffect", new UiResourceId(effect), InvalidationFor("TextEffect")); break;
+            case "StrokeColor" when TryColor(value, out var strokeColor): e.SetLocal("StrokeColor", strokeColor, InvalidationFor("StrokeColor")); break;
+            case "StrokeWidth" when TryFloat(value, out var strokeWidth): e.SetLocal("StrokeWidth", strokeWidth, InvalidationFor("StrokeWidth")); break;
             case "ForegroundResource" when resources is not null: e.SetStyleResource("Foreground", resources, new(value), InvalidationFor("Foreground")); break;
             case "ForegroundResource": d.Add(new("XAML004", "ForegroundResource requires a resource store.", line, 1)); break;
             case "Padding" when TryThickness(value, out var padding): e.Padding = padding; break;
@@ -592,7 +673,7 @@ internal static class XamlPlanMaterializer
         }
 
         if (element is TextBlock or TextBox or NumericEditor &&
-            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundResource" or "OutlineColor" or "OutlineWidth" or "TextEffect" or
+            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundResource" or "StrokeColor" or "StrokeWidth" or
             "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextWrapping" or "TextTrimming" or "MaxLines" or "LineHeight" or
             "FontWeight" or "FontStyle" or "TextDecorations")
         {
@@ -617,12 +698,11 @@ internal static class XamlPlanMaterializer
 
     private static bool IsResourceValueCompatible(string property, object? value) => property switch
     {
-        "Background" or "BorderColor" or "Foreground" or "OutlineColor" => value is UiColor or Delta.XAML.UiColor,
-        "BorderWidth" or "OutlineWidth" => value is
+        "Background" or "BorderColor" or "Foreground" or "StrokeColor" => value is UiColor or Delta.XAML.UiColor,
+        "BorderWidth" or "StrokeWidth" => value is
             byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
         "BorderWidthUnits" => value is Delta.XAML.Contract.PaintUnits,
         "CornerRadius" => value is Delta.XAML.UiCornerRadii,
-        "TextEffect" => value is UiResourceId,
         "EffectSet" => value is UiEffectSet,
         "BackgroundBrush" => value is Delta.XAML.UiBrush,
         "Padding" or "Margin" => value is UiThickness or Delta.XAML.UiThickness,
@@ -662,7 +742,7 @@ internal static class XamlPlanMaterializer
         "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextTrimming" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "PlaceholderText" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => UiDirtyFlags.Visual,
-        "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" or "EffectSet" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "Foreground" or "StrokeColor" or "StrokeWidth" or "EffectSet" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
         "Width" or "Height" or "Margin" or "Padding" or "Source" => UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "HorizontalAlignment" or "VerticalAlignment" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,

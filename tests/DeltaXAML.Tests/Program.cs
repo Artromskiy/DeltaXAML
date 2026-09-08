@@ -951,7 +951,7 @@ internal static partial class Program
         var effectSet = new LibraryContract.UiEffectSet(
             new LibraryContract.UiResourceId(new Guid("E8E4BBE8-6A52-4BE9-8BAE-6BBF5A20B2F8")),
             LibraryContract.UiEffectTarget.Visual,
-            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.OuterGlow,
             LibraryContract.UiEffectQuality.Analytic,
             new float4(2, 2, 2, 2));
         brushCatalog.Set("AccentEffects", effectSet);
@@ -1147,7 +1147,7 @@ internal static partial class Program
         var effects = new LibraryContract.UiEffectSet(
             new LibraryContract.UiResourceId(new Guid("A2D20E6F-6B1A-4BB0-9E4E-14E66F3381CD")),
             LibraryContract.UiEffectTarget.Text,
-            LibraryContract.UiEffectCapabilities.Outline | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.OuterGlow,
             LibraryContract.UiEffectQuality.Analytic,
             new float4(1, 1, 1, 1));
         text.EffectSet = effects;
@@ -1164,7 +1164,15 @@ internal static partial class Program
             "default",
             new TextContract.FontSourceId(new Guid("4B1E8A67-CE40-4B5C-9E76-2AA4B58E1F45")),
             File.ReadAllBytes(fontPath));
-        var effect = new LibraryContract.UiResourceId(new Guid("A82B3F7C-5D09-43F1-9DB5-1A377E4B2401"));
+        var visualEffect = LibraryContract.UiEffectResource.CreateVisualStroke(
+            new(new Guid("A82B3F7C-5D09-43F1-9DB5-1A377E4B2401")),
+            new float4(200 / 255f, 210 / 255f, 220 / 255f, 1),
+            2,
+            LibraryContract.PaintUnits.Device);
+        var textEffect = LibraryContract.UiEffectResource.CreateTextStroke(
+            new(new Guid("E5F3D9C1-3044-4D1B-A558-915A24CA62A7")),
+            new float4(1, 80 / 255f, 40 / 255f, 1),
+            1.5f);
         var border = new Library.UiBorder
         {
             Width = 120,
@@ -1174,15 +1182,16 @@ internal static partial class Program
             BorderWidth = 2,
             BorderWidthUnits = LibraryContract.PaintUnits.Device,
             CornerRadius = new Library.UiCornerRadii(2, 4, 6, 8),
+            EffectSet = visualEffect.Set,
         };
         var text = new Library.UiTextBlock
         {
-            Text = "Outlined",
+            Text = "Stroked",
             Width = 120,
             Height = 40,
-            OutlineColor = new(255, 80, 40),
-            OutlineWidth = 1.5f,
-            TextEffect = effect,
+            StrokeColor = new(255, 80, 40),
+            StrokeWidth = 1.5f,
+            EffectSet = textEffect.Set,
         };
         border.SetChild(text);
         using var textService = new CountingTextService();
@@ -1190,36 +1199,54 @@ internal static partial class Program
         document.Layout(new(120, 40), 1);
         var display = document.BuildDisplayList();
 
-        Assert.Equal(LibraryContract.UiVisualKind.Border, display.Visuals[0].Kind, "border paint selects the border visual kind");
+        Assert.Equal(LibraryContract.UiVisualKind.RoundedRectangle, display.Visuals[0].Kind,
+            "stroke remains an effect while corner geometry selects the rounded visual kind");
         Assert.Equal(new float4(20 / 255f, 30 / 255f, 40 / 255f, 1), display.Visuals[0].Paint.FillColor, "border fill reaches the canonical paint");
-        Assert.Equal(new float4(200 / 255f, 210 / 255f, 220 / 255f, 1), display.Visuals[0].Paint.StrokeColor, "border color reaches the canonical paint");
-        Assert.Equal(2f, display.Visuals[0].Paint.StrokeWidth, "border width reaches the canonical paint");
-        Assert.Equal(LibraryContract.PaintUnits.Device, display.Visuals[0].Paint.Units, "device border units reach the canonical paint");
+        Assert.Equal(visualEffect.Set, display.Visuals[0].Paint.EffectSet, "border stroke reaches the canonical effect reference");
         Assert.Equal(new float4(2, 4, 6, 8), display.Visuals[0].Paint.CornerRadii, "per-corner radii reach the canonical paint in contract order");
         Assert.Equal(new LibraryContract.UiTextPaint(
             new float4(1, 1, 1, 1),
-            new float4(1, 80 / 255f, 40 / 255f, 1),
-            1.5f,
-            effect), display.Text[0].Paint, "text outline and effect identity reach the canonical paint");
+            textEffect.Set), display.Text[0].Paint, "text stroke reaches the canonical effect reference");
         var shaped = display.Text[0].Text;
-        text.OutlineWidth = 2;
+        text.EffectSet = LibraryContract.UiEffectResource.CreateTextStroke(
+            textEffect.Set.Resource,
+            new float4(1, 80 / 255f, 40 / 255f, 1),
+            2).Set;
         document.Layout(new(120, 40), 1);
         var recolored = document.BuildDisplayList();
         Assert.True(ReferenceEquals(shaped, recolored.Text[0].Text), "paint-only text changes reuse the shaped text cache");
-        Assert.Equal(2f, recolored.Text[0].Paint.OutlineWidth, "paint-only text changes update the neutral request");
+        Assert.Equal(new float4(2, 2, 2, 2), recolored.Text[0].Paint.EffectSet.Outsets, "paint-only text changes update the effect reference");
+
+        var effectOnly = new Library.UiBorder
+        {
+            Width = 40,
+            Height = 20,
+            EffectSet = Library.UiEffects.Create(
+                new(new Guid("A66C4208-4394-4519-96FE-9A2EF6857143")),
+                new Library.UiVisualEffects
+                {
+                    OuterGlow = new(new(80, 160, 255), 6),
+                }).Set,
+        };
+        using var effectOnlyDocument = new Library.UiDocument(effectOnly, new EmptyTextService());
+        effectOnlyDocument.Layout(new(40, 20), 1);
+        var effectOnlyDisplay = effectOnlyDocument.BuildDisplayList();
+        Assert.Equal(1, effectOnlyDisplay.Visuals.Length, "an effect-only visual keeps its source geometry with a transparent fill");
+        Assert.Equal(LibraryContract.UiVisualKind.SolidRectangle, effectOnlyDisplay.Visuals[0].Kind,
+            "effect capability does not replace the base visual kind");
 
         var resources = new Library.UiResourceCatalog();
-        resources.Set("TextEffect", effect);
         var loader = new Library.XamlLoader();
         var context = new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), resources);
         var loaded = loader.Load(
-            "<TextBlock Text=\"A\" TextEffect=\"{DynamicResource TextEffect}\" OutlineColor=\"#FF8040\" OutlineWidth=\"1\" />",
+            "<TextBlock Text=\"A\" StrokeColor=\"#FF8040\" StrokeWidth=\"1\" />",
             in context);
-        Assert.True(loaded.Success && loaded.Root is Library.UiTextBlock, "XAML accepts text paint properties and dynamic effect resources");
+        Assert.True(loaded.Success && loaded.Root is Library.UiTextBlock, "the cold XAML loader lowers text stroke sugar into an effect resource");
         if (loaded.Root is Library.UiTextBlock loadedText)
         {
-            Assert.Equal(effect, loadedText.TextEffect, "dynamic text effect resolves to the resource identity");
-            Assert.Equal(1f, loadedText.OutlineWidth, "XAML preserves outline width");
+            Assert.Equal(1f, loadedText.StrokeWidth, "XAML preserves text stroke width");
+            Assert.True(loadedText.EffectSet.Has(LibraryContract.UiEffectCapabilities.Stroke), "XAML selects the canonical text stroke effect");
+            Assert.True(resources.TryResolveEffectResource(loadedText.EffectSet.Resource, out _), "the cold loader registers the lowered text effect parameters");
         }
 
         var cornerMarkup = loader.Load(
@@ -1240,32 +1267,29 @@ internal static partial class Program
 
     private static void EffectSetContract()
     {
+        Assert.Equal((byte)1, (byte)LibraryContract.UiEffectCapabilities.Stroke, "stroke occupies the first capability bit");
+        Assert.Equal((byte)2, (byte)LibraryContract.UiEffectCapabilities.OuterShadow, "outer shadow reuses the removed outline bit");
+        Assert.Equal((byte)4, (byte)LibraryContract.UiEffectCapabilities.InnerShadow, "inner shadow follows outer shadow contiguously");
+        Assert.Equal((byte)8, (byte)LibraryContract.UiEffectCapabilities.OuterGlow, "outer glow follows shadows contiguously");
+        Assert.Equal((byte)16, (byte)LibraryContract.UiEffectCapabilities.InnerGlow, "inner glow completes the dense capability mask");
         var resource = new LibraryContract.UiResourceId(new Guid("5C6A0F90-4DAB-4D1D-B7A9-4A5A0A9A2E10"));
         var effects = new LibraryContract.UiEffectSet(
             resource,
             LibraryContract.UiEffectTarget.Visual,
-            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.OuterGlow,
             LibraryContract.UiEffectQuality.Analytic,
             new float4(2, 3, 4, 5));
 
         Assert.True(effects.IsValid, "a typed visual effect set accepts finite non-negative outsets");
         Assert.True(effects.Has(LibraryContract.UiEffectCapabilities.Stroke), "effect capabilities are queryable as a set");
-        Assert.True(!effects.Has(LibraryContract.UiEffectCapabilities.Outline), "effect capability queries do not invent missing layers");
+        Assert.True(!effects.Has(LibraryContract.UiEffectCapabilities.InnerGlow), "effect capability queries do not invent missing layers");
 
-        var visualPaint = LibraryContract.UiVisualPaint.Solid(new float4(1, 1, 1, 1)) with
-        {
-            EffectSet = effects,
-        };
+        var visualPaint = new LibraryContract.UiVisualPaint(new float4(1, 1, 1, 1), default, effects);
         Assert.Equal(effects, visualPaint.EffectSet, "visual paint carries the immutable effect set without changing geometry");
 
         var textPaint = new LibraryContract.UiTextPaint(
             new float4(1, 1, 1, 1),
-            default,
-            0,
-            LibraryContract.UiResourceId.Empty)
-        {
-            EffectSet = effects with { Target = LibraryContract.UiEffectTarget.Text },
-        };
+            effects with { Target = LibraryContract.UiEffectTarget.Text });
         Assert.Equal(LibraryContract.UiEffectTarget.Text, textPaint.EffectSet.Target, "text paint carries a text-target effect set");
         Assert.True(
             !(effects with { Outsets = new float4(-1, 0, 0, 0) }).IsValid,
@@ -1273,7 +1297,6 @@ internal static partial class Program
         Assert.True(
             !(effects with { Capabilities = (LibraryContract.UiEffectCapabilities)128 }).IsValid,
             "unknown effect capability bits are rejected at the neutral boundary");
-
         var border = new Library.UiBorder
         {
             Width = 20,
@@ -1292,7 +1315,7 @@ internal static partial class Program
         var set = new LibraryContract.UiEffectSet(
             new LibraryContract.UiResourceId(new Guid("0C4E6B5F-0B5D-4C67-9B8F-0DC37A47A4A6")),
             LibraryContract.UiEffectTarget.Visual,
-            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.OuterGlow,
             LibraryContract.UiEffectQuality.Analytic,
             new float4(3, 3, 3, 3));
         var resource = new LibraryContract.UiEffectResource(
@@ -1302,6 +1325,7 @@ internal static partial class Program
                 default,
                 default,
                 new LibraryContract.UiEffectLayer(new float4(1, 0, 0, 1), default, 0, 4, 0, 1),
+                default,
                 default));
 
         Assert.True(resource.IsValid, "typed effect resource validates selected layers and parameters");
@@ -1311,8 +1335,8 @@ internal static partial class Program
                 Parameters = resource.Parameters with { CachedMask = set.Resource },
             }).IsValid,
             "analytic effect resources reject an accidental cached-mask identity");
-        Assert.True(!(resource with { Set = set with { Target = LibraryContract.UiEffectTarget.Text } }).IsValid,
-            "visual stroke capabilities cannot be reused as a text effect resource");
+        Assert.True((resource with { Set = set with { Target = LibraryContract.UiEffectTarget.Text } }).IsValid,
+            "the canonical effect capabilities are valid for both visual and text targets");
 
         var catalog = new Library.UiResourceCatalog();
         catalog.Set(resource);
@@ -1325,6 +1349,12 @@ internal static partial class Program
             LibraryContract.PaintUnits.Device);
         catalog.Set(deviceStroke);
         Assert.Equal(LibraryContract.PaintUnits.Device, deviceStroke.Parameters.Units, "effect distance units remain typed resource data");
+        var textStroke = LibraryContract.UiEffectResource.CreateTextStroke(
+            new LibraryContract.UiResourceId(new Guid("67D92E67-FBD3-42D8-96EE-9D461159B147")),
+            new float4(1, 1, 1, 1),
+            2);
+        Assert.Equal(new float4(2, 2, 2, 2), textStroke.Set.Outsets,
+            "logical text stroke derives paint outsets without changing text layout");
         var effectSnapshot = catalog.GetEffectResources();
         Assert.Equal(2, effectSnapshot.Length, "the cold effect snapshot exposes each registered typed effect resource");
 
@@ -1348,17 +1378,60 @@ internal static partial class Program
             new Library.UiVisualEffects
             {
                 Stroke = new(new(40, 168, 189), 3),
-                Glow = new(new(40, 168, 189), 6),
+                OuterGlow = new(new(40, 168, 189), 6),
             });
         Assert.Equal(
-            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.OuterGlow,
             concise.Set.Capabilities,
             "concise C# effects infer a stable capability set");
-        Assert.Equal(new float4(6, 6, 6, 6), concise.Set.Outsets, "logical glow derives paint outsets without changing layout");
+        Assert.Equal(new float4(6, 6, 6, 6), concise.Set.Outsets, "logical outer glow derives paint outsets without changing layout");
+        var disabledLayer = Library.UiEffects.Create(
+            new(new Guid("79A25351-10AF-4015-8558-56E4D79BA861")),
+            new Library.UiVisualEffects
+            {
+                OuterGlow = new(default, 0, Intensity: 0),
+            });
+        Assert.Equal(LibraryContract.UiEffectCapabilities.OuterGlow, disabledLayer.Set.Capabilities,
+            "a zero-valued bound layer keeps its prepared variant capability");
+        Assert.True(disabledLayer.IsValid,
+            "an explicitly selected zero-valued layer is a valid disabled effect");
+
+        const LibraryContract.UiEffectCapabilities allCapabilities =
+            LibraryContract.UiEffectCapabilities.Stroke |
+            LibraryContract.UiEffectCapabilities.OuterShadow |
+            LibraryContract.UiEffectCapabilities.InnerShadow |
+            LibraryContract.UiEffectCapabilities.OuterGlow |
+            LibraryContract.UiEffectCapabilities.InnerGlow;
+        var visualAll = Library.UiEffects.Create(
+            new(new Guid("F6500BA2-76B6-4DB8-BB70-A8DA8B98F7C1")),
+            new Library.UiVisualEffects
+            {
+                Stroke = new(new(10, 20, 30), 2),
+                OuterShadow = new(new(20, 30, 40), 4, new float2(1, 2)),
+                InnerShadow = new(new(30, 40, 50), 3),
+                OuterGlow = new(new(40, 50, 60), 5),
+                InnerGlow = new(new(50, 60, 70), 6),
+            });
+        var textAll = Library.UiEffects.Create(
+            new(new Guid("E8362812-0109-437E-8A32-D3E926D49C7E")),
+            new Library.UiTextEffects
+            {
+                Stroke = new(new(10, 20, 30), 2),
+                OuterShadow = new(new(20, 30, 40), 4, new float2(1, 2)),
+                InnerShadow = new(new(30, 40, 50), 3),
+                OuterGlow = new(new(40, 50, 60), 5),
+                InnerGlow = new(new(50, 60, 70), 6),
+            });
+        Assert.Equal(allCapabilities, visualAll.Set.Capabilities, "visual effects expose the complete canonical layer set");
+        Assert.Equal(allCapabilities, textAll.Set.Capabilities, "text effects expose the same canonical layer set");
+        Assert.True(!visualAll.Parameters.InnerShadow.IsEmpty && !visualAll.Parameters.InnerGlow.IsEmpty,
+            "inner visual layers remain distinct typed payload slots");
+        Assert.True(!textAll.Parameters.InnerShadow.IsEmpty && !textAll.Parameters.InnerGlow.IsEmpty,
+            "inner text layers remain distinct typed payload slots");
 
         var inlineCatalog = new Library.UiResourceCatalog();
         var inlineLoad = new Library.XamlLoader().Load(
-            "<Border><Border.EffectSet><EffectSet><Stroke Color=\"#28A8BD\" Width=\"3\" /><Glow Color=\"#28A8BD\" Radius=\"6\" /></EffectSet></Border.EffectSet></Border>",
+            "<Border><Border.EffectSet><EffectSet><Stroke Color=\"#28A8BD\" Width=\"3\" /><OuterGlow Color=\"#28A8BD\" Radius=\"6\" /></EffectSet></Border.EffectSet></Border>",
             new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), inlineCatalog));
         Assert.True(inlineLoad.Success && inlineLoad.Root?.EffectSet.IsValid == true, "cold tooling can materialize literal inline effect syntax into the canonical catalog");
         Assert.True(inlineCatalog.TryResolveEffectResource(inlineLoad.Root!.EffectSet.Resource, out var inlineResource), "inline effect keeps a renderer-resolvable stable resource identity");
@@ -1382,7 +1455,7 @@ internal static partial class Program
         border.EffectSet = new LibraryContract.UiEffectSet(
             new LibraryContract.UiResourceId(new Guid("A48FBE0A-75E9-45CA-B649-48C16C4A7D4A")),
             LibraryContract.UiEffectTarget.Visual,
-            LibraryContract.UiEffectCapabilities.OuterShadow | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectCapabilities.OuterShadow | LibraryContract.UiEffectCapabilities.OuterGlow,
             LibraryContract.UiEffectQuality.Analytic,
             new float4(18, 12, 24, 16));
         document.Layout(new float2(160, 120), 1);
@@ -1414,12 +1487,17 @@ internal static partial class Program
         var textBoundsBefore = text.RetainedElement.Bounds;
         var textDesiredBefore = text.RetainedElement.DesiredSize;
         var textBefore = textDocument.BuildDisplayList().Text[0];
-        text.EffectSet = new LibraryContract.UiEffectSet(
+        var textShadow = Library.UiEffects.Create(
             new LibraryContract.UiResourceId(new Guid("B8A1F2C9-1DB6-4A68-92F3-2F4A3F6B0C8E")),
-            LibraryContract.UiEffectTarget.Text,
-            LibraryContract.UiEffectCapabilities.Outline | LibraryContract.UiEffectCapabilities.Glow,
-            LibraryContract.UiEffectQuality.Analytic,
-            new float4(6, 8, 10, 12));
+            new Library.UiTextEffects
+            {
+                OuterShadow = new(new(0, 0, 0, 224), 1.5f, new float2(0, 3)),
+            });
+        Assert.Equal(new float4(1.5f, 0, 1.5f, 4.5f), textShadow.Set.Outsets,
+            "offset text shadow derives asymmetric paint outsets");
+        Assert.Equal(1f, textShadow.Parameters.OuterShadow.Intensity,
+            "omitted text-shadow intensity defaults to one");
+        text.EffectSet = textShadow.Set;
         textDocument.Layout(new float2(160, 120), 1);
         var textAfter = textDocument.BuildDisplayList().Text[0];
 
@@ -1428,6 +1506,8 @@ internal static partial class Program
         Assert.Equal(textBefore.BaselineOrigin, textAfter.BaselineOrigin, "text effects do not change baseline placement");
         Assert.True(ReferenceEquals(textBefore.Text, textAfter.Text), "text effects do not reshape an unchanged text run");
         Assert.Equal(text.EffectSet, textAfter.Paint.EffectSet, "text effect identity reaches the canonical text paint");
+        Assert.Equal(LibraryContract.UiClipId.None, textAfter.Clip,
+            "text effect outsets use the effective ancestor clip rather than clipping to text layout bounds");
     }
 
     private static void RoundedCornerRadiiAreNormalizedBeforeExtraction()
@@ -1813,9 +1893,8 @@ internal static partial class Program
 
         var paint = new LibraryContract.UiVisualPaint(
             new float4(1, 1, 1, 1),
-            new float4(0, 0, 0, 1),
-            2,
-            new float4(4, 4, 4, 4));
+            new float4(4, 4, 4, 4),
+            LibraryContract.UiEffectSet.None);
         var visualWithPaint = LibraryContract.UiVisualDraw.WithPaint(
             LibraryContract.UiVisualKind.RoundedRectangle,
             default,

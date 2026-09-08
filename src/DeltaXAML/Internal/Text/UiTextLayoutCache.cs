@@ -124,11 +124,7 @@ internal sealed class UiTextLayoutCache : IDisposable
         draw = UiTextDraw.WithPaint(
             cache.Shaped,
             baseline,
-            new UiTextPaint(ToColor(run.Color), ToColor(run.OutlineColor), run.OutlineWidth,
-                new UiResourceId(run.TextEffectResource))
-            {
-                EffectSet = run.EffectSet,
-            },
+            new UiTextPaint(ToColor(run.Color), run.EffectSet),
             clip);
         return true;
     }

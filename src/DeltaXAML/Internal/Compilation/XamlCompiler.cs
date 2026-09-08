@@ -1412,7 +1412,7 @@ internal static class XamlCompiler
             }
 
             RequireEffectMember(kind, "Color", seen, attributes);
-            if (kind is XamlEffectLayerKind.Stroke or XamlEffectLayerKind.Outline)
+            if (kind == XamlEffectLayerKind.Stroke)
             {
                 RequireEffectMember(kind, "Width", seen, attributes);
             }
@@ -1437,21 +1437,19 @@ internal static class XamlCompiler
             }
         }
 
-        private static bool IsLayerAllowed(UiEffectTarget target, XamlEffectLayerKind kind) => target switch
-        {
-            UiEffectTarget.Visual => kind is XamlEffectLayerKind.Stroke or XamlEffectLayerKind.OuterShadow or
-                XamlEffectLayerKind.InsetShadow or XamlEffectLayerKind.Glow,
-            UiEffectTarget.Text => kind is XamlEffectLayerKind.Outline or XamlEffectLayerKind.OuterShadow or
-                XamlEffectLayerKind.Glow,
-            _ => false,
-        };
+        private static bool IsLayerAllowed(UiEffectTarget target, XamlEffectLayerKind kind) =>
+            (target is UiEffectTarget.Visual or UiEffectTarget.Text) &&
+            (kind is XamlEffectLayerKind.Stroke or XamlEffectLayerKind.OuterShadow or
+                XamlEffectLayerKind.InnerShadow or XamlEffectLayerKind.OuterGlow or
+                XamlEffectLayerKind.InnerGlow);
 
         private static bool IsLayerMemberAllowed(XamlEffectLayerKind kind, string name) => name switch
         {
             "Color" or "Intensity" => true,
-            "Width" => kind is XamlEffectLayerKind.Stroke or XamlEffectLayerKind.Outline,
+            "Width" => kind == XamlEffectLayerKind.Stroke,
             "Offset" or "Radius" or "Spread" => kind is XamlEffectLayerKind.OuterShadow or
-                XamlEffectLayerKind.InsetShadow or XamlEffectLayerKind.Glow,
+                XamlEffectLayerKind.InnerShadow or XamlEffectLayerKind.OuterGlow or
+                XamlEffectLayerKind.InnerGlow,
             _ => false,
         };
 

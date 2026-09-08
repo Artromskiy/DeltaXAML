@@ -44,7 +44,7 @@ The root object contains `schemaVersion`, `layoutCompleted`, `viewport`,
 `visibility`, `participation`, `colors`, `bounds`, `clip`, `desiredSize`,
 `requestedSize`, `margin`, `padding` and an ordered `children` array. `colors`
 contains RGBA hex strings for `background` and `borderColor`; text controls
-also expose `foreground` and `outlineColor`, while image controls expose
+also expose `foreground` and `strokeColor`, while image controls expose
 `tint`. A custom visual additionally exposes its effective `customVisualColor`.
 Text controls additionally contain `textBounds`, the final text layout box
 inside their element bounds; it is intentionally separate from element
@@ -252,7 +252,7 @@ spread and intensity remain typed values and may use generated `OneTime` or
     <Border.EffectSet>
         <EffectSet>
             <Stroke Color="{Binding Accent}" Width="{Binding StrokeWidth}" />
-            <Glow Color="{Binding Accent}" Radius="{Binding GlowRadius}" Intensity="0.8" />
+            <OuterGlow Color="{Binding Accent}" Radius="{Binding OuterGlowRadius}" Intensity="0.8" />
         </EffectSet>
     </Border.EffectSet>
 </Border>
@@ -282,20 +282,27 @@ UiEffectSet effects = resources.RegisterEffects(
     new UiVisualEffects
     {
         Stroke = new(accent, 2),
-        Glow = new(accent, 8, Intensity: 0.8f),
+        OuterGlow = new(accent, 8, Intensity: 0.8f),
     });
 border.EffectSet = effects;
 ```
 
-`UiTextEffects` exposes `Outline`, `OuterShadow` and `Glow`; visual effects
-expose `Stroke`, `OuterShadow`, `InsetShadow` and `Glow`. The generated and C#
-paths both lower to the same immutable `UiEffectResource`. `UiResourceCatalog`
+`UiTextEffects` and `UiVisualEffects` expose the same five layers: `Stroke`,
+`OuterShadow`, `InnerShadow`, `OuterGlow` and `InnerGlow`. `Stroke` is the
+canonical text name too; `Outline`, `InsetShadow` and bare `Glow` are rejected
+instead of acting as aliases. The generated and C# paths both lower to the same
+immutable `UiEffectResource`. `UiResourceCatalog`
 publishes a monotonic `EffectVersion` and detached `GetEffectResources()`
 snapshots for renderer synchronization. The display-list producer carries only
 the stable `EffectSet`; shader selection, packing and GPU resources remain
 renderer-owned. Literal inline effects also work in the explicit cold loader
 when its load context contains a mutable `UiResourceCatalog`; effect bindings
 remain generated-only and return `XAML020` from that loader.
+
+Inner layers paint only inside the source geometry and do not add outsets.
+Outer shadow and outer glow contribute to damage/paint bounds. Text stroke and
+all effects remain paint-only: they do not alter shaped glyphs, text metrics,
+baseline or the measured size of the element.
 
 Effect distances are typed in `UiEffectParameters.Units`: `Logical` is the
 default and is converted once by the renderer, while `Device` keeps physical

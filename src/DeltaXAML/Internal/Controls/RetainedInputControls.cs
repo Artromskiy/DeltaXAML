@@ -239,21 +239,15 @@ internal class TextBlock : UiElement
     public string GlyphRunKey { get => _state.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.GlyphRunKey == value) { return; } _state.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _state.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _state.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
-    public UiColor OutlineColor { get => _state.Visual.OutlineColor; set => SetLocalProperty("OutlineColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
-    public float OutlineWidth
+    public UiColor StrokeColor { get => _state.Visual.StrokeColor; set => SetLocalProperty("StrokeColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public float StrokeWidth
     {
-        get => _state.Visual.OutlineWidth;
+        get => _state.Visual.StrokeWidth;
         set
         {
             if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
-            SetLocalProperty("OutlineWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+            SetLocalProperty("StrokeWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
         }
-    }
-    public Guid TextEffectResource => _state.Visual.TextEffectResource;
-    public UiResourceId TextEffect
-    {
-        get => new(_state.Visual.TextEffectResource);
-        set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
     }
     public Delta.XAML.UiTextHorizontalAlignment HorizontalTextAlignment { get => _state.Layout.HorizontalAlignment; set => SetLocalProperty("HorizontalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
     public Delta.XAML.UiTextVerticalAlignment VerticalTextAlignment { get => _state.Layout.VerticalAlignment; set => SetLocalProperty("VerticalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
@@ -296,21 +290,15 @@ internal class TextBox : UiElement, ITextEditorStateOwner
     public string GlyphRunKey { get => _textState.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_textState.Visual.GlyphRunKey == value) { return; } _textState.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _textState.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _textState.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
-    public UiColor OutlineColor { get => _textState.Visual.OutlineColor; set => SetLocalProperty("OutlineColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
-    public float OutlineWidth
+    public UiColor StrokeColor { get => _textState.Visual.StrokeColor; set => SetLocalProperty("StrokeColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public float StrokeWidth
     {
-        get => _textState.Visual.OutlineWidth;
+        get => _textState.Visual.StrokeWidth;
         set
         {
             if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
-            SetLocalProperty("OutlineWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+            SetLocalProperty("StrokeWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
         }
-    }
-    public Guid TextEffectResource => _textState.Visual.TextEffectResource;
-    public UiResourceId TextEffect
-    {
-        get => new(_textState.Visual.TextEffectResource);
-        set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
     }
     public Delta.XAML.UiTextHorizontalAlignment HorizontalTextAlignment { get => _textState.Layout.HorizontalAlignment; set => SetLocalProperty("HorizontalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
     public Delta.XAML.UiTextVerticalAlignment VerticalTextAlignment { get => _textState.Layout.VerticalAlignment; set => SetLocalProperty("VerticalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
@@ -386,21 +374,15 @@ internal sealed class NumericEditor : UiElement, ITextEditorStateOwner
     public string GlyphRunKey { get => _textState.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_textState.Visual.GlyphRunKey == value) { return; } _textState.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _textState.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _textState.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
-    public UiColor OutlineColor { get => _textState.Visual.OutlineColor; set => SetLocalProperty("OutlineColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
-    public float OutlineWidth
+    public UiColor StrokeColor { get => _textState.Visual.StrokeColor; set => SetLocalProperty("StrokeColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public float StrokeWidth
     {
-        get => _textState.Visual.OutlineWidth;
+        get => _textState.Visual.StrokeWidth;
         set
         {
             if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
-            SetLocalProperty("OutlineWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
+            SetLocalProperty("StrokeWidth", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
         }
-    }
-    public Guid TextEffectResource => _textState.Visual.TextEffectResource;
-    public UiResourceId TextEffect
-    {
-        get => new(_textState.Visual.TextEffectResource);
-        set => SetLocalProperty("TextEffect", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
     }
     public Delta.XAML.UiTextHorizontalAlignment HorizontalTextAlignment { get => _textState.Layout.HorizontalAlignment; set => SetLocalProperty("HorizontalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }
     public Delta.XAML.UiTextVerticalAlignment VerticalTextAlignment { get => _textState.Layout.VerticalAlignment; set => SetLocalProperty("VerticalTextAlignment", value, UiDirtyFlags.Arrange | UiDirtyFlags.Visual); }

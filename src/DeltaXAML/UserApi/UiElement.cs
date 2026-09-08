@@ -1000,7 +1000,7 @@ public abstract class UiElement
         "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextTrimming" => RetainedDirty.Arrange | RetainedDirty.Visual,
         "PlaceholderText" => RetainedDirty.Visual | RetainedDirty.Text,
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => RetainedDirty.Visual,
-        "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => RetainedDirty.Visual | RetainedDirty.Text,
+        "Foreground" or "StrokeColor" or "StrokeWidth" => RetainedDirty.Visual | RetainedDirty.Text,
         "EffectSet" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
         "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => RetainedDirty.Visual,

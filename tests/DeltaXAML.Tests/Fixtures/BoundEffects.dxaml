@@ -9,7 +9,10 @@
   <Border.EffectSet>
     <EffectSet>
       <Stroke Color="{Binding Accent}" Width="{Binding StrokeWidth}" />
-      <Glow Color="{Binding GlowColor, Mode=OneTime}" Radius="{Binding GlowRadius}" />
+      <OuterShadow Color="{Binding Accent}" Radius="{Binding OuterGlowRadius}" Offset="0,2" />
+      <InnerShadow Color="{Binding Accent}" Radius="{Binding OuterGlowRadius}" />
+      <OuterGlow Color="{Binding OuterGlowColor, Mode=OneTime}" Radius="{Binding OuterGlowRadius}" />
+      <InnerGlow Color="{Binding Accent}" Radius="{Binding OuterGlowRadius}" />
     </EffectSet>
   </Border.EffectSet>
 </Border>

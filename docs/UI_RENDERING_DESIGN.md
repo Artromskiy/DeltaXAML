@@ -2,8 +2,8 @@
 
 This document defines the cross-project design for consuming a DeltaXAML
 display list. It does not add a renderer dependency to DeltaXAML. The producer
-emits fill/stroke/corner-radius visual paint and text fill/outline/effect
-identities; whether a renderer has an artifact and submission path for a
+emits base fill/corner geometry plus one typed `EffectSet` reference for visual
+and text paint; whether a renderer has an artifact and submission path for a
 particular kind remains consumer-owned.
 
 ## Ownership
@@ -108,21 +108,12 @@ resource identity:
 ```csharp
 public readonly record struct UiTextPaint(
     float4 FillColor,
-    float4 OutlineColor,
-    float OutlineWidth,
-    UiResourceId EffectResource)
-{
-    public UiEffectSet EffectSet { get; init; }
-}
+    UiEffectSet EffectSet);
 
 public readonly record struct UiVisualPaint(
     float4 FillColor,
-    float4 StrokeColor,
-    float StrokeWidth,
-    float4 CornerRadii)
-{
-    public UiEffectSet EffectSet { get; init; }
-}
+    float4 CornerRadii,
+    UiEffectSet EffectSet);
 
 public readonly record struct UiEffectSet(
     UiResourceId Resource,
@@ -144,13 +135,25 @@ cached-mask resources must carry one. This is validated before renderer
 registration.
 
 `EffectSet` is the canonical effect reference for both visual and text paint.
-Its `Target` and capability flags are validated before renderer preparation;
-visual sets may use `Stroke`, `OuterShadow`, `InsetShadow` and `Glow`, while
-text sets may use `Outline`, `OuterShadow` and `Glow`. `UiEffectResource`
+Its `Target` and capability flags are validated before renderer preparation.
+Both targets use exactly `Stroke`, `OuterShadow`, `InnerShadow`, `OuterGlow`
+and `InnerGlow`; target changes the prepared primitive family, not layer names.
+Effect capabilities do not replace the base visual kind: solid versus rounded
+is selected from geometry, including for effect-only visuals with transparent
+fill.
+Removed `Outline`, `InsetShadow` and bare `Glow` names have no runtime aliases.
+The versioned capability mask is packed contiguously; old serialized masks are
+not accepted across this breaking contract revision.
+`UiEffectResource`
 contains the fixed typed layer payload used by the consumer adapter and is not
 a shader ABI. Its `Outsets` affect paint bounds and damage only; they never
 change layout size, shaping, baseline or text metrics. `UiResourceId` remains
 the only cross-project resource identity.
+
+The canonical visual layer order is outer shadow, outer glow, fill, inner
+shadow, inner glow and stroke. The canonical text order is outer shadow, outer
+glow, stroke, fill, inner shadow and inner glow. Inner layers do not enlarge
+paint bounds; outer layers do so through `UiEffectSet.Outsets`.
 
 The user-facing `CornerRadius` property stores four values in top-left,
 top-right, bottom-right, bottom-left order. A scalar XAML value is shorthand
@@ -205,16 +208,16 @@ and owns pipeline/cache construction. Generated artifacts are build/package
 outputs owned by DeltaShader; they are not hand-authored files in DeltaXAML.
 
 DeltaXAML carries fill and the immutable `UiEffectSet` identity in the neutral
-visual/text request. The older `EffectResource` slot is retained only while
-existing text producers migrate; it is not a second effect model. Artifact
+visual/text request; there is no second inline effect payload. Artifact
 registration, ABI validation and GPU submission are consumer-owned; the
 presence of these producer fields is not a guarantee that every renderer
 configuration can display every effect. DeltaText only needs to produce a
 valid distance field with the requested range.
 
-The current prepared effect coverage is deliberately finite: analytic visual
-variants support stroke, outer shadow, inset shadow and glow; analytic SDF/MSDF
-text variants support outline, outer shadow and glow. Visual `CachedMask` uses a
+The prepared effect coverage is deliberately finite. Visual and SDF/MSDF text
+catalogs use the same capability names—stroke, outer shadow, inner shadow,
+outer glow and inner glow—while exposing only explicitly prepared combinations.
+Visual `CachedMask` uses a
 registered mask texture and explicit UV mapping. Text `CachedMask` is currently
 rejected with a diagnostic because the text adapter has no mask/run mapping or
 mask-cache lifetime yet. No effect request is silently reduced to a simpler
@@ -244,14 +247,10 @@ neutral text records, and headless checks cover order, resource identity and
 lifetime. Remaining support is consumer-side and must not be implemented by
 adding renderer code to DeltaXAML:
 
-1. Lower XAML paint sugar such as `BorderColor`/`BorderWidth` into generated
-   typed effect resources while preserving one `EffectSet` reference and one
-   resource owner; direct typed `EffectSet` resource references already use
-   the canonical path.
-2. Validate and submit every resource-backed/custom visual kind (including
+1. Validate and submit every resource-backed/custom visual kind (including
    gradients and images) with an explicit unsupported diagnostic when an
    artifact is unavailable.
-3. Add text mask/run mapping and a renderer-owned text mask cache before
+2. Add text mask/run mapping and a renderer-owned text mask cache before
    enabling text `CachedMask`; do not reuse the visual rectangle mask artifact.
 
 The first adapter must preserve semantic order even when that creates several

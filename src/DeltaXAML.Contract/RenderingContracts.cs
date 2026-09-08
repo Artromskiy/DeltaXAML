@@ -106,23 +106,15 @@ public enum PaintUnits : byte
 
 /// <summary>Fixed-size renderer-neutral paint data for a visual primitive.</summary>
 /// <param name="FillColor">Linear RGBA fill or tint.</param>
-/// <param name="StrokeColor">Compatibility inline stroke color.</param>
-/// <param name="StrokeWidth">Compatibility inline stroke width; zero disables the stroke.</param>
 /// <param name="CornerRadii">Per-corner radii in logical units.</param>
+/// <param name="EffectSet">Prepared immutable set of visual paint effects, if any.</param>
 public readonly record struct UiVisualPaint(
     float4 FillColor,
-    float4 StrokeColor,
-    float StrokeWidth,
-    float4 CornerRadii)
+    float4 CornerRadii,
+    UiEffectSet EffectSet)
 {
-    /// <summary>Gets the unit system for stroke and other paint metrics.</summary>
-    public PaintUnits Units { get; init; } = PaintUnits.Logical;
-
-    /// <summary>Gets the prepared immutable set of visual paint effects, if any.</summary>
-    public UiEffectSet EffectSet { get; init; } = UiEffectSet.None;
-
     /// <summary>Creates a fill-only paint.</summary>
-    public static UiVisualPaint Solid(float4 color) => new(color, default, 0, default);
+    public static UiVisualPaint Solid(float4 color) => new(color, default, UiEffectSet.None);
 }
 
 /// <summary>Renderer-neutral visual command with optional fixed paint parameters.</summary>
@@ -140,7 +132,7 @@ public readonly record struct UiVisualDraw
     {
     }
 
-    /// <summary>Creates a visual with explicit fill, stroke and corner-radius data.</summary>
+    /// <summary>Creates a visual with explicit fill, corner-radius and effect data.</summary>
     private UiVisualDraw(
         UiVisualKind kind,
         UiVisualTypeId visualType,
@@ -157,7 +149,7 @@ public readonly record struct UiVisualDraw
         Resource = resource;
     }
 
-    /// <summary>Creates a visual with explicit fill, stroke and corner-radius data.</summary>
+    /// <summary>Creates a visual with explicit fill, corner-radius and effect data.</summary>
     public static UiVisualDraw WithPaint(
         UiVisualKind kind,
         UiVisualTypeId visualType,
@@ -184,7 +176,7 @@ public readonly record struct UiVisualDraw
     /// <summary>Gets logical X, Y, Width and Height.</summary>
     public float4 Bounds { get; init; }
 
-    /// <summary>Gets fixed-size fill, compatibility stroke and corner-radius data.</summary>
+    /// <summary>Gets fixed-size fill, corner-radius and effect data.</summary>
     public UiVisualPaint Paint { get; init; }
 
     /// <summary>Gets or initializes the fill color for the simple visual path.</summary>
@@ -203,23 +195,13 @@ public readonly record struct UiVisualDraw
 
 /// <summary>Fixed-size renderer-neutral paint data for shaped text.</summary>
 /// <param name="FillColor">Linear RGBA glyph fill color.</param>
-/// <param name="OutlineColor">Compatibility inline outline color.</param>
-/// <param name="OutlineWidth">Compatibility inline outline width.</param>
-/// <param name="EffectResource">Compatibility effect resource identity.</param>
+/// <param name="EffectSet">Prepared immutable set of text paint effects, if any.</param>
 public readonly record struct UiTextPaint(
     float4 FillColor,
-    float4 OutlineColor,
-    float OutlineWidth,
-    UiResourceId EffectResource)
+    UiEffectSet EffectSet)
 {
-    /// <summary>Gets the unit system for outline and effect metrics.</summary>
-    public PaintUnits Units { get; init; } = PaintUnits.Logical;
-
-    /// <summary>Gets the prepared immutable set of text paint effects, if any.</summary>
-    public UiEffectSet EffectSet { get; init; } = UiEffectSet.None;
-
     /// <summary>Creates fill-only text paint.</summary>
-    public static UiTextPaint Solid(float4 color) => new(color, default, 0, UiResourceId.Empty);
+    public static UiTextPaint Solid(float4 color) => new(color, UiEffectSet.None);
 }
 
 /// <summary>Stable identity and dirty version of one ordered retained UI item.</summary>
@@ -243,7 +225,7 @@ public readonly record struct UiTextDraw
     {
     }
 
-    /// <summary>Creates a text draw with explicit fill, outline and effect data.</summary>
+    /// <summary>Creates a text draw with explicit fill and effect-set data.</summary>
     public static UiTextDraw WithPaint(
         ShapedText text,
         float2 baselineOrigin,
@@ -269,7 +251,7 @@ public readonly record struct UiTextDraw
     /// <summary>Gets the baseline origin in logical coordinates.</summary>
     public float2 BaselineOrigin { get; init; }
 
-    /// <summary>Gets fixed-size fill, compatibility outline data and effect-set metadata.</summary>
+    /// <summary>Gets the fixed-size fill and canonical effect-set reference.</summary>
     public UiTextPaint Paint { get; init; }
 
     /// <summary>Gets or initializes the fill color for the simple text path.</summary>

@@ -115,15 +115,9 @@ public readonly record struct UiDrawRef(UiDrawKind Kind, int Index);
 public readonly record struct UiClipRegion(
     float4 Bounds, UiClipId Parent, UiClipKind Kind, float4 CornerRadii);
 public readonly record struct UiVisualPaint(
-    float4 FillColor, float4 StrokeColor, float StrokeWidth, float4 CornerRadii)
-{
-    public UiEffectSet EffectSet { get; init; }
-}
+    float4 FillColor, float4 CornerRadii, UiEffectSet EffectSet);
 public readonly record struct UiTextPaint(
-    float4 FillColor, float4 OutlineColor, float OutlineWidth, UiResourceId EffectResource)
-{
-    public UiEffectSet EffectSet { get; init; }
-}
+    float4 FillColor, UiEffectSet EffectSet);
 public readonly record struct UiEffectSet(
     UiResourceId Resource,
     UiEffectTarget Target,
@@ -134,10 +128,11 @@ public readonly record struct UiEffectLayer(
     float4 Color, float2 Offset, float Width,
     float BlurRadius, float Spread, float Intensity);
 public readonly record struct UiEffectParameters(
-    UiEffectLayer StrokeOrOutline,
+    UiEffectLayer Stroke,
     UiEffectLayer OuterShadow,
-    UiEffectLayer InsetShadow,
-    UiEffectLayer Glow,
+    UiEffectLayer InnerShadow,
+    UiEffectLayer OuterGlow,
+    UiEffectLayer InnerGlow,
     UiResourceId CachedMask)
 {
     // All layer distances use Units (Logical by default).
@@ -188,24 +183,33 @@ semantic shape. Rectangles may use scissor; rounded regions may use an analytic
 shader, stencil or mask selected by the renderer adapter. The contract carries
 corner radii but does not prescribe the GPU implementation.
 
-`UiVisualPaint` and `UiTextPaint` retain the existing fixed-size fill and
-geometry fields while the canonical effect reference is `EffectSet`. The set
+`UiVisualPaint` and `UiTextPaint` carry only base fill, visual corner geometry
+and the canonical `EffectSet` reference. Stroke, shadow and glow data are not
+duplicated inline in draw payloads. The set
 identifies one immutable, typed `UiEffectResource` containing the selected
 effect parameters. `UiEffectParameters` has fixed named layers for the
 canonical effect order; it is not a shader ABI and does not require a second
 property store. Its target, capability flags, quality tier and left/top/right/
 bottom outsets are renderer-neutral metadata; outsets affect paint bounds and
-damage only, never layout, shaping or baseline. `EffectResource` is the
-resource-identity compatibility slot for text requests produced before the
-effect-set migration; new producers must populate `EffectSet`.
+damage only, never layout, shaping or baseline.
 
-Capability validation is target-specific: visual resources may select `Stroke`,
-`OuterShadow`, `InsetShadow` or `Glow`; text resources may select `Outline`,
-`OuterShadow` or `Glow`. A cross-target combination is invalid and must be
-diagnosed before renderer preparation.
+Effect capabilities do not change `UiVisualDraw.Kind`: the producer selects
+`SolidRectangle` or `RoundedRectangle` from base geometry, then the consumer
+selects the prepared effect variant from `EffectSet`. A valid effect-only
+visual is retained even when its base fill is transparent.
 
-The initial capability flags are `Stroke`, `Outline`, `OuterShadow`,
-`InsetShadow` and `Glow`. Variable gradient stops, image data, shadow
+Visual and text resources use the same closed capability vocabulary: `Stroke`,
+`OuterShadow`, `InnerShadow`, `OuterGlow` and `InnerGlow`. The target still
+selects the primitive and shader family; it does not rename a layer. The removed
+`Outline`, `InsetShadow` and ambiguous `Glow` names are invalid rather than
+compatibility aliases. This is a versioned breaking mask revision: the five
+capability bits are packed contiguously as `0x01`, `0x02`, `0x04`, `0x08` and
+`0x10`; old serialized masks are not read.
+
+Inner effects never add outsets. Outer shadow and outer glow add paint/damage
+outsets; text stroke may also extend outside glyph geometry. None of these
+outsets changes layout, shaping, font metrics or baseline. Variable gradient
+stops, image data, shadow
 parameters and other large values remain immutable typed resources addressed
 by `UiResourceId`.
 

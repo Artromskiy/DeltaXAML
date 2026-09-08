@@ -48,10 +48,10 @@ internal enum XamlContentKind
 internal enum XamlEffectLayerKind
 {
     Stroke,
-    Outline,
     OuterShadow,
-    InsetShadow,
-    Glow,
+    InnerShadow,
+    OuterGlow,
+    InnerGlow,
 }
 
 internal enum XamlVisualStateName
@@ -729,9 +729,8 @@ internal sealed class XamlSemanticRegistry
             Property("FontKey", "20000000-0000-4000-8000-000000000002", XamlValueKind.String),
             Property("FontSize", "20000000-0000-4000-8000-000000000003", XamlValueKind.Single),
             Property("Foreground", "20000000-0000-4000-8000-000000000004", XamlValueKind.Color),
-            Property("OutlineColor", "20000000-0000-4000-8000-000000000005", XamlValueKind.Color),
-            Property("OutlineWidth", "20000000-0000-4000-8000-000000000006", XamlValueKind.Single),
-            Property("TextEffect", "20000000-0000-4000-8000-000000000007", XamlValueKind.ResourceId),
+            Property("StrokeColor", "20000000-0000-4000-8000-000000000005", XamlValueKind.Color),
+            Property("StrokeWidth", "20000000-0000-4000-8000-000000000006", XamlValueKind.Single),
             Property("HorizontalTextAlignment", "20000000-0000-4000-8000-000000000008", XamlValueKind.Enum),
             Property("VerticalTextAlignment", "20000000-0000-4000-8000-000000000009", XamlValueKind.Enum),
             Property("TextWrapping", "20000000-0000-4000-8000-00000000000A", XamlValueKind.Enum),

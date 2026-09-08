@@ -24,11 +24,9 @@ public sealed class UiNumericEditor : UiElement
         set => StateOwner.Foreground = ToRetainedColor(value);
     }
 
-    public UiColor OutlineColor { get => ToPublicColor(StateOwner.OutlineColor); set => StateOwner.OutlineColor = ToRetainedColor(value); }
+    public UiColor StrokeColor { get => ToPublicColor(StateOwner.StrokeColor); set => StateOwner.StrokeColor = ToRetainedColor(value); }
 
-    public float OutlineWidth { get => StateOwner.OutlineWidth; set => StateOwner.OutlineWidth = value; }
-
-    public UiResourceId TextEffect { get => new(StateOwner.TextEffectResource); set => StateOwner.TextEffect = value; }
+    public float StrokeWidth { get => StateOwner.StrokeWidth; set => StateOwner.StrokeWidth = value; }
 
     public UiTextHorizontalAlignment HorizontalTextAlignment { get => StateOwner.HorizontalTextAlignment; set => StateOwner.HorizontalTextAlignment = value; }
 

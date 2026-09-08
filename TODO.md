@@ -89,7 +89,7 @@ names, не текущий синтаксис. Внешние пункты — h
 | C / UI-05 | Реальные value controls с повторно используемым оформлением | XAML/sample; UI-04 |
 | C / UI-06 | Tracking и явно заданный font fallback | XAML + Matt; часть требует Text API review |
 | D / UI-07 | Gradient fill со stroke/radii без потери paint | XAML + Rend/Shad; resource-boundary review |
-| D / UI-08 | Per-side borders, dashed stroke, inset shadow | XAML + Rend/Shad; paint-boundary review |
+| D / UI-08 | Per-side borders, dashed stroke and canonical effect variants | XAML + Rend/Shad; paint-boundary review |
 | D / UI-09 | Render transform с правильными clips/input | XAML + Rend/Shad; contract revision gate |
 | E / UI-10 | Галерея на единственном production path, точные remaining gaps | XAML; предыдущие пункты |
 | Параллельно / EXT-01 | Variable font и два исчезающих glyphs | Matt/Rend; причина glyph gap пока не установлена |
@@ -331,13 +331,15 @@ dynamic stop change не пересоздаёт identity. Renderer провер�
 градиент на прозрачном/непрозрачном фоне и rounded clipping. Успешная
 регистрация программы без binding stop resource не закрывает пункт.
 
-### UI-08 — border sides, dash pattern и inset shadow
+### UI-08 — border sides, dash pattern и canonical effect variants
 
 Это три отдельных paint возможности, не изменение общего box model.
-Базовый `UiEffectSet` теперь является общим visual/text reference-каналом:
-typed resource payload, `Units`, lowering convenience-свойств Border/Text и
-передача в display list завершены в commit `9817509`. Это не закрывает
-per-side widths, dash pattern или inset-shadow semantics.
+Базовый `UiEffectSet` является общим visual/text reference-каналом: typed
+resource payload, `Units`, lowering convenience-свойств Border/Text и передача
+в display list завершены. Оба target используют один словарь `Stroke`,
+`OuterShadow`, `InnerShadow`, `OuterGlow`, `InnerGlow`; старые `Outline`,
+`InsetShadow` и неоднозначный `Glow` не являются aliases. Это не закрывает
+per-side widths, dash pattern или GPU-варианты эффектов.
 
 - [ ] **Sides:** выбрать canonical four-side width value, переиспользуя
   существующий four-side value type/parser там, где семантика совпадает.
@@ -357,24 +359,33 @@ per-side widths, dash pattern или inset-shadow semantics.
   deterministic traversal perimeter и corner continuity. Validate source
   once; отдельная семантика нулевого/пустого pattern. Не создавать UI child
   на каждый dash и не вычислять строковый pattern в shader/render loop.
-- [ ] **Inset shadow:** ограниченный resource с color/offset/blur/spread и
-  inner shape, не произвольная цепочка CSS filter effects. XAML задаёт смысл
-  и порядок; Render выбирает raster/cache, Shader — coverage/blur algorithm.
-  Нулевая стоимость дополнительных buffers для элементов без эффекта.
+- [x] **Effect authoring:** visual и text принимают одинаковые пять typed
+  слоёв, включая отдельные `InnerShadow` и `InnerGlow`. Inner-слои не дают
+  outsets; outer-слои влияют только на paint/damage bounds. Bindings компилируются
+  в typed resource update без per-element delegates или string traversal.
+- [ ] **Prepared variants:** Render/Shader реализуют finite allowlist для всех
+  пяти одиночных слоёв и заявленных комбинаций. Inner shadow и inner glow имеют
+  разные coverage-функции; неподготовленная комбинация даёт стабильную
+  preparation diagnostic, а не runtime fallback. Нулевая стоимость
+  дополнительных buffers для элементов без эффекта.
 - [x] Минимальная neutral resource/paint ревизия для общего effect reference
   утверждена: `UiEffectSet` использует существующий `UiResourceId`, typed
   parameters имеют явные owner/consumer lifetime и `Units`; изменения
   зафиксированы в contract increment `0.0.15`. Не называть новые payload под
   `Custom` обходом contract review.
-- [ ] Composite painter сохраняет fill → inner shadow → stroke → content,
-  clipping и ordered item identities. Если возникают subdraws, переиспользовать
-  существующий per-output identity механизм; никакого второго UI tree.
+- [ ] Composite painter сохраняет canonical target order: visual — outer
+  shadow → outer glow → fill → inner shadow → inner glow → stroke; text —
+  outer shadow → outer glow → stroke → fill → inner shadow → inner glow.
+  Clipping и ordered item identities сохраняются. Если возникают subdraws,
+  переиспользовать существующий per-output identity механизм; никакого второго
+  UI tree.
 
 **Точки XAML:** common visual state/properties, `UiVisualStage`, compiler
 typed literals/resources; shader/renderer implementation остаётся коллегам.
 **Приёмка:** только top/bottom, zero sides, rounded uneven widths, DPI 1/2
 Device hairline, translucent corners, phase changes и pattern replacement.
-Inset не вылезает за inner shape. Не заменять stroke/AA semantics pixel hacks.
+Inner effects не вылезают за source shape; outer effects не режутся source
+bounds. Не заменять stroke/AA semantics pixel hacks.
 
 ### UI-09 — render transforms без подмены layout
 

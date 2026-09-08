@@ -43,7 +43,7 @@ internal static class LayoutDiagnosticsTests
 
         using var parsed = JsonDocument.Parse(firstJson);
         var jsonRoot = parsed.RootElement;
-        Assert.Equal(3, jsonRoot.GetProperty("schemaVersion").GetInt32(), "layout diagnostics schema is versioned");
+        Assert.Equal(4, jsonRoot.GetProperty("schemaVersion").GetInt32(), "layout diagnostics schema is versioned");
         Assert.True(jsonRoot.GetProperty("layoutCompleted").GetBoolean(), "layout diagnostics mark a completed layout");
         Assert.Equal(100f, jsonRoot.GetProperty("viewport").GetProperty("width").GetSingle(), "viewport width is reported");
         Assert.Equal(80f, jsonRoot.GetProperty("viewport").GetProperty("height").GetSingle(), "viewport height is reported");

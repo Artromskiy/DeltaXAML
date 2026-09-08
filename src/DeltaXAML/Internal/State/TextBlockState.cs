@@ -22,9 +22,8 @@ internal struct TextBlockVisualState
     public string GlyphRunKey;
     public float FontSize;
     public UiColor Foreground;
-    public UiColor OutlineColor;
-    public float OutlineWidth;
-    public Guid TextEffectResource;
+    public UiColor StrokeColor;
+    public float StrokeWidth;
     public UiFontWeight Weight;
     public UiFontStyle Style;
     public UiTextDecorations Decorations;

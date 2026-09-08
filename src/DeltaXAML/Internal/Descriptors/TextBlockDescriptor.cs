@@ -364,13 +364,11 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.Foreground when value.UntypedValue is UiColor foreground:
                 TextBlockGenerated.TrySetForeground(ref state, foreground);
                 return true;
-            case UiPropertyKey.OutlineColor when value.UntypedValue is UiColor outlineColor:
-                TextBlockGenerated.TrySetOutlineColor(ref state, outlineColor);
+            case UiPropertyKey.StrokeColor when value.UntypedValue is UiColor strokeColor:
+                TextBlockGenerated.TrySetStrokeColor(ref state, strokeColor);
                 return true;
-            case UiPropertyKey.OutlineWidth when value.UntypedValue is float outlineWidth:
-                return TextBlockGenerated.TrySetOutlineWidth(ref state, outlineWidth);
-            case UiPropertyKey.TextEffect when value.UntypedValue is UiResourceId textEffect:
-                return TextBlockGenerated.TrySetTextEffect(ref state, textEffect);
+            case UiPropertyKey.StrokeWidth when value.UntypedValue is float strokeWidth:
+                return TextBlockGenerated.TrySetStrokeWidth(ref state, strokeWidth);
             case UiPropertyKey.HorizontalTextAlignment when value.UntypedValue is Delta.XAML.UiTextHorizontalAlignment horizontal:
                 return TextBlockGenerated.TrySetHorizontalTextAlignment(ref state, horizontal);
             case UiPropertyKey.VerticalTextAlignment when value.UntypedValue is Delta.XAML.UiTextVerticalAlignment vertical:
@@ -390,7 +388,7 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.TextDecorations when value.UntypedValue is Delta.XAML.UiTextDecorations decorations:
                 return TextBlockGenerated.TrySetTextDecorations(ref state, decorations);
             case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground or
-                UiPropertyKey.OutlineColor or UiPropertyKey.OutlineWidth or UiPropertyKey.TextEffect or
+                UiPropertyKey.StrokeColor or UiPropertyKey.StrokeWidth or
                 UiPropertyKey.HorizontalTextAlignment or UiPropertyKey.VerticalTextAlignment or UiPropertyKey.TextWrapping or
                 UiPropertyKey.TextTrimming or UiPropertyKey.MaxLines or UiPropertyKey.LineHeight or UiPropertyKey.FontWeight or
                 UiPropertyKey.FontStyle or UiPropertyKey.TextDecorations:
@@ -959,25 +957,18 @@ internal static class TextBlockGenerated
         return true;
     }
 
-    internal static bool TrySetOutlineColor(ref TextBlockState state, UiColor value)
+    internal static bool TrySetStrokeColor(ref TextBlockState state, UiColor value)
     {
-        if (state.Visual.OutlineColor == value) { return false; }
-        state.Visual.OutlineColor = value;
+        if (state.Visual.StrokeColor == value) { return false; }
+        state.Visual.StrokeColor = value;
         return true;
     }
 
-    internal static bool TrySetOutlineWidth(ref TextBlockState state, float value)
+    internal static bool TrySetStrokeWidth(ref TextBlockState state, float value)
     {
         if (!float.IsFinite(value) || value < 0) { return false; }
-        if (state.Visual.OutlineWidth.Equals(value)) { return false; }
-        state.Visual.OutlineWidth = value;
-        return true;
-    }
-
-    internal static bool TrySetTextEffect(ref TextBlockState state, UiResourceId value)
-    {
-        if (state.Visual.TextEffectResource == value.Value) { return false; }
-        state.Visual.TextEffectResource = value.Value;
+        if (state.Visual.StrokeWidth.Equals(value)) { return false; }
+        state.Visual.StrokeWidth = value;
         return true;
     }
 
