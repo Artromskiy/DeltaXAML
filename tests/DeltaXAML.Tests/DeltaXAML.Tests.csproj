@@ -40,6 +40,7 @@
     <AdditionalFiles Include="Fixtures/GeneratedAttached.dxaml" DeltaXamlClassName="GeneratedAttachedArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <AdditionalFiles Include="Fixtures/RichTextParity.dxaml" DeltaXamlClassName="RichTextParityArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <AdditionalFiles Include="Fixtures/ResourceParity.dxaml" DeltaXamlClassName="ResourceParityArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
+    <AdditionalFiles Include="Fixtures/BoundEffects.dxaml" DeltaXamlClassName="BoundEffectsArtifact" DeltaXamlNamespace="DeltaXaml.Generated"/>
     <None Include="Fixtures/EditorShell.dxaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/GameHud.dxaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/CustomBadge.dxaml" CopyToOutputDirectory="PreserveNewest"/>
@@ -52,5 +53,6 @@
     <None Include="Fixtures/GeneratedAttached.dxaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/RichTextParity.dxaml" CopyToOutputDirectory="PreserveNewest"/>
     <None Include="Fixtures/ResourceParity.dxaml" CopyToOutputDirectory="PreserveNewest"/>
+    <None Include="Fixtures/BoundEffects.dxaml" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
 </Project>

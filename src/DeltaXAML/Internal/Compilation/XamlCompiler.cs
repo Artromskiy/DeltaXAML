@@ -38,6 +38,7 @@ internal static class XamlCompiler
         private readonly ImmutableArray<XamlTemplatePlan>.Builder _templates = ImmutableArray.CreateBuilder<XamlTemplatePlan>();
         private readonly ImmutableArray<XamlTriggerPlan>.Builder _triggers = ImmutableArray.CreateBuilder<XamlTriggerPlan>();
         private readonly ImmutableArray<XamlBehaviorPlan>.Builder _behaviors = ImmutableArray.CreateBuilder<XamlBehaviorPlan>();
+        private readonly ImmutableArray<XamlEffectPlan>.Builder _effectResources = ImmutableArray.CreateBuilder<XamlEffectPlan>();
         private readonly List<XamlResourceSlotPlan> _resourceSlots = new();
         private readonly Dictionary<UiResourceId, int> _resourceSlotIndices = new();
         private readonly HashSet<string> _styleKeys = new(StringComparer.Ordinal);
@@ -66,7 +67,7 @@ internal static class XamlCompiler
             var root = _offset < _text.Length && Current == '<'
                 ? ParseElement(new Dictionary<string, string>(StringComparer.Ordinal))
                 : null;
-            if (root is null && (_resources.Count != 0 || _scalarResources.Count != 0 || _styles.Count != 0 || _templates.Count != 0) &&
+            if (root is null && (_resources.Count != 0 || _scalarResources.Count != 0 || _styles.Count != 0 || _templates.Count != 0 || _effectResources.Count != 0) &&
                 _registry.TryResolveType(new XamlQualifiedName(string.Empty, "ResourceDictionary"), out var resourceDictionary))
             {
                 root = new XamlObjectPlan(resourceDictionary.Id, resourceDictionary.Name, null, Range(0, _offset), ImmutableArray<XamlMemberPlan>.Empty, ImmutableArray<XamlObjectPlan>.Empty);
@@ -106,7 +107,8 @@ internal static class XamlCompiler
                 _triggers.ToImmutable(),
                 _behaviors.ToImmutable(),
                 _resourceSlots.ToImmutableArray(),
-                _diagnostics.ToImmutable());
+                _diagnostics.ToImmutable(),
+                _effectResources.ToImmutable());
         }
 
         private XamlObjectPlan? ParseElement(Dictionary<string, string> parentNamespaces)
@@ -176,6 +178,17 @@ internal static class XamlCompiler
             if (lexicalName == "Behavior")
             {
                 ParseBehavior(attributes, selfClosing, elementStart);
+                return null;
+            }
+
+            if (lexicalName == "EffectSet")
+            {
+                var effect = ParseEffectSet(attributes, selfClosing, elementStart, UiEffectTarget.None, requireKey: true);
+                if (effect is not null)
+                {
+                    _effectResources.Add(effect);
+                }
+
                 return null;
             }
 
@@ -255,6 +268,7 @@ internal static class XamlCompiler
 
             var children = ImmutableArray.CreateBuilder<XamlObjectPlan>();
             var textSpans = ImmutableArray.CreateBuilder<XamlTextSpanPlan>();
+            XamlEffectPlan? inlineEffect = null;
             if (!selfClosing)
             {
                 if (string.Equals(name.LocalName, "RichTextBlock", StringComparison.Ordinal))
@@ -263,8 +277,13 @@ internal static class XamlCompiler
                 }
                 else
                 {
-                    ParseChildren(lexicalName, name, type, namespaces, children);
+                    ParseChildren(lexicalName, name, type, namespaces, children, ref inlineEffect);
                 }
+            }
+
+            if (inlineEffect is not null && members.Any(static member => member.Name == "EffectSet"))
+            {
+                Report("XAML047", $"Element '{lexicalName}' cannot declare EffectSet both as an attribute and a property element.", inlineEffect.Range);
             }
 
             var elementRange = Range(elementStart, _offset);
@@ -275,7 +294,8 @@ internal static class XamlCompiler
                 elementRange,
                 members.ToImmutable(),
                 children.ToImmutable(),
-                textSpans.ToImmutable());
+                textSpans.ToImmutable(),
+                inlineEffect);
             if (resourceKey is not null)
             {
                 if (!_registry.TryResolveResource(resourceKey, out var resourceId))
@@ -925,6 +945,13 @@ internal static class XamlCompiler
             return new UiResourceId(new Guid(bytes.AsSpan(0, 16)));
         }
 
+        private UiResourceId CreateInlineEffectId(int elementStart)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(
+                $"DeltaXAML.Effect/{_source.Value:D}/{elementStart.ToString(CultureInfo.InvariantCulture)}"));
+            return new UiResourceId(new Guid(bytes.AsSpan(0, 16)));
+        }
+
         private static UiStyleId CreateStyleId(string key)
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("DeltaXAML.Style/" + key));
@@ -954,7 +981,8 @@ internal static class XamlCompiler
             XamlQualifiedName parent,
             XamlTypeDefinition? type,
             Dictionary<string, string> namespaces,
-            ImmutableArray<XamlObjectPlan>.Builder children)
+            ImmutableArray<XamlObjectPlan>.Builder children,
+            ref XamlEffectPlan? inlineEffect)
         {
             var closed = false;
             while (_offset < _text.Length)
@@ -983,6 +1011,22 @@ internal static class XamlCompiler
                     if (StartsWith("<?"))
                     {
                         SkipProcessingInstruction();
+                        continue;
+                    }
+
+                    if (string.Equals(PeekStartElementName(), lexicalParent + ".EffectSet", StringComparison.Ordinal))
+                    {
+                        var target = IsTextElement(parent.LocalName) ? UiEffectTarget.Text : UiEffectTarget.Visual;
+                        var parsed = ParseEffectPropertyElement(lexicalParent, target);
+                        if (inlineEffect is not null)
+                        {
+                            Report("XAML047", $"Element '{lexicalParent}' declares EffectSet more than once.", parsed?.Range ?? Range(start: _offset, end: _offset));
+                        }
+                        else
+                        {
+                            inlineEffect = parsed;
+                        }
+
                         continue;
                     }
 
@@ -1016,6 +1060,403 @@ internal static class XamlCompiler
                 Report("XAML012", $"Element '{lexicalParent}' is not closed.", _offset, _offset);
             }
         }
+
+        private XamlEffectPlan? ParseEffectPropertyElement(string lexicalOwner, UiEffectTarget target)
+        {
+            var propertyStart = _offset;
+            Consume('<');
+            var propertyName = ReadName();
+            var attributes = new List<AttributeSyntax>();
+            var selfClosing = ParseStartTag(attributes, propertyStart);
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                if (!attributes[i].IsNamespace)
+                {
+                    Report("XAML047", $"Property element '{propertyName}' does not accept attributes.", attributes[i].Range);
+                }
+            }
+
+            if (selfClosing)
+            {
+                Report("XAML047", $"Property element '{propertyName}' requires one EffectSet value.", Range(propertyStart, _offset));
+                return null;
+            }
+
+            XamlEffectPlan? effect = null;
+            var closed = false;
+            while (_offset < _text.Length)
+            {
+                SkipWhitespace();
+                if (StartsWith("<!--"))
+                {
+                    SkipComment();
+                    continue;
+                }
+
+                if (StartsWith("</"))
+                {
+                    var closeStart = _offset;
+                    var closeName = ParseEndElement();
+                    if (!string.Equals(closeName, propertyName, StringComparison.Ordinal))
+                    {
+                        Report("XAML013", $"Closing element '{closeName}' does not match '{propertyName}'.", closeStart, _offset);
+                    }
+
+                    closed = true;
+                    break;
+                }
+
+                if (Current != '<')
+                {
+                    var textStart = _offset;
+                    ReadText();
+                    if (!string.IsNullOrWhiteSpace(_text[textStart.._offset]))
+                    {
+                        Report("XAML047", $"Property element '{propertyName}' accepts only one EffectSet value.", textStart, _offset);
+                    }
+
+                    continue;
+                }
+
+                var effectStart = _offset;
+                Consume('<');
+                var childName = ReadName();
+                var childAttributes = new List<AttributeSyntax>();
+                var childSelfClosing = ParseStartTag(childAttributes, effectStart);
+                if (!string.Equals(childName, "EffectSet", StringComparison.Ordinal))
+                {
+                    Report("XAML047", $"Property element '{propertyName}' accepts EffectSet, not '{childName}'.", effectStart, _offset);
+                    if (!childSelfClosing)
+                    {
+                        SkipElementBody(childName);
+                    }
+
+                    continue;
+                }
+
+                var parsed = ParseEffectSet(childAttributes, childSelfClosing, effectStart, target, requireKey: false);
+                if (effect is not null)
+                {
+                    Report("XAML047", $"Property element '{propertyName}' accepts exactly one EffectSet.", parsed?.Range ?? Range(effectStart, _offset));
+                }
+                else
+                {
+                    effect = parsed;
+                }
+            }
+
+            if (!closed)
+            {
+                Report("XAML012", $"Element '{lexicalOwner}.EffectSet' is not closed.", _offset, _offset);
+            }
+
+            return effect;
+        }
+
+        private XamlEffectPlan? ParseEffectSet(
+            List<AttributeSyntax> attributes,
+            bool selfClosing,
+            int elementStart,
+            UiEffectTarget inferredTarget,
+            bool requireKey)
+        {
+            string? key = null;
+            var target = inferredTarget;
+            var quality = UiEffectQuality.Analytic;
+            var units = PaintUnits.Logical;
+            XamlValuePlan? outsets = null;
+            var cachedMask = UiResourceId.Empty;
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                var attribute = attributes[i];
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                if (attribute.IsKey)
+                {
+                    key = attribute.Value;
+                    continue;
+                }
+
+                switch (attribute.LocalName)
+                {
+                    case "Target" when Enum.TryParse(attribute.Value, true, out UiEffectTarget parsedTarget) &&
+                                            parsedTarget is UiEffectTarget.Visual or UiEffectTarget.Text:
+                        if (inferredTarget != UiEffectTarget.None && inferredTarget != parsedTarget)
+                        {
+                            Report("XAML047", $"Inline EffectSet target must be {inferredTarget} for this element.", attribute.Range);
+                        }
+                        else
+                        {
+                            target = parsedTarget;
+                        }
+
+                        break;
+                    case "Quality" when Enum.TryParse(attribute.Value, true, out UiEffectQuality parsedQuality):
+                        quality = parsedQuality;
+                        break;
+                    case "Units" when Enum.TryParse(attribute.Value, true, out PaintUnits parsedUnits) &&
+                                        parsedUnits is PaintUnits.Logical or PaintUnits.Device:
+                        units = parsedUnits;
+                        break;
+                    case "Outsets":
+                        if (TryParseValue(attribute.Value, XamlValueKind.Thickness, attribute.Range, out var parsedOutsets) &&
+                            parsedOutsets.Kind != XamlValueKind.Binding)
+                        {
+                            outsets = parsedOutsets;
+                        }
+                        else if (parsedOutsets.Kind == XamlValueKind.Binding)
+                        {
+                            Report("XAML047", "EffectSet Outsets cannot be bound; they are derived from bound layer parameters.", attribute.Range);
+                        }
+
+                        break;
+                    case "CachedMask" when Guid.TryParse(attribute.Value, out var mask) && mask != Guid.Empty:
+                        cachedMask = new UiResourceId(mask);
+                        break;
+                    default:
+                        Report("XAML047", $"Unsupported EffectSet attribute '{attribute.LocalName}'.", attribute.Range);
+                        break;
+                }
+            }
+
+            if (requireKey && string.IsNullOrWhiteSpace(key))
+            {
+                Report("XAML047", "A reusable EffectSet requires x:Key.", Range(elementStart, _offset));
+            }
+
+            if (target is not (UiEffectTarget.Visual or UiEffectTarget.Text))
+            {
+                Report("XAML047", "A reusable EffectSet requires Target=\"Visual\" or Target=\"Text\".", Range(elementStart, _offset));
+            }
+
+            var layers = ImmutableArray.CreateBuilder<XamlEffectLayerPlan>();
+            if (!selfClosing)
+            {
+                ParseEffectLayers(target, layers);
+            }
+
+            if (layers.Count == 0)
+            {
+                Report("XAML047", "EffectSet requires at least one effect layer.", Range(elementStart, _offset));
+                return null;
+            }
+
+            var seen = new HashSet<XamlEffectLayerKind>();
+            for (var i = 0; i < layers.Count; i++)
+            {
+                if (!seen.Add(layers[i].Kind))
+                {
+                    Report("XAML047", $"EffectSet declares '{layers[i].Kind}' more than once.", layers[i].Range);
+                }
+            }
+
+            var resource = key is null ? CreateInlineEffectId(elementStart) : CreateResourceId(key);
+            if (key is not null)
+            {
+                if (!_registry.TryResolveResource(key, out _))
+                {
+                    _registry.RegisterResource(key, resource);
+                }
+
+                RegisterResourceSlot(resource, key, false);
+            }
+
+            return new(
+                resource,
+                key,
+                target,
+                quality,
+                units,
+                outsets,
+                cachedMask,
+                layers.ToImmutable(),
+                Range(elementStart, _offset));
+        }
+
+        private void ParseEffectLayers(
+            UiEffectTarget target,
+            ImmutableArray<XamlEffectLayerPlan>.Builder layers)
+        {
+            var closed = false;
+            while (_offset < _text.Length)
+            {
+                SkipWhitespace();
+                if (StartsWith("<!--"))
+                {
+                    SkipComment();
+                    continue;
+                }
+
+                if (StartsWith("</"))
+                {
+                    var closeStart = _offset;
+                    var closeName = ParseEndElement();
+                    if (!string.Equals(closeName, "EffectSet", StringComparison.Ordinal))
+                    {
+                        Report("XAML013", $"Closing element '{closeName}' does not match 'EffectSet'.", closeStart, _offset);
+                    }
+
+                    closed = true;
+                    break;
+                }
+
+                if (Current != '<')
+                {
+                    var textStart = _offset;
+                    ReadText();
+                    if (!string.IsNullOrWhiteSpace(_text[textStart.._offset]))
+                    {
+                        Report("XAML047", "EffectSet accepts only effect layer elements.", textStart, _offset);
+                    }
+
+                    continue;
+                }
+
+                var layerStart = _offset;
+                Consume('<');
+                var layerName = ReadName();
+                var attributes = new List<AttributeSyntax>();
+                var selfClosing = ParseStartTag(attributes, layerStart);
+                if (!Enum.TryParse<XamlEffectLayerKind>(layerName, false, out var kind) ||
+                    !IsLayerAllowed(target, kind))
+                {
+                    Report("XAML047", $"Effect layer '{layerName}' is not valid for target '{target}'.", layerStart, _offset);
+                    if (!selfClosing)
+                    {
+                        SkipElementBody(layerName);
+                    }
+
+                    continue;
+                }
+
+                if (!selfClosing)
+                {
+                    Report("XAML047", $"Effect layer '{layerName}' must be self-closing.", Range(layerStart, _offset));
+                    SkipElementBody(layerName);
+                    continue;
+                }
+
+                var members = ParseEffectLayerMembers(kind, attributes);
+                layers.Add(new(kind, members, Range(layerStart, _offset)));
+            }
+
+            if (!closed)
+            {
+                Report("XAML012", "Element 'EffectSet' is not closed.", _offset, _offset);
+            }
+        }
+
+        private ImmutableArray<XamlEffectMemberPlan> ParseEffectLayerMembers(
+            XamlEffectLayerKind kind,
+            List<AttributeSyntax> attributes)
+        {
+            var members = ImmutableArray.CreateBuilder<XamlEffectMemberPlan>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                var attribute = attributes[i];
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                var name = attribute.LocalName == "BlurRadius" ? "Radius" : attribute.LocalName;
+                if (!seen.Add(name))
+                {
+                    Report("XAML047", $"Effect layer '{kind}' declares '{name}' more than once.", attribute.Range);
+                    continue;
+                }
+
+                var expected = name switch
+                {
+                    "Color" => XamlValueKind.Color,
+                    "Offset" => XamlValueKind.Vector2,
+                    "Width" or "Radius" or "Spread" or "Intensity" => XamlValueKind.Single,
+                    _ => XamlValueKind.Invalid,
+                };
+                if (expected == XamlValueKind.Invalid || !IsLayerMemberAllowed(kind, name))
+                {
+                    Report("XAML047", $"Effect layer '{kind}' does not support '{attribute.LocalName}'.", attribute.Range);
+                    continue;
+                }
+
+                if (!TryParseValue(attribute.Value, expected, attribute.Range, out var value))
+                {
+                    continue;
+                }
+
+                if (value.Kind == XamlValueKind.MultiBinding || value.Kind == XamlValueKind.ResourceReference ||
+                    (value.Kind == XamlValueKind.Binding && value.Binding.SourceKind != XamlBindingSourceKind.Context))
+                {
+                    Report("XAML047", $"Effect layer '{kind}.{name}' supports literals and generated Context bindings only.", attribute.Range);
+                    continue;
+                }
+
+                if (value.Kind == XamlValueKind.Binding && value.Binding.Mode == UiBindingMode.TwoWay)
+                {
+                    Report("XAML047", $"Effect layer '{kind}.{name}' is paint output and cannot use TwoWay binding.", attribute.Range);
+                    continue;
+                }
+
+                if (value.Kind == XamlValueKind.Single && name != "Offset" &&
+                    float.TryParse(value.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number < 0)
+                {
+                    Report("XAML047", $"Effect layer '{kind}.{name}' must be non-negative.", attribute.Range);
+                    continue;
+                }
+
+                members.Add(new(name, value, attribute.Range));
+            }
+
+            RequireEffectMember(kind, "Color", seen, attributes);
+            if (kind is XamlEffectLayerKind.Stroke or XamlEffectLayerKind.Outline)
+            {
+                RequireEffectMember(kind, "Width", seen, attributes);
+            }
+            else
+            {
+                RequireEffectMember(kind, "Radius", seen, attributes);
+            }
+
+            return members.ToImmutable();
+        }
+
+        private void RequireEffectMember(
+            XamlEffectLayerKind kind,
+            string name,
+            HashSet<string> members,
+            List<AttributeSyntax> attributes)
+        {
+            if (!members.Contains(name))
+            {
+                var range = attributes.Count == 0 ? Range(_offset, _offset) : attributes[0].Range;
+                Report("XAML047", $"Effect layer '{kind}' requires '{name}'.", range);
+            }
+        }
+
+        private static bool IsLayerAllowed(UiEffectTarget target, XamlEffectLayerKind kind) => target switch
+        {
+            UiEffectTarget.Visual => kind is XamlEffectLayerKind.Stroke or XamlEffectLayerKind.OuterShadow or
+                XamlEffectLayerKind.InsetShadow or XamlEffectLayerKind.Glow,
+            UiEffectTarget.Text => kind is XamlEffectLayerKind.Outline or XamlEffectLayerKind.OuterShadow or
+                XamlEffectLayerKind.Glow,
+            _ => false,
+        };
+
+        private static bool IsLayerMemberAllowed(XamlEffectLayerKind kind, string name) => name switch
+        {
+            "Color" or "Intensity" => true,
+            "Width" => kind is XamlEffectLayerKind.Stroke or XamlEffectLayerKind.Outline,
+            "Offset" or "Radius" or "Spread" => kind is XamlEffectLayerKind.OuterShadow or
+                XamlEffectLayerKind.InsetShadow or XamlEffectLayerKind.Glow,
+            _ => false,
+        };
+
+        private static bool IsTextElement(string name) => name is
+            "TextBlock" or "TextBox" or "NumericEditor" or "RichTextBlock";
 
         private void ParseTextSpans(
             string lexicalParent,
@@ -1344,6 +1785,9 @@ internal static class XamlCompiler
                     return true;
                 case XamlValueKind.Thickness when TryThickness(value, out var thickness):
                     literal = new(expected, thickness);
+                    return true;
+                case XamlValueKind.Vector2 when TryVector2(value, out var vector):
+                    literal = new(expected, vector);
                     return true;
                 case XamlValueKind.CornerRadii when TryCornerRadii(value, out var cornerRadii):
                     literal = new(expected, cornerRadii);
@@ -1777,6 +2221,23 @@ internal static class XamlCompiler
             return _text[start.._offset];
         }
 
+        private string PeekStartElementName()
+        {
+            if (Current != '<' || StartsWith("</") || StartsWith("<!--") || StartsWith("<?"))
+            {
+                return string.Empty;
+            }
+
+            var start = _offset + 1;
+            var end = start;
+            while (end < _text.Length && IsNameCharacter(_text[end]))
+            {
+                end++;
+            }
+
+            return _text[start..end];
+        }
+
         private void RecoverAttribute()
         {
             while (_offset < _text.Length && Current != '>' && !StartsWith("/>", StringComparison.Ordinal))
@@ -1918,6 +2379,24 @@ internal static class XamlCompiler
                 thickness.Top.ToString("R", CultureInfo.InvariantCulture),
                 thickness.Right.ToString("R", CultureInfo.InvariantCulture),
                 thickness.Bottom.ToString("R", CultureInfo.InvariantCulture));
+            return true;
+        }
+
+        private static bool TryVector2(string value, out string canonical)
+        {
+            var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            canonical = string.Empty;
+            if (parts.Length != 2 ||
+                !float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x) ||
+                !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y) ||
+                !float.IsFinite(x) || !float.IsFinite(y))
+            {
+                return false;
+            }
+
+            canonical = string.Join(',',
+                x.ToString("R", CultureInfo.InvariantCulture),
+                y.ToString("R", CultureInfo.InvariantCulture));
             return true;
         }
 

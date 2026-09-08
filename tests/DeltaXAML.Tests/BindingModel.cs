@@ -24,6 +24,51 @@ public sealed class BindingModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 }
 
+public sealed class EffectBindingModel : INotifyPropertyChanged
+{
+    private Delta.XAML.UiColor _accent = new(64, 128, 255);
+    private Delta.XAML.UiColor _glowColor = new(32, 96, 255);
+    private float _strokeWidth = 2;
+    private float _glowRadius = 6;
+
+    public Delta.XAML.UiColor Accent
+    {
+        get => _accent;
+        set => Set(ref _accent, value, nameof(Accent));
+    }
+
+    public Delta.XAML.UiColor GlowColor
+    {
+        get => _glowColor;
+        set => Set(ref _glowColor, value, nameof(GlowColor));
+    }
+
+    public float StrokeWidth
+    {
+        get => _strokeWidth;
+        set => Set(ref _strokeWidth, value, nameof(StrokeWidth));
+    }
+
+    public float GlowRadius
+    {
+        get => _glowRadius;
+        set => Set(ref _glowRadius, value, nameof(GlowRadius));
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void Set<T>(ref T field, T value, string propertyName)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return;
+        }
+
+        field = value;
+        PropertyChanged?.Invoke(this, new(propertyName));
+    }
+}
+
 public static class GeneratedBindingConverters
 {
     [Delta.XAML.UiXamlConverter("Upper")]

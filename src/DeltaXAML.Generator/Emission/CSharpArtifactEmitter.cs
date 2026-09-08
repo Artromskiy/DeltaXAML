@@ -145,6 +145,74 @@ internal static class CSharpArtifactEmitter
             }
         }
 
+        var effectSites = new List<EffectSite>();
+        for (var effectIndex = 0; effectIndex < plan.EffectResources.Length; effectIndex++)
+        {
+            if (!TryCreateEffectSite(-1, plan.EffectResources[effectIndex], registry, ref bindingSourceType,
+                    out var effectSite, out var effectError))
+            {
+                diagnostic = new("DXAMLGEN010", effectError, plan.EffectResources[effectIndex].Range);
+                return false;
+            }
+
+            if (effectSite.HasBindings && HasStaticEffectReference(validationNodes, effectSite.Plan.Resource))
+            {
+                diagnostic = new(
+                    "DXAMLGEN010",
+                    $"Bound EffectSet resource '{effectSite.Plan.Key}' must be consumed through DynamicResource so changing outsets reaches the retained element.",
+                    effectSite.Plan.Range);
+                return false;
+            }
+
+            effectSites.Add(effectSite);
+        }
+
+        for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
+        {
+            if (nodes[nodeIndex].InlineEffect is not { } effect)
+            {
+                continue;
+            }
+
+            if (!TryCreateEffectSite(nodeIndex, effect, registry, ref bindingSourceType,
+                    out var effectSite, out var effectError))
+            {
+                diagnostic = new("DXAMLGEN010", effectError, effect.Range);
+                return false;
+            }
+
+            effectSites.Add(effectSite);
+        }
+
+        for (var templateIndex = 0; templateIndex < plan.Templates.Length; templateIndex++)
+        {
+            var templateNodes = new List<XamlObjectPlan>();
+            Flatten(plan.Templates[templateIndex].Root, templateNodes);
+            for (var nodeIndex = 0; nodeIndex < templateNodes.Count; nodeIndex++)
+            {
+                if (templateNodes[nodeIndex].InlineEffect is { } effect && HasBindings(effect))
+                {
+                    diagnostic = new(
+                        "DXAMLGEN010",
+                        "Bound inline effects in templates require a generated template effect plan; use a named DynamicResource effect in this compile slice.",
+                        effect.Range);
+                    return false;
+                }
+            }
+        }
+
+        for (var nodeIndex = 0; nodeIndex < resourceNodes.Count; nodeIndex++)
+        {
+            if (resourceNodes[nodeIndex].InlineEffect is { } effect && HasBindings(effect))
+            {
+                diagnostic = new(
+                    "DXAMLGEN010",
+                    "Bound inline effects in object resources are not shared implicitly; use a named DynamicResource EffectSet.",
+                    effect.Range);
+                return false;
+            }
+        }
+
         var resolvedRelationBindings = new List<ResolvedRelationBindingSite>(relationBindingSites.Count);
         for (var i = 0; i < relationBindingSites.Count; i++)
         {
@@ -291,6 +359,11 @@ internal static class CSharpArtifactEmitter
             }
         }
 
+        var hasReactiveEffects = effectSites.Any(static site => site.HasReactiveBindings);
+        var hasContextNotifications = bindingSites.Count != 0 || hasReactiveEffects;
+        var hasGeneratedProgram = collectionSites.Count != 0 || resolvedRelationBindings.Count != 0 ||
+            resolvedMultiBindings.Count != 0 || resolvedTriggers.Count != 0 || resolvedBehaviors.Count != 0 ||
+            hasReactiveEffects;
         var writer = new StringBuilder(2048);
         var implicitEffectIndex = 0;
         writer.AppendLine("#nullable enable");
@@ -298,7 +371,7 @@ internal static class CSharpArtifactEmitter
         writer.Append("namespace ").Append(namespaceName).AppendLine(";");
         writer.AppendLine();
         writer.Append("public sealed class ").Append(className).Append(" : global::System.IDisposable");
-        if (collectionSites.Count != 0 || resolvedRelationBindings.Count != 0 || resolvedMultiBindings.Count != 0 || resolvedTriggers.Count != 0 || resolvedBehaviors.Count != 0)
+        if (hasGeneratedProgram)
         {
             writer.Append(", global::Delta.XAML.IUiGeneratedDocumentProgram");
         }
@@ -386,7 +459,28 @@ internal static class CSharpArtifactEmitter
                 .Append(" _behavior").Append(i).AppendLine("State;");
         }
 
-        if (bindingSites.Count != 0)
+        for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+        {
+            var site = effectSites[siteIndex];
+            if (site.NodeIndex >= 0 && site.HasReactiveBindings)
+            {
+                writer.Append("    private readonly global::Delta.XAML.UiElement _effectTarget")
+                    .Append(siteIndex).AppendLine(";");
+            }
+
+            for (var bindingIndex = 0; bindingIndex < site.Bindings.Count; bindingIndex++)
+            {
+                writer.Append("    private ").Append(site.Bindings[bindingIndex].Definition.ValueTypeName)
+                    .Append(" _effect").Append(siteIndex).Append("Value").Append(bindingIndex).AppendLine(";");
+            }
+
+            if (site.HasReactiveBindings)
+            {
+                writer.Append("    private bool _effect").Append(siteIndex).AppendLine("Dirty;");
+            }
+        }
+
+        if (hasContextNotifications)
         {
             writer.AppendLine("    private readonly global::System.ComponentModel.INotifyPropertyChanged? _bindingSource;");
         }
@@ -420,6 +514,18 @@ internal static class CSharpArtifactEmitter
             writer.AppendLine("        _context = context;");
         }
 
+        for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+        {
+            var site = effectSites[siteIndex];
+            for (var bindingIndex = 0; bindingIndex < site.Bindings.Count; bindingIndex++)
+            {
+                writer.Append("        _effect").Append(siteIndex).Append("Value").Append(bindingIndex)
+                    .Append(" = ").Append(ReplaceSourceIdentifier(
+                        site.Bindings[bindingIndex].Definition.ReadExpression,
+                        "context")).AppendLine(";");
+            }
+        }
+
         writer.AppendLine("        Resources = new global::Delta.XAML.UiResourceCatalog();");
         writer.AppendLine("        Theme = new global::Delta.XAML.UiTheme(Resources);");
         for (var scalarIndex = 0; scalarIndex < plan.ScalarResources.Length; scalarIndex++)
@@ -433,6 +539,14 @@ internal static class CSharpArtifactEmitter
             writer.Append("        Resources.Set(")
                 .Append(ResourceSlotExpression(scalar.Id, plan.ResourceSlots))
                 .Append(", ").Append(scalarExpression).AppendLine(");");
+        }
+
+        for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+        {
+            if (effectSites[siteIndex].NodeIndex < 0)
+            {
+                EmitEffectRegistration(writer, siteIndex, effectSites[siteIndex], null, "        ");
+            }
         }
 
         for (var i = 0; i < resourceNodes.Count; i++)
@@ -462,6 +576,15 @@ internal static class CSharpArtifactEmitter
                 "resource",
                 plan.Source,
                 ref implicitEffectIndex);
+            if (resourceNodes[i].InlineEffect is { } resourceEffect)
+            {
+                EmitEffectRegistration(
+                    writer,
+                    effectSites.Count + i,
+                    new(i, resourceEffect, Array.Empty<EffectBindingSite>()),
+                    "resource" + i,
+                    "        ");
+            }
             EmitTextSpans(writer, i, resourceNodes[i], "resource");
         }
 
@@ -526,6 +649,13 @@ internal static class CSharpArtifactEmitter
             }
             EmitImplicitVisualEffect(writer, nodes[i], i, "node", plan.Source, ref implicitEffectIndex);
             EmitImplicitTextEffect(writer, nodes[i], i, "node", plan.Source, ref implicitEffectIndex);
+            for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+            {
+                if (effectSites[siteIndex].NodeIndex == i)
+                {
+                    EmitEffectRegistration(writer, siteIndex, effectSites[siteIndex], "node" + i, "        ");
+                }
+            }
             EmitTextSpans(writer, i, nodes[i], "node");
         }
 
@@ -662,7 +792,7 @@ internal static class CSharpArtifactEmitter
             EmitBinding(writer, i, bindingSites[i]);
         }
 
-        if (bindingSites.Count != 0)
+        if (hasContextNotifications)
         {
             writer.AppendLine("        if (context is global::System.ComponentModel.INotifyPropertyChanged observable)");
             writer.AppendLine("        {");
@@ -675,7 +805,7 @@ internal static class CSharpArtifactEmitter
         {
             writer.AppendLine("        Theme.Apply(node0);");
             writer.Append("        Document = new global::Delta.XAML.UiDocument(node0, textService, fontResolver, Theme");
-            if (collectionSites.Count != 0 || resolvedRelationBindings.Count != 0 || resolvedMultiBindings.Count != 0 || resolvedTriggers.Count != 0 || resolvedBehaviors.Count != 0)
+            if (hasGeneratedProgram)
             {
                 writer.Append(", program: this");
             }
@@ -748,9 +878,14 @@ internal static class CSharpArtifactEmitter
             EmitBindingQueue(writer, i, bindingSites[i], "        ");
         }
 
+        for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+        {
+            EmitEffectBindingRefresh(writer, siteIndex, effectSites[siteIndex], null, "        ");
+        }
+
         writer.AppendLine("    }");
         writer.AppendLine();
-        if (collectionSites.Count != 0 || resolvedRelationBindings.Count != 0 || resolvedMultiBindings.Count != 0 || resolvedTriggers.Count != 0 || resolvedBehaviors.Count != 0)
+        if (hasGeneratedProgram)
         {
             writer.AppendLine("    public void RunStage(global::Delta.XAML.UiDocument document, global::Delta.XAML.UiGeneratedStage stage)");
             writer.AppendLine("    {");
@@ -782,6 +917,19 @@ internal static class CSharpArtifactEmitter
             writer.AppendLine("        {");
             writer.AppendLine("            return;");
             writer.AppendLine("        }");
+            for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+            {
+                if (!effectSites[siteIndex].HasReactiveBindings)
+                {
+                    continue;
+                }
+
+                writer.Append("        if (_effect").Append(siteIndex).AppendLine("Dirty)");
+                writer.AppendLine("        {");
+                writer.Append("            _effect").Append(siteIndex).AppendLine("Dirty = false;");
+                writer.Append("            UpdateEffect").Append(siteIndex).AppendLine("();");
+                writer.AppendLine("        }");
+            }
             for (var i = 0; i < collectionSites.Count; i++)
             {
                 var site = collectionSites[i];
@@ -871,15 +1019,24 @@ internal static class CSharpArtifactEmitter
             writer.AppendLine("    }");
             writer.AppendLine();
         }
-        if (bindingSites.Count != 0)
+        if (hasContextNotifications)
         {
-            EmitBindingNotificationHandler(writer, bindingSites);
+            EmitBindingNotificationHandler(writer, bindingSites, effectSites);
             writer.AppendLine();
+        }
+
+        for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+        {
+            if (effectSites[siteIndex].HasReactiveBindings)
+            {
+                EmitEffectUpdateMethod(writer, siteIndex, effectSites[siteIndex]);
+                writer.AppendLine();
+            }
         }
 
         writer.AppendLine("    public void Dispose()");
         writer.AppendLine("    {");
-        if (bindingSites.Count != 0)
+        if (hasContextNotifications)
         {
             writer.AppendLine("        if (_bindingSource is not null)");
             writer.AppendLine("        {");
@@ -1078,6 +1235,119 @@ internal static class CSharpArtifactEmitter
         return true;
     }
 
+    private static bool TryCreateEffectSite(
+        int nodeIndex,
+        XamlEffectPlan plan,
+        XamlSemanticRegistry registry,
+        ref string? bindingSourceType,
+        out EffectSite site,
+        out string error)
+    {
+        var bindings = new List<EffectBindingSite>();
+        for (var layerIndex = 0; layerIndex < plan.Layers.Length; layerIndex++)
+        {
+            var layer = plan.Layers[layerIndex];
+            for (var memberIndex = 0; memberIndex < layer.Members.Length; memberIndex++)
+            {
+                var member = layer.Members[memberIndex];
+                if (member.Value.Kind != XamlValueKind.Binding)
+                {
+                    continue;
+                }
+
+                if (!registry.TryResolveBindingVariant(
+                        member.Value.Binding.Path,
+                        member.Value.Binding.ConverterKey,
+                        out var definition))
+                {
+                    site = default!;
+                    error = $"Effect binding path '{member.Value.Binding.Path}' has no typed compile-time definition.";
+                    return false;
+                }
+
+                if (bindingSourceType is not null && !SameTypeName(bindingSourceType, definition.SourceTypeName))
+                {
+                    site = default!;
+                    error = "One generated artifact must use one typed binding source context.";
+                    return false;
+                }
+
+                if (!TryValidateBinding(definition, out error) ||
+                    !IsEffectBindingType(member.Name, definition.ValueTypeName))
+                {
+                    site = default!;
+                    if (error.Length == 0)
+                    {
+                        error = $"Effect member '{layer.Kind}.{member.Name}' cannot consume generated value type '{definition.ValueTypeName}'.";
+                    }
+
+                    return false;
+                }
+
+                if (member.Value.Binding.StringFormat is not null)
+                {
+                    site = default!;
+                    error = $"Effect member '{layer.Kind}.{member.Name}' cannot use StringFormat.";
+                    return false;
+                }
+
+                bindingSourceType = definition.SourceTypeName;
+                bindings.Add(new(layer.Kind, member, definition));
+            }
+        }
+
+        site = new(nodeIndex, plan, bindings);
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool IsEffectBindingType(string memberName, string typeName)
+    {
+        var normalized = typeName.StartsWith("global::", StringComparison.Ordinal)
+            ? typeName[8..]
+            : typeName;
+        return memberName switch
+        {
+            "Color" => normalized is "Delta.XAML.UiColor" or "Delta.float4",
+            "Offset" => normalized == "Delta.float2",
+            _ => normalized is "float" or "System.Single",
+        };
+    }
+
+    private static bool HasBindings(XamlEffectPlan plan)
+    {
+        for (var layerIndex = 0; layerIndex < plan.Layers.Length; layerIndex++)
+        {
+            for (var memberIndex = 0; memberIndex < plan.Layers[layerIndex].Members.Length; memberIndex++)
+            {
+                if (plan.Layers[layerIndex].Members[memberIndex].Value.Kind == XamlValueKind.Binding)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasStaticEffectReference(List<XamlObjectPlan> nodes, UiResourceId resource)
+    {
+        for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
+        {
+            for (var memberIndex = 0; memberIndex < nodes[nodeIndex].Members.Length; memberIndex++)
+            {
+                var member = nodes[nodeIndex].Members[memberIndex];
+                if (member.Name == "EffectSet" && member.Value.Kind == XamlValueKind.ResourceReference &&
+                    member.Value.Resource.Id == resource && !member.Value.Resource.IsDynamic)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private static bool TryValidateBinding(XamlBindingDefinition binding, out string error)
     {
         if (binding.SourceTypeName.Contains("Type", StringComparison.Ordinal) ||
@@ -1205,6 +1475,222 @@ internal static class CSharpArtifactEmitter
         }
     }
 
+    private static void EmitEffectRegistration(
+        StringBuilder writer,
+        int siteIndex,
+        EffectSite site,
+        string? targetExpression,
+        string indentation)
+    {
+        if (site.HasReactiveBindings)
+        {
+            if (targetExpression is not null)
+            {
+                writer.Append(indentation).Append("_effectTarget").Append(siteIndex)
+                    .Append(" = ").Append(targetExpression).AppendLine(";");
+            }
+
+            writer.Append(indentation).Append("UpdateEffect").Append(siteIndex).AppendLine("();");
+            return;
+        }
+
+        writer.Append(indentation).Append("var effect").Append(siteIndex).Append(" = ")
+            .Append(EffectResourceExpression(siteIndex, site)).AppendLine(";");
+        writer.Append(indentation).Append("Resources.Set(effect").Append(siteIndex).AppendLine(");");
+        if (targetExpression is not null)
+        {
+            writer.Append(indentation).Append(targetExpression).Append(".EffectSet = effect")
+                .Append(siteIndex).AppendLine(".Set;");
+        }
+    }
+
+    private static void EmitEffectUpdateMethod(StringBuilder writer, int siteIndex, EffectSite site)
+    {
+        writer.Append("    private void UpdateEffect").Append(siteIndex).AppendLine("()");
+        writer.AppendLine("    {");
+        writer.Append("        var effect = ").Append(EffectResourceExpression(siteIndex, site)).AppendLine(";");
+        writer.AppendLine("        Resources.Set(effect);");
+        if (site.NodeIndex >= 0)
+        {
+            writer.Append("        _effectTarget").Append(siteIndex).AppendLine(".EffectSet = effect.Set;");
+        }
+
+        writer.AppendLine("    }");
+    }
+
+    private static void EmitEffectBindingRefresh(
+        StringBuilder writer,
+        int siteIndex,
+        EffectSite site,
+        string? notification,
+        string indentation)
+    {
+        var updated = false;
+        for (var bindingIndex = 0; bindingIndex < site.Bindings.Count; bindingIndex++)
+        {
+            var binding = site.Bindings[bindingIndex];
+            if (binding.Member.Value.Binding.Mode == UiBindingMode.OneTime ||
+                (notification is not null && !string.Equals(
+                    notification,
+                    BindingNotificationName(binding.Definition.Path),
+                    StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            writer.Append(indentation).Append("_effect").Append(siteIndex).Append("Value").Append(bindingIndex)
+                .Append(" = ").Append(ReplaceSourceIdentifier(binding.Definition.ReadExpression, "_context"))
+                .AppendLine(";");
+            updated = true;
+        }
+
+        if (updated)
+        {
+            writer.Append(indentation).Append("_effect").Append(siteIndex).AppendLine("Dirty = true;");
+        }
+    }
+
+    private static string EffectResourceExpression(int siteIndex, EffectSite site)
+    {
+        var strokeOrOutline = EffectLayerExpression(siteIndex, site, site.Plan.Target == UiEffectTarget.Text
+            ? XamlEffectLayerKind.Outline
+            : XamlEffectLayerKind.Stroke);
+        var outerShadow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.OuterShadow);
+        var insetShadow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.InsetShadow);
+        var glow = EffectLayerExpression(siteIndex, site, XamlEffectLayerKind.Glow);
+        var cachedMask = site.Plan.CachedMask.IsValid
+            ? ResourceIdExpression(site.Plan.CachedMask)
+            : "default";
+        var outsets = EffectOutsetsExpression(site.Plan.Outsets);
+        var builder = new StringBuilder();
+        builder.Append(site.Plan.Target == UiEffectTarget.Text
+                ? "global::Delta.XAML.UiEffects.CreateText("
+                : "global::Delta.XAML.UiEffects.CreateVisual(")
+            .Append(ResourceIdExpression(site.Plan.Resource)).Append(", ")
+            .Append(strokeOrOutline).Append(", ")
+            .Append(outerShadow).Append(", ");
+        if (site.Plan.Target == UiEffectTarget.Visual)
+        {
+            builder.Append(insetShadow).Append(", ");
+        }
+
+        return builder.Append(glow)
+            .Append(", global::Delta.XAML.Contract.PaintUnits.").Append(site.Plan.Units)
+            .Append(", global::Delta.XAML.Contract.UiEffectQuality.").Append(site.Plan.Quality)
+            .Append(", ").Append(cachedMask).Append(", ").Append(outsets).Append(')')
+            .ToString();
+    }
+
+    private static string EffectLayerExpression(int siteIndex, EffectSite site, XamlEffectLayerKind kind)
+    {
+        XamlEffectLayerPlan? layer = null;
+        for (var i = 0; i < site.Plan.Layers.Length; i++)
+        {
+            if (site.Plan.Layers[i].Kind == kind)
+            {
+                layer = site.Plan.Layers[i];
+                break;
+            }
+        }
+
+        if (layer is null)
+        {
+            return "default";
+        }
+
+        return "new global::Delta.XAML.Contract.UiEffectLayer(" +
+            EffectMemberExpression(siteIndex, site, layer, "Color", "default") + ", " +
+            EffectMemberExpression(siteIndex, site, layer, "Offset", "default") + ", " +
+            EffectMemberExpression(siteIndex, site, layer, "Width", "0f") + ", " +
+            EffectMemberExpression(siteIndex, site, layer, "Radius", "0f") + ", " +
+            EffectMemberExpression(siteIndex, site, layer, "Spread", "0f") + ", " +
+            EffectMemberExpression(siteIndex, site, layer, "Intensity", "1f") + ")";
+    }
+
+    private static string EffectMemberExpression(
+        int siteIndex,
+        EffectSite site,
+        XamlEffectLayerPlan layer,
+        string name,
+        string defaultExpression)
+    {
+        for (var memberIndex = 0; memberIndex < layer.Members.Length; memberIndex++)
+        {
+            var member = layer.Members[memberIndex];
+            if (!string.Equals(member.Name, name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (member.Value.Kind == XamlValueKind.Binding)
+            {
+                for (var bindingIndex = 0; bindingIndex < site.Bindings.Count; bindingIndex++)
+                {
+                    var binding = site.Bindings[bindingIndex];
+                    if (binding.Layer == layer.Kind && binding.Member.Equals(member))
+                    {
+                        var field = "_effect" + siteIndex.ToString(CultureInfo.InvariantCulture) + "Value" +
+                            bindingIndex.ToString(CultureInfo.InvariantCulture);
+                        var typeName = binding.Definition.ValueTypeName.StartsWith("global::", StringComparison.Ordinal)
+                            ? binding.Definition.ValueTypeName[8..]
+                            : binding.Definition.ValueTypeName;
+                        return name == "Color" && typeName == "Delta.XAML.UiColor"
+                            ? "global::Delta.XAML.UiEffects.Color(" + field + ")"
+                            : field;
+                    }
+                }
+
+                throw new InvalidOperationException($"Effect binding '{member.Value.Binding.Path}' was not resolved.");
+            }
+
+            return EffectLiteralExpression(member);
+        }
+
+        return defaultExpression;
+    }
+
+    private static string EffectLiteralExpression(XamlEffectMemberPlan member)
+    {
+        var value = member.Value.Literal.CanonicalText;
+        switch (member.Value.Kind)
+        {
+            case XamlValueKind.Color when TryColorVector(value, out var color):
+                return color;
+            case XamlValueKind.Single:
+                return value + "f";
+            case XamlValueKind.Vector2:
+                return EffectVectorExpression(value);
+            default:
+                throw new InvalidOperationException($"Effect member '{member.Name}' has unsupported literal kind '{member.Value.Kind}'.");
+        }
+    }
+
+    private static string EffectVectorExpression(string value)
+    {
+        var separator = value.IndexOf(',', StringComparison.Ordinal);
+        return "new global::Delta.float2(" + value[..separator] + "f, " + value[(separator + 1)..] + "f)";
+    }
+
+    private static string EffectOutsetsExpression(XamlValuePlan? outsets)
+    {
+        if (outsets is not { } value)
+        {
+            return "null";
+        }
+
+        if (value.Kind != XamlValueKind.Thickness ||
+            !ThicknessLiteralParser.TryParse(value.Literal.CanonicalText, out var thickness))
+        {
+            throw new InvalidOperationException("Effect outsets must be a compiled thickness literal.");
+        }
+
+        return "new global::Delta.float4(" +
+            thickness.Left.ToString("R", CultureInfo.InvariantCulture) + "f, " +
+            thickness.Top.ToString("R", CultureInfo.InvariantCulture) + "f, " +
+            thickness.Right.ToString("R", CultureInfo.InvariantCulture) + "f, " +
+            thickness.Bottom.ToString("R", CultureInfo.InvariantCulture) + "f)";
+    }
+
     private static void EmitBinding(StringBuilder writer, int bindingIndex, BindingSite site)
     {
         var binding = site.Member.Value.Binding;
@@ -1260,37 +1746,48 @@ internal static class CSharpArtifactEmitter
             Quote(culture) + "), " + Quote(format) + ", " + definition.ReadExpression + ")";
     }
 
-    private static void EmitBindingNotificationHandler(StringBuilder writer, IReadOnlyList<BindingSite> bindingSites)
+    private static void EmitBindingNotificationHandler(
+        StringBuilder writer,
+        IReadOnlyList<BindingSite> bindingSites,
+        IReadOnlyList<EffectSite> effectSites)
     {
+        var notifications = new List<string>();
+        for (var i = 0; i < bindingSites.Count; i++)
+        {
+            AddUnique(notifications, BindingNotificationName(bindingSites[i].Definition.Path));
+        }
+
+        for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+        {
+            var bindings = effectSites[siteIndex].Bindings;
+            for (var bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
+            {
+                if (bindings[bindingIndex].Member.Value.Binding.Mode != UiBindingMode.OneTime)
+                {
+                    AddUnique(notifications, BindingNotificationName(bindings[bindingIndex].Definition.Path));
+                }
+            }
+        }
+
         writer.AppendLine("    private void OnContextPropertyChanged(object? sender, global::System.ComponentModel.PropertyChangedEventArgs args)");
         writer.AppendLine("    {");
         writer.AppendLine("        switch (args.PropertyName)");
         writer.AppendLine("        {");
-        for (var i = 0; i < bindingSites.Count; i++)
+        for (var notificationIndex = 0; notificationIndex < notifications.Count; notificationIndex++)
         {
-            var sourceName = BindingNotificationName(bindingSites[i].Definition.Path);
-            var alreadyEmitted = false;
-            for (var previous = 0; previous < i; previous++)
-            {
-                if (string.Equals(sourceName, BindingNotificationName(bindingSites[previous].Definition.Path), StringComparison.Ordinal))
-                {
-                    alreadyEmitted = true;
-                    break;
-                }
-            }
-
-            if (alreadyEmitted)
-            {
-                continue;
-            }
-
+            var sourceName = notifications[notificationIndex];
             writer.Append("            case ").Append(Quote(sourceName)).AppendLine(":");
-            for (var siteIndex = i; siteIndex < bindingSites.Count; siteIndex++)
+            for (var siteIndex = 0; siteIndex < bindingSites.Count; siteIndex++)
             {
                 if (string.Equals(sourceName, BindingNotificationName(bindingSites[siteIndex].Definition.Path), StringComparison.Ordinal))
                 {
                     EmitBindingQueue(writer, siteIndex, bindingSites[siteIndex], "                ");
                 }
+            }
+
+            for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
+            {
+                EmitEffectBindingRefresh(writer, siteIndex, effectSites[siteIndex], sourceName, "                ");
             }
 
             writer.AppendLine("                break;");
@@ -1304,6 +1801,19 @@ internal static class CSharpArtifactEmitter
         writer.AppendLine("                break;");
         writer.AppendLine("        }");
         writer.AppendLine("    }");
+    }
+
+    private static void AddUnique(List<string> values, string value)
+    {
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (string.Equals(values[i], value, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
+
+        values.Add(value);
     }
 
     private static void EmitBindingQueue(StringBuilder writer, int bindingIndex, BindingSite site, string indentation)
@@ -1479,6 +1989,15 @@ internal static class CSharpArtifactEmitter
                 for (var memberIndex = 0; memberIndex < nodes[nodeIndex].Members.Length; memberIndex++)
                 {
                     EmitMember(writer, nodeIndex, nodes[nodeIndex].Members[memberIndex], type, "template", resourceSlots);
+                }
+                if (nodes[nodeIndex].InlineEffect is { } effect)
+                {
+                    EmitEffectRegistration(
+                        writer,
+                        nodeIndex,
+                        new(nodeIndex, effect, Array.Empty<EffectBindingSite>()),
+                        "template" + nodeIndex,
+                        "            ");
                 }
                 EmitTextSpans(writer, nodeIndex, nodes[nodeIndex], "template");
             }
@@ -2438,6 +2957,16 @@ internal static class CSharpArtifactEmitter
                 }
             }
 
+            if (nodes[nodeIndex].InlineEffect is { } effect)
+            {
+                EmitEffectRegistration(
+                    writer,
+                    nodeIndex,
+                    new(nodeIndex, effect, Array.Empty<EffectBindingSite>()),
+                    "itemNode" + nodeIndex,
+                    "            ");
+            }
+
             EmitTextSpans(writer, nodeIndex, nodes[nodeIndex], "itemNode");
         }
 
@@ -2757,7 +3286,7 @@ internal static class CSharpArtifactEmitter
         SourceId source,
         ref int effectIndex)
     {
-        if (HasMember(node, "EffectSet") ||
+        if (node.InlineEffect is not null || HasMember(node, "EffectSet") ||
             !TryGetLiteralMember(node, "BorderWidth", out var widthMember) ||
             widthMember.Kind != XamlValueKind.Single ||
             !float.TryParse(widthMember.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var width) ||
@@ -2811,7 +3340,7 @@ internal static class CSharpArtifactEmitter
         SourceId source,
         ref int effectIndex)
     {
-        if (HasMember(node, "EffectSet") || HasMember(node, "TextEffect") || HasMember(node, "BorderWidth") ||
+        if (node.InlineEffect is not null || HasMember(node, "EffectSet") || HasMember(node, "TextEffect") || HasMember(node, "BorderWidth") ||
             !TryGetLiteralMember(node, "OutlineWidth", out var widthMember) ||
             widthMember.Kind != XamlValueKind.Single ||
             !float.TryParse(widthMember.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var width) ||
@@ -3499,6 +4028,35 @@ internal static class CSharpArtifactEmitter
     private readonly record struct ResolvedBehaviorSite(
         string TargetExpression,
         XamlBehaviorDefinition Definition);
+
+    private sealed record EffectSite(
+        int NodeIndex,
+        XamlEffectPlan Plan,
+        IReadOnlyList<EffectBindingSite> Bindings)
+    {
+        internal bool HasBindings => Bindings.Count != 0;
+
+        internal bool HasReactiveBindings
+        {
+            get
+            {
+                for (var i = 0; i < Bindings.Count; i++)
+                {
+                    if (Bindings[i].Member.Value.Binding.Mode != UiBindingMode.OneTime)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+    }
+
+    private readonly record struct EffectBindingSite(
+        XamlEffectLayerKind Layer,
+        XamlEffectMemberPlan Member,
+        XamlBindingDefinition Definition);
 
     private readonly record struct CollectionSite(
         int NodeIndex,

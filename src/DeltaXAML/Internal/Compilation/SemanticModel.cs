@@ -19,6 +19,7 @@ internal enum XamlValueKind
     Brush,
     Color,
     Thickness,
+    Vector2,
     CornerRadii,
     GridLengthList,
     Enum,
@@ -42,6 +43,15 @@ internal enum XamlContentKind
     None,
     Children,
     SingleContent,
+}
+
+internal enum XamlEffectLayerKind
+{
+    Stroke,
+    Outline,
+    OuterShadow,
+    InsetShadow,
+    Glow,
 }
 
 internal enum XamlVisualStateName
@@ -369,7 +379,29 @@ internal sealed record XamlObjectPlan(
     SourceRange Range,
     ImmutableArray<XamlMemberPlan> Members,
     ImmutableArray<XamlObjectPlan> Children,
-    ImmutableArray<XamlTextSpanPlan> TextSpans = default);
+    ImmutableArray<XamlTextSpanPlan> TextSpans = default,
+    XamlEffectPlan? InlineEffect = null);
+
+internal readonly record struct XamlEffectMemberPlan(
+    string Name,
+    XamlValuePlan Value,
+    SourceRange Range);
+
+internal sealed record XamlEffectLayerPlan(
+    XamlEffectLayerKind Kind,
+    ImmutableArray<XamlEffectMemberPlan> Members,
+    SourceRange Range);
+
+internal sealed record XamlEffectPlan(
+    UiResourceId Resource,
+    string? Key,
+    UiEffectTarget Target,
+    UiEffectQuality Quality,
+    PaintUnits Units,
+    XamlValuePlan? Outsets,
+    UiResourceId CachedMask,
+    ImmutableArray<XamlEffectLayerPlan> Layers,
+    SourceRange Range);
 
 internal readonly record struct XamlTextSpanPlan(
     string Text,
@@ -440,10 +472,11 @@ internal sealed record XamlDocumentPlan(
     ImmutableArray<XamlTriggerPlan> Triggers,
     ImmutableArray<XamlBehaviorPlan> Behaviors,
     ImmutableArray<XamlResourceSlotPlan> ResourceSlots,
-    ImmutableArray<Diagnostic> Diagnostics)
+    ImmutableArray<Diagnostic> Diagnostics,
+    ImmutableArray<XamlEffectPlan> EffectResources = default)
 {
     internal bool Success =>
-        (Root is not null || Resources.Length != 0 || ScalarResources.Length != 0 || Styles.Length != 0 || Templates.Length != 0) &&
+        (Root is not null || Resources.Length != 0 || ScalarResources.Length != 0 || Styles.Length != 0 || Templates.Length != 0 || EffectResources.Length != 0) &&
         Diagnostics.All(static diagnostic => diagnostic.Severity != DiagnosticSeverity.Error);
 }
 

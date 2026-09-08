@@ -44,6 +44,45 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
         Set(resource.Set.Resource, resource);
     }
 
+    /// <summary>Creates and registers a visual effect resource, returning its retained reference.</summary>
+    public UiEffectSet RegisterEffects(UiResourceId resource, UiVisualEffects effects)
+    {
+        var value = UiEffects.Create(resource, effects);
+        Set(value);
+        return value.Set;
+    }
+
+    /// <summary>Creates and registers a text effect resource, returning its retained reference.</summary>
+    public UiEffectSet RegisterEffects(UiResourceId resource, UiTextEffects effects)
+    {
+        var value = UiEffects.Create(resource, effects);
+        Set(value);
+        return value.Set;
+    }
+
+    /// <summary>Registers a visual effect resource under both a stable identity and a reusable XAML key.</summary>
+    public UiEffectSet RegisterEffects(string key, UiResourceId resource, UiVisualEffects effects)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        var value = UiEffects.Create(resource, effects);
+        Set(value);
+        Set(key, new UiResourceReference(resource));
+        return value.Set;
+    }
+
+    /// <summary>Registers a text effect resource under both a stable identity and a reusable XAML key.</summary>
+    public UiEffectSet RegisterEffects(string key, UiResourceId resource, UiTextEffects effects)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        var value = UiEffects.Create(resource, effects);
+        Set(value);
+        Set(key, new UiResourceReference(resource));
+        return value.Set;
+    }
+
+    /// <summary>Monotonic version changed only when a typed effect resource changes.</summary>
+    public ulong EffectVersion => _store.EffectVersion;
+
     /// <summary>Resolves an immutable typed effect resource without an untyped cast at the caller.</summary>
     public bool TryResolveEffectResource(UiResourceId resource, out UiEffectResource value)
     {

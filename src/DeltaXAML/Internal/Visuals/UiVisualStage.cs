@@ -168,7 +168,8 @@ internal sealed class UiVisualStage : IDisposable
             }
 
             clipCount++;
-            var hasVisual = TryGetVisualDraw(current, new UiClipId(current.DisplayClipIndex), out var visual);
+            var selfClip = new UiClipId(current.DisplayClipIndex);
+            var hasVisual = TryGetVisualDraw(current, VisualClip(current, selfClip, visit.ParentClip), out var visual);
             if (hasVisual != (current.DisplayVisualIndex >= 0) ||
                 (hasVisual && current.DisplayVisualIndex != visualCount))
             {
@@ -296,7 +297,7 @@ internal sealed class UiVisualStage : IDisposable
             var textIndex = -1;
             var ownTextCount = 0;
 
-            if (TryGetVisualDraw(current, clipId, out var visual))
+            if (TryGetVisualDraw(current, VisualClip(current, clipId, visit.ParentClip), out var visual))
             {
                 EnsureCapacity(ref _storage.Visuals, _storage.VisualCount + 1);
                 visualIndex = _storage.VisualCount;
@@ -391,7 +392,9 @@ internal sealed class UiVisualStage : IDisposable
             Bounds = element.Bounds,
             Clip = clip,
             ClipId = new Retained.UiClipId((uint)clipId.Value + 1),
-            EffectSet = element.EffectSet,
+            EffectSet = element.EffectSet.Target == UiEffectTarget.Text
+                ? element.EffectSet
+                : UiEffectSet.None,
         };
         return true;
     }
@@ -470,11 +473,23 @@ internal sealed class UiVisualStage : IDisposable
                 new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft))
             {
                 Units = element.BorderWidthUnits,
-                EffectSet = element.EffectSet,
+                EffectSet = element.EffectSet.Target == UiEffectTarget.Visual
+                    ? element.EffectSet
+                    : UiEffectSet.None,
             },
             clip,
             UiResourceId.Empty);
         return true;
+    }
+
+    private static UiClipId VisualClip(RetainedElement element, UiClipId self, UiClipId ancestor)
+    {
+        var outsets = element.EffectSet.Target == UiEffectTarget.Visual
+            ? element.EffectSet.Outsets
+            : default;
+        return outsets.x > 0 || outsets.y > 0 || outsets.z > 0 || outsets.w > 0
+            ? ancestor
+            : self;
     }
 
     private static UiCornerRadii NormalizeCornerRadii(UiCornerRadii radii, float width, float height)
@@ -533,7 +548,12 @@ internal sealed class UiVisualStage : IDisposable
             _storage.Text[_storage.TextCount++] = UiTextDraw.WithPaint(
                 cache.Shaped[i],
                 new float2(owner.Bounds.X + origin.x, owner.Bounds.Y + origin.y),
-                UiTextPaint.Solid(ToColor(spans[i].Color)) with { EffectSet = owner.EffectSet },
+                UiTextPaint.Solid(ToColor(spans[i].Color)) with
+                {
+                    EffectSet = owner.EffectSet.Target == UiEffectTarget.Text
+                        ? owner.EffectSet
+                        : UiEffectSet.None,
+                },
                 clip);
             if (spans[i].Link.IsValid)
             {

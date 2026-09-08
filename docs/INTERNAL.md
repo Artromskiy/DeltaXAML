@@ -504,6 +504,14 @@ The generated artifact contains:
 - selector/state-machine plans;
 - source locations for every generated diagnostic.
 
+Effect property elements compile into immutable typed resources in the same
+artifact. The layer vocabulary fixes the capability set; generated bindings
+cache typed layer values and rewrite only the affected resource during
+`AfterBindings`. `OneTime` values are captured once. Named bound effects require
+`DynamicResource` consumers so changed paint outsets re-enter the existing
+resource stage. There is no effect object tree, runtime layer discovery or
+string property traversal.
+
 Production loading performs no assembly scan, `Activator.CreateInstance`,
 property-name reflection or string binding traversal. A separate runtime
 inflation path may exist for designer/hot-reload tooling, but it must produce

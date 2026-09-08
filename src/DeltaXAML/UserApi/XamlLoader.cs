@@ -199,7 +199,7 @@ public sealed class XamlLoader : IXamlLoader
     }
 
     private static bool IsCompilerOnlyDeclaration(string? name) => name is
-        "Resource" or "ResourceDictionary" or "Style" or "Setter" or "Template" or "Trigger" or "Behavior" or "VisualState";
+        "Resource" or "ResourceDictionary" or "Style" or "Setter" or "Template" or "Trigger" or "Behavior" or "VisualState" or "EffectSet";
 
     private static string? ReadRootElementName(string source)
     {

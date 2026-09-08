@@ -22,6 +22,8 @@ internal sealed class UiResourceStore
     private readonly Dictionary<Guid, int> _resourceSlots = new();
     private readonly List<ResourceSlot> _slots = new();
 
+    internal ulong EffectVersion { get; private set; }
+
     public event EventHandler<UiResourceChangedEventArgs>? Changed;
 
     public void Set(string key, object? value)
@@ -56,6 +58,11 @@ internal sealed class UiResourceStore
         if (resourceId != Guid.Empty)
         {
             EnsureResourceSlot(key, resourceId, value);
+        }
+
+        if (current is UiEffectResource || value is UiEffectResource)
+        {
+            EffectVersion = checked(EffectVersion + 1);
         }
 
         Changed?.Invoke(this, new(key, resourceId));

@@ -288,6 +288,7 @@ internal static partial class Program
         GeneratedRelationTests.Run();
         GeneratedAttachedTests.Run();
         FullCapabilityGeneratedTests.Run();
+        GeneratedEffectTests.Run();
         LayoutDiagnosticsTests.Run();
         LayoutPlacementTests.Run();
         TypedPropertyStateTests();
@@ -1340,6 +1341,28 @@ internal static partial class Program
             new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), catalog));
         Assert.True(dynamicLoad.Success && dynamicLoad.Root is not null, "dynamic typed effect resource is accepted by the XAML resource path");
         Assert.Equal(set, dynamicLoad.Root!.EffectSet, "dynamic resource lookup lowers to the canonical EffectSet identity");
+
+        var conciseId = new LibraryContract.UiResourceId(new Guid("0C4E6B5F-0B5D-4C67-9B8F-0DC37A47A4A8"));
+        var concise = Library.UiEffects.Create(
+            conciseId,
+            new Library.UiVisualEffects
+            {
+                Stroke = new(new(40, 168, 189), 3),
+                Glow = new(new(40, 168, 189), 6),
+            });
+        Assert.Equal(
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.Glow,
+            concise.Set.Capabilities,
+            "concise C# effects infer a stable capability set");
+        Assert.Equal(new float4(6, 6, 6, 6), concise.Set.Outsets, "logical glow derives paint outsets without changing layout");
+
+        var inlineCatalog = new Library.UiResourceCatalog();
+        var inlineLoad = new Library.XamlLoader().Load(
+            "<Border><Border.EffectSet><EffectSet><Stroke Color=\"#28A8BD\" Width=\"3\" /><Glow Color=\"#28A8BD\" Radius=\"6\" /></EffectSet></Border.EffectSet></Border>",
+            new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), inlineCatalog));
+        Assert.True(inlineLoad.Success && inlineLoad.Root?.EffectSet.IsValid == true, "cold tooling can materialize literal inline effect syntax into the canonical catalog");
+        Assert.True(inlineCatalog.TryResolveEffectResource(inlineLoad.Root!.EffectSet.Resource, out var inlineResource), "inline effect keeps a renderer-resolvable stable resource identity");
+        Assert.Equal(concise.Parameters, inlineResource.Parameters, "DXAML and concise C# authoring lower to the same typed effect payload");
     }
 
     private static void EffectOutsetsDoNotAffectLayout()
@@ -1368,6 +1391,8 @@ internal static partial class Program
         Assert.Equal(desiredBefore, border.RetainedElement.DesiredSize, "effect outsets do not change desired layout size");
         var display = document.BuildDisplayList();
         Assert.Equal(border.EffectSet, display.Visuals[0].Paint.EffectSet, "effect outsets remain on the paint resource reference");
+        Assert.Equal(LibraryContract.UiClipId.None, display.Visuals[0].Clip,
+            "effect paint outsets use the effective ancestor clip rather than clipping to layout bounds");
 
         var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
         var fonts = new Library.UiFontCatalog();

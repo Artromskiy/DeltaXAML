@@ -514,6 +514,11 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             return false;
         }
 
+        for (var effectIndex = 0; effectIndex < plan.EffectResources.Length; effectIndex++)
+        {
+            CollectEffectBindings(plan.EffectResources[effectIndex], bindings);
+        }
+
         for (var triggerIndex = 0; triggerIndex < plan.Triggers.Length; triggerIndex++)
         {
             var trigger = plan.Triggers[triggerIndex];
@@ -730,6 +735,11 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
             }
         }
 
+        if (node.InlineEffect is { } effect)
+        {
+            CollectEffectBindings(effect, bindings);
+        }
+
         for (var i = 0; i < node.Children.Length; i++)
         {
             if (!CollectBindings(node.Children[i], bindings, out error))
@@ -740,6 +750,28 @@ public sealed class IncrementalGenerator : IIncrementalGenerator
 
         error = string.Empty;
         return true;
+    }
+
+    private static void CollectEffectBindings(
+        XamlEffectPlan effect,
+        Dictionary<BindingRequestKey, BindingRequest> bindings)
+    {
+        for (var layerIndex = 0; layerIndex < effect.Layers.Length; layerIndex++)
+        {
+            var members = effect.Layers[layerIndex].Members;
+            for (var memberIndex = 0; memberIndex < members.Length; memberIndex++)
+            {
+                var value = members[memberIndex].Value;
+                if (value.Kind != XamlValueKind.Binding ||
+                    value.Binding.SourceKind != XamlBindingSourceKind.Context)
+                {
+                    continue;
+                }
+
+                var key = new BindingRequestKey(value.Binding.Path, value.Binding.ConverterKey);
+                bindings.TryAdd(key, new(value.Binding.ConverterKey, false, false));
+            }
+        }
     }
 
     private static bool TryFindConverter(

@@ -1,9 +1,7 @@
 using Delta.Render;
+using UiShaders = Delta.Render.UIShaders.Shaders;
+using TextShaders = Delta.Render.Text.Shaders;
 using Delta.Shader.Contract;
-using Delta.Shader.Text;
-using Delta.Shader.UI;
-using TextShaders = Delta.Shader.Text.Shaders;
-using UiShaders = Delta.Shader.UI.Shaders;
 
 namespace DeltaXaml.Samples.UiLibraryDemo;
 

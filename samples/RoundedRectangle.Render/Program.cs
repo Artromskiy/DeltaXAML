@@ -3,6 +3,7 @@ using Delta.Render.UI;
 using Delta.Text;
 using Delta.Text.Contract;
 using Delta.XAML;
+using Delta.XAML.Contract;
 
 namespace DeltaXaml.Samples.RoundedRectangle.Render;
 
@@ -32,7 +33,8 @@ internal static class Program
                     Width: 800,
                     Height: 500,
                     HeadlessDpiScale: 2),
-                fonts).ConfigureAwait(false);
+                fonts,
+                new XamlLoadContext(new XamlTypeCatalog(), new UiResourceCatalog())).ConfigureAwait(false);
         }
         catch (Exception exception)
         {

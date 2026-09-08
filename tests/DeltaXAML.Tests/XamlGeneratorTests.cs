@@ -50,6 +50,54 @@ internal static partial class Program
         Assert.True(outlineSource.Contains("UiEffectResource.CreateTextOutline", StringComparison.Ordinal), "literal text outline lowers to a typed effect resource");
         Assert.True(outlineSource.Contains("node0.EffectSet = implicitEffect0.Set;", StringComparison.Ordinal), "lowered text outline selects the canonical text effect set");
 
+        var inlineEffectPlan = XamlCompiler.Compile(
+            sourceId,
+            "<Border><Border.EffectSet><EffectSet><Stroke Color=\"#FF8040\" Width=\"5\" /><Glow Color=\"#4080FFFF\" Radius=\"8\" Spread=\"1\" Intensity=\"0.75\" /></EffectSet></Border.EffectSet></Border>",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(inlineEffectPlan.Success, "inline typed effect layers compile as an element property");
+        Assert.True(CSharpArtifactEmitter.TryEmit(inlineEffectPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "InlineEffectArtifact", out var inlineEffectSource, out _), "inline effect emits through the generated artifact path");
+        Assert.True(inlineEffectSource.Contains("global::Delta.XAML.UiEffects.CreateVisual", StringComparison.Ordinal), "inline effect uses the public typed effect factory");
+        Assert.True(inlineEffectSource.Contains("new global::Delta.XAML.Contract.UiEffectLayer", StringComparison.Ordinal), "effect layers remain typed generated values");
+        Assert.True(inlineEffectSource.Contains("node0.EffectSet = effect0.Set;", StringComparison.Ordinal), "inline effect selects its stable generated resource");
+
+        var effectBindingRegistry = XamlSemanticRegistry.CreateBuiltIns();
+        effectBindingRegistry.RegisterBinding(new(
+            "Accent",
+            "global::Sample.EffectModel",
+            "global::Delta.XAML.UiColor",
+            "source.Accent",
+            null));
+        effectBindingRegistry.RegisterBinding(new(
+            "StrokeWidth",
+            "global::Sample.EffectModel",
+            "float",
+            "source.StrokeWidth",
+            null));
+        effectBindingRegistry.RegisterBinding(new(
+            "GlowRadius",
+            "global::Sample.EffectModel",
+            "float",
+            "source.GlowRadius",
+            null));
+        var boundEffectPlan = XamlCompiler.Compile(
+            sourceId,
+            "<Border x:DataType=\"global::Sample.EffectModel\"><Border.EffectSet><EffectSet><Stroke Color=\"{Binding Accent}\" Width=\"{Binding StrokeWidth}\" /><Glow Color=\"{Binding Accent, Mode=OneTime}\" Radius=\"{Binding GlowRadius}\" /></EffectSet></Border.EffectSet></Border>",
+            effectBindingRegistry);
+        Assert.True(boundEffectPlan.Success, "effect values accept typed one-way and one-time context bindings");
+        Assert.True(CSharpArtifactEmitter.TryEmit(boundEffectPlan, effectBindingRegistry, "Generated", "BoundEffectArtifact", out var boundEffectSource, out var boundEffectDiagnostic), "bound effect emits as a generated effect update plan");
+        Assert.True(boundEffectDiagnostic is null && boundEffectSource.Contains("IUiGeneratedDocumentProgram", StringComparison.Ordinal), "reactive effect binding participates in the fixed generated stage pipeline");
+        Assert.True(boundEffectSource.Contains("_effect0Value0 = context.Accent;", StringComparison.Ordinal), "bound effect value uses a direct typed context read");
+        Assert.True(boundEffectSource.Contains("_effect0Dirty = true;", StringComparison.Ordinal) && boundEffectSource.Contains("UpdateEffect0();", StringComparison.Ordinal), "property notifications update only the affected typed effect resource");
+        Assert.True(!boundEffectSource.Contains("GetProperty", StringComparison.Ordinal) && !boundEffectSource.Contains("dynamic", StringComparison.Ordinal), "effect bindings add no reflection or dynamic lookup");
+
+        var namedEffectPlan = XamlCompiler.Compile(
+            sourceId,
+            "<Panel x:DataType=\"global::Sample.EffectModel\"><EffectSet x:Key=\"AccentEffects\" Target=\"Visual\"><Glow Color=\"{Binding Accent}\" Radius=\"{Binding GlowRadius}\" /></EffectSet><Border EffectSet=\"{DynamicResource AccentEffects}\" /></Panel>",
+            effectBindingRegistry);
+        Assert.True(namedEffectPlan.Success, "bound named effects compile when consumers use DynamicResource");
+        Assert.True(CSharpArtifactEmitter.TryEmit(namedEffectPlan, effectBindingRegistry, "Generated", "NamedEffectArtifact", out var namedEffectSource, out _), "bound named effect emits once into the resource catalog");
+        Assert.True(namedEffectSource.Contains("SetDynamicResource(global::Delta.XAML.UiElementProperties.EffectSet", StringComparison.Ordinal), "bound named effect keeps dynamic retained-resource propagation");
+
         const string capabilitySource = "<Panel><Slider Minimum=\"0\" Maximum=\"10\" Value=\"4\" Step=\"0.5\" /><Image Source=\"285a7033-e9eb-438e-81d8-7906cf978301\" Tint=\"#112233\" /><Overlay IsOpen=\"true\"><TextBlock Text=\"popup\" /></Overlay><CollectionView SelectedIndex=\"2\" /></Panel>";
         var capabilityPlan = XamlCompiler.Compile(sourceId, capabilitySource, XamlSemanticRegistry.CreateBuiltIns());
         Assert.True(capabilityPlan.Success, "full-capability controls are accepted by the typed semantic model");

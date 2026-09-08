@@ -1,4 +1,5 @@
 using System.Globalization;
+using Delta;
 using DeltaXAML.Compiler;
 using Delta.XAML.Contract;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
@@ -20,6 +21,29 @@ internal static class XamlPlanMaterializer
         if (plan.Root is null)
         {
             return new(null, diagnostics);
+        }
+
+        for (var effectIndex = 0; effectIndex < plan.EffectResources.Length; effectIndex++)
+        {
+            var effectPlan = plan.EffectResources[effectIndex];
+            if (resources is null)
+            {
+                diagnostics.Add(new(
+                    "XAML020",
+                    "EffectSet resources require a mutable UiResourceCatalog in the cold loader or the generated XAML path.",
+                    effectPlan.Range.Start.Line + 1,
+                    effectPlan.Range.Start.Column + 1));
+                continue;
+            }
+
+            if (TryMaterializeEffect(effectPlan, diagnostics, out var effect))
+            {
+                resources.Set(effect.Set.Resource.Value, effect);
+                if (effectPlan.Key is { } key)
+                {
+                    resources.Set(key, new UiResourceReference(effect.Set.Resource.Value));
+                }
+            }
         }
 
         var root = Materialize(plan.Root, factory, resources, diagnostics);
@@ -47,6 +71,23 @@ internal static class XamlPlanMaterializer
         for (var i = 0; i < plan.Members.Length; i++)
         {
             ApplyPlanMember(element, plan.Members[i], resources, diagnostics);
+        }
+
+        if (plan.InlineEffect is { } effectPlan)
+        {
+            if (resources is null)
+            {
+                diagnostics.Add(new(
+                    "XAML020",
+                    "An inline EffectSet requires a mutable UiResourceCatalog in the cold loader or the generated XAML path.",
+                    effectPlan.Range.Start.Line + 1,
+                    effectPlan.Range.Start.Column + 1));
+            }
+            else if (TryMaterializeEffect(effectPlan, diagnostics, out var effect))
+            {
+                resources.Set(effect.Set.Resource.Value, effect);
+                element.EffectSet = effect.Set;
+            }
         }
 
         for (var i = 0; i < plan.Children.Length; i++)
@@ -104,6 +145,146 @@ internal static class XamlPlanMaterializer
         }
 
         return element;
+    }
+
+    private static bool TryMaterializeEffect(
+        XamlEffectPlan plan,
+        List<XamlMaterializerDiagnostic> diagnostics,
+        out UiEffectResource effect)
+    {
+        for (var layerIndex = 0; layerIndex < plan.Layers.Length; layerIndex++)
+        {
+            var members = plan.Layers[layerIndex].Members;
+            for (var memberIndex = 0; memberIndex < members.Length; memberIndex++)
+            {
+                if (members[memberIndex].Value.Kind == XamlValueKind.Binding)
+                {
+                    diagnostics.Add(new(
+                        "XAML020",
+                        "Effect layer bindings require the generated XAML path.",
+                        members[memberIndex].Range.Start.Line + 1,
+                        members[memberIndex].Range.Start.Column + 1));
+                    effect = default;
+                    return false;
+                }
+            }
+        }
+
+        var strokeOrOutline = MaterializeLayer(plan, plan.Target == UiEffectTarget.Text
+            ? XamlEffectLayerKind.Outline
+            : XamlEffectLayerKind.Stroke);
+        var outerShadow = MaterializeLayer(plan, XamlEffectLayerKind.OuterShadow);
+        var insetShadow = MaterializeLayer(plan, XamlEffectLayerKind.InsetShadow);
+        var glow = MaterializeLayer(plan, XamlEffectLayerKind.Glow);
+        float4? outsets = null;
+        if (plan.Outsets is { } outsetsPlan &&
+            ThicknessLiteralParser.TryParse(outsetsPlan.Literal.CanonicalText, out var parsedOutsets))
+        {
+            outsets = new(parsedOutsets.Left, parsedOutsets.Top, parsedOutsets.Right, parsedOutsets.Bottom);
+        }
+
+        try
+        {
+            effect = plan.Target == UiEffectTarget.Text
+                ? Delta.XAML.UiEffects.CreateText(
+                    plan.Resource,
+                    strokeOrOutline,
+                    outerShadow,
+                    glow,
+                    plan.Units,
+                    plan.Quality,
+                    plan.CachedMask,
+                    outsets)
+                : Delta.XAML.UiEffects.CreateVisual(
+                    plan.Resource,
+                    strokeOrOutline,
+                    outerShadow,
+                    insetShadow,
+                    glow,
+                    plan.Units,
+                    plan.Quality,
+                    plan.CachedMask,
+                    outsets);
+            return true;
+        }
+        catch (ArgumentException exception)
+        {
+            diagnostics.Add(new(
+                "XAML047",
+                exception.Message,
+                plan.Range.Start.Line + 1,
+                plan.Range.Start.Column + 1));
+            effect = default;
+            return false;
+        }
+    }
+
+    private static UiEffectLayer MaterializeLayer(XamlEffectPlan plan, XamlEffectLayerKind kind)
+    {
+        XamlEffectLayerPlan? layer = null;
+        for (var i = 0; i < plan.Layers.Length; i++)
+        {
+            if (plan.Layers[i].Kind == kind)
+            {
+                layer = plan.Layers[i];
+                break;
+            }
+        }
+
+        if (layer is null)
+        {
+            return default;
+        }
+
+        var color = default(float4);
+        var offset = default(float2);
+        var width = 0f;
+        var radius = 0f;
+        var spread = 0f;
+        var intensity = 1f;
+        for (var i = 0; i < layer.Members.Length; i++)
+        {
+            var member = layer.Members[i];
+            var value = member.Value.Literal.CanonicalText;
+            switch (member.Name)
+            {
+                case "Color": TryEffectColor(value, out color); break;
+                case "Offset": TryEffectOffset(value, out offset); break;
+                case "Width": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out width); break;
+                case "Radius": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out radius); break;
+                case "Spread": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out spread); break;
+                case "Intensity": float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out intensity); break;
+            }
+        }
+
+        return new(color, offset, width, radius, spread, intensity);
+    }
+
+    private static bool TryEffectColor(string value, out float4 color)
+    {
+        if (!TryColor(value, out var parsed))
+        {
+            color = default;
+            return false;
+        }
+
+        color = new(parsed.R / 255f, parsed.G / 255f, parsed.B / 255f, parsed.A / 255f);
+        return true;
+    }
+
+    private static bool TryEffectOffset(string value, out float2 offset)
+    {
+        var separator = value.IndexOf(',', StringComparison.Ordinal);
+        if (separator <= 0 ||
+            !float.TryParse(value.AsSpan(0, separator), NumberStyles.Float, CultureInfo.InvariantCulture, out var x) ||
+            !float.TryParse(value.AsSpan(separator + 1), NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
+        {
+            offset = default;
+            return false;
+        }
+
+        offset = new(x, y);
+        return true;
     }
 
     private static void ApplyPlanMember(

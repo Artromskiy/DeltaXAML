@@ -1,0 +1,15 @@
+<Border xmlns="urn:delta-xaml"
+        xmlns:x="urn:delta-xaml"
+        x:Name="Surface"
+        x:DataType="DeltaXaml.Tests.EffectBindingModel"
+        Width="120"
+        Height="80"
+        Background="#202840"
+        CornerRadius="12">
+  <Border.EffectSet>
+    <EffectSet>
+      <Stroke Color="{Binding Accent}" Width="{Binding StrokeWidth}" />
+      <Glow Color="{Binding GlowColor, Mode=OneTime}" Radius="{Binding GlowRadius}" />
+    </EffectSet>
+  </Border.EffectSet>
+</Border>
