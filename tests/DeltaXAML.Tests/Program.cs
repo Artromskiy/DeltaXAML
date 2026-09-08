@@ -312,6 +312,7 @@ internal static partial class Program
         PaintPropertiesReachDisplayList();
         EffectSetContract();
         EffectResourcePayload();
+        EffectOutsetsDoNotAffectLayout();
         RoundedCornerRadiiAreNormalizedBeforeExtraction();
         DisplayListDirtySubtreeReusesStableText();
         TextCacheDropsRemovedNodes();
@@ -1339,6 +1340,34 @@ internal static partial class Program
             new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), catalog));
         Assert.True(dynamicLoad.Success && dynamicLoad.Root is not null, "dynamic typed effect resource is accepted by the XAML resource path");
         Assert.Equal(set, dynamicLoad.Root!.EffectSet, "dynamic resource lookup lowers to the canonical EffectSet identity");
+    }
+
+    private static void EffectOutsetsDoNotAffectLayout()
+    {
+        var border = new Library.UiBorder
+        {
+            Width = 80,
+            Height = 40,
+            Background = new(24, 32, 48),
+        };
+        using var document = new Library.UiDocument(border, new EmptyTextService());
+
+        document.Layout(new float2(160, 120), 1);
+        var before = border.RetainedElement.Bounds;
+        var desiredBefore = border.RetainedElement.DesiredSize;
+
+        border.EffectSet = new LibraryContract.UiEffectSet(
+            new LibraryContract.UiResourceId(new Guid("A48FBE0A-75E9-45CA-B649-48C16C4A7D4A")),
+            LibraryContract.UiEffectTarget.Visual,
+            LibraryContract.UiEffectCapabilities.OuterShadow | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectQuality.Analytic,
+            new float4(18, 12, 24, 16));
+        document.Layout(new float2(160, 120), 1);
+
+        Assert.Equal(before, border.RetainedElement.Bounds, "effect outsets do not move the arranged element");
+        Assert.Equal(desiredBefore, border.RetainedElement.DesiredSize, "effect outsets do not change desired layout size");
+        var display = document.BuildDisplayList();
+        Assert.Equal(border.EffectSet, display.Visuals[0].Paint.EffectSet, "effect outsets remain on the paint resource reference");
     }
 
     private static void RoundedCornerRadiiAreNormalizedBeforeExtraction()
