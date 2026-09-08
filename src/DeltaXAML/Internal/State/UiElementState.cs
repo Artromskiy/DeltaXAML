@@ -9,6 +9,7 @@ internal struct UiElementState
     public Delta.XAML.UiVerticalAlignment VerticalAlignment;
     public UiColor Background;
     public UiColor BorderColor;
+    public Delta.XAML.Contract.UiEffectSet EffectSet;
     public float BorderWidth;
     public Delta.XAML.Contract.PaintUnits BorderWidthUnits;
     public Delta.XAML.UiCornerRadii CornerRadius;

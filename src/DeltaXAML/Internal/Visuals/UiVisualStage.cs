@@ -391,6 +391,7 @@ internal sealed class UiVisualStage : IDisposable
             Bounds = element.Bounds,
             Clip = clip,
             ClipId = new Retained.UiClipId((uint)clipId.Value + 1),
+            EffectSet = element.EffectSet,
         };
         return true;
     }
@@ -469,6 +470,7 @@ internal sealed class UiVisualStage : IDisposable
                 new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft))
             {
                 Units = element.BorderWidthUnits,
+                EffectSet = element.EffectSet,
             },
             clip,
             UiResourceId.Empty);
@@ -531,7 +533,7 @@ internal sealed class UiVisualStage : IDisposable
             _storage.Text[_storage.TextCount++] = UiTextDraw.WithPaint(
                 cache.Shaped[i],
                 new float2(owner.Bounds.X + origin.x, owner.Bounds.Y + origin.y),
-                UiTextPaint.Solid(ToColor(spans[i].Color)),
+                UiTextPaint.Solid(ToColor(spans[i].Color)) with { EffectSet = owner.EffectSet },
                 clip);
             if (spans[i].Link.IsValid)
             {

@@ -221,6 +221,7 @@ internal partial class UiElement
         "Width" or "Height" or "Margin" or "Padding" => UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "HorizontalAlignment" or "VerticalAlignment" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "EffectSet" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
         _ => UiDirtyFlags.Visual,
     };

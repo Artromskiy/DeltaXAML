@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
 
@@ -167,6 +168,21 @@ internal sealed class UiResourceStore
     }
 
     internal int ResourceSlotCount => _slots.Count;
+
+    internal UiEffectResource[] SnapshotEffectResources()
+    {
+        var resources = new List<UiEffectResource>();
+        var identities = new HashSet<Guid>();
+        foreach (var value in _values.Values)
+        {
+            if (value is UiEffectResource effect && identities.Add(effect.Set.Resource.Value))
+            {
+                resources.Add(effect);
+            }
+        }
+
+        return resources.ToArray();
+    }
 
     private void EnsureResourceSlot(string key, Guid resourceId, object? value)
     {

@@ -15,6 +15,7 @@ internal enum XamlValueKind
     Double,
     Integer,
     ResourceId,
+    EffectSet,
     Brush,
     Color,
     Thickness,
@@ -663,6 +664,7 @@ internal sealed class XamlSemanticRegistry
             Property("TemplateKey", "10000000-0000-4000-8000-000000000009", XamlValueKind.String));
         common = common.AddRange(ImmutableArray.Create(
             Property("BackgroundBrush", "10000000-0000-4000-8000-00000000000A", XamlValueKind.Brush),
+            Property("EffectSet", "10000000-0000-4000-8000-000000000019", XamlValueKind.EffectSet),
             Property("BorderColor", "10000000-0000-4000-8000-000000000011", XamlValueKind.Color),
             Property("BorderWidth", "10000000-0000-4000-8000-000000000012", XamlValueKind.Single),
             Property("BorderWidthUnits", "10000000-0000-4000-8000-000000000015", XamlValueKind.Enum),

@@ -198,6 +198,8 @@ internal static class UiDescriptorCatalog
             case UiPropertyKey.BorderColor when value.UntypedValue is UiColor borderColor:
                 UiElementPropertiesGenerated.TrySetBorderColor(ref element.CommonState, borderColor);
                 return true;
+            case UiPropertyKey.EffectSet when value.UntypedValue is UiEffectSet effectSet:
+                return UiElementPropertiesGenerated.TrySetEffectSet(ref element.CommonState, effectSet);
             case UiPropertyKey.BorderWidth when value.UntypedValue is float borderWidth:
                 return UiElementPropertiesGenerated.TrySetBorderWidth(ref element.CommonState, borderWidth);
             case UiPropertyKey.BorderWidthUnits when value.UntypedValue is PaintUnits borderWidthUnits:
@@ -233,7 +235,7 @@ internal static class UiDescriptorCatalog
                 element.IsFocusScope = isFocusScope;
                 return true;
             case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Margin or UiPropertyKey.HorizontalAlignment or UiPropertyKey.VerticalAlignment or
-                UiPropertyKey.Background or UiPropertyKey.BorderColor or
+                UiPropertyKey.Background or UiPropertyKey.BorderColor or UiPropertyKey.EffectSet or
                 UiPropertyKey.BorderWidth or UiPropertyKey.BorderWidthUnits or UiPropertyKey.CornerRadius or UiPropertyKey.Padding or
                 UiPropertyKey.IsEnabled or UiPropertyKey.IsSelected or UiPropertyKey.BackgroundBrush or
                 UiPropertyKey.AutomationName or UiPropertyKey.AutomationRole or UiPropertyKey.Gestures or UiPropertyKey.Command or

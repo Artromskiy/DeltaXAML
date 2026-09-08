@@ -1,3 +1,5 @@
+using Delta.XAML.Contract;
+
 namespace DeltaXAML.Internal;
 
 /// <summary>Typed companion for common properties owned by every retained element.</summary>
@@ -93,6 +95,18 @@ internal static class UiElementPropertiesGenerated
     {
         if (state.BorderColor == value) { return false; }
         state.BorderColor = value;
+        return true;
+    }
+
+    internal static bool TrySetEffectSet(ref UiElementState state, UiEffectSet value)
+    {
+        if (value != UiEffectSet.None && !value.IsValid)
+        {
+            return false;
+        }
+
+        if (state.EffectSet == value) { return false; }
+        state.EffectSet = value;
         return true;
     }
 

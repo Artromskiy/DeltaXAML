@@ -115,9 +115,36 @@ public readonly record struct UiDrawRef(UiDrawKind Kind, int Index);
 public readonly record struct UiClipRegion(
     float4 Bounds, UiClipId Parent, UiClipKind Kind, float4 CornerRadii);
 public readonly record struct UiVisualPaint(
-    float4 FillColor, float4 StrokeColor, float StrokeWidth, float4 CornerRadii);
+    float4 FillColor, float4 StrokeColor, float StrokeWidth, float4 CornerRadii)
+{
+    public UiEffectSet EffectSet { get; init; }
+}
 public readonly record struct UiTextPaint(
-    float4 FillColor, float4 OutlineColor, float OutlineWidth, UiResourceId Effect);
+    float4 FillColor, float4 OutlineColor, float OutlineWidth, UiResourceId EffectResource)
+{
+    public UiEffectSet EffectSet { get; init; }
+}
+public readonly record struct UiEffectSet(
+    UiResourceId Resource,
+    UiEffectTarget Target,
+    UiEffectCapabilities Capabilities,
+    UiEffectQuality Quality,
+    float4 Outsets);
+public readonly record struct UiEffectLayer(
+    float4 Color, float2 Offset, float Width,
+    float BlurRadius, float Spread, float Intensity);
+public readonly record struct UiEffectParameters(
+    UiEffectLayer StrokeOrOutline,
+    UiEffectLayer OuterShadow,
+    UiEffectLayer InsetShadow,
+    UiEffectLayer Glow,
+    UiResourceId CachedMask)
+{
+    // All layer distances use Units (Logical by default).
+    public PaintUnits Units { get; init; }
+}
+public readonly record struct UiEffectResource(
+    UiEffectSet Set, UiEffectParameters Parameters);
 public readonly record struct UiElementIdentity(uint Value, uint Generation, uint Version);
 public readonly record struct UiTextDraw {
     public ShapedText Text { get; init; }
@@ -161,10 +188,26 @@ semantic shape. Rectangles may use scissor; rounded regions may use an analytic
 shader, stencil or mask selected by the renderer adapter. The contract carries
 corner radii but does not prescribe the GPU implementation.
 
-`UiVisualPaint` carries fixed-size fill, stroke and per-corner-radius values.
-`UiTextPaint` carries fill, outline width/color and an optional effect resource
-identity. Variable gradient stops, image data, shadow configuration and other
-large values remain immutable resources addressed by `UiResourceId`.
+`UiVisualPaint` and `UiTextPaint` retain the existing fixed-size fill and
+geometry fields while the canonical effect reference is `EffectSet`. The set
+identifies one immutable, typed `UiEffectResource` containing the selected
+effect parameters. `UiEffectParameters` has fixed named layers for the
+canonical effect order; it is not a shader ABI and does not require a second
+property store. Its target, capability flags, quality tier and left/top/right/
+bottom outsets are renderer-neutral metadata; outsets affect paint bounds and
+damage only, never layout, shaping or baseline. `EffectResource` is the
+resource-identity compatibility slot for text requests produced before the
+effect-set migration; new producers must populate `EffectSet`.
+
+Capability validation is target-specific: visual resources may select `Stroke`,
+`OuterShadow`, `InsetShadow` or `Glow`; text resources may select `Outline`,
+`OuterShadow` or `Glow`. A cross-target combination is invalid and must be
+diagnosed before renderer preparation.
+
+The initial capability flags are `Stroke`, `Outline`, `OuterShadow`,
+`InsetShadow` and `Glow`. Variable gradient stops, image data, shadow
+parameters and other large values remain immutable typed resources addressed
+by `UiResourceId`.
 
 The six-argument constructor of `UiVisualDraw` and the four-argument
 constructor of `UiTextDraw` remain fill-only convenience forms. Identity and

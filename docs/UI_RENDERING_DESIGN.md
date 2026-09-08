@@ -102,21 +102,55 @@ data, not for geometry-only changes. These are producer identities and
 renderer-neutral values, not shader or Vulkan handles.
 
 The paint-bearing form is intentionally compact for hot, fixed-size parameters;
-variable immutable data is addressed by resource identity:
+effect configuration is an immutable typed resource addressed by an existing
+resource identity:
 
 ```csharp
 public readonly record struct UiTextPaint(
     float4 FillColor,
     float4 OutlineColor,
     float OutlineWidth,
-    UiResourceId Effect);
+    UiResourceId EffectResource)
+{
+    public UiEffectSet EffectSet { get; init; }
+}
 
 public readonly record struct UiVisualPaint(
     float4 FillColor,
     float4 StrokeColor,
     float StrokeWidth,
-    float4 CornerRadii);
+    float4 CornerRadii)
+{
+    public UiEffectSet EffectSet { get; init; }
+}
+
+public readonly record struct UiEffectSet(
+    UiResourceId Resource,
+    UiEffectTarget Target,
+    UiEffectCapabilities Capabilities,
+    UiEffectQuality Quality,
+    float4 Outsets);
+
+public readonly record struct UiEffectResource(
+    UiEffectSet Set,
+    UiEffectParameters Parameters);
 ```
+
+All effect layer distances (`Offset`, `Width`, `BlurRadius` and `Spread`) use
+the typed `UiEffectParameters.Units` value. `Logical` is the default and is
+converted once at the DeltaRender packing boundary; `Device` is already in
+physical pixels. Analytic resources must not carry a cached-mask identity, and
+cached-mask resources must carry one. This is validated before renderer
+registration.
+
+`EffectSet` is the canonical effect reference for both visual and text paint.
+Its `Target` and capability flags are validated before renderer preparation;
+visual sets may use `Stroke`, `OuterShadow`, `InsetShadow` and `Glow`, while
+text sets may use `Outline`, `OuterShadow` and `Glow`. `UiEffectResource`
+contains the fixed typed layer payload used by the consumer adapter and is not
+a shader ABI. Its `Outsets` affect paint bounds and damage only; they never
+change layout size, shaping, baseline or text metrics. `UiResourceId` remains
+the only cross-project resource identity.
 
 The user-facing `CornerRadius` property stores four values in top-left,
 top-right, bottom-right, bottom-left order. A scalar XAML value is shorthand
@@ -170,11 +204,21 @@ SPIR-V plus binary `ShaderAbi` artifacts. DeltaRender consumes those artifacts
 and owns pipeline/cache construction. Generated artifacts are build/package
 outputs owned by DeltaShader; they are not hand-authored files in DeltaXAML.
 
-DeltaXAML carries fill, outline and effect identity in the neutral text request.
-Artifact registration, ABI validation and GPU submission are consumer-owned;
-the presence of these producer fields is not a guarantee that every renderer
+DeltaXAML carries fill and the immutable `UiEffectSet` identity in the neutral
+visual/text request. The older `EffectResource` slot is retained only while
+existing text producers migrate; it is not a second effect model. Artifact
+registration, ABI validation and GPU submission are consumer-owned; the
+presence of these producer fields is not a guarantee that every renderer
 configuration can display every effect. DeltaText only needs to produce a
 valid distance field with the requested range.
+
+The current prepared effect coverage is deliberately finite: analytic visual
+variants support stroke, outer shadow, inset shadow and glow; analytic SDF/MSDF
+text variants support outline, outer shadow and glow. Visual `CachedMask` uses a
+registered mask texture and explicit UV mapping. Text `CachedMask` is currently
+rejected with a diagnostic because the text adapter has no mask/run mapping or
+mask-cache lifetime yet. No effect request is silently reduced to a simpler
+variant.
 
 ## Clipping and effects
 
@@ -200,14 +244,15 @@ neutral text records, and headless checks cover order, resource identity and
 lifetime. Remaining support is consumer-side and must not be implemented by
 adding renderer code to DeltaXAML:
 
-1. Validate and submit every resource-backed/custom visual kind (including
+1. Lower XAML paint sugar such as `BorderColor`/`BorderWidth` into generated
+   typed effect resources while preserving one `EffectSet` reference and one
+   resource owner; direct typed `EffectSet` resource references already use
+   the canonical path.
+2. Validate and submit every resource-backed/custom visual kind (including
    gradients and images) with an explicit unsupported diagnostic when an
    artifact is unavailable.
-2. Complete rounded clip/mask submission in
-   [DeltaRender/TODO.md](../../DeltaRender/TODO.md), independently of the
-   producer's rounded drawing support.
-3. Measure dirty uploads, atlas reuse, batching and unchanged-frame behavior
-   at realistic UI sizes before changing storage or sort policy.
+3. Add text mask/run mapping and a renderer-owned text mask cache before
+   enabling text `CachedMask`; do not reuse the visual rectangle mask artifact.
 
 The first adapter must preserve semantic order even when that creates several
 draw batches. Sorting by material is legal only inside a contiguous order range

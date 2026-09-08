@@ -35,9 +35,20 @@ internal static partial class Program
         Assert.True(textPropertiesPlan.Success, "text layout properties compile into the semantic model");
         Assert.True(CSharpArtifactEmitter.TryEmit(textPropertiesPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "TextPropertiesArtifact", out var textPropertiesSource, out _), "text layout properties emit through typed setters");
         Assert.True(textPropertiesSource.Contains("node0.BorderWidthUnits = global::Delta.XAML.Contract.PaintUnits.Device;", StringComparison.Ordinal), "generated artifact preserves device-pixel border units");
+        Assert.True(textPropertiesSource.Contains("UiEffectResource.CreateVisualStroke", StringComparison.Ordinal), "literal border paint lowers to one typed effect resource");
+        Assert.True(textPropertiesSource.Contains("Resources.Set(implicitEffect0);", StringComparison.Ordinal), "lowered effect resource is registered in the artifact catalog");
+        Assert.True(textPropertiesSource.Contains("node0.EffectSet = implicitEffect0.Set;", StringComparison.Ordinal), "lowered border selects the canonical effect set");
         Assert.True(textPropertiesSource.Contains("node1.HorizontalTextAlignment = global::Delta.XAML.UiTextHorizontalAlignment.Center;", StringComparison.Ordinal), "generated text artifact preserves horizontal alignment");
         Assert.True(textPropertiesSource.Contains("node1.TextWrapping = global::Delta.XAML.UiTextWrapping.Word;", StringComparison.Ordinal), "generated text artifact preserves wrapping");
         Assert.True(textPropertiesSource.Contains("node1.TextDecorations = global::Delta.XAML.UiTextDecorations.Underline | global::Delta.XAML.UiTextDecorations.Strikethrough;", StringComparison.Ordinal), "generated text artifact preserves decorations");
+        var outlinePlan = XamlCompiler.Compile(
+            sourceId,
+            "<TextBlock Text=\"Delta\" OutlineColor=\"#80FFFFFF\" OutlineWidth=\"2\" />",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(outlinePlan.Success, "literal text outline is accepted by the semantic model");
+        Assert.True(CSharpArtifactEmitter.TryEmit(outlinePlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "OutlineArtifact", out var outlineSource, out _), "text outline emits through the typed effect resource path");
+        Assert.True(outlineSource.Contains("UiEffectResource.CreateTextOutline", StringComparison.Ordinal), "literal text outline lowers to a typed effect resource");
+        Assert.True(outlineSource.Contains("node0.EffectSet = implicitEffect0.Set;", StringComparison.Ordinal), "lowered text outline selects the canonical text effect set");
 
         const string capabilitySource = "<Panel><Slider Minimum=\"0\" Maximum=\"10\" Value=\"4\" Step=\"0.5\" /><Image Source=\"285a7033-e9eb-438e-81d8-7906cf978301\" Tint=\"#112233\" /><Overlay IsOpen=\"true\"><TextBlock Text=\"popup\" /></Overlay><CollectionView SelectedIndex=\"2\" /></Panel>";
         var capabilityPlan = XamlCompiler.Compile(sourceId, capabilitySource, XamlSemanticRegistry.CreateBuiltIns());

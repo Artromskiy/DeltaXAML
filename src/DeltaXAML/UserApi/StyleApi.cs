@@ -33,6 +33,36 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
         _store.Set(resource.Value, ToRetainedValue(value));
     }
 
+    /// <summary>Registers an immutable typed effect resource by its existing identity.</summary>
+    public void Set(UiEffectResource resource)
+    {
+        if (!resource.IsValid)
+        {
+            throw new ArgumentException("A typed effect resource must be internally consistent.", nameof(resource));
+        }
+
+        Set(resource.Set.Resource, resource);
+    }
+
+    /// <summary>Resolves an immutable typed effect resource without an untyped cast at the caller.</summary>
+    public bool TryResolveEffectResource(UiResourceId resource, out UiEffectResource value)
+    {
+        if (TryResolve(resource, out object? candidate) && candidate is UiEffectResource effect)
+        {
+            value = effect;
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Returns a detached snapshot of typed effect resources for renderer setup.
+    /// This is a cold operation; the returned values remain valid after catalog mutation.
+    /// </summary>
+    public UiEffectResource[] GetEffectResources() => _store.SnapshotEffectResources();
+
     public bool TryResolve(string key, out object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);

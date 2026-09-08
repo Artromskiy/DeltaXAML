@@ -392,6 +392,11 @@ internal sealed class UiPropertyStore
             return;
         }
 
+        if (name == "EffectSet" && value is UiEffectResource effectResource)
+        {
+            value = effectResource.Set;
+        }
+
         if (!IsCompatibleValue(name, value))
         {
             _resourceDiagnostics[name] = new(

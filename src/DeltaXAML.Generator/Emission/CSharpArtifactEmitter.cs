@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 using System.Text;
 using Delta.Diagnostics;
 using Delta.XAML;
@@ -291,6 +292,7 @@ internal static class CSharpArtifactEmitter
         }
 
         var writer = new StringBuilder(2048);
+        var implicitEffectIndex = 0;
         writer.AppendLine("#nullable enable");
         writer.AppendLine("using Delta;");
         writer.Append("namespace ").Append(namespaceName).AppendLine(";");
@@ -446,6 +448,20 @@ internal static class CSharpArtifactEmitter
             {
                 EmitMember(writer, i, resourceNodes[i].Members[memberIndex], resourceType, "resource", plan.ResourceSlots);
             }
+            EmitImplicitVisualEffect(
+                writer,
+                resourceNodes[i],
+                i,
+                "resource",
+                plan.Source,
+                ref implicitEffectIndex);
+            EmitImplicitTextEffect(
+                writer,
+                resourceNodes[i],
+                i,
+                "resource",
+                plan.Source,
+                ref implicitEffectIndex);
             EmitTextSpans(writer, i, resourceNodes[i], "resource");
         }
 
@@ -508,6 +524,8 @@ internal static class CSharpArtifactEmitter
             {
                 EmitMember(writer, i, nodes[i].Members[memberIndex], type, "node", plan.ResourceSlots);
             }
+            EmitImplicitVisualEffect(writer, nodes[i], i, "node", plan.Source, ref implicitEffectIndex);
+            EmitImplicitTextEffect(writer, nodes[i], i, "node", plan.Source, ref implicitEffectIndex);
             EmitTextSpans(writer, i, nodes[i], "node");
         }
 
@@ -2094,6 +2112,7 @@ internal static class CSharpArtifactEmitter
         typeName = property.Name switch
         {
             "BackgroundBrush" => "global::Delta.XAML.UiBrush",
+            "EffectSet" => "global::Delta.XAML.Contract.UiEffectSet",
             "AutomationRole" => "global::Delta.XAML.UiSemanticRole",
             "Gestures" => "global::Delta.XAML.UiGestureKind",
             "Command" => "global::Delta.XAML.UiCommandId",
@@ -2730,6 +2749,167 @@ internal static class CSharpArtifactEmitter
         writer.AppendLine("        };");
     }
 
+    private static void EmitImplicitVisualEffect(
+        StringBuilder writer,
+        XamlObjectPlan node,
+        int nodeIndex,
+        string variablePrefix,
+        SourceId source,
+        ref int effectIndex)
+    {
+        if (HasMember(node, "EffectSet") ||
+            !TryGetLiteralMember(node, "BorderWidth", out var widthMember) ||
+            widthMember.Kind != XamlValueKind.Single ||
+            !float.TryParse(widthMember.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var width) ||
+            !float.IsFinite(width) || width <= 0)
+        {
+            return;
+        }
+
+        var color = "new global::Delta.float4(0, 0, 0, 0)";
+        if (TryGetLiteralMember(node, "BorderColor", out var colorMember))
+        {
+            if (colorMember.Kind != XamlValueKind.Color ||
+                !TryColorVector(colorMember.Literal.CanonicalText, out color))
+            {
+                return;
+            }
+        }
+
+        var units = "global::Delta.XAML.Contract.PaintUnits.Logical";
+        if (TryGetLiteralMember(node, "BorderWidthUnits", out var unitsMember))
+        {
+            if (unitsMember.Kind != XamlValueKind.Enum ||
+                !Enum.TryParse<PaintUnits>(unitsMember.Literal.CanonicalText, false, out var parsedUnits) ||
+                parsedUnits is not (PaintUnits.Logical or PaintUnits.Device))
+            {
+                return;
+            }
+
+            units = "global::Delta.XAML.Contract.PaintUnits." + parsedUnits;
+        }
+
+        var resource = CreateImplicitEffectResourceId(source, node);
+        var variable = "implicitEffect" + effectIndex.ToString(CultureInfo.InvariantCulture);
+        effectIndex++;
+        writer.Append("        var ").Append(variable)
+            .Append(" = global::Delta.XAML.Contract.UiEffectResource.CreateVisualStroke(")
+            .Append(ResourceIdExpression(resource)).Append(", ")
+            .Append(color).Append(", ")
+            .Append(width.ToString("R", CultureInfo.InvariantCulture)).Append("f, ")
+            .Append(units).AppendLine(");");
+        writer.Append("        Resources.Set(").Append(variable).AppendLine(");");
+        writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append(".EffectSet = ")
+            .Append(variable).AppendLine(".Set;");
+    }
+
+    private static void EmitImplicitTextEffect(
+        StringBuilder writer,
+        XamlObjectPlan node,
+        int nodeIndex,
+        string variablePrefix,
+        SourceId source,
+        ref int effectIndex)
+    {
+        if (HasMember(node, "EffectSet") || HasMember(node, "TextEffect") || HasMember(node, "BorderWidth") ||
+            !TryGetLiteralMember(node, "OutlineWidth", out var widthMember) ||
+            widthMember.Kind != XamlValueKind.Single ||
+            !float.TryParse(widthMember.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var width) ||
+            !float.IsFinite(width) || width <= 0)
+        {
+            return;
+        }
+
+        var color = "new global::Delta.float4(0, 0, 0, 0)";
+        if (TryGetLiteralMember(node, "OutlineColor", out var colorMember))
+        {
+            if (colorMember.Kind != XamlValueKind.Color ||
+                !TryColorVector(colorMember.Literal.CanonicalText, out color))
+            {
+                return;
+            }
+        }
+
+        var resource = CreateImplicitEffectResourceId(source, node, "text");
+        var variable = "implicitEffect" + effectIndex.ToString(CultureInfo.InvariantCulture);
+        effectIndex++;
+        writer.Append("        var ").Append(variable)
+            .Append(" = global::Delta.XAML.Contract.UiEffectResource.CreateTextOutline(")
+            .Append(ResourceIdExpression(resource)).Append(", ")
+            .Append(color).Append(", ")
+            .Append(width.ToString("R", CultureInfo.InvariantCulture)).AppendLine("f);");
+        writer.Append("        Resources.Set(").Append(variable).AppendLine(");");
+        writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append(".EffectSet = ")
+            .Append(variable).AppendLine(".Set;");
+    }
+
+    private static bool HasMember(XamlObjectPlan node, string name)
+    {
+        for (var i = 0; i < node.Members.Length; i++)
+        {
+            if (string.Equals(node.Members[i].Name, name, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetLiteralMember(XamlObjectPlan node, string name, out XamlValuePlan value)
+    {
+        for (var i = 0; i < node.Members.Length; i++)
+        {
+            var member = node.Members[i];
+            if (string.Equals(member.Name, name, StringComparison.Ordinal))
+            {
+                value = member.Value;
+                return value.Kind is not (XamlValueKind.Binding or XamlValueKind.MultiBinding or XamlValueKind.ResourceReference);
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static bool TryColorVector(string value, out string expression)
+    {
+        expression = string.Empty;
+        if (value.Length is not (7 or 9) || value[0] != '#' ||
+            !byte.TryParse(value.AsSpan(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var red) ||
+            !byte.TryParse(value.AsSpan(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var green) ||
+            !byte.TryParse(value.AsSpan(5, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var blue))
+        {
+            return false;
+        }
+
+        var alpha = value.Length == 9 && byte.TryParse(
+            value.AsSpan(7, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var parsedAlpha)
+            ? parsedAlpha
+            : (byte)255;
+        expression = string.Concat(
+            "new global::Delta.float4(",
+            (red / 255f).ToString("R", CultureInfo.InvariantCulture), "f, ",
+            (green / 255f).ToString("R", CultureInfo.InvariantCulture), "f, ",
+            (blue / 255f).ToString("R", CultureInfo.InvariantCulture), "f, ",
+            (alpha / 255f).ToString("R", CultureInfo.InvariantCulture), "f)");
+        return true;
+    }
+
+    private static UiResourceId CreateImplicitEffectResourceId(SourceId source, XamlObjectPlan node, string target = "visual")
+    {
+        var identity = string.Concat(
+            "DeltaXAML.ImplicitEffect/",
+            source.Value.ToString("D"), "/",
+            target, "/",
+            node.Name.Namespace, "/",
+            node.Name.LocalName, "/",
+            node.Range.Start.Offset.ToString(CultureInfo.InvariantCulture), "/",
+            node.Range.End.Offset.ToString(CultureInfo.InvariantCulture));
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
+        return new UiResourceId(new Guid(bytes.AsSpan(0, 16)));
+    }
+
     private static bool IsBuiltInChildrenOwner(string name) => name is "Panel" or "StackPanel" or "Grid" or "ItemsControl" or "Overlay";
 
     private static bool IsBuiltInContentOwner(string name) => name is "ContentControl" or "Button" or "ToggleButton" or "ScrollViewer";
@@ -2863,6 +3043,7 @@ internal static class CSharpArtifactEmitter
             "StyleKey" => "global::Delta.XAML.UiElementProperties.StyleKey",
             "TemplateKey" => "global::Delta.XAML.UiElementProperties.TemplateKey",
             "BackgroundBrush" => "global::Delta.XAML.UiElementProperties.BackgroundBrush",
+            "EffectSet" => "global::Delta.XAML.UiElementProperties.EffectSet",
             "BorderColor" => "global::Delta.XAML.UiElementProperties.BorderColor",
             "BorderWidth" => "global::Delta.XAML.UiElementProperties.BorderWidth",
             "BorderWidthUnits" => "global::Delta.XAML.UiElementProperties.BorderWidthUnits",
@@ -2877,6 +3058,9 @@ internal static class CSharpArtifactEmitter
             "FontKey" => "global::Delta.XAML.TextBlockProperties.FontKey",
             "FontSize" => "global::Delta.XAML.TextBlockProperties.FontSize",
             "Foreground" => "global::Delta.XAML.TextBlockProperties.Foreground",
+            "OutlineColor" => "global::Delta.XAML.TextBlockProperties.OutlineColor",
+            "OutlineWidth" => "global::Delta.XAML.TextBlockProperties.OutlineWidth",
+            "TextEffect" => "global::Delta.XAML.TextBlockProperties.TextEffect",
             "HorizontalTextAlignment" => "global::Delta.XAML.TextBlockProperties.HorizontalTextAlignment",
             "VerticalTextAlignment" => "global::Delta.XAML.TextBlockProperties.VerticalTextAlignment",
             "TextWrapping" => "global::Delta.XAML.TextBlockProperties.TextWrapping",

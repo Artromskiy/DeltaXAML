@@ -6,7 +6,7 @@
     <RootNamespace>Delta.XAML</RootNamespace>
     <AssemblyName>DeltaXAML</AssemblyName>
     <PackageId>DeltaXAML</PackageId>
-    <Version>0.0.14</Version>
+    <Version>0.0.15</Version>
     <IsPackable>true</IsPackable>
     <Authors>Artromskiy</Authors>
     <Description>Retained XAML UI library with typed properties, bindings and layout.</Description>

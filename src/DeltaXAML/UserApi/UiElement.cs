@@ -279,6 +279,22 @@ public abstract class UiElement
         set => _retained.BorderColor = ToRetainedColor(value);
     }
 
+    /// <summary>Gets or sets the immutable prepared effect set for this element.</summary>
+    /// <remarks>Effect outsets affect paint bounds and damage, not layout size.</remarks>
+    public UiEffectSet EffectSet
+    {
+        get => _retained.EffectSet;
+        set
+        {
+            if (value != UiEffectSet.None && !value.IsValid)
+            {
+                throw new ArgumentException("EffectSet must be empty or a valid prepared effect resource.", nameof(value));
+            }
+
+            _retained.EffectSet = value;
+        }
+    }
+
     /// <summary>Uniform border width; zero disables the stroke.</summary>
     /// <remarks>Use <see cref="BorderWidthUnits"/> to keep the width in device pixels for hairlines.</remarks>
     public float BorderWidth
@@ -985,6 +1001,7 @@ public abstract class UiElement
         "PlaceholderText" => RetainedDirty.Visual | RetainedDirty.Text,
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => RetainedDirty.Visual,
         "Foreground" or "OutlineColor" or "OutlineWidth" or "TextEffect" => RetainedDirty.Visual | RetainedDirty.Text,
+        "EffectSet" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
         "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => RetainedDirty.Visual,
         "Width" or "Height" or "Margin" or "Padding" or

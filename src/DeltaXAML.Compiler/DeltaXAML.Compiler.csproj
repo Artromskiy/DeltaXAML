@@ -6,7 +6,7 @@
     <RootNamespace>DeltaXAML.Compiler</RootNamespace>
     <AssemblyName>DeltaXAML.Compiler</AssemblyName>
     <PackageId>DeltaXAML.Compiler</PackageId>
-    <Version>0.0.14</Version>
+    <Version>0.0.15</Version>
     <IsPackable>true</IsPackable>
     <Authors>Artromskiy</Authors>
     <Description>Build-time deterministic XAML semantic compiler and typed plans for DeltaXAML.</Description>

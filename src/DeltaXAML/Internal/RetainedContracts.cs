@@ -20,6 +20,7 @@ internal enum UiPropertyKey
     Background,
     BackgroundBrush,
     BorderColor,
+    EffectSet,
     BorderWidth,
     BorderWidthUnits,
     CornerRadius,
@@ -80,6 +81,7 @@ internal static class UiPropertyKeys
         "Background" => UiPropertyKey.Background,
         "BackgroundBrush" => UiPropertyKey.BackgroundBrush,
         "BorderColor" => UiPropertyKey.BorderColor,
+        "EffectSet" => UiPropertyKey.EffectSet,
         "BorderWidth" => UiPropertyKey.BorderWidth,
         "BorderWidthUnits" => UiPropertyKey.BorderWidthUnits,
         "CornerRadius" => UiPropertyKey.CornerRadius,
@@ -153,6 +155,7 @@ internal static class UiPropertyKeys
             "IsEnabled" or "IsSelected" => typeof(bool),
             "IsReadOnly" or "AcceptsReturn" => typeof(bool),
             "Background" or "BorderColor" or "Foreground" or "OutlineColor" => typeof(UiColor),
+            "EffectSet" => typeof(UiEffectSet),
             "BorderWidth" or "OutlineWidth" => typeof(float),
             "BorderWidthUnits" => typeof(PaintUnits),
             "CornerRadius" => typeof(Delta.XAML.UiCornerRadii),
@@ -251,6 +254,7 @@ internal readonly record struct UiTextRun(
     internal Delta.XAML.UiFontWeight Weight { get; init; }
     internal Delta.XAML.UiFontStyle Style { get; init; }
     internal Delta.XAML.UiTextDecorations Decorations { get; init; }
+    internal UiEffectSet EffectSet { get; init; }
 }
 internal readonly record struct UiMeasureContext(
     UiSize Available,

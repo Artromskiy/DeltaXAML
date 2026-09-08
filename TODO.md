@@ -335,8 +335,9 @@ dynamic stop change не пересоздаёт identity. Renderer провер�
 
 Это три отдельных paint возможности, не изменение общего box model.
 Текущий `BorderWidth`/`UiVisualPaint.StrokeWidth` — один scalar. В frozen
-paint нет dash pattern или inset-shadow parameters; `UiTextPaint.Effect`
-не является каналом visual effects.
+paint нет dash pattern или inset-shadow parameters. `UiEffectSet` теперь
+является общим visual/text reference-каналом; осталось согласовать typed
+resource payload и lowering convenience-свойств Border/Text в этот set.
 
 - [ ] **Sides:** выбрать canonical four-side width value, переиспользуя
   существующий four-side value type/parser там, где семантика совпадает.

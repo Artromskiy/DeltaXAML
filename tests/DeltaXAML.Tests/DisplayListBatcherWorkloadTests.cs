@@ -91,11 +91,11 @@ internal sealed class UiDisplayListBatcherWorkload
     internal static UiDisplayListWorkloadExpectation Expected(UiDisplayListWorkloadFrame frame) =>
         frame switch
         {
-            UiDisplayListWorkloadFrame.Base => new(3_500, 1_500, ClipCount, BaseEntryCount, BaseEntryCount, 0, 0, 0, 0, 4_322_472_588_939_357_607UL, 8_266_880_654_181_956_318UL, 3_147_310_012_876_536_094UL),
-            UiDisplayListWorkloadFrame.Paint => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 715, 0, 4_322_472_588_939_357_607UL, 8_131_302_817_821_511_631UL, 2_848_628_888_392_451_231UL),
-            UiDisplayListWorkloadFrame.Clip => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 0, 52, 4_322_472_588_939_357_607UL, 8_249_909_929_344_596_702UL, 12_787_136_938_159_520_030UL),
-            UiDisplayListWorkloadFrame.Reorder => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, BaseEntryCount - 1, 0, 0, 7_877_403_130_303_307_063UL, 4_366_644_032_252_713_698UL, 202_736_544_587_668_498UL),
-            UiDisplayListWorkloadFrame.Churn => new(3_527, 1_509, ClipCount, 5_036, 300, 264, 0, 0, 0, 15_779_854_436_547_583_369UL, 2_582_732_951_393_937_468UL, 4_799_295_886_069_212_130UL),
+            UiDisplayListWorkloadFrame.Base => new(3_500, 1_500, ClipCount, BaseEntryCount, BaseEntryCount, 0, 0, 0, 0, 4_322_472_588_939_357_607UL, 10_472_038_030_714_807_168UL, 11_502_093_786_682_144_992UL),
+            UiDisplayListWorkloadFrame.Paint => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 715, 0, 4_322_472_588_939_357_607UL, 3_670_341_982_941_390_629UL, 15_646_396_072_114_877_765UL),
+            UiDisplayListWorkloadFrame.Clip => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, 0, 0, 52, 4_322_472_588_939_357_607UL, 6_994_414_399_541_355_392UL, 12_416_847_575_092_672_736UL),
+            UiDisplayListWorkloadFrame.Reorder => new(3_500, 1_500, ClipCount, BaseEntryCount, 0, 0, BaseEntryCount - 1, 0, 0, 7_877_403_130_303_307_063UL, 2_505_298_112_372_981_814UL, 14_279_818_913_022_107_894UL),
+            UiDisplayListWorkloadFrame.Churn => new(3_527, 1_509, ClipCount, 5_036, 300, 264, 0, 0, 0, 15_779_854_436_547_583_369UL, 8_839_513_177_550_138_512UL, 12_001_700_888_170_988_086UL),
             _ => throw new ArgumentOutOfRangeException(nameof(frame), frame, "Unknown workload frame."),
         };
 
@@ -130,6 +130,7 @@ internal sealed class UiDisplayListBatcherWorkload
             AppendFloat4(ref hash, visual.Paint.StrokeColor);
             Add(ref hash, BitConverter.SingleToUInt32Bits(visual.Paint.StrokeWidth));
             AppendFloat4(ref hash, visual.Paint.CornerRadii);
+            AppendEffectSet(ref hash, visual.Paint.EffectSet);
             Add(ref hash, (uint)visual.Clip.Value);
             AppendGuid(ref hash, visual.Resource.Value);
         }
@@ -153,7 +154,8 @@ internal sealed class UiDisplayListBatcherWorkload
             AppendFloat4(ref hash, text.Paint.FillColor);
             AppendFloat4(ref hash, text.Paint.OutlineColor);
             Add(ref hash, BitConverter.SingleToUInt32Bits(text.Paint.OutlineWidth));
-            AppendGuid(ref hash, text.Paint.Effect.Value);
+            AppendGuid(ref hash, text.Paint.EffectResource.Value);
+            AppendEffectSet(ref hash, text.Paint.EffectSet);
             Add(ref hash, (uint)text.Clip.Value);
         }
 
@@ -299,6 +301,15 @@ internal sealed class UiDisplayListBatcherWorkload
         {
             Add(ref hash, bytes[i]);
         }
+    }
+
+    private static void AppendEffectSet(ref ulong hash, UiEffectSet effectSet)
+    {
+        AppendGuid(ref hash, effectSet.Resource.Value);
+        Add(ref hash, (uint)effectSet.Target);
+        Add(ref hash, (uint)effectSet.Capabilities);
+        Add(ref hash, (uint)effectSet.Quality);
+        AppendFloat4(ref hash, effectSet.Outsets);
     }
 }
 

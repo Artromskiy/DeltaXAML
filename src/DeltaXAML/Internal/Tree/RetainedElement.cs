@@ -76,6 +76,7 @@ internal partial class UiElement
         _properties.InitializeDefault("VerticalAlignment", _state.VerticalAlignment, UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
         _properties.InitializeDefault("Background", _state.Background, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderColor", _state.BorderColor, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("EffectSet", _state.EffectSet, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderWidth", _state.BorderWidth, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderWidthUnits", _state.BorderWidthUnits, UiDirtyFlags.Visual);
         _properties.InitializeDefault("CornerRadius", _state.CornerRadius, UiDirtyFlags.Visual);
@@ -166,6 +167,19 @@ internal partial class UiElement
     public UiSize DesiredSize { get; protected set; }
     public UiColor Background { get => _state.Background; set => SetLocalProperty("Background", value, UiDirtyFlags.Visual); }
     public UiColor BorderColor { get => _state.BorderColor; set => SetLocalProperty("BorderColor", value, UiDirtyFlags.Visual); }
+    public Delta.XAML.Contract.UiEffectSet EffectSet
+    {
+        get => _state.EffectSet;
+        set
+        {
+            if (value != Delta.XAML.Contract.UiEffectSet.None && !value.IsValid)
+            {
+                throw new ArgumentException("EffectSet must be empty or a valid prepared effect resource.", nameof(value));
+            }
+
+            SetLocalProperty("EffectSet", value, UiDirtyFlags.Visual);
+        }
+    }
     public float BorderWidth
     {
         get => _state.BorderWidth;

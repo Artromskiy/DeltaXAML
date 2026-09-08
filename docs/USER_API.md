@@ -240,10 +240,31 @@ Common elements expose renderer-neutral paint values through `BorderColor`,
 `BorderWidth` and four-corner `CornerRadius` values ordered top-left, top-right,
 bottom-right, bottom-left. A scalar XAML value is expanded uniformly. A radius
 changes the visual primitive to `RoundedRectangle` (or `Border` when a stroke is
-present); it does not implicitly clip child content. Text controls expose `OutlineColor`,
-`OutlineWidth` and an optional `TextEffect` resource identity. These values are
-carried into `UiVisualPaint`/`UiTextPaint`; shaping, effect shader selection and
-GPU resource resolution remain outside DeltaXAML. During display-list extraction,
+present); it does not implicitly clip child content. Text controls expose the
+compatibility `OutlineColor`, `OutlineWidth` and `TextEffect` resource identity.
+New code should set the common `EffectSet` property directly once a prepared
+typed resource is available. The display-list producer carries that set without
+choosing a shader or reading GPU data; the legacy `EffectResource` slot is
+retained for existing text producers during migration. Shaping, effect shader
+selection and GPU resource resolution remain outside DeltaXAML. A future
+compiled XAML effect literal must lower to the same `EffectSet` value rather
+than create another paint store. The current XAML path accepts a typed resource
+reference, for example `EffectSet="{StaticResource PreparedEffects}"`, when
+the load context's `UiResourceCatalog` contains a `UiEffectSet` or
+`UiEffectResource`. Use `UiResourceCatalog.Set(UiEffectResource)` for identity
+registration; the resource's `Parameters` remain typed cold-path data for the
+renderer adapter. A raw effect string is diagnosed instead of being interpreted
+heuristically. During display-list extraction,
+visual effect resources use `Stroke`, `OuterShadow`, `InsetShadow` and `Glow`,
+while text effect resources use `Outline`, `OuterShadow` and `Glow`; mixed
+visual/text capability sets are invalid.
+Effect distances are typed in `UiEffectParameters.Units`: `Logical` is the
+default and is converted once by the renderer, while `Device` keeps physical
+pixel widths and offsets. Analytic resources do not carry a cached-mask ID;
+cached-mask resources require one and are prepared by the renderer.
+`GetEffectResources()` returns a detached cold-setup snapshot of these typed
+resources, including resources reachable through name aliases, without
+duplicating an identity.
 radii are scaled proportionally only when the sums of adjacent radii would exceed
 an arranged width or height. A valid single corner can therefore reach the full
 length of its adjacent sides; the declared `CornerRadius` value is not changed.

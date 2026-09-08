@@ -310,6 +310,8 @@ internal static partial class Program
         DocumentOwnsReusableDisplayListStorage();
         TextDisplayListUsesDeltaText();
         PaintPropertiesReachDisplayList();
+        EffectSetContract();
+        EffectResourcePayload();
         RoundedCornerRadiiAreNormalizedBeforeExtraction();
         DisplayListDirtySubtreeReusesStableText();
         TextCacheDropsRemovedNodes();
@@ -944,6 +946,23 @@ internal static partial class Program
         var incompatibleBrush = loader.Load("<Panel Background=\"{StaticResource AccentBrush}\" />", in brushContext);
         Assert.True(!incompatibleBrush.Success && incompatibleBrush.Diagnostics.Length == 1 && incompatibleBrush.Diagnostics.Span[0].Code.Value == "XAML010", "incompatible resource/effect combinations are diagnosed");
 
+        var effectSet = new LibraryContract.UiEffectSet(
+            new LibraryContract.UiResourceId(new Guid("E8E4BBE8-6A52-4BE9-8BAE-6BBF5A20B2F8")),
+            LibraryContract.UiEffectTarget.Visual,
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectQuality.Analytic,
+            new float4(2, 2, 2, 2));
+        brushCatalog.Set("AccentEffects", effectSet);
+        var effectMarkup = loader.Load(
+            "<Border EffectSet=\"{StaticResource AccentEffects}\" />",
+            in brushContext);
+        Assert.True(effectMarkup.Success && effectMarkup.Root is Library.UiBorder,
+            "XAML resolves EffectSet through the typed resource path");
+        if (effectMarkup.Root is Library.UiBorder effectBorder)
+        {
+            Assert.Equal(effectSet, effectBorder.EffectSet, "XAML applies the immutable EffectSet without creating another paint store");
+        }
+
         using var textDocument = new EmptyTextService();
         var textRoot = loader.Load("<TextBlock Text=\"Hello\" />", in context).Root;
         if (textRoot is null) { throw new InvalidOperationException("library text root missing"); }
@@ -1122,6 +1141,17 @@ internal static partial class Program
         Assert.Equal(firstIdentity.Generation, third.Identities[1].Generation, "text mutation preserves the retained owner generation");
         Assert.True(third.Identities[1].Version > firstIdentity.Version, "text mutation advances only the producer version");
         Assert.Equal(unchangedIdentity, third.Identities[2], "unmodified text preserves its aligned identity and version");
+
+        var effects = new LibraryContract.UiEffectSet(
+            new LibraryContract.UiResourceId(new Guid("A2D20E6F-6B1A-4BB0-9E4E-14E66F3381CD")),
+            LibraryContract.UiEffectTarget.Text,
+            LibraryContract.UiEffectCapabilities.Outline | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectQuality.Analytic,
+            new float4(1, 1, 1, 1));
+        text.EffectSet = effects;
+        document.Layout(new Delta.float2(240, 40), 1);
+        var fourth = document.BuildDisplayList();
+        Assert.Equal(effects, fourth.Text[0].Paint.EffectSet, "user effect set reaches the canonical text payload");
     }
 
     private static void PaintPropertiesReachDisplayList()
@@ -1204,6 +1234,111 @@ internal static partial class Program
             "<Border BorderWidth=\"1\" BorderWidthUnits=\"Pixels\" />",
             in context);
         Assert.True(!invalidUnits.Success && invalidUnits.Diagnostics.Length == 1 && invalidUnits.Diagnostics.Span[0].Code.Value == "XAML003", "XAML diagnoses unsupported border unit values");
+    }
+
+    private static void EffectSetContract()
+    {
+        var resource = new LibraryContract.UiResourceId(new Guid("5C6A0F90-4DAB-4D1D-B7A9-4A5A0A9A2E10"));
+        var effects = new LibraryContract.UiEffectSet(
+            resource,
+            LibraryContract.UiEffectTarget.Visual,
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectQuality.Analytic,
+            new float4(2, 3, 4, 5));
+
+        Assert.True(effects.IsValid, "a typed visual effect set accepts finite non-negative outsets");
+        Assert.True(effects.Has(LibraryContract.UiEffectCapabilities.Stroke), "effect capabilities are queryable as a set");
+        Assert.True(!effects.Has(LibraryContract.UiEffectCapabilities.Outline), "effect capability queries do not invent missing layers");
+
+        var visualPaint = LibraryContract.UiVisualPaint.Solid(new float4(1, 1, 1, 1)) with
+        {
+            EffectSet = effects,
+        };
+        Assert.Equal(effects, visualPaint.EffectSet, "visual paint carries the immutable effect set without changing geometry");
+
+        var textPaint = new LibraryContract.UiTextPaint(
+            new float4(1, 1, 1, 1),
+            default,
+            0,
+            LibraryContract.UiResourceId.Empty)
+        {
+            EffectSet = effects with { Target = LibraryContract.UiEffectTarget.Text },
+        };
+        Assert.Equal(LibraryContract.UiEffectTarget.Text, textPaint.EffectSet.Target, "text paint carries a text-target effect set");
+        Assert.True(
+            !(effects with { Outsets = new float4(-1, 0, 0, 0) }).IsValid,
+            "negative effect outsets are rejected at the neutral boundary");
+        Assert.True(
+            !(effects with { Capabilities = (LibraryContract.UiEffectCapabilities)128 }).IsValid,
+            "unknown effect capability bits are rejected at the neutral boundary");
+
+        var border = new Library.UiBorder
+        {
+            Width = 20,
+            Height = 20,
+            Background = new Library.UiColor(20, 30, 40),
+            EffectSet = effects,
+        };
+        using var document = new Library.UiDocument(border, new EmptyTextService());
+        document.Layout(new float2(20, 20), 1);
+        var display = document.BuildDisplayList();
+        Assert.Equal(effects, display.Visuals[0].Paint.EffectSet, "user effect set reaches the canonical visual payload");
+    }
+
+    private static void EffectResourcePayload()
+    {
+        var set = new LibraryContract.UiEffectSet(
+            new LibraryContract.UiResourceId(new Guid("0C4E6B5F-0B5D-4C67-9B8F-0DC37A47A4A6")),
+            LibraryContract.UiEffectTarget.Visual,
+            LibraryContract.UiEffectCapabilities.Stroke | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectQuality.Analytic,
+            new float4(3, 3, 3, 3));
+        var resource = new LibraryContract.UiEffectResource(
+            set,
+            new LibraryContract.UiEffectParameters(
+                new LibraryContract.UiEffectLayer(new float4(1, 1, 1, 1), default, 2, 0, 0, 0),
+                default,
+                default,
+                new LibraryContract.UiEffectLayer(new float4(1, 0, 0, 1), default, 0, 4, 0, 1),
+                default));
+
+        Assert.True(resource.IsValid, "typed effect resource validates selected layers and parameters");
+        Assert.True(
+            !(resource with
+            {
+                Parameters = resource.Parameters with { CachedMask = set.Resource },
+            }).IsValid,
+            "analytic effect resources reject an accidental cached-mask identity");
+        Assert.True(!(resource with { Set = set with { Target = LibraryContract.UiEffectTarget.Text } }).IsValid,
+            "visual stroke capabilities cannot be reused as a text effect resource");
+
+        var catalog = new Library.UiResourceCatalog();
+        catalog.Set(resource);
+        Assert.True(catalog.TryResolveEffectResource(set.Resource, out var resolved), "typed effect resource resolves by identity");
+        Assert.Equal(resource, resolved, "typed resource resolution preserves all effect parameters");
+        var deviceStroke = LibraryContract.UiEffectResource.CreateVisualStroke(
+            new LibraryContract.UiResourceId(new Guid("0C4E6B5F-0B5D-4C67-9B8F-0DC37A47A4A7")),
+            new float4(1, 1, 1, 1),
+            1,
+            LibraryContract.PaintUnits.Device);
+        catalog.Set(deviceStroke);
+        Assert.Equal(LibraryContract.PaintUnits.Device, deviceStroke.Parameters.Units, "effect distance units remain typed resource data");
+        var effectSnapshot = catalog.GetEffectResources();
+        Assert.Equal(2, effectSnapshot.Length, "the cold effect snapshot exposes each registered typed effect resource");
+
+        catalog.Set("AccentEffects", resource);
+        Assert.Equal(2, catalog.GetEffectResources().Length, "named effect aliases are included without duplicating a typed resource");
+        var load = new Library.XamlLoader().Load(
+            "<Border EffectSet=\"{StaticResource AccentEffects}\" />",
+            new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), catalog));
+        Assert.True(load.Success && load.Root is not null, "typed effect resource is accepted by the XAML resource path");
+        Assert.Equal(set, load.Root!.EffectSet, "resource lookup lowers to the canonical EffectSet identity");
+
+        var dynamicLoad = new Library.XamlLoader().Load(
+            "<Border EffectSet=\"{DynamicResource AccentEffects}\" />",
+            new Library.XamlLoadContext(new EmptyLibraryTypeResolver(), catalog));
+        Assert.True(dynamicLoad.Success && dynamicLoad.Root is not null, "dynamic typed effect resource is accepted by the XAML resource path");
+        Assert.Equal(set, dynamicLoad.Root!.EffectSet, "dynamic resource lookup lowers to the canonical EffectSet identity");
     }
 
     private static void RoundedCornerRadiiAreNormalizedBeforeExtraction()
