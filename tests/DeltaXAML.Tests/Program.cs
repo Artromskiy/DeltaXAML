@@ -1368,6 +1368,41 @@ internal static partial class Program
         Assert.Equal(desiredBefore, border.RetainedElement.DesiredSize, "effect outsets do not change desired layout size");
         var display = document.BuildDisplayList();
         Assert.Equal(border.EffectSet, display.Visuals[0].Paint.EffectSet, "effect outsets remain on the paint resource reference");
+
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NotoSans-Regular.ttf");
+        var fonts = new Library.UiFontCatalog();
+        fonts.Register(
+            "default",
+            new TextContract.FontSourceId(new Guid("D58F31A8-4B19-41AC-9B0E-8A6FCEB9A21D")),
+            File.ReadAllBytes(fontPath));
+        var text = new Library.UiTextBlock
+        {
+            Text = "Delta",
+            FontSize = 24,
+            Width = 120,
+            Height = 50,
+        };
+        using var textService = new CountingTextService();
+        using var textDocument = new Library.UiDocument(text, textService, fonts);
+
+        textDocument.Layout(new float2(160, 120), 1);
+        var textBoundsBefore = text.RetainedElement.Bounds;
+        var textDesiredBefore = text.RetainedElement.DesiredSize;
+        var textBefore = textDocument.BuildDisplayList().Text[0];
+        text.EffectSet = new LibraryContract.UiEffectSet(
+            new LibraryContract.UiResourceId(new Guid("B8A1F2C9-1DB6-4A68-92F3-2F4A3F6B0C8E")),
+            LibraryContract.UiEffectTarget.Text,
+            LibraryContract.UiEffectCapabilities.Outline | LibraryContract.UiEffectCapabilities.Glow,
+            LibraryContract.UiEffectQuality.Analytic,
+            new float4(6, 8, 10, 12));
+        textDocument.Layout(new float2(160, 120), 1);
+        var textAfter = textDocument.BuildDisplayList().Text[0];
+
+        Assert.Equal(textBoundsBefore, text.RetainedElement.Bounds, "text effects do not move the arranged text element");
+        Assert.Equal(textDesiredBefore, text.RetainedElement.DesiredSize, "text effects do not change desired layout size");
+        Assert.Equal(textBefore.BaselineOrigin, textAfter.BaselineOrigin, "text effects do not change baseline placement");
+        Assert.True(ReferenceEquals(textBefore.Text, textAfter.Text), "text effects do not reshape an unchanged text run");
+        Assert.Equal(text.EffectSet, textAfter.Paint.EffectSet, "text effect identity reaches the canonical text paint");
     }
 
     private static void RoundedCornerRadiiAreNormalizedBeforeExtraction()
