@@ -334,10 +334,10 @@ dynamic stop change не пересоздаёт identity. Renderer провер�
 ### UI-08 — border sides, dash pattern и inset shadow
 
 Это три отдельных paint возможности, не изменение общего box model.
-Текущий `BorderWidth`/`UiVisualPaint.StrokeWidth` — один scalar. В frozen
-paint нет dash pattern или inset-shadow parameters. `UiEffectSet` теперь
-является общим visual/text reference-каналом; осталось согласовать typed
-resource payload и lowering convenience-свойств Border/Text в этот set.
+Базовый `UiEffectSet` теперь является общим visual/text reference-каналом:
+typed resource payload, `Units`, lowering convenience-свойств Border/Text и
+передача в display list завершены в commit `9817509`. Это не закрывает
+per-side widths, dash pattern или inset-shadow semantics.
 
 - [ ] **Sides:** выбрать canonical four-side width value, переиспользуя
   существующий four-side value type/parser там, где семантика совпадает.
@@ -361,9 +361,11 @@ resource payload и lowering convenience-свойств Border/Text в этот 
   inner shape, не произвольная цепочка CSS filter effects. XAML задаёт смысл
   и порядок; Render выбирает raster/cache, Shader — coverage/blur algorithm.
   Нулевая стоимость дополнительных buffers для элементов без эффекта.
-- [ ] Перед coding утвердить минимальную neutral resource/paint ревизию
-  для недостающих данных: owner, consume/replace/release lifetime и version.
-  Не называть новый payload под `Custom` обходом contract review.
+- [x] Минимальная neutral resource/paint ревизия для общего effect reference
+  утверждена: `UiEffectSet` использует существующий `UiResourceId`, typed
+  parameters имеют явные owner/consumer lifetime и `Units`; изменения
+  зафиксированы в contract increment `0.0.15`. Не называть новые payload под
+  `Custom` обходом contract review.
 - [ ] Composite painter сохраняет fill → inner shadow → stroke → content,
   clipping и ordered item identities. Если возникают subdraws, переиспользовать
   существующий per-output identity механизм; никакого второго UI tree.
