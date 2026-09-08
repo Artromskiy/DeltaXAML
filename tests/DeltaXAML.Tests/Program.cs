@@ -311,6 +311,7 @@ internal static partial class Program
         DocumentOwnsReusableDisplayListStorage();
         TextDisplayListUsesDeltaText();
         PaintPropertiesReachDisplayList();
+        BlendModeReachesDisplayList();
         EffectSetContract();
         EffectResourcePayload();
         EffectOutsetsDoNotAffectLayout();
@@ -1154,6 +1155,25 @@ internal static partial class Program
         document.Layout(new Delta.float2(240, 40), 1);
         var fourth = document.BuildDisplayList();
         Assert.Equal(effects, fourth.Text[0].Paint.EffectSet, "user effect set reaches the canonical text payload");
+    }
+
+    private static void BlendModeReachesDisplayList()
+    {
+        var border = new Library.UiBorder
+        {
+            Width = 40,
+            Height = 40,
+            Background = new(20, 30, 40),
+            BlendMode = LibraryContract.UiBlendMode.Additive,
+        };
+        Assert.Equal(LibraryContract.UiBlendMode.Additive, border.BlendMode, "typed blend mode property preserves the selected mode");
+        Assert.Equal(LibraryContract.UiBlendMode.PremultipliedAlpha, Library.UiElementProperties.BlendMode.DefaultValue, "blend mode defaults to premultiplied alpha");
+
+        using var textService = new EmptyTextService();
+        using var document = new Library.UiDocument(border, textService);
+        document.Layout(new(40, 40), 1);
+        Assert.True(document.TryBuildDisplayList(out var displayList, out var diagnostic) && diagnostic is null, "blend mode does not block visual extraction");
+        Assert.Equal(LibraryContract.UiBlendMode.Additive, displayList.Visuals[0].Paint.BlendMode, "blend mode reaches the canonical visual paint");
     }
 
     private static void PaintPropertiesReachDisplayList()

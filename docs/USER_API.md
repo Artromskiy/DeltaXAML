@@ -299,6 +299,20 @@ renderer-owned. Literal inline effects also work in the explicit cold loader
 when its load context contains a mutable `UiResourceCatalog`; effect bindings
 remain generated-only and return `XAML020` from that loader.
 
+Paint compositing is selected independently with the renderer-neutral
+`BlendMode` property. It is available on every visual and text element and is
+also carried by `UiVisualPaint`/`UiTextPaint`:
+
+```xml
+<Border Background="#203040" BlendMode="PremultipliedAlpha" />
+<TextBlock Text="Glow" BlendMode="Additive" />
+```
+
+The supported values are `Opaque`, `Alpha`, `PremultipliedAlpha`, `Additive`
+and `Multiply`. `Unknown` is invalid and is diagnosed at the producer
+boundary. These names express compositing intent only; Vulkan factors and
+operations are selected by DeltaRender and never enter the XAML contract.
+
 Inner layers paint only inside the source geometry and do not add outsets.
 Outer shadow and outer glow contribute to damage/paint bounds. Text stroke and
 all effects remain paint-only: they do not alter shaped glyphs, text metrics,

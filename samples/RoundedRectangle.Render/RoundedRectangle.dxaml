@@ -10,6 +10,7 @@
             Width="700"
             Height="400"
             Background="#383838"
+            BlendMode="Additive"
             CornerRadius="30,30,30,30">
         <Border.EffectSet>
             <EffectSet>

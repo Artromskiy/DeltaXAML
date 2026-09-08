@@ -2569,6 +2569,7 @@ internal static class CSharpArtifactEmitter
             "Delta.XAML.UiColor" => XamlValueKind.Color,
             "Delta.XAML.UiThickness" => XamlValueKind.Thickness,
             "Delta.XAML.UiCornerRadii" => XamlValueKind.CornerRadii,
+            "Delta.XAML.Contract.UiBlendMode" => XamlValueKind.Enum,
             _ => XamlValueKind.Invalid,
         };
         if (kind == XamlValueKind.Invalid)
@@ -2641,6 +2642,7 @@ internal static class CSharpArtifactEmitter
         {
             "BackgroundBrush" => "global::Delta.XAML.UiBrush",
             "EffectSet" => "global::Delta.XAML.Contract.UiEffectSet",
+            "BlendMode" => "global::Delta.XAML.Contract.UiBlendMode",
             "AutomationRole" => "global::Delta.XAML.UiSemanticRole",
             "Gestures" => "global::Delta.XAML.UiGestureKind",
             "Command" => "global::Delta.XAML.UiCommandId",
@@ -2683,6 +2685,7 @@ internal static class CSharpArtifactEmitter
             XamlValueKind.Thickness => "global::Delta.XAML.UiThickness",
             XamlValueKind.CornerRadii => "global::Delta.XAML.UiCornerRadii",
             XamlValueKind.Enum when property.Name == "Orientation" && type.Name.LocalName is "StackPanel" or "Slider" => "global::Delta.XAML.UiOrientation",
+            XamlValueKind.Enum when property.Name == "BlendMode" => "global::Delta.XAML.Contract.UiBlendMode",
             _ => string.Empty,
         };
         if (fallbackTypeName.Length == 0)
@@ -3505,6 +3508,13 @@ internal static class CSharpArtifactEmitter
                 borderWidthUnits is Delta.XAML.Contract.PaintUnits.Logical or Delta.XAML.Contract.PaintUnits.Device:
                 expression = "global::Delta.XAML.Contract.PaintUnits." + borderWidthUnits;
                 return true;
+            case XamlValueKind.Enum when propertyName == "BlendMode" &&
+                Enum.TryParse<Delta.XAML.Contract.UiBlendMode>(literal, false, out var blendMode) &&
+                blendMode is Delta.XAML.Contract.UiBlendMode.Opaque or Delta.XAML.Contract.UiBlendMode.Alpha or
+                Delta.XAML.Contract.UiBlendMode.PremultipliedAlpha or Delta.XAML.Contract.UiBlendMode.Additive or
+                Delta.XAML.Contract.UiBlendMode.Multiply:
+                expression = "global::Delta.XAML.Contract.UiBlendMode." + blendMode;
+                return true;
             case XamlValueKind.Enum when propertyName == "HorizontalAlignment" &&
                 Enum.TryParse<Delta.XAML.UiHorizontalAlignment>(literal, false, out var elementHorizontalAlignment) &&
                 elementHorizontalAlignment != Delta.XAML.UiHorizontalAlignment.Unknown:
@@ -3568,6 +3578,7 @@ internal static class CSharpArtifactEmitter
             "TemplateKey" => "global::Delta.XAML.UiElementProperties.TemplateKey",
             "BackgroundBrush" => "global::Delta.XAML.UiElementProperties.BackgroundBrush",
             "EffectSet" => "global::Delta.XAML.UiElementProperties.EffectSet",
+            "BlendMode" => "global::Delta.XAML.UiElementProperties.BlendMode",
             "BorderColor" => "global::Delta.XAML.UiElementProperties.BorderColor",
             "BorderWidth" => "global::Delta.XAML.UiElementProperties.BorderWidth",
             "BorderWidthUnits" => "global::Delta.XAML.UiElementProperties.BorderWidthUnits",

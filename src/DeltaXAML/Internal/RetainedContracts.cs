@@ -21,6 +21,7 @@ internal enum UiPropertyKey
     BackgroundBrush,
     BorderColor,
     EffectSet,
+    BlendMode,
     BorderWidth,
     BorderWidthUnits,
     CornerRadius,
@@ -81,6 +82,7 @@ internal static class UiPropertyKeys
         "BackgroundBrush" => UiPropertyKey.BackgroundBrush,
         "BorderColor" => UiPropertyKey.BorderColor,
         "EffectSet" => UiPropertyKey.EffectSet,
+        "BlendMode" => UiPropertyKey.BlendMode,
         "BorderWidth" => UiPropertyKey.BorderWidth,
         "BorderWidthUnits" => UiPropertyKey.BorderWidthUnits,
         "CornerRadius" => UiPropertyKey.CornerRadius,
@@ -154,6 +156,7 @@ internal static class UiPropertyKeys
             "IsReadOnly" or "AcceptsReturn" => typeof(bool),
             "Background" or "BorderColor" or "Foreground" or "StrokeColor" => typeof(UiColor),
             "EffectSet" => typeof(UiEffectSet),
+            "BlendMode" => typeof(UiBlendMode),
             "BorderWidth" or "StrokeWidth" => typeof(float),
             "BorderWidthUnits" => typeof(PaintUnits),
             "CornerRadius" => typeof(Delta.XAML.UiCornerRadii),
@@ -249,6 +252,7 @@ internal readonly record struct UiTextRun(
     internal Delta.XAML.UiFontStyle Style { get; init; }
     internal Delta.XAML.UiTextDecorations Decorations { get; init; }
     internal UiEffectSet EffectSet { get; init; }
+    internal UiBlendMode BlendMode { get; init; } = UiBlendMode.PremultipliedAlpha;
 }
 internal readonly record struct UiMeasureContext(
     UiSize Available,

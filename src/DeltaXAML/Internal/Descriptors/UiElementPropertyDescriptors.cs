@@ -110,6 +110,18 @@ internal static class UiElementPropertiesGenerated
         return true;
     }
 
+    internal static bool TrySetBlendMode(ref UiElementState state, UiBlendMode value)
+    {
+        if (value is not (UiBlendMode.Opaque or UiBlendMode.Alpha or UiBlendMode.PremultipliedAlpha or UiBlendMode.Additive or UiBlendMode.Multiply))
+        {
+            return false;
+        }
+
+        if (state.BlendMode == value) { return false; }
+        state.BlendMode = value;
+        return true;
+    }
+
     internal static bool TrySetBorderWidth(ref UiElementState state, float value)
     {
         if (!float.IsFinite(value) || value < 0) { return false; }

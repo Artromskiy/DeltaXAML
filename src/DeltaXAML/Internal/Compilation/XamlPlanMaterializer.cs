@@ -572,6 +572,13 @@ internal static class XamlPlanMaterializer
                 break;
             case "BackgroundBrush": d.Add(new("XAML003", $"Invalid BackgroundBrush '{value}'.", line, 1)); break;
             case "EffectSet": d.Add(new("XAML003", "EffectSet must be supplied through a typed StaticResource or DynamicResource.", line, 1)); break;
+            case "BlendMode" when Enum.TryParse(value, true, out Delta.XAML.Contract.UiBlendMode blendMode) && blendMode is
+                Delta.XAML.Contract.UiBlendMode.Opaque or Delta.XAML.Contract.UiBlendMode.Alpha or
+                Delta.XAML.Contract.UiBlendMode.PremultipliedAlpha or Delta.XAML.Contract.UiBlendMode.Additive or
+                Delta.XAML.Contract.UiBlendMode.Multiply:
+                e.BlendMode = blendMode;
+                break;
+            case "BlendMode": d.Add(new("XAML003", $"Invalid BlendMode '{value}'. Expected Opaque, Alpha, PremultipliedAlpha, Additive or Multiply.", line, 1)); break;
             case "Orientation" when e is StackPanel s && Enum.TryParse(value, true, out UiOrientation orientation): s.Orientation = orientation; break;
             case "Columns" when e is Grid grid && TryGridLengths(value, out var columns): grid.SetColumns(columns); break;
             case "Rows" when e is Grid grid && TryGridLengths(value, out var rows): grid.SetRows(rows); break;
@@ -667,7 +674,7 @@ internal static class XamlPlanMaterializer
     {
         if (name is "Width" or "Height" or "Margin" or "HorizontalAlignment" or "VerticalAlignment" or "Background" or "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" or "Padding" or
             "StyleKey" or "TemplateKey" or "AutomationName" or "AutomationRole" or
-            "IsEnabled" or "IsSelected" or "BackgroundBrush" or "EffectSet")
+            "IsEnabled" or "IsSelected" or "BackgroundBrush" or "EffectSet" or "BlendMode")
         {
             return true;
         }
@@ -704,6 +711,7 @@ internal static class XamlPlanMaterializer
         "BorderWidthUnits" => value is Delta.XAML.Contract.PaintUnits,
         "CornerRadius" => value is Delta.XAML.UiCornerRadii,
         "EffectSet" => value is UiEffectSet,
+        "BlendMode" => value is Delta.XAML.Contract.UiBlendMode,
         "BackgroundBrush" => value is Delta.XAML.UiBrush,
         "Padding" or "Margin" => value is UiThickness or Delta.XAML.UiThickness,
         "Width" or "Height" or "FontSize" or "Minimum" or "Maximum" or "Value" => value is
@@ -742,7 +750,7 @@ internal static class XamlPlanMaterializer
         "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextTrimming" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "PlaceholderText" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => UiDirtyFlags.Visual,
-        "Foreground" or "StrokeColor" or "StrokeWidth" or "EffectSet" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "Foreground" or "StrokeColor" or "StrokeWidth" or "EffectSet" or "BlendMode" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
         "Width" or "Height" or "Margin" or "Padding" or "Source" => UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "HorizontalAlignment" or "VerticalAlignment" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,

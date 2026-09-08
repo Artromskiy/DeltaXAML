@@ -104,14 +104,27 @@ public enum PaintUnits : byte
     Device,
 }
 
+/// <summary>Renderer-neutral compositing mode selected for one paint payload.</summary>
+public enum UiBlendMode : byte
+{
+    Unknown = 0,
+    Opaque = 1,
+    Alpha = 2,
+    PremultipliedAlpha = 3,
+    Additive = 4,
+    Multiply = 5,
+}
+
 /// <summary>Fixed-size renderer-neutral paint data for a visual primitive.</summary>
 /// <param name="FillColor">Linear RGBA fill or tint.</param>
 /// <param name="CornerRadii">Per-corner radii in logical units.</param>
 /// <param name="EffectSet">Prepared immutable set of visual paint effects, if any.</param>
+/// <param name="BlendMode">Renderer-neutral compositing mode.</param>
 public readonly record struct UiVisualPaint(
     float4 FillColor,
     float4 CornerRadii,
-    UiEffectSet EffectSet)
+    UiEffectSet EffectSet,
+    UiBlendMode BlendMode = UiBlendMode.PremultipliedAlpha)
 {
     /// <summary>Creates a fill-only paint.</summary>
     public static UiVisualPaint Solid(float4 color) => new(color, default, UiEffectSet.None);
@@ -196,9 +209,11 @@ public readonly record struct UiVisualDraw
 /// <summary>Fixed-size renderer-neutral paint data for shaped text.</summary>
 /// <param name="FillColor">Linear RGBA glyph fill color.</param>
 /// <param name="EffectSet">Prepared immutable set of text paint effects, if any.</param>
+/// <param name="BlendMode">Renderer-neutral compositing mode.</param>
 public readonly record struct UiTextPaint(
     float4 FillColor,
-    UiEffectSet EffectSet)
+    UiEffectSet EffectSet,
+    UiBlendMode BlendMode = UiBlendMode.PremultipliedAlpha)
 {
     /// <summary>Creates fill-only text paint.</summary>
     public static UiTextPaint Solid(float4 color) => new(color, UiEffectSet.None);

@@ -24,6 +24,7 @@ internal partial class UiElement
         Height = float.NaN,
         HorizontalAlignment = Delta.XAML.UiHorizontalAlignment.Stretch,
         VerticalAlignment = Delta.XAML.UiVerticalAlignment.Stretch,
+        BlendMode = Delta.XAML.Contract.UiBlendMode.PremultipliedAlpha,
         IsEnabled = true,
         GridRowSpan = 1,
         GridColumnSpan = 1,
@@ -77,6 +78,7 @@ internal partial class UiElement
         _properties.InitializeDefault("Background", _state.Background, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderColor", _state.BorderColor, UiDirtyFlags.Visual);
         _properties.InitializeDefault("EffectSet", _state.EffectSet, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("BlendMode", _state.BlendMode, UiDirtyFlags.Visual | UiDirtyFlags.Text);
         _properties.InitializeDefault("BorderWidth", _state.BorderWidth, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderWidthUnits", _state.BorderWidthUnits, UiDirtyFlags.Visual);
         _properties.InitializeDefault("CornerRadius", _state.CornerRadius, UiDirtyFlags.Visual);
@@ -178,6 +180,21 @@ internal partial class UiElement
             }
 
             SetLocalProperty("EffectSet", value, UiDirtyFlags.Visual);
+        }
+    }
+    public Delta.XAML.Contract.UiBlendMode BlendMode
+    {
+        get => _state.BlendMode;
+        set
+        {
+            if (value is not (Delta.XAML.Contract.UiBlendMode.Opaque or Delta.XAML.Contract.UiBlendMode.Alpha or
+                Delta.XAML.Contract.UiBlendMode.PremultipliedAlpha or Delta.XAML.Contract.UiBlendMode.Additive or
+                Delta.XAML.Contract.UiBlendMode.Multiply))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            SetLocalProperty("BlendMode", value, UiDirtyFlags.Visual | UiDirtyFlags.Text);
         }
     }
     public float BorderWidth

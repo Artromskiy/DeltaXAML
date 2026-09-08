@@ -115,9 +115,16 @@ public readonly record struct UiDrawRef(UiDrawKind Kind, int Index);
 public readonly record struct UiClipRegion(
     float4 Bounds, UiClipId Parent, UiClipKind Kind, float4 CornerRadii);
 public readonly record struct UiVisualPaint(
-    float4 FillColor, float4 CornerRadii, UiEffectSet EffectSet);
+    float4 FillColor, float4 CornerRadii, UiEffectSet EffectSet,
+    UiBlendMode BlendMode = UiBlendMode.PremultipliedAlpha);
 public readonly record struct UiTextPaint(
-    float4 FillColor, UiEffectSet EffectSet);
+    float4 FillColor, UiEffectSet EffectSet,
+    UiBlendMode BlendMode = UiBlendMode.PremultipliedAlpha);
+public enum UiBlendMode : byte
+{
+    Unknown = 0, Opaque = 1, Alpha = 2,
+    PremultipliedAlpha = 3, Additive = 4, Multiply = 5
+}
 public readonly record struct UiEffectSet(
     UiResourceId Resource,
     UiEffectTarget Target,
@@ -183,9 +190,11 @@ semantic shape. Rectangles may use scissor; rounded regions may use an analytic
 shader, stencil or mask selected by the renderer adapter. The contract carries
 corner radii but does not prescribe the GPU implementation.
 
-`UiVisualPaint` and `UiTextPaint` carry only base fill, visual corner geometry
-and the canonical `EffectSet` reference. Stroke, shadow and glow data are not
-duplicated inline in draw payloads. The set
+`UiVisualPaint` and `UiTextPaint` carry only base fill, visual corner geometry,
+the canonical `EffectSet` reference and a renderer-neutral `UiBlendMode`.
+`UiBlendMode` selects compositing semantics; it does not expose Vulkan blend
+factors. Stroke, shadow and glow data are not duplicated inline in draw
+payloads. The set
 identifies one immutable, typed `UiEffectResource` containing the selected
 effect parameters. `UiEffectParameters` has fixed named layers for the
 canonical effect order; it is not a shader ABI and does not require a second

@@ -398,6 +398,7 @@ internal sealed class UiVisualStage : IDisposable
             EffectSet = element.EffectSet.Target == UiEffectTarget.Text
                 ? element.EffectSet
                 : UiEffectSet.None,
+            BlendMode = element.BlendMode,
         };
         return true;
     }
@@ -433,7 +434,7 @@ internal sealed class UiVisualStage : IDisposable
                 UiVisualKind.Custom,
                 new UiVisualTypeId(element.CustomVisualTypeId),
                 ToFloat4(element.Bounds),
-                UiVisualPaint.Solid(ToColor(element.CustomVisualColor)),
+                UiVisualPaint.Solid(ToColor(element.CustomVisualColor)) with { BlendMode = element.BlendMode },
                 clip,
                 new UiResourceId(element.CustomVisualResourceId));
             return true;
@@ -445,7 +446,7 @@ internal sealed class UiVisualStage : IDisposable
                 UiVisualKind.Image,
                 default,
                 ToFloat4(image.ImageBounds),
-                UiVisualPaint.Solid(ToColor(image.Tint)),
+                UiVisualPaint.Solid(ToColor(image.Tint)) with { BlendMode = element.BlendMode },
                 clip,
                 new UiResourceId(image.DisplaySource));
             return true;
@@ -472,7 +473,8 @@ internal sealed class UiVisualStage : IDisposable
             new UiVisualPaint(
                 ToColor(element.Background),
                 new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft),
-                effectSet),
+                effectSet,
+                element.BlendMode),
             clip,
             UiResourceId.Empty);
         return true;
@@ -553,6 +555,7 @@ internal sealed class UiVisualStage : IDisposable
                     EffectSet = owner.EffectSet.Target == UiEffectTarget.Text
                         ? owner.EffectSet
                         : UiEffectSet.None,
+                    BlendMode = owner.BlendMode,
                 },
                 clip);
             if (spans[i].Link.IsValid)

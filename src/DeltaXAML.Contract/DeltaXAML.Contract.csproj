@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DeltaXAML.Contract</AssemblyName>
     <PackageId>DeltaXAML.Contract</PackageId>
-    <Version>0.0.15</Version>
+    <Version>0.0.16</Version>
     <IsPackable>true</IsPackable>
     <Authors>Artromskiy</Authors>
     <Description>Neutral input and borrowed UI display-list contracts for DeltaXAML consumers.</Description>

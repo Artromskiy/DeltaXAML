@@ -295,6 +295,21 @@ public abstract class UiElement
         }
     }
 
+    /// <summary>Gets or sets the renderer-neutral compositing mode for this element's paint.</summary>
+    public UiBlendMode BlendMode
+    {
+        get => _retained.BlendMode;
+        set
+        {
+            if (value is not (UiBlendMode.Opaque or UiBlendMode.Alpha or UiBlendMode.PremultipliedAlpha or UiBlendMode.Additive or UiBlendMode.Multiply))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value));
+            }
+
+            _retained.BlendMode = value;
+        }
+    }
+
     /// <summary>Uniform border width; zero disables the stroke.</summary>
     /// <remarks>Use <see cref="BorderWidthUnits"/> to keep the width in device pixels for hairlines.</remarks>
     public float BorderWidth
@@ -1002,6 +1017,7 @@ public abstract class UiElement
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => RetainedDirty.Visual,
         "Foreground" or "StrokeColor" or "StrokeWidth" => RetainedDirty.Visual | RetainedDirty.Text,
         "EffectSet" => RetainedDirty.Visual | RetainedDirty.Text,
+        "BlendMode" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
         "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => RetainedDirty.Visual,
         "Width" or "Height" or "Margin" or "Padding" or
