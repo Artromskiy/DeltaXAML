@@ -85,7 +85,8 @@ internal static class Program
             session,
             textService,
             extent,
-            window is null && options.ReadbackPath is not null);
+            window is null && options.ReadbackPath is not null,
+            content.Resources);
         var frame = 0;
 
         while (CanRender(window, frame, options.Frames))

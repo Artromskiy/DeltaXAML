@@ -37,6 +37,8 @@ internal sealed class UiLibraryDemoContent : IDisposable
 
     internal UiDocument Document => _artifact.Document;
 
+    internal UiResourceCatalog Resources => _artifact.Resources;
+
     internal void AdvanceFrame(float width, float height)
     {
         _model.PageWidth = Maths.Max(0, width - 26);

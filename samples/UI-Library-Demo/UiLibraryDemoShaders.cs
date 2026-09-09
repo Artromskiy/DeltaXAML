@@ -19,6 +19,18 @@ internal static class UiLibraryDemoShaders
         UiShaders.Abi.UiRectangleShaders.RoundedRectangle.Vertex(),
         UiShaders.Abi.UiRectangleShaders.RoundedRectangle.Fragment());
 
+    internal static GraphicsShaderProgram SolidStrokeRectangle() => Create(
+        UiShaders.Spv.UiRectangleShaders.SolidStroke.Vertex(),
+        UiShaders.Spv.UiRectangleShaders.SolidStroke.Fragment(),
+        UiShaders.Abi.UiRectangleShaders.SolidStroke.Vertex(),
+        UiShaders.Abi.UiRectangleShaders.SolidStroke.Fragment());
+
+    internal static GraphicsShaderProgram RoundedStrokeRectangle() => Create(
+        UiShaders.Spv.UiRectangleShaders.RoundedStroke.Vertex(),
+        UiShaders.Spv.UiRectangleShaders.RoundedStroke.Fragment(),
+        UiShaders.Abi.UiRectangleShaders.RoundedStroke.Vertex(),
+        UiShaders.Abi.UiRectangleShaders.RoundedStroke.Fragment());
+
     internal static GraphicsShaderProgram Text() => Create(
         TextShaders.Spv.TextShaders.SdfText.Vertex(),
         TextShaders.Spv.TextShaders.SdfText.Fragment(),
