@@ -102,7 +102,6 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
             extent,
             textFeature: _textFeature,
             solidVisualProgram: _solidProgram,
-            roundedSliceVisualProgram: _roundedProgram,
             registry: _registry);
 
     private IRenderFeature[] CreateFeatures() => _readbackFeature is null
