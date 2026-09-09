@@ -23,8 +23,7 @@
     <None Include="../../../DeltaText/tests/DeltaText.Tests/Fixtures/NotoSans-Regular.ttf"
           Link="Assets/NotoSans-Regular.ttf"
           CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../../Furnace/Fonts/Doto/Doto-Variable.ttf"
-          Link="Assets/Doto-Variable.ttf"
+    <None Include="Assets/JetBrainsMono-Medium.ttf"
           CopyToOutputDirectory="PreserveNewest" />
     <None Include="RoundedRectangle.dxaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(PkgSilk_NET_MoltenVK_Native)/runtimes/osx/native/libMoltenVK.dylib"

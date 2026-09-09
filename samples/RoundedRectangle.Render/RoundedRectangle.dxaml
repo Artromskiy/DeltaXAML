@@ -11,23 +11,11 @@
             Height="400"
             Background="#383838"
             CornerRadius="30,30,30,30">
-        <Border.EffectSet>
-            <EffectSet>
-                <Stroke Color="#28A8BD" Width="5" />
-                <OuterGlow Color="#28A8BD" Radius="6" />
-            </EffectSet>
-        </Border.EffectSet>
-        <TextBlock Text="Delta"
-                   FontKey="doto"
+        <TextBlock Text="Data"
+                   FontKey="mono"
                    FontSize="48"
                    Foreground="#FFFFFF"
                    HorizontalTextAlignment="Center"
-                   VerticalTextAlignment="Center">
-            <TextBlock.EffectSet>
-                <EffectSet>
-                    <OuterShadow Color="#E0000000" Radius="1.5" Offset="0,60" />
-                </EffectSet>
-            </TextBlock.EffectSet>
-        </TextBlock>
+                   VerticalTextAlignment="Center" />
     </Border>
 </Grid>

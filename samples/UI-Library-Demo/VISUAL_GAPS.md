@@ -12,15 +12,14 @@ Resources and eight named styles share the palette, typography, cards, buttons,
 badges and fields. Typed `ItemsSource` + templates construct tabs, action/menu
 buttons, icons, badges, statuses, swatches, markers and both grids. Grid item
 keys remain stable on resize. The background pitch is 32 logical units; the
-preview uses 16. No shaders, renderer types or library contracts were changed.
+preview uses 16. No sample-specific shader or contract extension is required.
 
 ## Required for closer visual parity
 
 | Capability | Existing API / limitation | Current sample treatment |
 | --- | --- | --- |
-| Multistop linear gradients | `UiBrush.LinearGradient` and neutral gradient resources exist in DeltaXAML. The current `UiDisplayListGraphFeature` registration only connects solid/rounded programs here, not gradient-stop resources and paint. This is a renderer integration gap, not missing XAML color syntax. | Primary/Active buttons, Spectrum swatch/background and accent bars use explicit representative solid colors; asset selection uses a solid tinted surface. No new sample-specific shader. |
 | Rotation / render transforms | There is no built-in public `RenderTransform`/`Rotate` property preserving normal layout, clips and hit testing. | Preview entity is a centered 22×22 rounded square without the source's 18° rotation and 52% horizontal offset. |
-| Dashed/per-side stroke and prepared inner effects | Public `BorderWidth` is still a scalar solid stroke and has no dash pattern. DeltaXAML now authors `InnerShadow`/`InnerGlow` through the shared typed `EffectSet`; exact renderer/shader variants must be present before the sample can use them. | Empty-state boxes use solid strokes; the subtle card inner highlight remains omitted until the prepared variant is available. |
+| Dashed/per-side stroke and remaining inner-effect coverage | Public `BorderWidth` is still a scalar solid stroke and has no dash pattern. DeltaXAML authors `InnerShadow`/`InnerGlow` through the shared typed `EffectSet`; the renderer currently exposes the prepared analytic visual `InnerShadow` path, while `InnerGlow` and text inner effects are not available to this sample. | Empty-state boxes use solid strokes; the subtle card inner highlight remains omitted until the required effect path is available. |
 | Independent border sides | Current `BorderWidth` does not accept four independent sides. | Toolbar has a full thin outline instead of just top/bottom strokes. Header separator is an ordinary 1-unit Border. |
 | CSS auto-fit / minmax / flex-wrap / gap | Grid, star/Auto tracks, attached rows/columns and item grids exist; CSS automatic wrapping and breakpoints are not source constructs. | One resize policy selects card slots and full-width sections through public attached properties. Buttons use a two-column item grid rather than width-dependent flex wrapping; tabs use equal slots. No manual measure/arrange algorithm. |
 | Implicit styles / BasedOn / header-content slots | The generated dialect uses explicit `StyleKey`; no general ContentPresenter/HeaderedContentControl slot is used for the card header/body. | Eight shared styles and typed repeated-item templates; distinct card contents remain declarative. This is why each card still has one Border, heading and content container. |
@@ -38,9 +37,6 @@ preview uses 16. No shaders, renderer types or library contracts were changed.
   star grid automatically occupy viewport width. An ordinary compiled binding
   sets `PageWidth` from the viewport minus the declared page margins. Layout
   itself remains owned by DeltaXAML.
-- A scalar binding on a sealed source without `INotifyPropertyChanged` caused
-  generated CS8121 at the generator's notification-pattern check. The sample
-  uses a real notifying view model, not a reflection or compatibility fallback.
 - Some font glyphs still fail to appear in the Vulkan result (notably the
   Material Symbols `play_arrow` U+E037 and `layers` U+E53B in the Icons card).
   Both codepoints and outline contours exist in the shipped subset. This is
