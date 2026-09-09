@@ -68,17 +68,38 @@ jobs:
             --username "${{ github.repository_owner }}" \
             --password "${{ github.token }}" \
             --store-password-in-clear-text
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Materialize Six Labors license
+        env:
+          SIXLABORS_LICENSE: ${{ secrets.SIXLABORS_LICENSE }}
+        run: |
+          if [ -z "$SIXLABORS_LICENSE" ]; then
+            echo "::error::Repository secret SIXLABORS_LICENSE is required for the build-time SixLabors.Fonts package."
+            exit 1
+          fi
+          printf '%s\n' "$SIXLABORS_LICENSE" > "$RUNNER_TEMP/sixlabors.lic"
+          echo "SixLaborsLicenseFile=$RUNNER_TEMP/sixlabors.lic" >> "$GITHUB_ENV"
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
           path: ${{ env.NUGET_PACKAGES }}
           key: delta-xaml-nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: delta-xaml-nuget-${{ runner.os }}-
+      - name: Prepare current workspace packages
+        working-directory: DeltaXAML
+        env:
+          NUGET_GITHUB_SOURCE: https://nuget.pkg.github.com/Artromskiy/index.json
+        run: ../DeltaRender/eng/prepare-ci-packages.sh "$RUNNER_TEMP/delta-xaml-packages"
       - name: Restore and build
         working-directory: DeltaXAML
         run: |
           ./eng/check-deltamaths-usage.sh
-          dotnet restore DeltaXAML.slnx
+          dotnet restore DeltaXAML.slnx \
+            --source "$RUNNER_TEMP/delta-xaml-packages" \
+            --source https://api.nuget.org/v3/index.json \
+            --source https://nuget.pkg.github.com/Artromskiy/index.json \
+            --ignore-failed-sources
           dotnet build DeltaXAML.slnx -c Release --no-restore
       - name: Run tests
         working-directory: DeltaXAML
