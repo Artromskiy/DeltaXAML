@@ -6,7 +6,7 @@
     <RootNamespace>DeltaXAML.Generator</RootNamespace>
     <AssemblyName>DeltaXAML.Generator</AssemblyName>
     <PackageId>DeltaXAML.Generator</PackageId>
-    <Version>0.0.16</Version>
+    <Version>0.0.17</Version>
     <IsPackable>true</IsPackable>
     <Authors>Artromskiy</Authors>
     <Description>Build-time Roslyn incremental generator for compiled DeltaXAML documents.</Description>
