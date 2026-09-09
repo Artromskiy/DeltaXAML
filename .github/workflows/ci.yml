@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 concurrency:
   group: delta-xaml-ci-${{ github.workflow }}-${{ github.ref }}
@@ -61,15 +60,6 @@ jobs:
           dotnet-version: |
             8.0.x
             10.0.x
-      - name: Configure GitHub Packages
-        working-directory: DeltaXAML
-        run: |
-          dotnet nuget add source \
-            https://nuget.pkg.github.com/Artromskiy/index.json \
-            --name github-artromskiy \
-            --username "${{ github.repository_owner }}" \
-            --password "${{ github.token }}" \
-            --store-password-in-clear-text
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
       - name: Materialize Six Labors license
@@ -109,7 +99,6 @@ jobs:
       - name: Prepare current workspace packages
         working-directory: DeltaXAML
         env:
-          NUGET_GITHUB_SOURCE: https://nuget.pkg.github.com/Artromskiy/index.json
           SIXLABORS_FONTS_SOURCE: ${{ runner.temp }}/sixlabors-feed
         run: ../DeltaRender/eng/prepare-ci-packages.sh "$RUNNER_TEMP/delta-xaml-packages"
       - name: Restore and build
@@ -119,7 +108,6 @@ jobs:
           dotnet restore DeltaXAML.slnx \
             --source "$RUNNER_TEMP/delta-xaml-packages" \
             --source https://api.nuget.org/v3/index.json \
-            --source https://nuget.pkg.github.com/Artromskiy/index.json \
             --ignore-failed-sources
           dotnet build DeltaXAML.slnx -c Release --no-restore
       - name: Run tests
