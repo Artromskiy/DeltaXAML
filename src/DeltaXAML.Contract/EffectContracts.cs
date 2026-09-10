@@ -38,19 +38,27 @@ public readonly record struct UiEffectLayer(
     float Spread,
     float Intensity)
 {
+    /// <summary>Optional left, top, right and bottom stroke widths.</summary>
+    /// <remarks>Zero means use the legacy uniform <see cref="Width"/> value.</remarks>
+    public float4 SideWidths { get; init; }
+
     /// <summary>Gets whether this layer contains no paint data.</summary>
     public bool IsEmpty => Color == default && Offset == default &&
-        Width == 0 && BlurRadius == 0 && Spread == 0 && Intensity == 0;
+        Width == 0 && SideWidths == default && BlurRadius == 0 && Spread == 0 && Intensity == 0;
 
     internal bool IsFiniteNonNegative()
-        => IsFinite(Color) && IsFinite(Offset) &&
+        => IsFinite(Color) && IsFinite(Offset) && IsFinite(SideWidths) &&
             IsFiniteNonNegative(Width) && IsFiniteNonNegative(BlurRadius) &&
-            IsFiniteNonNegative(Spread) && IsFiniteNonNegative(Intensity);
+            IsFiniteNonNegative(Spread) && IsFiniteNonNegative(Intensity) &&
+            IsFiniteNonNegative(SideWidths);
 
     private static bool IsFinite(float2 value) => float.IsFinite(value.x) && float.IsFinite(value.y);
 
     private static bool IsFinite(float4 value) => float.IsFinite(value.x) && float.IsFinite(value.y) &&
         float.IsFinite(value.z) && float.IsFinite(value.w);
+
+    private static bool IsFiniteNonNegative(float4 value) => IsFinite(value) &&
+        value.x >= 0 && value.y >= 0 && value.z >= 0 && value.w >= 0;
 
     private static bool IsFiniteNonNegative(float value) => float.IsFinite(value) && value >= 0;
 }
@@ -133,6 +141,33 @@ public readonly record struct UiEffectResource(
             set,
             new UiEffectParameters(
                 new UiEffectLayer(color, default, width, 0, 0, 1),
+                default,
+                default,
+                default,
+                default,
+                default)
+            {
+                Units = units,
+            });
+    }
+
+    /// <summary>Creates a visual analytic stroke resource with per-side widths.</summary>
+    public static UiEffectResource CreateVisualStroke(
+        UiResourceId resource,
+        float4 color,
+        float4 sideWidths,
+        PaintUnits units = PaintUnits.Logical)
+    {
+        var set = new UiEffectSet(
+            resource,
+            UiEffectTarget.Visual,
+            UiEffectCapabilities.Stroke,
+            UiEffectQuality.Analytic,
+            default);
+        return new(
+            set,
+            new UiEffectParameters(
+                new UiEffectLayer(color, default, 0, 0, 0, 1) { SideWidths = sideWidths },
                 default,
                 default,
                 default,

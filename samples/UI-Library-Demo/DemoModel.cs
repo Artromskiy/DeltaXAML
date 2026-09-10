@@ -4,7 +4,16 @@ using System.ComponentModel;
 namespace DeltaXaml.Samples.UiLibraryDemo;
 
 // Data only: repeated controls are constructed by generated DXAML templates.
-public readonly record struct DemoEntry(string Label, UiColor Color, UiColor Stroke, bool Enabled = true, string Glyph = "");
+public readonly record struct DemoEntry(
+    string Label,
+    UiColor Color,
+    UiColor Stroke,
+    bool Enabled = true,
+    string Glyph = "",
+    UiBrush CustomBrush = default)
+{
+    public UiBrush Brush => CustomBrush.Kind == UiBrushKind.None ? UiBrush.Solid(Color) : CustomBrush;
+}
 
 public sealed class DemoItems(params DemoEntry[] entries) : IUiItemsSource<DemoEntry>
 {
@@ -46,7 +55,8 @@ public sealed class DemoModel : INotifyPropertyChanged
         new("Game", new(109, 109, 109), default), new("Scene", new(109, 109, 109), default),
         new("Entities", new(109, 109, 109), default), new("Disabled", new(53, 53, 53), default, false));
     public DemoItems Actions { get; } = new(
-        new("Primary", Orange, Orange), new("Secondary", default, Line),
+        new("Primary", Orange, Orange, CustomBrush: UiBrush.LinearGradient(UiLibraryDemoResources.SpectrumGradient)),
+        new("Secondary", default, Line),
         new("Tertiary", default, default), new("Disabled", default, Line, false));
     public DemoItems Menus { get; } = new(
         new("Create", new(24, 25, 28), Line), new("Add Component", new(24, 25, 28), Line));
@@ -59,7 +69,8 @@ public sealed class DemoModel : INotifyPropertyChanged
         new("Expanded", Text, Orange, Glyph: "\uE5CD"));
     public DemoItems Colors { get; } = new(
         Color("Success", 102, 196, 60), Color("Warning", 255, 148, 8), Color("Error", 255, 75, 49),
-        Color("Info", 55, 135, 232), Color("Neutral", 89, 100, 108), Color("Spectrum", 216, 60, 165));
+        Color("Info", 55, 135, 232), Color("Neutral", 89, 100, 108),
+        new("Spectrum", new(216, 60, 165), default, CustomBrush: UiBrush.LinearGradient(UiLibraryDemoResources.SwatchGradient)));
     public GridLines VerticalLines { get; } = new();
     public GridLines HorizontalLines { get; } = new();
     public GridLines PreviewVertical { get; } = new();

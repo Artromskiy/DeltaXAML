@@ -20,6 +20,7 @@ internal sealed class UiLibraryDemoContent : IDisposable
         _artifact = new UiLibraryDemoArtifact(_model,
             textService ?? throw new ArgumentNullException(nameof(textService)),
             fonts ?? throw new ArgumentNullException(nameof(fonts)));
+        UiLibraryDemoResources.Register(_artifact.Resources);
         _cards = Find<UiGrid>("Cards");
         _background = new(Find<UiCollectionView>("VerticalGridLines"), Find<UiCollectionView>("HorizontalGridLines"),
             _model.VerticalLines, _model.HorizontalLines, 32);

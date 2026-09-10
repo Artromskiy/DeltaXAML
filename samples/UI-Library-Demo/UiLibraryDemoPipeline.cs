@@ -1,3 +1,4 @@
+using Delta;
 using Delta.Render;
 using Delta.Render.RenderGraph;
 using Delta.Render.Text;
@@ -16,6 +17,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
     private readonly GraphicsShaderProgram _roundedProgram = UiLibraryDemoShaders.RoundedRectangle();
     private readonly GraphicsShaderProgram _solidStrokeProgram = UiLibraryDemoShaders.SolidStrokeRectangle();
     private readonly GraphicsShaderProgram _roundedStrokeProgram = UiLibraryDemoShaders.RoundedStrokeRectangle();
+    private readonly GraphicsShaderProgram _linearGradientProgram = UiLibraryDemoShaders.LinearGradient();
     private readonly UiDisplayListResourceRegistry _registry;
     private readonly TextRenderFeature _textFeature;
     private readonly IRenderGraph _graph;
@@ -102,6 +104,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
             extent,
             textFeature: _textFeature,
             solidVisualProgram: _solidProgram,
+            linearGradientVisualProgram: _linearGradientProgram,
             registry: _registry);
 
     private IRenderFeature[] CreateFeatures() => _readbackFeature is null
@@ -112,6 +115,31 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(resources);
         var registry = new UiDisplayListResourceRegistry();
+        foreach (var resourceId in UiLibraryDemoResources.Gradients)
+        {
+            if (!resources.TryResolve(resourceId, out var value) || value is not UiLinearGradient gradient)
+            {
+                throw new InvalidOperationException($"UI library demo gradient resource '{resourceId.Value}' is missing or has an invalid payload.");
+            }
+
+            var sourceStops = gradient.Stops.Span;
+            var stops = new UiLinearGradientStop[sourceStops.Length];
+            for (var index = 0; index < stops.Length; index++)
+            {
+                var stop = sourceStops[index];
+                var color = stop.Color;
+                stops[index] = new(
+                    stop.Offset,
+                    new float4(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f));
+            }
+
+            registry.RegisterLinearGradient(new UiLinearGradientResource(
+                resourceId,
+                new float2(gradient.StartX, gradient.StartY),
+                new float2(gradient.EndX, gradient.EndY),
+                PaintUnits.Logical,
+                stops));
+        }
         var solid = new UiVisualShaderVariant(
             _solidStrokeProgram,
             UiVisualKind.SolidRectangle,

@@ -31,6 +31,12 @@ internal static class UiLibraryDemoShaders
         UiShaders.Abi.UiRectangleShaders.RoundedStroke.Vertex(),
         UiShaders.Abi.UiRectangleShaders.RoundedStroke.Fragment());
 
+    internal static GraphicsShaderProgram LinearGradient() => Create(
+        UiShaders.Spv.UiResourceShaders.SolidLinearGradient.Vertex(),
+        UiShaders.Spv.UiResourceShaders.SolidLinearGradient.Fragment(),
+        UiShaders.Abi.UiResourceShaders.SolidLinearGradient.Vertex(),
+        UiShaders.Abi.UiResourceShaders.SolidLinearGradient.Fragment());
+
     internal static GraphicsShaderProgram Text() => Create(
         TextShaders.Spv.TextShaders.SdfText.Vertex(),
         TextShaders.Spv.TextShaders.SdfText.Fragment(),

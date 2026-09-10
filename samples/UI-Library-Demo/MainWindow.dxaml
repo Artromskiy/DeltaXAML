@@ -7,6 +7,12 @@
   <Resource x:Key="Secondary" Type="Color" Value="#B9BBC1"/>
   <Resource x:Key="Muted" Type="Color" Value="#7C7F87"/>
   <Resource x:Key="Accent" Type="Color" Value="#FF8A00"/>
+  <Resource x:Key="SpectrumBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1007"/>
+  <Resource x:Key="SelectionBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1002"/>
+  <Resource x:Key="SoftSpectrumBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1003"/>
+  <Resource x:Key="OrangeRedBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1004"/>
+  <Resource x:Key="MagentaVioletBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1005"/>
+  <Resource x:Key="CyanGreenBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1006"/>
   <Style x:Key="Card" TargetType="Border">
     <Setter Property="Background" Value="{StaticResource Surface}"/>
     <Setter Property="BorderColor" Value="{StaticResource Line}"/>
@@ -79,7 +85,7 @@
     </Button>
   </Template>
   <Template x:Key="Action" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
-    <Button StyleKey="Button" Background="{Binding Color}" BorderColor="{Binding Stroke}" IsEnabled="{Binding Enabled}" Margin="0,0,7,7">
+    <Button StyleKey="Button" BackgroundBrush="{Binding Brush}" BorderColor="{Binding Stroke}" IsEnabled="{Binding Enabled}" Margin="0,0,7,7">
       <TextBlock StyleKey="Label" Text="{Binding Label}" Foreground="{Binding Enabled, Converter=EnabledText}" HorizontalTextAlignment="Center"/>
     </Button>
   </Template>
@@ -118,7 +124,7 @@
   </Template>
   <Template x:Key="Swatch" x:DataType="global::DeltaXaml.Samples.UiLibraryDemo.DemoEntry">
     <StackPanel Margin="0,0,7,0">
-      <Border Height="28" CornerRadius="3" Background="{Binding Color}"/>
+      <Border Height="28" CornerRadius="3" BackgroundBrush="{Binding Brush}"/>
       <TextBlock StyleKey="Caption" FontSize="9" Text="{Binding Label}" Foreground="{Binding Color}" HorizontalTextAlignment="Center" Margin="0,6,0,0"/>
     </StackPanel>
   </Template>
@@ -176,7 +182,7 @@
               <Button StyleKey="Button" Width="48" Height="24" Margin="0,0,7,0">
                 <TextBlock StyleKey="Label" FontSize="10" Text="Small" HorizontalTextAlignment="Center"/>
               </Button>
-              <Button StyleKey="Button" Width="64" Background="{StaticResource Accent}" BorderColor="{StaticResource Accent}">
+              <Button StyleKey="Button" Width="64" BackgroundBrush="{StaticResource SpectrumBrush}" BorderColor="{StaticResource Accent}">
                 <TextBlock StyleKey="Label" Text="Active" HorizontalTextAlignment="Center"/>
               </Button>
             </StackPanel>
@@ -294,7 +300,7 @@
           <StackPanel>
             <TextBlock StyleKey="Heading" Text="PROJECT ASSETS"/>
             <Grid Columns="*,*" Rows="56,10,40">
-              <Border StyleKey="Inset" Background="#301D21" BorderColor="{StaticResource Accent}" Margin="0,0,5,0">
+              <Border StyleKey="Inset" BackgroundBrush="{StaticResource SelectionBrush}" BorderColor="{StaticResource Accent}" Margin="0,0,5,0">
                 <Grid Columns="22,*">
                   <TextBlock StyleKey="Label" FontKey="symbols" Text="&#xEAD5;" FontSize="18"/>
                   <StackPanel Grid.Column="1">
@@ -378,7 +384,7 @@
                 <TextBlock StyleKey="Caption" Text="Pointer-aware text paint" Margin="0,3,0,0"/>
               </StackPanel>
             </Border>
-            <Border StyleKey="Inset" Background="#2C2030" Margin="0,0,0,8">
+            <Border StyleKey="Inset" BackgroundBrush="{StaticResource SoftSpectrumBrush}" Margin="0,0,0,8">
               <StackPanel>
                 <TextBlock StyleKey="Label" Text="Spectrum background" FontWeight="SemiBold"/>
                 <TextBlock StyleKey="Caption" Text="Pointer-aware background paint" Margin="0,3,0,0"/>
@@ -408,9 +414,9 @@
                 <TextBlock StyleKey="Label" FontKey="mono" FontSize="10" Foreground="#66C43C" Text="const fps = 60; // JetBrains Mono for code and data"/>
               </Border>
               <Grid Grid.Column="2" Rows="*,5,*,5,*" Margin="5,0,0,0">
-                <Border CornerRadius="3" Background="#FF8A00"/>
-                <Border Grid.Row="2" CornerRadius="3" Background="#D83CA5"/>
-                <Border Grid.Row="4" CornerRadius="3" Background="#28A8BD"/>
+                <Border CornerRadius="3" BackgroundBrush="{StaticResource OrangeRedBrush}"/>
+                <Border Grid.Row="2" CornerRadius="3" BackgroundBrush="{StaticResource MagentaVioletBrush}"/>
+                <Border Grid.Row="4" CornerRadius="3" BackgroundBrush="{StaticResource CyanGreenBrush}"/>
               </Grid>
             </Grid>
           </StackPanel>
