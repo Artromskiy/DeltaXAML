@@ -7,12 +7,32 @@
   <Resource x:Key="Secondary" Type="Color" Value="#B9BBC1"/>
   <Resource x:Key="Muted" Type="Color" Value="#7C7F87"/>
   <Resource x:Key="Accent" Type="Color" Value="#FF8A00"/>
-  <Resource x:Key="SpectrumBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1007"/>
-  <Resource x:Key="SelectionBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1002"/>
-  <Resource x:Key="SoftSpectrumBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1003"/>
-  <Resource x:Key="OrangeRedBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1004"/>
-  <Resource x:Key="MagentaVioletBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1005"/>
-  <Resource x:Key="CyanGreenBrush" Type="Brush" Value="LinearGradient:7F5C2A7E-7A7D-4B1F-8C3D-9A4F2B6E1006"/>
+  <LinearGradientBrush x:Key="SpectrumBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
+    <GradientStop Offset="0" Color="#FF8A00"/>
+    <GradientStop Offset="0.3" Color="#FF4B31"/>
+    <GradientStop Offset="0.56" Color="#D83CA5"/>
+    <GradientStop Offset="1" Color="#7929D8"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="SelectionBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
+    <GradientStop Offset="0" Color="#21FF8A00"/>
+    <GradientStop Offset="1" Color="#1FD83CA5"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="SoftSpectrumBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
+    <GradientStop Offset="0" Color="#2EFF8A00"/>
+    <GradientStop Offset="1" Color="#337929D8"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="OrangeRedBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
+    <GradientStop Offset="0" Color="#FF8A00"/>
+    <GradientStop Offset="1" Color="#FF4B31"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="MagentaVioletBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
+    <GradientStop Offset="0" Color="#D83CA5"/>
+    <GradientStop Offset="1" Color="#7929D8"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="CyanGreenBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
+    <GradientStop Offset="0" Color="#28A8BD"/>
+    <GradientStop Offset="1" Color="#66C43C"/>
+  </LinearGradientBrush>
   <Style x:Key="Card" TargetType="Border">
     <Setter Property="Background" Value="{StaticResource Surface}"/>
     <Setter Property="BorderColor" Value="{StaticResource Line}"/>

@@ -4,7 +4,7 @@ A DeltaXAML visual port of the user-provided YAGE Electron UI gallery:
 16 sections, dark cards over a square grid, shared styles, typed item templates,
 Inter UI typography and JetBrains Mono data text.
 
-- [MainWindow.dxaml](MainWindow.dxaml) — theme, templates and composition.
+- [MainWindow.dxaml](MainWindow.dxaml) — theme, declarative gradient resources, templates and composition.
 - [DemoModel.cs](DemoModel.cs) — typed data for repeated elements.
 - [UiLibraryDemoContent.cs](UiLibraryDemoContent.cs) — responsive card slots and document owner.
 - [VISUAL_GAPS.md](VISUAL_GAPS.md) — source attribution, unsupported options and explicit approximations.

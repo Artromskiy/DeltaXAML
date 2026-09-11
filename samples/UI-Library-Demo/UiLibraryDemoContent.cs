@@ -9,7 +9,7 @@ namespace DeltaXaml.Samples.UiLibraryDemo;
 internal sealed class UiLibraryDemoContent : IDisposable
 {
     private readonly UiLibraryDemoArtifact _artifact;
-    private readonly DemoModel _model = new();
+    private readonly DemoModel _model;
     private readonly UiGrid _cards;
     private readonly GridOverlay _background;
     private readonly GridOverlay _preview;
@@ -17,10 +17,13 @@ internal sealed class UiLibraryDemoContent : IDisposable
 
     internal UiLibraryDemoContent(ITextService textService, UiFontCatalog fonts)
     {
+        _model = new DemoModel();
         _artifact = new UiLibraryDemoArtifact(_model,
             textService ?? throw new ArgumentNullException(nameof(textService)),
             fonts ?? throw new ArgumentNullException(nameof(fonts)));
-        UiLibraryDemoResources.Register(_artifact.Resources);
+        _model.UseGradientBrushes(
+            ResolveGradientBrush("SpectrumBrush"),
+            ResolveGradientBrush("SpectrumBrush"));
         _cards = Find<UiGrid>("Cards");
         _background = new(Find<UiCollectionView>("VerticalGridLines"), Find<UiCollectionView>("HorizontalGridLines"),
             _model.VerticalLines, _model.HorizontalLines, 32);
@@ -39,6 +42,17 @@ internal sealed class UiLibraryDemoContent : IDisposable
     internal UiDocument Document => _artifact.Document;
 
     internal UiResourceCatalog Resources => _artifact.Resources;
+
+    internal UiResourceId ResolveResourceId(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (_artifact.TryGetResourceId(key, out var resource))
+        {
+            return resource;
+        }
+
+        throw new InvalidOperationException($"UI library demo resource '{key}' is missing from the generated artifact.");
+    }
 
     internal void AdvanceFrame(float width, float height)
     {
@@ -88,6 +102,18 @@ internal sealed class UiLibraryDemoContent : IDisposable
     internal void HandleInput(in UiInputEvent input) => Document.Dispatch(in input);
 
     public void Dispose() => _artifact.Dispose();
+
+    private UiBrush ResolveGradientBrush(string key)
+    {
+        var resource = ResolveResourceId(key);
+        if (_artifact.Resources.TryResolve(resource, out var value) &&
+            value is UiBrush { Kind: UiBrushKind.LinearGradient } brush)
+        {
+            return brush;
+        }
+
+        throw new InvalidOperationException($"UI library demo resource '{key}' is not a linear gradient brush.");
+    }
 
     private T Find<T>(string name)
         where T : UiElement

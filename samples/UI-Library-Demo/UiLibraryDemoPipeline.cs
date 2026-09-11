@@ -2,6 +2,7 @@ using Delta;
 using Delta.Render;
 using Delta.Render.RenderGraph;
 using Delta.Render.Text;
+using Delta.Render.UI;
 using Delta.Render.XAML;
 using Delta.Shader.Contract;
 using Delta.Text.Contract;
@@ -12,6 +13,16 @@ namespace DeltaXaml.Samples.UiLibraryDemo;
 
 internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
 {
+    private static readonly string[] GradientKeys =
+    [
+        "SpectrumBrush",
+        "SelectionBrush",
+        "SoftSpectrumBrush",
+        "OrangeRedBrush",
+        "MagentaVioletBrush",
+        "CyanGreenBrush",
+    ];
+
     private readonly IRenderFrameSession _session;
     private readonly GraphicsShaderProgram _solidProgram = UiLibraryDemoShaders.SolidRectangle();
     private readonly GraphicsShaderProgram _roundedProgram = UiLibraryDemoShaders.RoundedRectangle();
@@ -20,6 +31,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
     private readonly GraphicsShaderProgram _linearGradientProgram = UiLibraryDemoShaders.LinearGradient();
     private readonly UiDisplayListResourceRegistry _registry;
     private readonly UiResourceCatalog _resources;
+    private readonly Func<string, UiResourceId> _resolveResourceId;
     private readonly TextRenderFeature _textFeature;
     private readonly IRenderGraph _graph;
     private readonly bool _withReadback;
@@ -35,11 +47,13 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
         ITextService textService,
         PixelExtent extent,
         bool withReadback,
-        UiResourceCatalog resources)
+        UiResourceCatalog resources,
+        Func<string, UiResourceId> resolveResourceId)
     {
         _session = session;
         _withReadback = withReadback;
         _resources = resources ?? throw new ArgumentNullException(nameof(resources));
+        _resolveResourceId = resolveResourceId ?? throw new ArgumentNullException(nameof(resolveResourceId));
         _registry = CreateRegistry(resources);
         _registeredEffectVersion = resources.EffectVersion;
         _textFeature = new TextRenderFeature(session, textService, UiLibraryDemoShaders.Text(), extent);
@@ -120,40 +134,18 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(resources);
         var registry = new UiDisplayListResourceRegistry();
-        foreach (var resourceId in UiLibraryDemoResources.Gradients)
+        foreach (var key in GradientKeys)
         {
-            if (!resources.TryResolve(resourceId, out var value) || value is not UiLinearGradient gradient)
+            var resourceId = _resolveResourceId(key);
+            if (!resources.TryResolve(resourceId, out var brushValue) ||
+                brushValue is not UiBrush { Kind: UiBrushKind.LinearGradient } brush ||
+                !resources.TryResolve(brush.Resource, out var gradientValue) ||
+                gradientValue is not UiLinearGradient gradient)
             {
-                throw new InvalidOperationException($"UI library demo gradient resource '{resourceId.Value}' is missing or has an invalid payload.");
+                throw new InvalidOperationException($"UI library demo gradient resource '{key}' is missing or has an invalid payload.");
             }
 
-            var sourceStops = gradient.Stops.Span;
-            var stops = new UiLinearGradientStop[sourceStops.Length];
-            for (var index = 0; index < stops.Length; index++)
-            {
-                var stop = sourceStops[index];
-                var color = stop.Color;
-                stops[index] = new(
-                    stop.Offset,
-                    new float4(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f));
-            }
-
-            registry.RegisterLinearGradient(new UiLinearGradientResource(
-                resourceId,
-                new float2(gradient.StartX, gradient.StartY),
-                new float2(gradient.EndX, gradient.EndY),
-                PaintUnits.Logical,
-                stops)
-            {
-                IsRelativeToBounds = gradient.IsRelativeToBounds,
-                AngleDegrees = gradient.AngleDegrees,
-                OutlineColor = new float4(
-                    gradient.OutlineColor.R / 255f,
-                    gradient.OutlineColor.G / 255f,
-                    gradient.OutlineColor.B / 255f,
-                    gradient.OutlineColor.A / 255f),
-                OutlineWidth = gradient.OutlineWidth,
-            });
+            UiLinearGradientAdapter.RegisterLinearGradient(registry, brush.Resource, gradient);
         }
         RegisterVisualEffects(resources.GetEffectResources(), registry);
 

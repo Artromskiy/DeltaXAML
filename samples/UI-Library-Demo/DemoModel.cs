@@ -17,14 +17,37 @@ public readonly record struct DemoEntry(
 
 public sealed class DemoItems(params DemoEntry[] entries) : IUiItemsSource<DemoEntry>
 {
-    public int Count => entries.Length;
-    public ulong Version => 0;
+    private readonly DemoEntry[] _entries = entries;
+    private ulong _version;
+
+    public int Count => _entries.Length;
+    public ulong Version => _version;
     public ulong GetKey(int index) => (ulong)index + 1;
-    public DemoEntry GetItem(int index) => entries[index];
+    public DemoEntry GetItem(int index) => _entries[index];
+
+    internal void SetBrush(int index, UiBrush brush)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _entries.Length);
+        if (_entries[index].CustomBrush == brush)
+        {
+            return;
+        }
+
+        _entries[index] = _entries[index] with { CustomBrush = brush };
+        _version++;
+    }
+
     public bool TryGetChange(ulong previousVersion, out UiCollectionChange change)
     {
-        change = default;
-        return false;
+        if (previousVersion == _version)
+        {
+            change = default;
+            return false;
+        }
+
+        change = UiCollectionChange.Reset;
+        return true;
     }
 }
 
@@ -55,7 +78,7 @@ public sealed class DemoModel : INotifyPropertyChanged
         new("Game", new(109, 109, 109), default), new("Scene", new(109, 109, 109), default),
         new("Entities", new(109, 109, 109), default), new("Disabled", new(53, 53, 53), default, false));
     public DemoItems Actions { get; } = new(
-        new("Primary", Orange, Orange, CustomBrush: UiBrush.LinearGradient(UiLibraryDemoResources.SpectrumGradient)),
+        new("Primary", Orange, Orange),
         new("Secondary", default, Line),
         new("Tertiary", default, default), new("Disabled", default, Line, false));
     public DemoItems Menus { get; } = new(
@@ -70,11 +93,17 @@ public sealed class DemoModel : INotifyPropertyChanged
     public DemoItems Colors { get; } = new(
         Color("Success", 102, 196, 60), Color("Warning", 255, 148, 8), Color("Error", 255, 75, 49),
         Color("Info", 55, 135, 232), Color("Neutral", 89, 100, 108),
-        new("Spectrum", new(216, 60, 165), default, CustomBrush: UiBrush.LinearGradient(UiLibraryDemoResources.SwatchGradient)));
+        new("Spectrum", new(216, 60, 165), default));
     public GridLines VerticalLines { get; } = new();
     public GridLines HorizontalLines { get; } = new();
     public GridLines PreviewVertical { get; } = new();
     public GridLines PreviewHorizontal { get; } = new();
+
+    internal void UseGradientBrushes(UiBrush actionBrush, UiBrush swatchBrush)
+    {
+        Actions.SetBrush(0, actionBrush);
+        Colors.SetBrush(5, swatchBrush);
+    }
 
     private static DemoEntry Icon(string text) => new(text, Text, Line);
     private static DemoEntry Color(string text, byte r, byte g, byte b) => new(text, new(r, g, b), default);
