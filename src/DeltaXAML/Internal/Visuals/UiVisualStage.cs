@@ -428,13 +428,20 @@ internal sealed class UiVisualStage : IDisposable
             return false;
         }
 
+        var bounds = element.Bounds;
+        var radii = NormalizeCornerRadii(element.CornerRadius, bounds.Width, bounds.Height);
+
         if (element.HasCustomVisual)
         {
             visual = UiVisualDraw.WithPaint(
                 UiVisualKind.Custom,
                 new UiVisualTypeId(element.CustomVisualTypeId),
-                ToFloat4(element.Bounds),
-                UiVisualPaint.Solid(ToColor(element.CustomVisualColor)) with { BlendMode = element.BlendMode },
+                ToFloat4(bounds),
+                UiVisualPaint.Solid(ToColor(element.CustomVisualColor)) with
+                {
+                    CornerRadii = new float4(radii.TopLeft, radii.TopRight, radii.BottomRight, radii.BottomLeft),
+                    BlendMode = element.BlendMode,
+                },
                 clip,
                 new UiResourceId(element.CustomVisualResourceId));
             return true;
@@ -462,8 +469,6 @@ internal sealed class UiVisualStage : IDisposable
             return false;
         }
 
-        var bounds = element.Bounds;
-        var radii = NormalizeCornerRadii(element.CornerRadius, bounds.Width, bounds.Height);
         var rounded = radii != Delta.XAML.UiCornerRadii.Zero;
         var kind = rounded ? UiVisualKind.RoundedRectangle : UiVisualKind.SolidRectangle;
         visual = UiVisualDraw.WithPaint(

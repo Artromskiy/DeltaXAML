@@ -1,4 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
+using System.Text;
+using Delta;
 using Delta.XAML.Contract;
 using Retained = DeltaXAML.Internal;
 
@@ -378,6 +381,7 @@ public sealed class UiStyle
 
         ApplyValues(element, _values);
         ApplyStateValues(element, state);
+        ApplyImplicitVisualEffect(element, state);
         element.RetainedElement.SetAppliedStyle(this, state, Version);
     }
 
@@ -395,6 +399,7 @@ public sealed class UiStyle
         var previousState = element.RetainedElement.AppliedStyleState;
         if (previousState == state)
         {
+            ApplyImplicitVisualEffect(element, state);
             return;
         }
 
@@ -420,6 +425,7 @@ public sealed class UiStyle
         }
 
         ApplyStateValues(element, state);
+        ApplyImplicitVisualEffect(element, state);
         element.RetainedElement.SetAppliedStyle(this, state, Version);
     }
 
@@ -437,6 +443,62 @@ public sealed class UiStyle
         {
             ApplyValue(element, pair.Value);
         }
+    }
+
+    private void ApplyImplicitVisualEffect(UiElement element, UiStyleState state)
+    {
+        if (_resources is null || HasValue(_values, "EffectSet") ||
+            _stateValues.TryGetValue(state, out var stateValues) && HasValue(stateValues, "EffectSet"))
+        {
+            return;
+        }
+
+        if (!HasBorderSugar(_values) && (stateValues is null || !HasBorderSugar(stateValues)))
+        {
+            return;
+        }
+
+        var thickness = element.BorderThickness;
+        var hasSideWidths = thickness.Left > 0 || thickness.Top > 0 || thickness.Right > 0 || thickness.Bottom > 0;
+        var width = element.BorderWidth;
+        if (!hasSideWidths && (!float.IsFinite(width) || width <= 0))
+        {
+            element.RetainedElement.ClearStyleValue("EffectSet");
+            return;
+        }
+
+        var color = element.BorderColor;
+        var colorVector = new float4(
+            color.R / 255f,
+            color.G / 255f,
+            color.B / 255f,
+            color.A / 255f);
+        var resource = new UiResourceId(CreateImplicitEffectId(element, state));
+        var effect = hasSideWidths
+            ? UiEffectResource.CreateVisualStroke(
+                resource,
+                colorVector,
+                new float4(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
+                element.BorderWidthUnits)
+            : UiEffectResource.CreateVisualStroke(resource, colorVector, width, element.BorderWidthUnits);
+        _resources.Set(effect);
+        element.ApplyStyleValue("EffectSet", effect.Set);
+    }
+
+    private static bool HasValue(Dictionary<string, StyleValue> values, string propertyName) =>
+        values.ContainsKey(propertyName);
+
+    private static bool HasBorderSugar(Dictionary<string, StyleValue> values) =>
+        HasValue(values, "BorderColor") ||
+        HasValue(values, "BorderWidth") ||
+        HasValue(values, "BorderThickness") ||
+        HasValue(values, "BorderWidthUnits");
+
+    private Guid CreateImplicitEffectId(UiElement element, UiStyleState state)
+    {
+        var identity = string.Concat(Key, "/", element.RetainedElement.Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), "/", state);
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(identity));
+        return new Guid(hash.AsSpan(0, 16));
     }
 
     private void ApplyValue(UiElement element, StyleValue styleValue)
@@ -496,6 +558,11 @@ public sealed class UiStyle
                     element.RetainedElement.ClearStyleValue(property);
                 }
             }
+        }
+
+        if (!HasValue(_values, "EffectSet"))
+        {
+            element.RetainedElement.ClearStyleValue("EffectSet");
         }
 
         element.RetainedElement.ClearAppliedStyle();

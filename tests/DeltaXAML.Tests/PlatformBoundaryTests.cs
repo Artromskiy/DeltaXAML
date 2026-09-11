@@ -28,6 +28,12 @@ internal static class PlatformBoundaryTests
         var gradient = new UiLinearGradient(0, 0, 1, 1, source);
         source[0] = new(0.5f, new UiColor(7, 8, 9));
         Assert.Equal(0f, gradient.Stops.Span[0].Offset, "gradient resources own their stop snapshot for deterministic invalidation");
+        var outlined = gradient.WithOutline(new UiColor(255, 138, 0), 1);
+        Assert.Equal(new UiColor(255, 138, 0), outlined.OutlineColor, "gradient outline preserves its solid color");
+        Assert.Equal(1f, outlined.OutlineWidth, "gradient outline preserves its logical width");
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => gradient.WithOutline(default, -1),
+            "gradient outlines reject negative widths");
         Assert.Throws<ArgumentException>(
             CreateUnorderedGradient,
             "unordered gradient stops are rejected at the public resource boundary");

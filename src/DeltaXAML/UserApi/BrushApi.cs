@@ -42,6 +42,48 @@ public readonly record struct UiLinearGradient
 
     public ReadOnlyMemory<UiGradientStop> Stops { get; }
 
+    /// <summary>Gets whether the gradient line is resolved against each visual's arranged bounds.</summary>
+    public bool IsRelativeToBounds { get; init; }
+
+    /// <summary>Gets the CSS-compatible clockwise angle used for relative gradients.</summary>
+    public float AngleDegrees { get; init; }
+
+    /// <summary>Gets the optional solid outline color drawn around the gradient bounds.</summary>
+    public UiColor OutlineColor { get; init; }
+
+    /// <summary>Gets the optional solid outline width in the gradient's logical units.</summary>
+    public float OutlineWidth { get; init; }
+
+    /// <summary>Creates a CSS-style linear gradient whose line follows each visual's bounds.</summary>
+    public static UiLinearGradient Relative(float angleDegrees, ReadOnlyMemory<UiGradientStop> stops)
+    {
+        if (!float.IsFinite(angleDegrees))
+        {
+            throw new ArgumentOutOfRangeException(nameof(angleDegrees));
+        }
+
+        return new UiLinearGradient(0, 0, 0, 0, stops)
+        {
+            IsRelativeToBounds = true,
+            AngleDegrees = angleDegrees,
+        };
+    }
+
+    /// <summary>Returns this gradient with a solid outline around its arranged bounds.</summary>
+    public UiLinearGradient WithOutline(UiColor color, float width = 1)
+    {
+        if (!float.IsFinite(width) || width < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), "Gradient outline width must be finite and non-negative.");
+        }
+
+        return this with
+        {
+            OutlineColor = color,
+            OutlineWidth = width,
+        };
+    }
+
     private static ReadOnlyMemory<UiGradientStop> CopyStops(ReadOnlyMemory<UiGradientStop> stops)
     {
         if (stops.Length < 2)

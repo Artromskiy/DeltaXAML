@@ -19,6 +19,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
     private readonly GraphicsShaderProgram _roundedStrokeProgram = UiLibraryDemoShaders.RoundedStrokeRectangle();
     private readonly GraphicsShaderProgram _linearGradientProgram = UiLibraryDemoShaders.LinearGradient();
     private readonly UiDisplayListResourceRegistry _registry;
+    private readonly UiResourceCatalog _resources;
     private readonly TextRenderFeature _textFeature;
     private readonly IRenderGraph _graph;
     private readonly bool _withReadback;
@@ -27,6 +28,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
     private ClearFeature _clearFeature;
     private ReadbackFeature? _readbackFeature;
     private IRenderFeature[] _features;
+    private ulong _registeredEffectVersion;
 
     internal UiLibraryDemoPipeline(
         IRenderFrameSession session,
@@ -37,7 +39,9 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
     {
         _session = session;
         _withReadback = withReadback;
+        _resources = resources ?? throw new ArgumentNullException(nameof(resources));
         _registry = CreateRegistry(resources);
+        _registeredEffectVersion = resources.EffectVersion;
         _textFeature = new TextRenderFeature(session, textService, UiLibraryDemoShaders.Text(), extent);
         _graph = session.CreateRenderGraph();
         _uiFeature = CreateUiFeature(extent);
@@ -64,6 +68,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
 
     internal bool Render(UiDisplayList displayList, ulong frameNumber, out string diagnostics)
     {
+        RefreshVisualEffects();
         _clipCount = displayList.Clips.Length;
         if (!_uiFeature.Consume(displayList))
         {
@@ -138,8 +143,37 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
                 new float2(gradient.StartX, gradient.StartY),
                 new float2(gradient.EndX, gradient.EndY),
                 PaintUnits.Logical,
-                stops));
+                stops)
+            {
+                IsRelativeToBounds = gradient.IsRelativeToBounds,
+                AngleDegrees = gradient.AngleDegrees,
+                OutlineColor = new float4(
+                    gradient.OutlineColor.R / 255f,
+                    gradient.OutlineColor.G / 255f,
+                    gradient.OutlineColor.B / 255f,
+                    gradient.OutlineColor.A / 255f),
+                OutlineWidth = gradient.OutlineWidth,
+            });
         }
+        RegisterVisualEffects(resources.GetEffectResources(), registry);
+
+        return registry;
+    }
+
+    private void RefreshVisualEffects()
+    {
+        var version = _resources.EffectVersion;
+        if (version == _registeredEffectVersion)
+        {
+            return;
+        }
+
+        RegisterVisualEffects(_resources.GetEffectResources(), _registry);
+        _registeredEffectVersion = version;
+    }
+
+    private void RegisterVisualEffects(UiEffectResource[] effects, UiDisplayListResourceRegistry registry)
+    {
         var solid = new UiVisualShaderVariant(
             _solidStrokeProgram,
             UiVisualKind.SolidRectangle,
@@ -148,7 +182,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
             _roundedStrokeProgram,
             UiVisualKind.RoundedRectangle,
             UiVisualShaderPath.RoundedStrokeEffect);
-        foreach (var effect in resources.GetEffectResources())
+        foreach (var effect in effects)
         {
             if (effect.Set.Target == UiEffectTarget.Visual &&
                 effect.Set.Quality == UiEffectQuality.Analytic &&
@@ -158,7 +192,5 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
                 registry.RegisterVisualEffectResource(effect, rounded);
             }
         }
-
-        return registry;
     }
 }

@@ -2256,11 +2256,26 @@ internal static partial class Program
         style.Set("FontSize", 18f);
         var hoverColor = new Library.UiColor(70, 80, 90);
         style.SetState(Library.UiStyleState.Hover, "Foreground", hoverColor);
+        var borderStyle = new Library.UiStyle("Card", "Border", resources);
+        borderStyle.Set("BorderColor", new Library.UiColor(48, 50, 56));
+        borderStyle.Set("BorderWidth", 1f);
+        borderStyle.Set("CornerRadius", new Library.UiCornerRadii(5f, 5f, 5f, 5f));
         var alternateStyle = new Library.UiStyle("Alternate", "TextBlock");
         alternateStyle.Set("FontSize", 22f);
         var theme = new Library.UiTheme(resources);
         theme.Add(style);
+        theme.Add(borderStyle);
         theme.Add(alternateStyle);
+
+        var styledCard = new Library.UiBorder { StyleKey = "Card", Width = 80, Height = 30 };
+        theme.Apply(styledCard);
+        using var styledCardTextService = new EmptyTextService();
+        using var styledCardDocument = new Library.UiDocument(styledCard, styledCardTextService, null, theme);
+        styledCardDocument.Layout(new Delta.float2(80, 30), 1);
+        var styledCardVisual = styledCardDocument.BuildDisplayList().Visuals[0];
+        Assert.True(styledCardVisual.Paint.EffectSet.IsValid, "style border sugar materializes a canonical visual effect set");
+        Assert.True(resources.TryResolveEffectResource(styledCardVisual.Paint.EffectSet.Resource, out var styledCardEffect), "style border sugar registers its effect resource");
+        Assert.Equal(1f, styledCardEffect.Parameters.Stroke.Width, "style border sugar preserves the requested uniform width");
 
         var deepRoot = new Library.UiPanel();
         var deep = deepRoot;

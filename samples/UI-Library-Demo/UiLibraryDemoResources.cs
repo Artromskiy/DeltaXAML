@@ -28,14 +28,13 @@ internal static class UiLibraryDemoResources
 
     internal static ReadOnlySpan<UiResourceId> Gradients => GradientResources;
 
+    private static readonly UiColor Outline = new(255, 138, 0);
+
     internal static void Register(UiResourceCatalog resources)
     {
         ArgumentNullException.ThrowIfNull(resources);
-        resources.Set(SpectrumGradient, new UiLinearGradient(
-            658,
-            130,
-            790,
-            130,
+        resources.Set(SpectrumGradient, RelativeGradient(
+            110,
             new UiGradientStop[]
             {
                 new(0, new UiColor(255, 138, 0)),
@@ -43,61 +42,43 @@ internal static class UiLibraryDemoResources
                 new(0.56f, new UiColor(216, 60, 165)),
                 new(1, new UiColor(121, 41, 216)),
             }));
-        resources.Set(SelectionGradient, new UiLinearGradient(
-            971,
-            434,
-            1105,
-            434,
+        resources.Set(SelectionGradient, RelativeGradient(
+            110,
             new UiGradientStop[]
             {
                 new(0, new UiColor(255, 138, 0, 33)),
                 new(1, new UiColor(216, 60, 165, 31)),
             }));
-        resources.Set(SoftSpectrumGradient, new UiLinearGradient(
-            353,
-            887,
-            622,
-            887,
+        resources.Set(SoftSpectrumGradient, RelativeGradient(
+            110,
             new UiGradientStop[]
             {
                 new(0, new UiColor(255, 138, 0, 46)),
                 new(1, new UiColor(121, 41, 216, 51)),
             }));
-        resources.Set(OrangeRedGradient, new UiLinearGradient(
-            893,
-            1042,
-            1250,
-            1042,
+        resources.Set(OrangeRedGradient, RelativeGradient(
+            110,
             new UiGradientStop[]
             {
                 new(0, new UiColor(255, 138, 0)),
                 new(1, new UiColor(255, 75, 49)),
             }));
-        resources.Set(MagentaVioletGradient, new UiLinearGradient(
-            893,
-            1069,
-            1250,
-            1069,
+        resources.Set(MagentaVioletGradient, RelativeGradient(
+            110,
             new UiGradientStop[]
             {
                 new(0, new UiColor(216, 60, 165)),
                 new(1, new UiColor(121, 41, 216)),
             }));
-        resources.Set(CyanGreenGradient, new UiLinearGradient(
-            893,
-            1096,
-            1250,
-            1096,
+        resources.Set(CyanGreenGradient, RelativeGradient(
+            110,
             new UiGradientStop[]
             {
                 new(0, new UiColor(40, 168, 189)),
                 new(1, new UiColor(102, 196, 60)),
             }));
-        resources.Set(ActiveGradient, new UiLinearGradient(
-            713,
-            207,
-            777,
-            207,
+        resources.Set(ActiveGradient, RelativeGradient(
+            110,
             new UiGradientStop[]
             {
                 new(0, new UiColor(255, 138, 0)),
@@ -105,11 +86,8 @@ internal static class UiLibraryDemoResources
                 new(0.56f, new UiColor(216, 60, 165)),
                 new(1, new UiColor(121, 41, 216)),
             }));
-        resources.Set(SwatchGradient, new UiLinearGradient(
-            262,
-            830,
-            302,
-            830,
+        resources.Set(SwatchGradient, RelativeGradient(
+            110,
             new UiGradientStop[]
             {
                 new(0, new UiColor(255, 138, 0)),
@@ -118,6 +96,9 @@ internal static class UiLibraryDemoResources
                 new(1, new UiColor(121, 41, 216)),
             }));
     }
+
+    private static UiLinearGradient RelativeGradient(float angleDegrees, params UiGradientStop[] stops) =>
+        UiLinearGradient.Relative(angleDegrees, stops).WithOutline(Outline);
 
     private static UiResourceId Resource(string value) => new(Guid.Parse(value));
 }
