@@ -567,6 +567,7 @@ internal static class CSharpArtifactEmitter
                 i,
                 "resource",
                 plan.Source,
+                plan.ScalarResources,
                 ref implicitEffectIndex);
             EmitImplicitTextEffect(
                 writer,
@@ -646,7 +647,7 @@ internal static class CSharpArtifactEmitter
             {
                 EmitMember(writer, i, nodes[i].Members[memberIndex], type, "node", plan.ResourceSlots);
             }
-            EmitImplicitVisualEffect(writer, nodes[i], i, "node", plan.Source, ref implicitEffectIndex);
+            EmitImplicitVisualEffect(writer, nodes[i], i, "node", plan.Source, plan.ScalarResources, ref implicitEffectIndex);
             EmitImplicitTextEffect(writer, nodes[i], i, "node", plan.Source, ref implicitEffectIndex);
             for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
             {
@@ -3297,6 +3298,7 @@ internal static class CSharpArtifactEmitter
         int nodeIndex,
         string variablePrefix,
         SourceId source,
+        IReadOnlyList<XamlScalarResourcePlan> scalarResources,
         ref int effectIndex)
     {
         if (node.InlineEffect is not null || HasMember(node, "EffectSet"))
@@ -3323,13 +3325,9 @@ internal static class CSharpArtifactEmitter
         }
 
         var color = "new global::Delta.float4(0, 0, 0, 0)";
-        if (TryGetLiteralMember(node, "BorderColor", out var colorMember))
+        if (TryGetColorExpression(node, scalarResources, out var colorExpression))
         {
-            if (colorMember.Kind != XamlValueKind.Color ||
-                !TryColorVector(colorMember.Literal.CanonicalText, out color))
-            {
-                return;
-            }
+            color = colorExpression;
         }
 
         var units = "global::Delta.XAML.Contract.PaintUnits.Logical";
@@ -3427,6 +3425,45 @@ internal static class CSharpArtifactEmitter
         }
 
         value = default;
+        return false;
+    }
+
+    private static bool TryGetColorExpression(
+        XamlObjectPlan node,
+        IReadOnlyList<XamlScalarResourcePlan> scalarResources,
+        out string expression)
+    {
+        expression = string.Empty;
+        for (var i = 0; i < node.Members.Length; i++)
+        {
+            var member = node.Members[i];
+            if (!string.Equals(member.Name, "BorderColor", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (member.Value.Kind == XamlValueKind.Color)
+            {
+                return TryColorVector(member.Value.Literal.CanonicalText, out expression);
+            }
+
+            if (member.Value.Kind != XamlValueKind.ResourceReference || member.Value.Resource.IsDynamic)
+            {
+                return false;
+            }
+
+            for (var resourceIndex = 0; resourceIndex < scalarResources.Count; resourceIndex++)
+            {
+                var resource = scalarResources[resourceIndex];
+                if (resource.Id == member.Value.Resource.Id && resource.Value.Kind == XamlValueKind.Color)
+                {
+                    return TryColorVector(resource.Value.Literal.CanonicalText, out expression);
+                }
+            }
+
+            return false;
+        }
+
         return false;
     }
 

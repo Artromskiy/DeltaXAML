@@ -41,6 +41,16 @@ internal static partial class Program
         Assert.True(textPropertiesSource.Contains("node1.HorizontalTextAlignment = global::Delta.XAML.UiTextHorizontalAlignment.Center;", StringComparison.Ordinal), "generated text artifact preserves horizontal alignment");
         Assert.True(textPropertiesSource.Contains("node1.TextWrapping = global::Delta.XAML.UiTextWrapping.Word;", StringComparison.Ordinal), "generated text artifact preserves wrapping");
         Assert.True(textPropertiesSource.Contains("node1.TextDecorations = global::Delta.XAML.UiTextDecorations.Underline | global::Delta.XAML.UiTextDecorations.Strikethrough;", StringComparison.Ordinal), "generated text artifact preserves decorations");
+
+        var perSidePlan = XamlCompiler.Compile(
+            sourceId,
+            "<Panel><Resource x:Key=\"Line\" Type=\"Color\" Value=\"#303238\" /><Border BorderColor=\"{StaticResource Line}\" BorderThickness=\"0,0,0,1\" /></Panel>",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(perSidePlan.Success, "per-side border with a static color resource compiles");
+        Assert.True(CSharpArtifactEmitter.TryEmit(perSidePlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "PerSideBorderArtifact", out var perSideSource, out _), "per-side border emits through the generated artifact path");
+        Assert.True(perSideSource.Contains("node1.BorderThickness = new global::Delta.XAML.UiThickness(0f, 0f, 0f, 1f);", StringComparison.Ordinal), "generated artifact preserves the per-side thickness order");
+        Assert.True(perSideSource.Contains("new global::Delta.float4(0.1882353f, 0.19607843f, 0.21960784f, 1f), new global::Delta.float4(0f, 0f, 0f, 1f)", StringComparison.Ordinal), "generated stroke carries the resolved static resource color and side widths");
+
         var strokePlan = XamlCompiler.Compile(
             sourceId,
             "<TextBlock Text=\"Delta\" StrokeColor=\"#80FFFFFF\" StrokeWidth=\"2\" />",
