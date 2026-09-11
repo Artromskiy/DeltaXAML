@@ -112,15 +112,53 @@ public readonly record struct UiLinearGradient
 public readonly record struct UiRadialGradient
 {
     public UiRadialGradient(float centerX, float centerY, float radius, ReadOnlyMemory<UiGradientStop> stops)
+        : this(centerX, centerY, radius, radius, stops, PaintUnits.Percent)
     {
-        if (!float.IsFinite(centerX) || !float.IsFinite(centerY) || !float.IsFinite(radius) || radius <= 0)
+    }
+
+    public UiRadialGradient(
+        float centerX,
+        float centerY,
+        float radius,
+        ReadOnlyMemory<UiGradientStop> stops,
+        PaintUnits units)
+        : this(centerX, centerY, radius, radius, stops, units)
+    {
+    }
+
+    public UiRadialGradient(
+        float center,
+        float radius,
+        ReadOnlyMemory<UiGradientStop> stops,
+        PaintUnits units = PaintUnits.Percent)
+        : this(center, center, radius, radius, stops, units)
+    {
+    }
+
+    public UiRadialGradient(
+        float centerX,
+        float centerY,
+        float radiusX,
+        float radiusY,
+        ReadOnlyMemory<UiGradientStop> stops,
+        PaintUnits units = PaintUnits.Percent)
+    {
+        if (!float.IsFinite(centerX) || !float.IsFinite(centerY) ||
+            !float.IsFinite(radiusX) || !float.IsFinite(radiusY) || radiusX <= 0 || radiusY <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(radius), "Gradient center coordinates must be finite and radius must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(radiusX), "Gradient center coordinates must be finite and radii must be positive.");
+        }
+
+        if (units is not (PaintUnits.Percent or PaintUnits.Logical or PaintUnits.Device))
+        {
+            throw new ArgumentOutOfRangeException(nameof(units), "Gradient geometry requires percent, logical or device units.");
         }
 
         CenterX = centerX;
         CenterY = centerY;
-        Radius = radius;
+        RadiusX = radiusX;
+        RadiusY = radiusY;
+        Units = units;
         Stops = CopyStops(stops);
     }
 
@@ -128,7 +166,17 @@ public readonly record struct UiRadialGradient
 
     public float CenterY { get; }
 
-    public float Radius { get; }
+    /// <summary>Gets the horizontal radius in <see cref="Units"/>.</summary>
+    public float RadiusX { get; }
+
+    /// <summary>Gets the vertical radius in <see cref="Units"/>.</summary>
+    public float RadiusY { get; }
+
+    /// <summary>Gets the unit system used by the center and radii.</summary>
+    public PaintUnits Units { get; }
+
+    /// <summary>Gets the legacy uniform radius, equivalent to <see cref="RadiusX"/>.</summary>
+    public float Radius => RadiusX;
 
     public ReadOnlyMemory<UiGradientStop> Stops { get; }
 

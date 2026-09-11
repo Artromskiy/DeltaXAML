@@ -382,16 +382,33 @@ over `Guid`. Human-readable XAML keys are source aliases, not runtime identity.
 Gradient resources are declarative and receive deterministic source-scoped IDs
 from `x:Key`; authors do not write GUIDs. `LinearGradientBrush` accepts either
 an `Angle` in CSS-compatible clockwise degrees or both `StartPoint` and
-`EndPoint` vectors. `RadialGradientBrush` accepts `Center` and positive
-`Radius`. Both use ordered `GradientStop` children; colors may be literals or
-`StaticResource` color tokens. A linear brush may add `OutlineColor` and
-`OutlineWidth`.
+`EndPoint` vectors. `RadialGradientBrush` accepts `Center`, positive `Radius`
+and an optional `Units` value of `Percent`, `Logical` or `Device`. `Center`
+and `Radius` accept one component (which is copied to X and Y) or two comma
+separated components. Percent values are relative to the arranged bounds;
+logical values are scaled by frame DPI and device values are physical pixels.
+One percent radius is resolved independently against width and height, so it
+becomes an ellipse on a non-square element. Both use ordered `GradientStop`
+children; colors may be literals or `StaticResource` color tokens. Either brush
+may add `OutlineColor` and `OutlineWidth`.
 
 ```xml
-<RadialGradientBrush x:Key="FocusBrush" Center="0.5,0.5" Radius="0.5">
+<RadialGradientBrush x:Key="FocusBrush"
+    Units="Percent" Center="50%,50%" Radius="70%,40%">
     <GradientStop Offset="0" Color="#FFFFFFFF" />
     <GradientStop Offset="1" Color="#30486000" />
 </RadialGradientBrush>
+```
+
+The same resource can be created from C#:
+
+```csharp
+var brush = new UiRadialGradient(
+    0.5f, 0.5f, 0.7f, 0.4f, stops, PaintUnits.Percent);
+var circular = new UiRadialGradient(
+    0.5f, 0.7f, stops, PaintUnits.Percent);
+var logicalBrush = new UiRadialGradient(
+    40f, 24f, 80f, 32f, stops, PaintUnits.Logical);
 ```
 
 Styles support inheritance and semantic variants without a second selector

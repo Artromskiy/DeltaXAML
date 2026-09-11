@@ -102,6 +102,9 @@ public enum PaintUnits : byte
 
     /// <summary>The metric is expressed in physical device pixels and is not DPI-scaled.</summary>
     Device,
+
+    /// <summary>The metric is expressed as a fraction of the arranged bounds.</summary>
+    Percent,
 }
 
 /// <summary>Renderer-neutral compositing mode selected for one paint payload.</summary>

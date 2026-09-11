@@ -40,6 +40,18 @@ internal static class PlatformBoundaryTests
         Assert.Throws<ArgumentOutOfRangeException>(
             () => CreateRadialGradient(source),
             "a radial gradient rejects a non-positive radius");
+
+        var elliptical = new UiRadialGradient(0.5f, 0.5f, 0.75f, 0.4f, source, PaintUnits.Percent);
+        Assert.Equal(0.75f, elliptical.RadiusX, "radial gradients preserve the horizontal radius");
+        Assert.Equal(0.4f, elliptical.RadiusY, "radial gradients preserve the vertical radius");
+        Assert.Equal(PaintUnits.Percent, elliptical.Units, "radial gradients preserve their geometry units");
+
+        var logical = new UiRadialGradient(24f, 16f, 40f, 28f, source, PaintUnits.Logical);
+        Assert.Equal(PaintUnits.Logical, logical.Units, "radial gradients accept logical geometry units");
+
+        var circular = new UiRadialGradient(0.5f, 0.7f, source, PaintUnits.Percent);
+        Assert.Equal(0.7f, circular.RadiusX, "single C# radius is copied to the horizontal axis");
+        Assert.Equal(0.7f, circular.RadiusY, "single C# radius is copied to the vertical axis");
     }
 
     private static void CreateUnorderedGradient() =>

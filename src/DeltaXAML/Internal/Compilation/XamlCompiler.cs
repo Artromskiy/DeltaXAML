@@ -399,6 +399,7 @@ internal static class XamlCompiler
             XamlValuePlan? endPoint = null;
             XamlValuePlan? center = null;
             XamlValuePlan? radius = null;
+            var units = PaintUnits.Percent;
             XamlValuePlan? outlineColor = null;
             XamlValuePlan? outlineWidth = null;
             var keyRange = Range(elementStart, _offset);
@@ -419,8 +420,10 @@ internal static class XamlCompiler
                 var expected = attribute.LocalName switch
                 {
                     "Angle" => XamlValueKind.Single,
-                    "StartPoint" or "EndPoint" or "Center" => XamlValueKind.Vector2,
-                    "Radius" or "OutlineWidth" => XamlValueKind.Single,
+                    "StartPoint" or "EndPoint" => XamlValueKind.Vector2,
+                    "Center" or "Radius" when lexicalName == "RadialGradientBrush" => XamlValueKind.GradientVector,
+                    "OutlineWidth" => XamlValueKind.Single,
+                    "Units" when lexicalName == "RadialGradientBrush" => XamlValueKind.Enum,
                     "OutlineColor" => XamlValueKind.Color,
                     _ => XamlValueKind.Invalid,
                 };
@@ -452,6 +455,18 @@ internal static class XamlCompiler
                     case "EndPoint": endPoint = value; break;
                     case "Center": center = value; break;
                     case "Radius": radius = value; break;
+                    case "Units":
+                        if (!Enum.TryParse(value.Literal.CanonicalText, true, out PaintUnits parsedUnits) ||
+                            parsedUnits is not (PaintUnits.Percent or PaintUnits.Logical or PaintUnits.Device))
+                        {
+                            Report("XAML063", "RadialGradientBrush Units must be Percent, Logical or Device.", attribute.Range);
+                        }
+                        else
+                        {
+                            units = parsedUnits;
+                        }
+
+                        break;
                     case "OutlineColor": outlineColor = value; break;
                     case "OutlineWidth": outlineWidth = value; break;
                 }
@@ -558,8 +573,8 @@ internal static class XamlCompiler
             {
                 Report("XAML055", "RadialGradientBrush requires Center and Radius.", Range(elementStart, _offset));
             }
-            if (radius is { } radiusPlan && radiusPlan.Kind == XamlValueKind.Single &&
-                (!float.TryParse(radiusPlan.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var radiusValue) || radiusValue <= 0))
+            if (radius is { } radiusPlan &&
+                (!TryGradientVector(radiusPlan.Literal.CanonicalText, out var radiusX, out var radiusY) || radiusX <= 0 || radiusY <= 0))
             {
                 Report("XAML061", "RadialGradientBrush Radius must be positive.", Range(elementStart, _offset));
             }
@@ -580,6 +595,7 @@ internal static class XamlCompiler
                 endPoint,
                 center,
                 radius,
+                units,
                 outlineColor,
                 outlineWidth,
                 stops.ToImmutable(),
@@ -2098,6 +2114,9 @@ internal static class XamlCompiler
                 case XamlValueKind.Vector2 when TryVector2(value, out var vector):
                     literal = new(expected, vector);
                     return true;
+                case XamlValueKind.GradientVector when TryGradientVector(value, out var gradientVector):
+                    literal = new(expected, gradientVector);
+                    return true;
                 case XamlValueKind.CornerRadii when TryCornerRadii(value, out var cornerRadii):
                     literal = new(expected, cornerRadii);
                     return true;
@@ -2707,6 +2726,57 @@ internal static class XamlCompiler
                 x.ToString("R", CultureInfo.InvariantCulture),
                 y.ToString("R", CultureInfo.InvariantCulture));
             return true;
+        }
+
+        private static bool TryGradientVector(string value, out string canonical)
+        {
+            canonical = string.Empty;
+            if (!TryGradientVector(value, out var x, out var y))
+            {
+                return false;
+            }
+
+            canonical = string.Join(',',
+                x.ToString("R", CultureInfo.InvariantCulture),
+                y.ToString("R", CultureInfo.InvariantCulture));
+            return true;
+        }
+
+        private static bool TryGradientVector(string value, out float x, out float y)
+        {
+            x = float.NaN;
+            y = float.NaN;
+            var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length is not (1 or 2) || !TryGradientComponent(parts[0], out x))
+            {
+                return false;
+            }
+
+            if (parts.Length == 1)
+            {
+                y = x;
+                return true;
+            }
+
+            return TryGradientComponent(parts[1], out y);
+        }
+
+        private static bool TryGradientComponent(string value, out float component)
+        {
+            var isPercent = value.EndsWith('%');
+            var numeric = isPercent ? value[..^1].Trim() : value;
+            if (!float.TryParse(numeric, NumberStyles.Float, CultureInfo.InvariantCulture, out component) ||
+                !float.IsFinite(component))
+            {
+                return false;
+            }
+
+            if (isPercent)
+            {
+                component /= 100f;
+            }
+
+            return float.IsFinite(component);
         }
 
         private static bool TryCornerRadii(string value, out string canonical)

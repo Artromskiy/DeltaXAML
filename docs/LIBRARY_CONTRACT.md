@@ -257,7 +257,10 @@ observed by dependent retained properties only.
 Compiled XAML gives each `x:Key` a deterministic source-scoped
 `UiResourceId`. `LinearGradientBrush` and `RadialGradientBrush` resources keep
 their renderer-neutral gradient payload behind a typed `UiBrush` alias, so a
-`StaticResource` can be assigned directly to `BackgroundBrush`. `UiStyle`
+`StaticResource` can be assigned directly to `BackgroundBrush`. Radial
+`Center` and `Radius` values accept one component (copied to both axes) or an
+explicit X/Y pair; `Units="Percent"` resolves each axis against its own
+arranged bound, while `Logical` and `Device` use absolute lengths. `UiStyle`
 supports `BasedOn` inheritance and an optional `Variant`; `UiElement.Variant`
 selects a semantic variant together with `StyleKey`.
 

@@ -560,6 +560,11 @@ styles are flattened lazily into cached effective value maps, and a
 `StyleKey`/`Variant` pair selects the most specific semantic variant before
 falling back to the unqualified style.
 
+Radial `Center` and `Radius` literals accept one component or an X/Y pair. The
+compiler normalizes optional percent suffixes and copies a single component to
+both axes. `Percent` geometry is resolved per axis by the renderer, so a
+uniform one-component radius remains elliptical on non-square bounds.
+
 Interaction and user state are ordinary typed flags. Visual-state changes feed
 the same effective-value resolver as styles and therefore reuse property
 precedence and invalidation. They are not an event-driven second property

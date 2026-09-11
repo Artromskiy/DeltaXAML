@@ -53,13 +53,18 @@ internal static partial class Program
 
         var gradientPlan = XamlCompiler.Compile(
             sourceId,
-            "<ResourceDictionary><Resource x:Key=\"Orange\" Type=\"Color\" Value=\"#FF8A00\" /><LinearGradientBrush x:Key=\"Spectrum\" Angle=\"110\" OutlineColor=\"{StaticResource Orange}\"><GradientStop Offset=\"0\" Color=\"{StaticResource Orange}\" /><GradientStop Offset=\"1\" Color=\"#7929D8\" /></LinearGradientBrush><Style x:Key=\"Button\" TargetType=\"Button\"><Setter Property=\"BackgroundBrush\" Value=\"{StaticResource Spectrum}\" /></Style><Style x:Key=\"Button\" Variant=\"Danger\" TargetType=\"Button\" BasedOn=\"Button\"><Setter Property=\"BorderWidth\" Value=\"1\" /></Style><Button StyleKey=\"Button\" Variant=\"Danger\" /></ResourceDictionary>",
+            "<ResourceDictionary><Resource x:Key=\"Orange\" Type=\"Color\" Value=\"#FF8A00\" /><LinearGradientBrush x:Key=\"Spectrum\" Angle=\"110\" OutlineColor=\"{StaticResource Orange}\"><GradientStop Offset=\"0\" Color=\"{StaticResource Orange}\" /><GradientStop Offset=\"1\" Color=\"#7929D8\" /></LinearGradientBrush><RadialGradientBrush x:Key=\"Focus\" Units=\"Percent\" Center=\"50%\" Radius=\"70%,40%\"><GradientStop Offset=\"0\" Color=\"#FFFFFFFF\" /><GradientStop Offset=\"1\" Color=\"#00000000\" /></RadialGradientBrush><Style x:Key=\"Button\" TargetType=\"Button\"><Setter Property=\"BackgroundBrush\" Value=\"{StaticResource Spectrum}\" /></Style><Style x:Key=\"Button\" Variant=\"Danger\" TargetType=\"Button\" BasedOn=\"Button\"><Setter Property=\"BorderWidth\" Value=\"1\" /></Style><Button StyleKey=\"Button\" Variant=\"Danger\" /></ResourceDictionary>",
             XamlSemanticRegistry.CreateBuiltIns());
         Assert.True(gradientPlan.Success, "declarative gradients and variant styles compile into one plan");
         Assert.True(CSharpArtifactEmitter.TryEmit(gradientPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "GradientArtifact", out var gradientSource, out var gradientDiagnostic), "declarative gradients and BasedOn styles emit");
         Assert.True(gradientDiagnostic is null, "gradient artifact emission has no diagnostic");
         Assert.True(gradientSource.Contains("UiLinearGradient.Relative(110f", StringComparison.Ordinal), "linear gradient emits its CSS-compatible angle");
         Assert.True(gradientSource.Contains("UiBrush.LinearGradient", StringComparison.Ordinal), "gradient resource emits a typed brush alias");
+        Assert.True(gradientSource.Contains(
+            "new global::Delta.XAML.UiRadialGradient(0.5f, 0.5f, 0.7f, 0.4f, new global::Delta.XAML.UiGradientStop[]",
+            StringComparison.Ordinal) &&
+            gradientSource.Contains("global::Delta.XAML.Contract.PaintUnits.Percent)", StringComparison.Ordinal),
+            "radial gradient emits normalized center, elliptical radii and units");
         Assert.True(gradientSource.Contains("SetBasedOn(style0)", StringComparison.Ordinal), "variant style emits its BasedOn relationship");
         Assert.True(gradientSource.Contains("SetVariant(\"Danger\")", StringComparison.Ordinal), "variant style emits its semantic selector");
 

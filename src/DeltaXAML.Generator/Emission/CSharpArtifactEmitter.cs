@@ -2098,13 +2098,15 @@ internal static class CSharpArtifactEmitter
             else
             {
                 if (gradient.Center is not { } center || gradient.Radius is not { } radius ||
-                    !TryVectorExpression(center, out var centerX, out var centerY) || radius.Kind != XamlValueKind.Single)
+                    !TryVectorExpression(center, out var centerX, out var centerY) ||
+                    !TryVectorExpression(radius, out var radiusX, out var radiusY))
                 {
                     throw new InvalidOperationException($"Radial gradient '{gradient.Key}' has invalid geometry.");
                 }
 
                 gradientExpression = "new global::Delta.XAML.UiRadialGradient(" + centerX + ", " + centerY + ", " +
-                    radius.Literal.CanonicalText + "f, " + stops + ")";
+                    radiusX + ", " + radiusY + ", " + stops + ", global::Delta.XAML.Contract.PaintUnits." +
+                    gradient.Units + ")";
 
                 if (gradient.OutlineColor is { } radialOutlineColor)
                 {
@@ -2156,7 +2158,7 @@ internal static class CSharpArtifactEmitter
     {
         x = string.Empty;
         y = string.Empty;
-        if (value.Kind != XamlValueKind.Vector2)
+        if (value.Kind is not (XamlValueKind.Vector2 or XamlValueKind.GradientVector))
         {
             return false;
         }

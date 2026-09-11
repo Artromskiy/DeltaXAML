@@ -121,6 +121,17 @@ internal static partial class Program
         Assert.True(gradientResources.GradientResources[0].Id != gradientResources.GradientResources[0].PayloadId, "gradient payload gets a separate deterministic identity");
         Assert.Equal(2, gradientResources.GradientResources[0].Stops.Length, "gradient stops preserve declaration order");
 
+        var ellipticalGradients = XamlCompiler.Compile(
+            sourceId,
+            "<ResourceDictionary><RadialGradientBrush x:Key=\"Ellipse\" Units=\"Percent\" Center=\"50%,50%\" Radius=\"70%,40%\"><GradientStop Offset=\"0\" Color=\"#FFFFFFFF\" /><GradientStop Offset=\"1\" Color=\"#00000000\" /></RadialGradientBrush><RadialGradientBrush x:Key=\"Circle\" Center=\"0.5\" Radius=\"0.25\"><GradientStop Offset=\"0\" Color=\"#FFFFFFFF\" /><GradientStop Offset=\"1\" Color=\"#00000000\" /></RadialGradientBrush></ResourceDictionary>",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(ellipticalGradients.Success, "radial center and radius accept percent and one-component forms");
+        Assert.Equal(PaintUnits.Percent, ellipticalGradients.GradientResources[0].Units, "radial Units accepts Percent");
+        Assert.Equal("0.5,0.5", ellipticalGradients.GradientResources[0].Center?.Literal.CanonicalText, "percent center is normalized and preserves both axes");
+        Assert.Equal("0.7,0.4", ellipticalGradients.GradientResources[0].Radius?.Literal.CanonicalText, "two radius components remain elliptical");
+        Assert.Equal("0.5,0.5", ellipticalGradients.GradientResources[1].Center?.Literal.CanonicalText, "one center component is copied to both axes");
+        Assert.Equal("0.25,0.25", ellipticalGradients.GradientResources[1].Radius?.Literal.CanonicalText, "one radius component is copied to both axes");
+
         var basedOnStyles = XamlCompiler.Compile(
             sourceId,
             "<ResourceDictionary><Style x:Key=\"Button\" TargetType=\"Button\"><Setter Property=\"Padding\" Value=\"12,6\" /></Style><Style x:Key=\"Button\" Variant=\"Danger\" TargetType=\"Button\" BasedOn=\"Button\"><Setter Property=\"Background\" Value=\"#8E2A2A\" /></Style><Button StyleKey=\"Button\" Variant=\"Danger\" /></ResourceDictionary>",
