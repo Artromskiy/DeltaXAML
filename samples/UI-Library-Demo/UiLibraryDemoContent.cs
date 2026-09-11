@@ -107,7 +107,7 @@ internal sealed class UiLibraryDemoContent : IDisposable
     {
         var resource = ResolveResourceId(key);
         if (_artifact.Resources.TryResolve(resource, out var value) &&
-            value is UiBrush { Kind: UiBrushKind.LinearGradient } brush)
+            value is UiBrush { Kind: UiBrushKind.LinearGradient or UiBrushKind.RadialGradient } brush)
         {
             return brush;
         }

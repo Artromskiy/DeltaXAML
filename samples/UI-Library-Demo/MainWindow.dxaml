@@ -17,10 +17,10 @@
     <GradientStop Offset="0" Color="#21FF8A00"/>
     <GradientStop Offset="1" Color="#1FD83CA5"/>
   </LinearGradientBrush>
-  <LinearGradientBrush x:Key="SoftSpectrumBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
+  <RadialGradientBrush x:Key="SoftSpectrumBrush" Center="0.5,0.5" Radius="1.1" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
     <GradientStop Offset="0" Color="#2EFF8A00"/>
     <GradientStop Offset="1" Color="#337929D8"/>
-  </LinearGradientBrush>
+  </RadialGradientBrush>
   <LinearGradientBrush x:Key="OrangeRedBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
     <GradientStop Offset="0" Color="#FF8A00"/>
     <GradientStop Offset="1" Color="#FF4B31"/>
@@ -29,10 +29,10 @@
     <GradientStop Offset="0" Color="#D83CA5"/>
     <GradientStop Offset="1" Color="#7929D8"/>
   </LinearGradientBrush>
-  <LinearGradientBrush x:Key="CyanGreenBrush" Angle="110" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
+  <RadialGradientBrush x:Key="CyanGreenBrush" Center="0.5,0.5" Radius="1.1" OutlineColor="{StaticResource Accent}" OutlineWidth="1">
     <GradientStop Offset="0" Color="#28A8BD"/>
     <GradientStop Offset="1" Color="#66C43C"/>
-  </LinearGradientBrush>
+  </RadialGradientBrush>
   <Style x:Key="Card" TargetType="Border">
     <Setter Property="Background" Value="{StaticResource Surface}"/>
     <Setter Property="BorderColor" Value="{StaticResource Line}"/>

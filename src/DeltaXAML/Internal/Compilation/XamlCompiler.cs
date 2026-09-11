@@ -558,11 +558,6 @@ internal static class XamlCompiler
             {
                 Report("XAML055", "RadialGradientBrush requires Center and Radius.", Range(elementStart, _offset));
             }
-            else if (lexicalName == "RadialGradientBrush" && (outlineColor is not null || outlineWidth is not null))
-            {
-                Report("XAML060", "RadialGradientBrush outline is not supported by the current renderer contract.", Range(elementStart, _offset));
-            }
-
             if (radius is { } radiusPlan && radiusPlan.Kind == XamlValueKind.Single &&
                 (!float.TryParse(radiusPlan.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var radiusValue) || radiusValue <= 0))
             {

@@ -138,14 +138,23 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
         {
             var resourceId = _resolveResourceId(key);
             if (!resources.TryResolve(resourceId, out var brushValue) ||
-                brushValue is not UiBrush { Kind: UiBrushKind.LinearGradient } brush ||
-                !resources.TryResolve(brush.Resource, out var gradientValue) ||
-                gradientValue is not UiLinearGradient gradient)
+                brushValue is not UiBrush brush ||
+                !resources.TryResolve(brush.Resource, out var gradientValue))
             {
-                throw new InvalidOperationException($"UI library demo gradient resource '{key}' is missing or has an invalid payload.");
+                throw new InvalidOperationException($"UI library demo gradient resource '{key}' is missing.");
             }
 
-            UiLinearGradientAdapter.RegisterLinearGradient(registry, brush.Resource, gradient);
+            switch (brush.Kind)
+            {
+                case UiBrushKind.LinearGradient when gradientValue is UiLinearGradient linear:
+                    UiLinearGradientAdapter.RegisterLinearGradient(registry, brush.Resource, linear);
+                    break;
+                case UiBrushKind.RadialGradient when gradientValue is UiRadialGradient radial:
+                    UiLinearGradientAdapter.RegisterRadialGradient(registry, brush.Resource, radial);
+                    break;
+                default:
+                    throw new InvalidOperationException($"UI library demo gradient resource '{key}' has an invalid payload.");
+            }
         }
         RegisterVisualEffects(resources.GetEffectResources(), registry);
 

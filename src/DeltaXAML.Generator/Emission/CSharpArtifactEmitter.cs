@@ -2105,6 +2105,19 @@ internal static class CSharpArtifactEmitter
 
                 gradientExpression = "new global::Delta.XAML.UiRadialGradient(" + centerX + ", " + centerY + ", " +
                     radius.Literal.CanonicalText + "f, " + stops + ")";
+
+                if (gradient.OutlineColor is { } radialOutlineColor)
+                {
+                    if (!TryGradientColorExpression(radialOutlineColor, resourceSlots, out var outlineExpression, out var outlineError))
+                    {
+                        throw new InvalidOperationException(outlineError);
+                    }
+
+                    var width = gradient.OutlineWidth is { } widthPlan && widthPlan.Kind == XamlValueKind.Single
+                        ? widthPlan.Literal.CanonicalText + "f"
+                        : "1f";
+                    gradientExpression += ".WithOutline(" + outlineExpression + ", " + width + ")";
+                }
             }
 
             writer.Append("        Resources.Set(").Append(ResourceIdExpression(gradient.PayloadId)).Append(", ")

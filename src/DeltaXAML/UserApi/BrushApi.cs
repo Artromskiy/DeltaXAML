@@ -132,6 +132,27 @@ public readonly record struct UiRadialGradient
 
     public ReadOnlyMemory<UiGradientStop> Stops { get; }
 
+    /// <summary>Gets the optional solid outline color drawn around the gradient bounds.</summary>
+    public UiColor OutlineColor { get; init; }
+
+    /// <summary>Gets the optional solid outline width in the gradient's logical units.</summary>
+    public float OutlineWidth { get; init; }
+
+    /// <summary>Returns this gradient with a solid outline around its arranged bounds.</summary>
+    public UiRadialGradient WithOutline(UiColor color, float width = 1)
+    {
+        if (!float.IsFinite(width) || width < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), "Gradient outline width must be finite and non-negative.");
+        }
+
+        return this with
+        {
+            OutlineColor = color,
+            OutlineWidth = width,
+        };
+    }
+
     private static ReadOnlyMemory<UiGradientStop> CopyStops(ReadOnlyMemory<UiGradientStop> stops)
     {
         if (stops.Length < 2)
