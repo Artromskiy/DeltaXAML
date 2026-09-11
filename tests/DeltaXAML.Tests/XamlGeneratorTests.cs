@@ -51,6 +51,18 @@ internal static partial class Program
         Assert.True(perSideSource.Contains("node1.BorderThickness = new global::Delta.XAML.UiThickness(0f, 0f, 0f, 1f);", StringComparison.Ordinal), "generated artifact preserves the per-side thickness order");
         Assert.True(perSideSource.Contains("new global::Delta.float4(0.1882353f, 0.19607843f, 0.21960784f, 1f), new global::Delta.float4(0f, 0f, 0f, 1f)", StringComparison.Ordinal), "generated stroke carries the resolved static resource color and side widths");
 
+        var gradientPlan = XamlCompiler.Compile(
+            sourceId,
+            "<ResourceDictionary><Resource x:Key=\"Orange\" Type=\"Color\" Value=\"#FF8A00\" /><LinearGradientBrush x:Key=\"Spectrum\" Angle=\"110\" OutlineColor=\"{StaticResource Orange}\"><GradientStop Offset=\"0\" Color=\"{StaticResource Orange}\" /><GradientStop Offset=\"1\" Color=\"#7929D8\" /></LinearGradientBrush><Style x:Key=\"Button\" TargetType=\"Button\"><Setter Property=\"BackgroundBrush\" Value=\"{StaticResource Spectrum}\" /></Style><Style x:Key=\"Button\" Variant=\"Danger\" TargetType=\"Button\" BasedOn=\"Button\"><Setter Property=\"BorderWidth\" Value=\"1\" /></Style><Button StyleKey=\"Button\" Variant=\"Danger\" /></ResourceDictionary>",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(gradientPlan.Success, "declarative gradients and variant styles compile into one plan");
+        Assert.True(CSharpArtifactEmitter.TryEmit(gradientPlan, XamlSemanticRegistry.CreateBuiltIns(), "Generated", "GradientArtifact", out var gradientSource, out var gradientDiagnostic), "declarative gradients and BasedOn styles emit");
+        Assert.True(gradientDiagnostic is null, "gradient artifact emission has no diagnostic");
+        Assert.True(gradientSource.Contains("UiLinearGradient.Relative(110f", StringComparison.Ordinal), "linear gradient emits its CSS-compatible angle");
+        Assert.True(gradientSource.Contains("UiBrush.LinearGradient", StringComparison.Ordinal), "gradient resource emits a typed brush alias");
+        Assert.True(gradientSource.Contains("SetBasedOn(style0)", StringComparison.Ordinal), "variant style emits its BasedOn relationship");
+        Assert.True(gradientSource.Contains("SetVariant(\"Danger\")", StringComparison.Ordinal), "variant style emits its semantic selector");
+
         var strokePlan = XamlCompiler.Compile(
             sourceId,
             "<TextBlock Text=\"Delta\" StrokeColor=\"#80FFFFFF\" StrokeWidth=\"2\" />",

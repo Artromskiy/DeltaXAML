@@ -425,6 +425,32 @@ internal sealed record XamlScalarResourcePlan(
     XamlValuePlan Value,
     SourceRange Range);
 
+internal enum XamlGradientKind
+{
+    Linear,
+    Radial,
+}
+
+internal readonly record struct XamlGradientStopPlan(
+    float Offset,
+    XamlValuePlan Color,
+    SourceRange Range);
+
+internal sealed record XamlGradientResourcePlan(
+    UiResourceId Id,
+    UiResourceId PayloadId,
+    string Key,
+    XamlGradientKind Kind,
+    XamlValuePlan? Angle,
+    XamlValuePlan? StartPoint,
+    XamlValuePlan? EndPoint,
+    XamlValuePlan? Center,
+    XamlValuePlan? Radius,
+    XamlValuePlan? OutlineColor,
+    XamlValuePlan? OutlineWidth,
+    ImmutableArray<XamlGradientStopPlan> Stops,
+    SourceRange Range);
+
 internal sealed record XamlStylePlan(
     string Key,
     UiStyleId Id,
@@ -432,7 +458,9 @@ internal sealed record XamlStylePlan(
     UiTypeId TargetTypeId,
     ImmutableArray<XamlMemberPlan> Setters,
     ImmutableArray<XamlVisualStatePlan> VisualStates,
-    SourceRange Range);
+    SourceRange Range,
+    string? BasedOn = null,
+    string? Variant = null);
 
 internal sealed record XamlVisualStatePlan(
     XamlVisualStateName State,
@@ -473,10 +501,11 @@ internal sealed record XamlDocumentPlan(
     ImmutableArray<XamlBehaviorPlan> Behaviors,
     ImmutableArray<XamlResourceSlotPlan> ResourceSlots,
     ImmutableArray<Diagnostic> Diagnostics,
-    ImmutableArray<XamlEffectPlan> EffectResources = default)
+    ImmutableArray<XamlEffectPlan> EffectResources = default,
+    ImmutableArray<XamlGradientResourcePlan> GradientResources = default)
 {
     internal bool Success =>
-        (Root is not null || Resources.Length != 0 || ScalarResources.Length != 0 || Styles.Length != 0 || Templates.Length != 0 || EffectResources.Length != 0) &&
+        (Root is not null || Resources.Length != 0 || ScalarResources.Length != 0 || Styles.Length != 0 || Templates.Length != 0 || EffectResources.Length != 0 || GradientResources.Length != 0) &&
         Diagnostics.All(static diagnostic => diagnostic.Severity != DiagnosticSeverity.Error);
 }
 
@@ -694,6 +723,7 @@ internal sealed class XamlSemanticRegistry
             Property("IsEnabled", "10000000-0000-4000-8000-000000000006", XamlValueKind.Boolean),
             Property("IsSelected", "10000000-0000-4000-8000-000000000007", XamlValueKind.Boolean),
             Property("StyleKey", "10000000-0000-4000-8000-000000000008", XamlValueKind.String),
+            Property("Variant", "10000000-0000-4000-8000-00000000001C", XamlValueKind.String),
             Property("TemplateKey", "10000000-0000-4000-8000-000000000009", XamlValueKind.String));
         common = common.AddRange(ImmutableArray.Create(
             Property("BackgroundBrush", "10000000-0000-4000-8000-00000000000A", XamlValueKind.Brush),

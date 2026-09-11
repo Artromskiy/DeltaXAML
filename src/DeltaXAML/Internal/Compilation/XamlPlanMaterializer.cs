@@ -638,6 +638,7 @@ internal static class XamlPlanMaterializer
             case "Padding" when TryThickness(value, out var padding): e.Padding = padding; break;
             case "Padding": d.Add(new("XAML003", $"Invalid Padding '{value}'. Expected one, two or four finite values.", line, 1)); break;
             case "StyleKey": e.StyleKey = value; break;
+            case "Variant": e.Variant = value; break;
             case "TemplateKey": e.TemplateKey = value; break;
             case "AutomationName": e.AutomationName = value; break;
             case "AutomationRole" when Enum.TryParse(value, true, out UiAutomationRole role): e.AutomationRole = role; break;
@@ -687,7 +688,7 @@ internal static class XamlPlanMaterializer
     private static bool SupportsProperty(UiElement element, string name)
     {
         if (name is "Width" or "Height" or "Margin" or "HorizontalAlignment" or "VerticalAlignment" or "Background" or "BorderColor" or "BorderWidth" or "BorderThickness" or "BorderWidthUnits" or "CornerRadius" or "Padding" or
-            "StyleKey" or "TemplateKey" or "AutomationName" or "AutomationRole" or
+            "StyleKey" or "Variant" or "TemplateKey" or "AutomationName" or "AutomationRole" or
             "IsEnabled" or "IsSelected" or "BackgroundBrush" or "EffectSet" or "BlendMode")
         {
             return true;
@@ -753,7 +754,7 @@ internal static class XamlPlanMaterializer
         "FontStyle" => value is Delta.XAML.UiFontStyle,
         "TextDecorations" => value is Delta.XAML.UiTextDecorations,
         "LineHeight" => value is float or double or int,
-        "Text" or "FontKey" or "StyleKey" or "TemplateKey" or "AutomationName" => value is string,
+        "Text" or "FontKey" or "StyleKey" or "Variant" or "TemplateKey" or "AutomationName" => value is string,
         _ => true,
     };
     private static UiDirtyFlags InvalidationFor(string name) => name switch

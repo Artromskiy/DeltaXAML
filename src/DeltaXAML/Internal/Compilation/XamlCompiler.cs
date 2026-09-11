@@ -34,6 +34,7 @@ internal static class XamlCompiler
         private readonly ImmutableArray<Diagnostic>.Builder _diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         private readonly ImmutableArray<XamlResourcePlan>.Builder _resources = ImmutableArray.CreateBuilder<XamlResourcePlan>();
         private readonly ImmutableArray<XamlScalarResourcePlan>.Builder _scalarResources = ImmutableArray.CreateBuilder<XamlScalarResourcePlan>();
+        private readonly ImmutableArray<XamlGradientResourcePlan>.Builder _gradientResources = ImmutableArray.CreateBuilder<XamlGradientResourcePlan>();
         private readonly ImmutableArray<XamlStylePlan>.Builder _styles = ImmutableArray.CreateBuilder<XamlStylePlan>();
         private readonly ImmutableArray<XamlTemplatePlan>.Builder _templates = ImmutableArray.CreateBuilder<XamlTemplatePlan>();
         private readonly ImmutableArray<XamlTriggerPlan>.Builder _triggers = ImmutableArray.CreateBuilder<XamlTriggerPlan>();
@@ -41,7 +42,7 @@ internal static class XamlCompiler
         private readonly ImmutableArray<XamlEffectPlan>.Builder _effectResources = ImmutableArray.CreateBuilder<XamlEffectPlan>();
         private readonly List<XamlResourceSlotPlan> _resourceSlots = new();
         private readonly Dictionary<UiResourceId, int> _resourceSlotIndices = new();
-        private readonly HashSet<string> _styleKeys = new(StringComparer.Ordinal);
+        private readonly HashSet<(string Key, string? Variant)> _styleKeys = new();
         private readonly HashSet<string> _templateKeys = new(StringComparer.Ordinal);
         private readonly HashSet<string> _names = new(StringComparer.Ordinal);
         private string? _bindingSourceTypeName;
@@ -67,7 +68,7 @@ internal static class XamlCompiler
             var root = _offset < _text.Length && Current == '<'
                 ? ParseElement(new Dictionary<string, string>(StringComparer.Ordinal))
                 : null;
-            if (root is null && (_resources.Count != 0 || _scalarResources.Count != 0 || _styles.Count != 0 || _templates.Count != 0 || _effectResources.Count != 0) &&
+            if (root is null && (_resources.Count != 0 || _scalarResources.Count != 0 || _gradientResources.Count != 0 || _styles.Count != 0 || _templates.Count != 0 || _effectResources.Count != 0) &&
                 _registry.TryResolveType(new XamlQualifiedName(string.Empty, "ResourceDictionary"), out var resourceDictionary))
             {
                 root = new XamlObjectPlan(resourceDictionary.Id, resourceDictionary.Name, null, Range(0, _offset), ImmutableArray<XamlMemberPlan>.Empty, ImmutableArray<XamlObjectPlan>.Empty);
@@ -108,7 +109,8 @@ internal static class XamlCompiler
                 _behaviors.ToImmutable(),
                 _resourceSlots.ToImmutableArray(),
                 _diagnostics.ToImmutable(),
-                _effectResources.ToImmutable());
+                _effectResources.ToImmutable(),
+                _gradientResources.ToImmutable());
         }
 
         private XamlObjectPlan? ParseElement(Dictionary<string, string> parentNamespaces)
@@ -160,6 +162,12 @@ internal static class XamlCompiler
             if (lexicalName == "Resource")
             {
                 ParseScalarResource(attributes, selfClosing, elementStart);
+                return null;
+            }
+
+            if (lexicalName is "LinearGradientBrush" or "RadialGradientBrush")
+            {
+                ParseGradientResource(lexicalName, attributes, selfClosing, elementStart, namespaces);
                 return null;
             }
 
@@ -378,6 +386,283 @@ internal static class XamlCompiler
             _scalarResources.Add(new(resourceId, key, valuePlan, keyRange));
         }
 
+        private void ParseGradientResource(
+            string lexicalName,
+            List<AttributeSyntax> attributes,
+            bool selfClosing,
+            int elementStart,
+            Dictionary<string, string> namespaces)
+        {
+            string? key = null;
+            XamlValuePlan? angle = null;
+            XamlValuePlan? startPoint = null;
+            XamlValuePlan? endPoint = null;
+            XamlValuePlan? center = null;
+            XamlValuePlan? radius = null;
+            XamlValuePlan? outlineColor = null;
+            XamlValuePlan? outlineWidth = null;
+            var keyRange = Range(elementStart, _offset);
+            foreach (var attribute in attributes)
+            {
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                if (attribute.IsKey)
+                {
+                    key = attribute.Value;
+                    keyRange = attribute.Range;
+                    continue;
+                }
+
+                var expected = attribute.LocalName switch
+                {
+                    "Angle" => XamlValueKind.Single,
+                    "StartPoint" or "EndPoint" or "Center" => XamlValueKind.Vector2,
+                    "Radius" or "OutlineWidth" => XamlValueKind.Single,
+                    "OutlineColor" => XamlValueKind.Color,
+                    _ => XamlValueKind.Invalid,
+                };
+                if (attribute.Prefix.Length != 0 || expected == XamlValueKind.Invalid)
+                {
+                    Report("XAML050", $"Unsupported {lexicalName} attribute '{attribute.LocalName}'.", attribute.Range);
+                    continue;
+                }
+
+                if (!TryParseValue(attribute.Value, expected, attribute.Range, out var value))
+                {
+                    continue;
+                }
+
+                if ((expected != XamlValueKind.Color && value.Kind != expected) ||
+                    (expected == XamlValueKind.Color && value.Kind is XamlValueKind.Binding or XamlValueKind.MultiBinding) ||
+                    (value.Kind == XamlValueKind.ResourceReference && value.Resource.IsDynamic))
+                {
+                    Report("XAML057", expected == XamlValueKind.Color
+                        ? "Gradient outline colors support StaticResource only."
+                        : $"Gradient geometry attribute '{attribute.LocalName}' must be a literal.", attribute.Range);
+                    continue;
+                }
+
+                switch (attribute.LocalName)
+                {
+                    case "Angle": angle = value; break;
+                    case "StartPoint": startPoint = value; break;
+                    case "EndPoint": endPoint = value; break;
+                    case "Center": center = value; break;
+                    case "Radius": radius = value; break;
+                    case "OutlineColor": outlineColor = value; break;
+                    case "OutlineWidth": outlineWidth = value; break;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                Report("XAML051", $"{lexicalName} requires a non-empty x:Key.", Range(elementStart, _offset));
+                if (!selfClosing)
+                {
+                    SkipElementBody(lexicalName);
+                }
+
+                return;
+            }
+
+            var hasExistingResource = _registry.TryResolveResource(key, out var existingResourceId);
+            if (hasExistingResource)
+            {
+                Report("XAML031", $"Resource key '{key}' is declared more than once.", keyRange);
+            }
+
+            var resourceId = hasExistingResource ? existingResourceId : CreateResourceId(key);
+            if (!hasExistingResource)
+            {
+                _registry.RegisterResource(key, resourceId);
+            }
+            RegisterResourceSlot(resourceId, key, false);
+            var payloadId = CreateGradientPayloadId(key);
+            var stops = ImmutableArray.CreateBuilder<XamlGradientStopPlan>();
+            if (!selfClosing)
+            {
+                var closed = false;
+                while (_offset < _text.Length)
+                {
+                    if (StartsWith("</"))
+                    {
+                        var closeStart = _offset;
+                        var closeName = ParseEndElement();
+                        if (!string.Equals(closeName, lexicalName, StringComparison.Ordinal))
+                        {
+                            Report("XAML013", $"Closing element '{closeName}' does not match '{lexicalName}'.", closeStart, _offset);
+                        }
+
+                        closed = true;
+                        break;
+                    }
+
+                    if (Current == '<' && StartsWith("<GradientStop", StringComparison.Ordinal))
+                    {
+                        ParseGradientStop(stops);
+                        continue;
+                    }
+
+                    if (Current == '<')
+                    {
+                        var unexpected = ParseElement(namespaces);
+                        if (unexpected is not null)
+                        {
+                            Report("XAML050", $"Only GradientStop children are supported in {lexicalName}.", unexpected.Range);
+                        }
+
+                        continue;
+                    }
+
+                    ReadText();
+                }
+
+                if (!closed)
+                {
+                    Report("XAML012", $"Element '{lexicalName}' is not closed.", _offset, _offset);
+                }
+            }
+
+            if (stops.Count < 2)
+            {
+                Report("XAML052", $"{lexicalName} requires at least two GradientStop children.", Range(elementStart, _offset));
+            }
+            else
+            {
+                var previousOffset = -1f;
+                for (var stopIndex = 0; stopIndex < stops.Count; stopIndex++)
+                {
+                    if (stops[stopIndex].Offset < previousOffset)
+                    {
+                        Report("XAML059", "GradientStop offsets must be ordered from 0 to 1.", stops[stopIndex].Range);
+                    }
+
+                    previousOffset = stops[stopIndex].Offset;
+                }
+            }
+
+            if (lexicalName == "LinearGradientBrush" && angle is not null && (startPoint is not null || endPoint is not null))
+            {
+                Report("XAML053", "LinearGradientBrush cannot combine Angle with StartPoint or EndPoint.", Range(elementStart, _offset));
+            }
+
+            if (lexicalName == "LinearGradientBrush" && ((startPoint is null) != (endPoint is null)))
+            {
+                Report("XAML054", "LinearGradientBrush requires both StartPoint and EndPoint.", Range(elementStart, _offset));
+            }
+
+            if (lexicalName == "RadialGradientBrush" && (center is null || radius is null))
+            {
+                Report("XAML055", "RadialGradientBrush requires Center and Radius.", Range(elementStart, _offset));
+            }
+            else if (lexicalName == "RadialGradientBrush" && (outlineColor is not null || outlineWidth is not null))
+            {
+                Report("XAML060", "RadialGradientBrush outline is not supported by the current renderer contract.", Range(elementStart, _offset));
+            }
+
+            if (radius is { } radiusPlan && radiusPlan.Kind == XamlValueKind.Single &&
+                (!float.TryParse(radiusPlan.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var radiusValue) || radiusValue <= 0))
+            {
+                Report("XAML061", "RadialGradientBrush Radius must be positive.", Range(elementStart, _offset));
+            }
+
+            if (outlineWidth is { } outlineWidthPlan && outlineWidthPlan.Kind == XamlValueKind.Single &&
+                float.TryParse(outlineWidthPlan.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var outlineWidthValue) && outlineWidthValue < 0)
+            {
+                Report("XAML062", "Gradient OutlineWidth must be non-negative.", Range(elementStart, _offset));
+            }
+
+            _gradientResources.Add(new(
+                resourceId,
+                payloadId,
+                key,
+                lexicalName == "LinearGradientBrush" ? XamlGradientKind.Linear : XamlGradientKind.Radial,
+                angle,
+                startPoint,
+                endPoint,
+                center,
+                radius,
+                outlineColor,
+                outlineWidth,
+                stops.ToImmutable(),
+                Range(elementStart, _offset)));
+        }
+
+        private void ParseGradientStop(ImmutableArray<XamlGradientStopPlan>.Builder stops)
+        {
+            var start = _offset;
+            Consume('<');
+            var name = ReadName();
+            var attributes = new List<AttributeSyntax>();
+            var selfClosing = ParseStartTag(attributes, start);
+            if (!string.Equals(name, "GradientStop", StringComparison.Ordinal))
+            {
+                Report("XAML050", "Only GradientStop children are supported in a gradient brush.", start, _offset);
+                return;
+            }
+
+            float? offset = null;
+            SourceRange offsetRange = Range(start, _offset);
+            XamlValuePlan? color = null;
+            foreach (var attribute in attributes)
+            {
+                if (attribute.IsNamespace)
+                {
+                    continue;
+                }
+
+                if (attribute.Prefix.Length != 0)
+                {
+                    Report("XAML050", $"Unsupported GradientStop attribute '{attribute.LocalName}'.", attribute.Range);
+                    continue;
+                }
+
+                if (attribute.LocalName == "Offset")
+                {
+                    offsetRange = attribute.Range;
+                    if (float.TryParse(attribute.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) &&
+                        float.IsFinite(parsed) && parsed is >= 0 and <= 1)
+                    {
+                        offset = parsed;
+                    }
+                    else
+                    {
+                        Report("XAML056", $"GradientStop offset '{attribute.Value}' must be finite and between 0 and 1.", attribute.Range);
+                    }
+                }
+                else if (attribute.LocalName == "Color" && TryParseValue(attribute.Value, XamlValueKind.Color, attribute.Range, out var parsedColor))
+                {
+                    if (parsedColor.Kind is XamlValueKind.Binding or XamlValueKind.MultiBinding ||
+                        parsedColor.Kind == XamlValueKind.ResourceReference && parsedColor.Resource.IsDynamic)
+                    {
+                        Report("XAML057", "GradientStop colors support StaticResource only.", attribute.Range);
+                    }
+                    else
+                    {
+                        color = parsedColor;
+                    }
+                }
+                else
+                {
+                    Report("XAML050", $"Unsupported GradientStop attribute '{attribute.LocalName}'.", attribute.Range);
+                }
+            }
+
+            if (!selfClosing)
+            {
+                Report("XAML058", "GradientStop must be self-closing.", Range(start, _offset));
+                RecoverToTagEnd();
+            }
+
+            if (offset is { } position && color is { } colorPlan)
+            {
+                stops.Add(new(position, colorPlan, offsetRange));
+            }
+        }
+
         private void SkipElementBody(string lexicalName)
         {
             while (_offset < _text.Length)
@@ -429,6 +714,8 @@ internal static class XamlCompiler
             string? key = null;
             var keyRange = Range(elementStart, _offset);
             string? targetType = null;
+            string? basedOn = null;
+            string? variant = null;
             foreach (var attribute in attributes)
             {
                 if (attribute.IsNamespace)
@@ -445,6 +732,14 @@ internal static class XamlCompiler
                 {
                     targetType = attribute.Value;
                 }
+                else if (attribute.Prefix.Length == 0 && attribute.LocalName == "BasedOn")
+                {
+                    basedOn = attribute.Value;
+                }
+                else if (attribute.Prefix.Length == 0 && attribute.LocalName == "Variant")
+                {
+                    variant = attribute.Value;
+                }
                 else
                 {
                     Report("XAML021", $"Unsupported Style attribute '{attribute.LocalName}'.", attribute.Range);
@@ -459,6 +754,18 @@ internal static class XamlCompiler
             if (string.IsNullOrWhiteSpace(targetType))
             {
                 Report("XAML023", "A Style requires a non-empty TargetType.", Range(elementStart, _offset));
+            }
+
+            if (basedOn is not null && string.IsNullOrWhiteSpace(basedOn))
+            {
+                Report("XAML036", "Style BasedOn requires a non-empty style key.", Range(elementStart, _offset));
+                basedOn = null;
+            }
+
+            if (variant is not null && string.IsNullOrWhiteSpace(variant))
+            {
+                Report("XAML037", "Style Variant requires a non-empty name.", Range(elementStart, _offset));
+                variant = null;
             }
 
             var setters = ImmutableArray.CreateBuilder<XamlMemberPlan>();
@@ -520,9 +827,9 @@ internal static class XamlCompiler
 
             if (key is not null && targetType is not null)
             {
-                if (!_styleKeys.Add(key))
+                if (!_styleKeys.Add((key, variant)))
                 {
-                    Report("XAML031", $"Style key '{key}' is declared more than once.", keyRange);
+                    Report("XAML031", $"Style '{key}' with variant '{variant ?? "default"}' is declared more than once.", keyRange);
                 }
                 else
                 {
@@ -532,12 +839,14 @@ internal static class XamlCompiler
                         : default;
                     _styles.Add(new(
                         key,
-                        CreateStyleId(key),
+                        CreateStyleId(key, variant),
                         qualifiedTargetType,
                         targetTypeId,
                         setters.ToImmutable(),
                         visualStates.ToImmutable(),
-                        Range(elementStart, _offset)));
+                        Range(elementStart, _offset),
+                        basedOn,
+                        variant));
                 }
             }
         }
@@ -945,6 +1254,12 @@ internal static class XamlCompiler
             return new UiResourceId(new Guid(bytes.AsSpan(0, 16)));
         }
 
+        private UiResourceId CreateGradientPayloadId(string key)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"DeltaXAML.Gradient/{_source.Value:D}/{key}"));
+            return new UiResourceId(new Guid(bytes.AsSpan(0, 16)));
+        }
+
         private UiResourceId CreateInlineEffectId(int elementStart)
         {
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(
@@ -952,9 +1267,10 @@ internal static class XamlCompiler
             return new UiResourceId(new Guid(bytes.AsSpan(0, 16)));
         }
 
-        private static UiStyleId CreateStyleId(string key)
+        private static UiStyleId CreateStyleId(string key, string? variant = null)
         {
-            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("DeltaXAML.Style/" + key));
+            var identity = variant is null ? key : key + "/" + variant;
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes("DeltaXAML.Style/" + identity));
             return new UiStyleId(new Guid(bytes.AsSpan(0, 16)));
         }
 

@@ -115,6 +115,7 @@ public static class UiElementProperties
     public static UiProperty<bool> IsEnabled { get; } = Create("10000000-0000-4000-8000-000000000006", "IsEnabled", true);
     public static UiProperty<bool> IsSelected { get; } = Create("10000000-0000-4000-8000-000000000007", "IsSelected", false);
     public static UiProperty<string?> StyleKey { get; } = Create<string?>("10000000-0000-4000-8000-000000000008", "StyleKey", null);
+    public static UiProperty<string?> Variant { get; } = Create<string?>("10000000-0000-4000-8000-00000000001C", "Variant", null);
     public static UiProperty<string?> TemplateKey { get; } = Create<string?>("10000000-0000-4000-8000-000000000009", "TemplateKey", null);
     public static UiProperty<UiBrush> BackgroundBrush { get; } = Create("10000000-0000-4000-8000-00000000000A", "BackgroundBrush", UiBrush.None);
     public static UiProperty<UiColor> BorderColor { get; } = Create<UiColor>("10000000-0000-4000-8000-000000000011", "BorderColor", default);

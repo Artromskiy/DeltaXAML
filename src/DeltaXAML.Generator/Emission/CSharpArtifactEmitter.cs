@@ -268,6 +268,51 @@ internal static class CSharpArtifactEmitter
                 return false;
             }
 
+            if (style.BasedOn is { } basedOn)
+            {
+                var baseIndex = FindStyleIndex(plan.Styles, basedOn, null);
+                if (baseIndex < 0)
+                {
+                    baseIndex = FindStyleIndex(plan.Styles, basedOn, style.Variant);
+                }
+
+                if (baseIndex < 0)
+                {
+                    diagnostic = new("DXAMLGEN011", $"Style '{style.Key}' is BasedOn '{basedOn}', but that style is not declared.", style.Range);
+                    return false;
+                }
+
+                if (baseIndex == styleIndex)
+                {
+                    diagnostic = new("DXAMLGEN011", $"Style '{style.Key}' cannot be BasedOn itself.", style.Range);
+                    return false;
+                }
+
+                if (plan.Styles[baseIndex].TargetTypeId != style.TargetTypeId)
+                {
+                    diagnostic = new("DXAMLGEN011", $"Style '{style.Key}' and its BasedOn style '{basedOn}' must target the same type.", style.Range);
+                    return false;
+                }
+
+                var visited = new HashSet<int> { styleIndex };
+                for (var current = baseIndex; plan.Styles[current].BasedOn is { } next;)
+                {
+                    var nextIndex = FindStyleIndex(plan.Styles, next, null);
+                    if (nextIndex < 0)
+                    {
+                        nextIndex = FindStyleIndex(plan.Styles, next, plan.Styles[current].Variant);
+                    }
+
+                    if (nextIndex < 0 || !visited.Add(nextIndex))
+                    {
+                        diagnostic = new("DXAMLGEN011", $"Style '{style.Key}' has a cyclic BasedOn chain.", style.Range);
+                        return false;
+                    }
+
+                    current = nextIndex;
+                }
+            }
+
             for (var setterIndex = 0; setterIndex < style.Setters.Length; setterIndex++)
             {
                 var setter = style.Setters[setterIndex];
@@ -496,6 +541,18 @@ internal static class CSharpArtifactEmitter
         writer.AppendLine("    public global::Delta.XAML.UiResourceCatalog Resources { get; }");
         writer.AppendLine("    public global::Delta.XAML.UiTheme Theme { get; }");
         writer.Append("    public global::Delta.XAML.UiDocument").Append(hasVisualRoot ? string.Empty : "?").AppendLine(" Document { get; }");
+        if (plan.GradientResources.Length != 0)
+        {
+            writer.AppendLine();
+            writer.AppendLine("    private static global::Delta.XAML.UiColor ResolveGradientColor(global::Delta.XAML.UiResourceCatalog resources, global::Delta.XAML.Contract.UiResourceId resource, string key)");
+            writer.AppendLine("    {");
+            writer.AppendLine("        if (resources.TryResolve(resource, out var value) && value is global::Delta.XAML.UiColor color)");
+            writer.AppendLine("        {");
+            writer.AppendLine("            return color;");
+            writer.AppendLine("        }");
+            writer.AppendLine("        throw new global::System.InvalidOperationException(\"Gradient color resource '\" + key + \"' was not found or is not a color.\");");
+            writer.AppendLine("    }");
+        }
         writer.AppendLine();
         writer.Append("    public ").Append(className).Append('(');
         if (bindingSourceType is not null)
@@ -539,6 +596,8 @@ internal static class CSharpArtifactEmitter
                 .Append(ResourceSlotExpression(scalar.Id, plan.ResourceSlots))
                 .Append(", ").Append(scalarExpression).AppendLine(");");
         }
+
+        EmitGradientResources(writer, plan.GradientResources, plan.ResourceSlots);
 
         for (var siteIndex = 0; siteIndex < effectSites.Count; siteIndex++)
         {
@@ -705,8 +764,15 @@ internal static class CSharpArtifactEmitter
             for (var memberIndex = 0; memberIndex < members.Length; memberIndex++)
             {
                 var member = members[memberIndex];
-                if (member.Name != "StyleKey" || member.Value.Kind != XamlValueKind.String ||
-                    !TryFindStyle(plan.Styles, member.Value.Literal.CanonicalText, out var style))
+                if (member.Name != "StyleKey" || member.Value.Kind != XamlValueKind.String)
+                {
+                    continue;
+                }
+
+                var variant = members.FirstOrDefault(static candidate => candidate.Name == "Variant");
+                var variantText = variant.Value.Kind == XamlValueKind.String ? variant.Value.Literal.CanonicalText : null;
+                if (!TryFindStyle(plan.Styles, member.Value.Literal.CanonicalText, variantText, out var style) &&
+                    !TryFindStyle(plan.Styles, member.Value.Literal.CanonicalText, null, out style))
                 {
                     continue;
                 }
@@ -1853,6 +1919,33 @@ internal static class CSharpArtifactEmitter
             var style = styles[styleIndex];
             writer.Append("        var style").Append(styleIndex).Append(" = new global::Delta.XAML.UiStyle(")
                 .Append(Quote(style.Key)).Append(", ").Append(TypeIdExpression(style.TargetTypeId)).AppendLine(", Resources);");
+            if (style.Variant is { } variant)
+            {
+                writer.Append("        style").Append(styleIndex).Append(".SetVariant(").Append(Quote(variant)).AppendLine(");");
+            }
+        }
+
+        for (var styleIndex = 0; styleIndex < styles.Count; styleIndex++)
+        {
+            var style = styles[styleIndex];
+            if (style.BasedOn is { } basedOn)
+            {
+                var baseIndex = FindStyleIndex(styles, basedOn, null);
+                if (baseIndex < 0)
+                {
+                    baseIndex = FindStyleIndex(styles, basedOn, style.Variant);
+                }
+
+                if (baseIndex >= 0)
+                {
+                    writer.Append("        style").Append(styleIndex).Append(".SetBasedOn(style").Append(baseIndex).AppendLine(");");
+                }
+            }
+        }
+
+        for (var styleIndex = 0; styleIndex < styles.Count; styleIndex++)
+        {
+            var style = styles[styleIndex];
             for (var setterIndex = 0; setterIndex < style.Setters.Length; setterIndex++)
             {
                 var setter = style.Setters[setterIndex];
@@ -1922,6 +2015,148 @@ internal static class CSharpArtifactEmitter
                 .Append(StyleIdExpression(style.Id)).Append(", style")
                 .Append(styleIndex).AppendLine(");");
         }
+    }
+
+    private static int FindStyleIndex(IReadOnlyList<XamlStylePlan> styles, string key, string? variant)
+    {
+        for (var i = 0; i < styles.Count; i++)
+        {
+            if (string.Equals(styles[i].Key, key, StringComparison.Ordinal) &&
+                string.Equals(styles[i].Variant, variant, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static void EmitGradientResources(
+        StringBuilder writer,
+        IReadOnlyList<XamlGradientResourcePlan> gradients,
+        IReadOnlyList<XamlResourceSlotPlan> resourceSlots)
+    {
+        if (gradients.Count == 0)
+        {
+            return;
+        }
+
+        writer.AppendLine("        // Gradient resources use source-scoped IDs for the brush alias and payload.");
+        for (var gradientIndex = 0; gradientIndex < gradients.Count; gradientIndex++)
+        {
+            var gradient = gradients[gradientIndex];
+            var stops = new StringBuilder("new global::Delta.XAML.UiGradientStop[] { ");
+            for (var stopIndex = 0; stopIndex < gradient.Stops.Length; stopIndex++)
+            {
+                var stop = gradient.Stops[stopIndex];
+                if (!TryGradientColorExpression(stop.Color, resourceSlots, out var colorExpression, out var colorError))
+                {
+                    throw new InvalidOperationException(colorError);
+                }
+
+                if (stopIndex != 0)
+                {
+                    stops.Append(", ");
+                }
+
+                stops.Append("new global::Delta.XAML.UiGradientStop(")
+                    .Append(stop.Offset.ToString("R", CultureInfo.InvariantCulture))
+                    .Append("f, ").Append(colorExpression).Append(')');
+            }
+
+            stops.Append(" }");
+            string gradientExpression;
+            if (gradient.Kind == XamlGradientKind.Linear)
+            {
+                if (gradient.StartPoint is { } startPoint && gradient.EndPoint is { } endPoint &&
+                    TryVectorExpression(startPoint, out var startX, out var startY) &&
+                    TryVectorExpression(endPoint, out var endX, out var endY))
+                {
+                    gradientExpression = "new global::Delta.XAML.UiLinearGradient(" + startX + ", " + startY + ", " + endX + ", " + endY + ", " + stops + ")";
+                }
+                else
+                {
+                    var angle = gradient.Angle is { } anglePlan && anglePlan.Kind == XamlValueKind.Single
+                        ? anglePlan.Literal.CanonicalText
+                        : "180";
+                    gradientExpression = "global::Delta.XAML.UiLinearGradient.Relative(" + angle + "f, " + stops + ")";
+                }
+
+                if (gradient.OutlineColor is { } outlineColor)
+                {
+                    if (!TryGradientColorExpression(outlineColor, resourceSlots, out var outlineExpression, out var outlineError))
+                    {
+                        throw new InvalidOperationException(outlineError);
+                    }
+
+                    var width = gradient.OutlineWidth is { } widthPlan && widthPlan.Kind == XamlValueKind.Single
+                        ? widthPlan.Literal.CanonicalText + "f"
+                        : "1f";
+                    gradientExpression += ".WithOutline(" + outlineExpression + ", " + width + ")";
+                }
+            }
+            else
+            {
+                if (gradient.Center is not { } center || gradient.Radius is not { } radius ||
+                    !TryVectorExpression(center, out var centerX, out var centerY) || radius.Kind != XamlValueKind.Single)
+                {
+                    throw new InvalidOperationException($"Radial gradient '{gradient.Key}' has invalid geometry.");
+                }
+
+                gradientExpression = "new global::Delta.XAML.UiRadialGradient(" + centerX + ", " + centerY + ", " +
+                    radius.Literal.CanonicalText + "f, " + stops + ")";
+            }
+
+            writer.Append("        Resources.Set(").Append(ResourceIdExpression(gradient.PayloadId)).Append(", ")
+                .Append(gradientExpression).AppendLine(");");
+            writer.Append("        Resources.Set(").Append(ResourceSlotExpression(gradient.Id, resourceSlots))
+                .Append(", global::Delta.XAML.UiBrush.")
+                .Append(gradient.Kind == XamlGradientKind.Linear ? "LinearGradient" : "RadialGradient")
+                .Append('(').Append(ResourceIdExpression(gradient.PayloadId)).AppendLine("));");
+        }
+    }
+
+    private static bool TryGradientColorExpression(
+        XamlValuePlan value,
+        IReadOnlyList<XamlResourceSlotPlan> resourceSlots,
+        out string expression,
+        out string error)
+    {
+        if (value.Kind == XamlValueKind.ResourceReference)
+        {
+            if (value.Resource.IsDynamic)
+            {
+                expression = string.Empty;
+                error = "Gradient colors support StaticResource only.";
+                return false;
+            }
+
+            expression = "ResolveGradientColor(Resources, " + ResourceSlotExpression(value.Resource, resourceSlots) + ", " + Quote(value.Resource.Key) + ")";
+            error = string.Empty;
+            return true;
+        }
+
+        return TryLiteralExpression("Color", value, out expression, out error);
+    }
+
+    private static bool TryVectorExpression(XamlValuePlan value, out string x, out string y)
+    {
+        x = string.Empty;
+        y = string.Empty;
+        if (value.Kind != XamlValueKind.Vector2)
+        {
+            return false;
+        }
+
+        var parts = value.Literal.CanonicalText.Split(',');
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        x = parts[0] + "f";
+        y = parts[1] + "f";
+        return true;
     }
 
     private static void EmitTemplateFactories(
@@ -3629,6 +3864,7 @@ internal static class CSharpArtifactEmitter
             "IsEnabled" => "global::Delta.XAML.UiElementProperties.IsEnabled",
             "IsSelected" => "global::Delta.XAML.UiElementProperties.IsSelected",
             "StyleKey" => "global::Delta.XAML.UiElementProperties.StyleKey",
+            "Variant" => "global::Delta.XAML.UiElementProperties.Variant",
             "TemplateKey" => "global::Delta.XAML.UiElementProperties.TemplateKey",
             "BackgroundBrush" => "global::Delta.XAML.UiElementProperties.BackgroundBrush",
             "EffectSet" => "global::Delta.XAML.UiElementProperties.EffectSet",
@@ -3715,11 +3951,13 @@ internal static class CSharpArtifactEmitter
     private static bool TryFindStyle(
         IReadOnlyList<XamlStylePlan> styles,
         string key,
+        string? variant,
         [NotNullWhen(true)] out XamlStylePlan? style)
     {
         for (var i = 0; i < styles.Count; i++)
         {
-            if (string.Equals(styles[i].Key, key, StringComparison.Ordinal))
+            if (string.Equals(styles[i].Key, key, StringComparison.Ordinal) &&
+                string.Equals(styles[i].Variant, variant, StringComparison.Ordinal))
             {
                 style = styles[i];
                 return true;

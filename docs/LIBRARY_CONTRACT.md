@@ -108,6 +108,8 @@ public abstract class UiElement
     public UiThickness Margin { get; set; }
     public UiHorizontalAlignment HorizontalAlignment { get; set; }
     public UiVerticalAlignment VerticalAlignment { get; set; }
+    public string? StyleKey { get; set; }
+    public string? Variant { get; set; }
 
     public UiParticipation Participation { get; set; }
 
@@ -251,6 +253,13 @@ reusable retained subtrees. The effective source precedence is
 `Default < Style < Binding < Local < Handle`; `{DynamicResource Key}` and
 `{StaticResource Key}` are accepted by the loader. Resource changes are
 observed by dependent retained properties only.
+
+Compiled XAML gives each `x:Key` a deterministic source-scoped
+`UiResourceId`. `LinearGradientBrush` and `RadialGradientBrush` resources keep
+their renderer-neutral gradient payload behind a typed `UiBrush` alias, so a
+`StaticResource` can be assigned directly to `BackgroundBrush`. `UiStyle`
+supports `BasedOn` inheritance and an optional `Variant`; `UiElement.Variant`
+selects a semantic variant together with `StyleKey`.
 
 The loader accepts built-in `Grid` `Columns`/`Rows` definitions with pixel,
 `Auto` and star lengths, numeric editor `Value`/`Minimum`/`Maximum`, and an

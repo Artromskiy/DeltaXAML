@@ -226,6 +226,13 @@ public abstract class UiElement
         set => _retained.StyleKey = value;
     }
 
+    /// <summary>Optional semantic style variant selected together with StyleKey.</summary>
+    public string? Variant
+    {
+        get => _retained.Variant;
+        set => _retained.Variant = value;
+    }
+
     public string? TemplateKey
     {
         get => _retained.TemplateKey;
@@ -1036,6 +1043,7 @@ public abstract class UiElement
         "BlendMode" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
         "BorderColor" or "BorderWidth" or "BorderThickness" or "BorderWidthUnits" or "CornerRadius" => RetainedDirty.Visual,
+        "Variant" => RetainedDirty.Style | RetainedDirty.Visual,
         "Width" or "Height" or "Margin" or "Padding" or
         "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Arrange | RetainedDirty.Visual,
         "HorizontalAlignment" or "VerticalAlignment" => RetainedDirty.Arrange | RetainedDirty.Visual,

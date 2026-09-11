@@ -99,15 +99,22 @@ factories and typed setters construct the retained document without reflection.
 <StackPanel xmlns:x="urn:delta-xaml"
             x:DataType="Game.HudModel">
     <Resource x:Key="Accent" Type="Color" Value="#304860" />
-    <Style x:Key="ActionStyle" TargetType="Button">
-        <Setter Property="Background" Value="{DynamicResource Accent}" />
+    <LinearGradientBrush x:Key="AccentBrush" Angle="110" OutlineColor="#FF8A00">
+        <GradientStop Offset="0" Color="#FF8A00" />
+        <GradientStop Offset="1" Color="#7929D8" />
+    </LinearGradientBrush>
+    <Style x:Key="Button" TargetType="Button">
+        <Setter Property="BackgroundBrush" Value="{StaticResource AccentBrush}" />
+    </Style>
+    <Style x:Key="Button" Variant="Primary" TargetType="Button" BasedOn="Button">
+        <Setter Property="BorderWidth" Value="1" />
     </Style>
     <TextBlock Text="{Binding Title}" FontKey="default" FontSize="18" />
     <Grid Columns="240,*" Rows="*">
         <ItemsControl>
             <TextBlock Text="Inventory" />
         </ItemsControl>
-        <Button StyleKey="ActionStyle">
+        <Button StyleKey="Button" Variant="Primary">
             <TextBlock Text="Use" />
         </Button>
     </Grid>
@@ -137,7 +144,7 @@ constructed document. The stable alternatives are:
 
 | Cold syntax | Diagnostic | Generated/library alternative |
 | --- | --- | --- |
-| `Resource`, `Style`, `Setter`, `Template`, `Trigger`, `Behavior`, `VisualState` and `ResourceDictionary` declarations | `XAML020` | Compile the declaration in the same generated artifact; use `UiResourceCatalog`, `UiStyle`, `UiTemplate` and typed plans from code when constructing documents directly. |
+| `Resource`, `LinearGradientBrush`, `RadialGradientBrush`, `GradientStop`, `Style`, `Setter`, `Template`, `Trigger`, `Behavior`, `VisualState` and `ResourceDictionary` declarations | `XAML020` | Compile the declaration in the same generated artifact; use `UiResourceCatalog`, `UiStyle`, `UiTemplate`, `UiLinearGradient` and typed plans from code when constructing documents directly. |
 | `TemplateBinding` and `MultiBinding` | `XAML020` | Use generated typed relation/multi-binding plans. |
 | `Source`, `RelativeSource` and `ElementName` binding forms | `XAML008` | Use generated cached relation-source plans and stable namescope identities. |
 | `ItemsSource`, `ItemTemplate`, `ItemTemplateSelector` and virtualization properties | `XAML020` | Use `IUiItemsSource<TItem>`, `IUiItemTemplatePlan<TPlan,TItem>` and the generated virtualizing presenter. |
@@ -371,6 +378,36 @@ over `Guid`. Human-readable XAML keys are source aliases, not runtime identity.
 - reusable visual templates;
 - compiled selector/state plans;
 - exact invalidation of dependent retained values.
+
+Gradient resources are declarative and receive deterministic source-scoped IDs
+from `x:Key`; authors do not write GUIDs. `LinearGradientBrush` accepts either
+an `Angle` in CSS-compatible clockwise degrees or both `StartPoint` and
+`EndPoint` vectors. `RadialGradientBrush` accepts `Center` and positive
+`Radius`. Both use ordered `GradientStop` children; colors may be literals or
+`StaticResource` color tokens. A linear brush may add `OutlineColor` and
+`OutlineWidth`.
+
+```xml
+<RadialGradientBrush x:Key="FocusBrush" Center="0.5,0.5" Radius="0.5">
+    <GradientStop Offset="0" Color="#FFFFFFFF" />
+    <GradientStop Offset="1" Color="#30486000" />
+</RadialGradientBrush>
+```
+
+Styles support inheritance and semantic variants without a second selector
+language. `BasedOn` names the base style; `Variant` is selected together with
+the element's `StyleKey` and falls back to the unqualified style when no exact
+variant is registered:
+
+```xml
+<Style x:Key="Button" TargetType="Button">
+    <Setter Property="Padding" Value="12,6" />
+</Style>
+<Style x:Key="Button" Variant="Danger" TargetType="Button" BasedOn="Button">
+    <Setter Property="Background" Value="#8E2A2A" />
+</Style>
+<Button StyleKey="Button" Variant="Danger" />
+```
 
 Compiled artifacts use `UiTemplateId` with the typed
 `UiTheme.RegisterTemplate(UiTemplateId, UiTemplate)` and

@@ -2349,6 +2349,25 @@ internal static partial class Program
         Assert.Equal(19f, styled.FontSize, "dependent element receives the changed style value");
         Assert.Equal(22f, unrelated.FontSize, "unrelated style remains unchanged");
 
+        var baseButtonStyle = new Library.UiStyle("Button", "Button", resources);
+        baseButtonStyle.Set("Padding", new Library.UiThickness(12, 6, 12, 6));
+        var dangerButtonStyle = new Library.UiStyle("Button", "Button", resources);
+        dangerButtonStyle.SetVariant("Danger");
+        dangerButtonStyle.SetBasedOn(baseButtonStyle);
+        dangerButtonStyle.Set("BorderWidth", 1f);
+        var variantTheme = new Library.UiTheme(resources);
+        variantTheme.Add(baseButtonStyle);
+        variantTheme.Add(dangerButtonStyle);
+        var dangerButton = new Library.UiButton { StyleKey = "Button", Variant = "Danger" };
+        variantTheme.Apply(dangerButton);
+        Assert.Equal(new Library.UiThickness(12, 6, 12, 6), dangerButton.Padding, "BasedOn supplies inherited style values");
+        Assert.Equal(1f, dangerButton.BorderWidth, "semantic variant supplies its own style values");
+        baseButtonStyle.Set("Padding", new Library.UiThickness(16, 8, 16, 8));
+        using var variantTextService = new EmptyTextService();
+        using var variantDocument = new Library.UiDocument(dangerButton, variantTextService, null, variantTheme);
+        variantDocument.Layout(new Delta.float2(100, 40), 1);
+        Assert.Equal(new Library.UiThickness(16, 8, 16, 8), dangerButton.Padding, "changes in a BasedOn style propagate to its variants");
+
         var loader = new Library.XamlLoader();
         var dynamicLoaded = loader.Load(
             "<TextBlock Foreground=\"{DynamicResource TextColor}\" />",

@@ -553,6 +553,12 @@ only the affected visual subtree and corresponding selector/layout plans.
 Styles compile into selector plans. Selector matching does not walk arbitrary
 reflection metadata. Static and dynamic resource references resolve to stable
 `Guid`-backed identities; runtime slots remain compact integers.
+`LinearGradientBrush` and `RadialGradientBrush` declarations compile into a
+source-scoped brush slot plus a separate renderer payload slot. `x:Key` is the
+only author-facing identity; payload IDs are derived internally. `BasedOn`
+styles are flattened lazily into cached effective value maps, and a
+`StyleKey`/`Variant` pair selects the most specific semantic variant before
+falling back to the unqualified style.
 
 Interaction and user state are ordinary typed flags. Visual-state changes feed
 the same effective-value resolver as styles and therefore reuse property
@@ -1269,6 +1275,11 @@ selector predicate over compact type/state/class indices
   -> ordered typed property writes
   -> exact invalidation metadata
 ```
+
+The generated constructor emits gradient payloads before style setters, then
+stores a `UiBrush.LinearGradient` or `UiBrush.RadialGradient` alias under the
+stable key slot. This lets static color tokens be resolved once while keeping
+the renderer responsible for shader selection and bounds.
 
 Static resources resolve during artifact construction. Dynamic resources keep
 a compact dependency list from resource slot to affected property slots; a

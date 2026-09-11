@@ -1,0 +1,17 @@
+<ResourceDictionary xmlns:x="urn:delta-xaml">
+  <Resource x:Key="Orange" Type="Color" Value="#FF8A00" />
+  <LinearGradientBrush x:Key="Spectrum" Angle="110" OutlineColor="{StaticResource Orange}">
+    <GradientStop Offset="0" Color="{StaticResource Orange}" />
+    <GradientStop Offset="1" Color="#7929D8" />
+  </LinearGradientBrush>
+  <RadialGradientBrush x:Key="Focus" Center="0.5,0.5" Radius="0.5">
+    <GradientStop Offset="0" Color="#FFFFFFFF" />
+    <GradientStop Offset="1" Color="#00000000" />
+  </RadialGradientBrush>
+  <Style x:Key="Button" TargetType="Button">
+    <Setter Property="BackgroundBrush" Value="{StaticResource Spectrum}" />
+  </Style>
+  <Style x:Key="Button" Variant="Danger" TargetType="Button" BasedOn="Button">
+    <Setter Property="BorderWidth" Value="1" />
+  </Style>
+</ResourceDictionary>

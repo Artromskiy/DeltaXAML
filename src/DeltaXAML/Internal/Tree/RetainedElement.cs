@@ -47,6 +47,7 @@ internal partial class UiElement
     private Guid _compiledStyleId;
     private Delta.XAML.UiTemplateId _compiledTemplateId;
     private string? _styleKey;
+    private string? _variant;
     private string? _templateKey;
     private UiSize _measuredAvailable;
     private UiRect _arrangedBounds;
@@ -86,6 +87,7 @@ internal partial class UiElement
         _properties.InitializeDefault("Padding", _state.Padding, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
         _properties.InitializeDefault("IsEnabled", _state.IsEnabled, UiDirtyFlags.Visual);
         _properties.InitializeDefault("IsSelected", _state.IsSelected, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("Variant", null, UiDirtyFlags.Style | UiDirtyFlags.Visual);
     }
     public UiElementId Id { get; }
     public uint Generation { get; }
@@ -272,6 +274,20 @@ internal partial class UiElement
             }
 
             _styleKey = value;
+            InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
+        }
+    }
+    public string? Variant
+    {
+        get => _variant;
+        set
+        {
+            if (string.Equals(_variant, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _variant = value;
             InvalidateChanged(UiDirtyFlags.Style | UiDirtyFlags.Measure | UiDirtyFlags.Visual);
         }
     }

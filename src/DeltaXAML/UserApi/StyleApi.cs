@@ -194,6 +194,9 @@ public sealed class UiStyle
     private readonly Dictionary<UiStyleState, Dictionary<string, StyleValue>> _stateValues = new();
     private readonly UiResourceCatalog? _resources;
     private readonly UiTypeId _targetTypeId;
+    private UiStyle? _basedOn;
+    private Dictionary<string, StyleValue>? _effectiveValues;
+    private Dictionary<UiStyleState, Dictionary<string, StyleValue>>? _effectiveStateValues;
     private int _version;
 
     public UiStyle(string key, string targetType, UiResourceCatalog? resources = null)
@@ -224,8 +227,63 @@ public sealed class UiStyle
 
     public string TargetType { get; }
 
+    /// <summary>Optional semantic variant used with an element's Variant selector.</summary>
+    public string? Variant { get; private set; }
+
+    /// <summary>Gets the style inherited before this style's own values are applied.</summary>
+    public UiStyle? BasedOn => _basedOn;
+
     internal int Version => _version;
     internal event EventHandler? Changed;
+
+    public void SetVariant(string? variant)
+    {
+        variant = string.IsNullOrWhiteSpace(variant) ? null : variant;
+        if (string.Equals(Variant, variant, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Variant = variant;
+        _version++;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetBasedOn(UiStyle? style)
+    {
+        if (ReferenceEquals(style, this))
+        {
+            throw new ArgumentException("A style cannot be based on itself.", nameof(style));
+        }
+
+        for (var current = style; current is not null; current = current._basedOn)
+        {
+            if (ReferenceEquals(current, this))
+            {
+                throw new ArgumentException("A style BasedOn chain cannot contain a cycle.", nameof(style));
+            }
+        }
+
+        if (ReferenceEquals(_basedOn, style))
+        {
+            return;
+        }
+
+        if (_basedOn is not null)
+        {
+            _basedOn.Changed -= OnBasedOnChanged;
+        }
+
+        _basedOn = style;
+        if (_basedOn is not null)
+        {
+            _basedOn.Changed += OnBasedOnChanged;
+        }
+
+        InvalidateEffectiveValues();
+        _version++;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
 
     public void Set(string propertyName, object? value)
     {
@@ -379,7 +437,7 @@ public sealed class UiStyle
             previous.ClearApplied(element);
         }
 
-        ApplyValues(element, _values);
+        ApplyValues(element, EffectiveValues());
         ApplyStateValues(element, state);
         ApplyImplicitVisualEffect(element, state);
         element.RetainedElement.SetAppliedStyle(this, state, Version);
@@ -403,8 +461,9 @@ public sealed class UiStyle
             return;
         }
 
-        _stateValues.TryGetValue(state, out var nextValues);
-        if (_stateValues.TryGetValue(previousState, out var previousValues))
+        var nextValues = EffectiveStateValues(state);
+        var previousValues = EffectiveStateValues(previousState);
+        if (previousValues is not null)
         {
             foreach (var pair in previousValues)
             {
@@ -413,7 +472,7 @@ public sealed class UiStyle
                     continue;
                 }
 
-                if (_values.TryGetValue(pair.Key, out var baseValue))
+                if (EffectiveValues().TryGetValue(pair.Key, out var baseValue))
                 {
                     ApplyValue(element, baseValue);
                 }
@@ -431,7 +490,7 @@ public sealed class UiStyle
 
     private void ApplyStateValues(UiElement element, UiStyleState state)
     {
-        if (_stateValues.TryGetValue(state, out var values))
+        if (EffectiveStateValues(state) is { } values)
         {
             ApplyValues(element, values);
         }
@@ -447,13 +506,15 @@ public sealed class UiStyle
 
     private void ApplyImplicitVisualEffect(UiElement element, UiStyleState state)
     {
-        if (_resources is null || HasValue(_values, "EffectSet") ||
-            _stateValues.TryGetValue(state, out var stateValues) && HasValue(stateValues, "EffectSet"))
+        var values = EffectiveValues();
+        var stateValues = EffectiveStateValues(state);
+        if (_resources is null || HasValue(values, "EffectSet") ||
+            stateValues is not null && HasValue(stateValues, "EffectSet"))
         {
             return;
         }
 
-        if (!HasBorderSugar(_values) && (stateValues is null || !HasBorderSugar(stateValues)))
+        if (!HasBorderSugar(values) && (stateValues is null || !HasBorderSugar(stateValues)))
         {
             return;
         }
@@ -544,23 +605,23 @@ public sealed class UiStyle
 
     internal void ClearApplied(UiElement element)
     {
-        foreach (var property in _values.Keys)
+        foreach (var property in EffectiveValues().Keys)
         {
             element.RetainedElement.ClearStyleValue(property);
         }
 
-        foreach (var values in _stateValues.Values)
+        foreach (var values in EffectiveStateValues().Values)
         {
             foreach (var property in values.Keys)
             {
-                if (!_values.ContainsKey(property))
+                if (!EffectiveValues().ContainsKey(property))
                 {
                     element.RetainedElement.ClearStyleValue(property);
                 }
             }
         }
 
-        if (!HasValue(_values, "EffectSet"))
+        if (!HasValue(EffectiveValues(), "EffectSet"))
         {
             element.RetainedElement.ClearStyleValue("EffectSet");
         }
@@ -576,8 +637,87 @@ public sealed class UiStyle
         }
 
         values[value.Name] = value;
+        InvalidateEffectiveValues();
         _version++;
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnBasedOnChanged(object? sender, EventArgs args)
+    {
+        InvalidateEffectiveValues();
+        _version++;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void InvalidateEffectiveValues()
+    {
+        _effectiveValues = null;
+        _effectiveStateValues = null;
+    }
+
+    private Dictionary<string, StyleValue> EffectiveValues()
+    {
+        if (_effectiveValues is not null)
+        {
+            return _effectiveValues;
+        }
+
+        var values = _basedOn is null
+            ? new Dictionary<string, StyleValue>(StringComparer.Ordinal)
+            : new Dictionary<string, StyleValue>(_basedOn.EffectiveValues(), StringComparer.Ordinal);
+        foreach (var pair in _values)
+        {
+            values[pair.Key] = pair.Value;
+        }
+
+        return _effectiveValues = values;
+    }
+
+    private Dictionary<string, StyleValue>? EffectiveStateValues(UiStyleState state)
+    {
+        if (state is UiStyleState.None or UiStyleState.Unknown)
+        {
+            return null;
+        }
+
+        _effectiveStateValues ??= new();
+        if (_effectiveStateValues.TryGetValue(state, out var values))
+        {
+            return values;
+        }
+
+        var baseValues = _basedOn?.EffectiveStateValues(state);
+        var hasBase = baseValues is not null;
+        var hasOwn = _stateValues.TryGetValue(state, out var ownValues);
+        if (!hasBase && !hasOwn)
+        {
+            return null;
+        }
+
+        values = hasBase
+            ? new Dictionary<string, StyleValue>(baseValues!, StringComparer.Ordinal)
+            : new Dictionary<string, StyleValue>(StringComparer.Ordinal);
+        if (hasOwn)
+        {
+            foreach (var pair in ownValues!)
+            {
+                values[pair.Key] = pair.Value;
+            }
+        }
+
+        _effectiveStateValues[state] = values;
+        return values;
+    }
+
+    private Dictionary<UiStyleState, Dictionary<string, StyleValue>> EffectiveStateValues()
+    {
+        _effectiveStateValues ??= new();
+        foreach (UiStyleState state in Enum.GetValues<UiStyleState>())
+        {
+            EffectiveStateValues(state);
+        }
+
+        return _effectiveStateValues;
     }
 
     private void RequireResources()
@@ -916,9 +1056,10 @@ public sealed class UiTheme
     private UiStyle? FindStyle(UiElement element)
     {
         var compiledStyleId = element.RetainedElement.CompiledStyleId;
-        if (compiledStyleId != Guid.Empty && _compiledStyles.TryGetValue(new(compiledStyleId), out var compiledStyle))
+        if (compiledStyleId != Guid.Empty && _compiledStyles.TryGetValue(new(compiledStyleId), out var compiledByIdentity) &&
+            element.StyleKey is null)
         {
-            return compiledStyle;
+            return compiledByIdentity;
         }
 
         if (element.StyleKey is not { } key)
@@ -926,11 +1067,31 @@ public sealed class UiTheme
             return null;
         }
 
+        var variant = element.Variant;
+        if (compiledStyleId != Guid.Empty && _compiledStyles.TryGetValue(new(compiledStyleId), out var compiledStyle) &&
+            string.Equals(compiledStyle.Key, key, StringComparison.Ordinal) &&
+            string.Equals(compiledStyle.Variant, variant, StringComparison.Ordinal))
+        {
+            return compiledStyle;
+        }
+
         for (var i = 0; i < _styles.Count; i++)
         {
-            if (string.Equals(_styles[i].Key, key, StringComparison.Ordinal))
+            if (string.Equals(_styles[i].Key, key, StringComparison.Ordinal) &&
+                string.Equals(_styles[i].Variant, variant, StringComparison.Ordinal))
             {
                 return _styles[i];
+            }
+        }
+
+        if (variant is not null)
+        {
+            for (var i = 0; i < _styles.Count; i++)
+            {
+                if (string.Equals(_styles[i].Key, key, StringComparison.Ordinal) && _styles[i].Variant is null)
+                {
+                    return _styles[i];
+                }
             }
         }
 

@@ -112,6 +112,24 @@ internal static partial class Program
         Assert.Equal(XamlValueKind.Color, scalarResources.ScalarResources[0].Value.Kind, "scalar resource value is typed");
         Assert.True(scalarResources.ResourceSlots[0].IsDynamic, "scalar resource dependency is marked dynamic");
 
+        var gradientResources = XamlCompiler.Compile(
+            sourceId,
+            "<ResourceDictionary><Resource x:Key=\"Orange\" Type=\"Color\" Value=\"#FF8A00\" /><LinearGradientBrush x:Key=\"Spectrum\" Angle=\"110\" OutlineColor=\"{StaticResource Orange}\" OutlineWidth=\"1\"><GradientStop Offset=\"0\" Color=\"{StaticResource Orange}\" /><GradientStop Offset=\"1\" Color=\"#7929D8\" /></LinearGradientBrush><RadialGradientBrush x:Key=\"Focus\" Center=\"0.5,0.5\" Radius=\"0.5\"><GradientStop Offset=\"0\" Color=\"#FFFFFFFF\" /><GradientStop Offset=\"1\" Color=\"#00000000\" /></RadialGradientBrush></ResourceDictionary>",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(gradientResources.Success, "declarative linear and radial gradients compile");
+        Assert.Equal(2, gradientResources.GradientResources.Length, "gradient declarations are retained in the semantic plan");
+        Assert.True(gradientResources.GradientResources[0].Id != gradientResources.GradientResources[0].PayloadId, "gradient payload gets a separate deterministic identity");
+        Assert.Equal(2, gradientResources.GradientResources[0].Stops.Length, "gradient stops preserve declaration order");
+
+        var basedOnStyles = XamlCompiler.Compile(
+            sourceId,
+            "<ResourceDictionary><Style x:Key=\"Button\" TargetType=\"Button\"><Setter Property=\"Padding\" Value=\"12,6\" /></Style><Style x:Key=\"Button\" Variant=\"Danger\" TargetType=\"Button\" BasedOn=\"Button\"><Setter Property=\"Background\" Value=\"#8E2A2A\" /></Style><Button StyleKey=\"Button\" Variant=\"Danger\" /></ResourceDictionary>",
+            XamlSemanticRegistry.CreateBuiltIns());
+        Assert.True(basedOnStyles.Success, "style inheritance and semantic variants compile");
+        Assert.Equal("Button", basedOnStyles.Styles[1].BasedOn, "BasedOn preserves the base style key");
+        Assert.Equal("Danger", basedOnStyles.Styles[1].Variant, "Variant preserves the semantic selector");
+        Assert.Equal(UiElementProperties.Variant.Id, basedOnStyles.Root?.Children[0].Members.First(static member => member.Name == "Variant").Property, "Variant uses the common typed property identity");
+
         var invalidScalarResource = XamlCompiler.Compile(
             sourceId,
             "<Panel><Resource x:Key=\"Bad\" Type=\"Unknown\" Value=\"x\" /></Panel>",
