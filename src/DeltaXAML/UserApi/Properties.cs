@@ -121,6 +121,7 @@ public static class UiElementProperties
     public static UiProperty<UiEffectSet> EffectSet { get; } = Create("10000000-0000-4000-8000-000000000019", "EffectSet", UiEffectSet.None);
     public static UiProperty<UiBlendMode> BlendMode { get; } = Create("10000000-0000-4000-8000-00000000001A", "BlendMode", UiBlendMode.PremultipliedAlpha);
     public static UiProperty<float> BorderWidth { get; } = Create<float>("10000000-0000-4000-8000-000000000012", "BorderWidth", 0f);
+    public static UiProperty<UiThickness> BorderThickness { get; } = Create("10000000-0000-4000-8000-00000000001B", "BorderThickness", UiThickness.Zero);
     public static UiProperty<PaintUnits> BorderWidthUnits { get; } = Create("10000000-0000-4000-8000-000000000015", "BorderWidthUnits", PaintUnits.Logical);
     public static UiProperty<UiCornerRadii> CornerRadius { get; } = Create("10000000-0000-4000-8000-000000000013", "CornerRadius", UiCornerRadii.Zero);
     public static UiProperty<string> AutomationName { get; } = Create("10000000-0000-4000-8000-00000000000B", "AutomationName", string.Empty);

@@ -322,6 +322,22 @@ public abstract class UiElement
         }
     }
 
+    /// <summary>Per-side border widths in left, top, right, bottom order.</summary>
+    /// <remarks>Zero leaves the legacy uniform <see cref="BorderWidth"/> value in effect.</remarks>
+    public UiThickness BorderThickness
+    {
+        get
+        {
+            var thickness = _retained.BorderThickness;
+            return new(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom);
+        }
+        set
+        {
+            ValidateNonNegativeThickness(value, nameof(value));
+            _retained.BorderThickness = new(value.Left, value.Top, value.Right, value.Bottom);
+        }
+    }
+
     /// <summary>Gets or sets whether <see cref="BorderWidth"/> is logical or device-pixel sized.</summary>
     public PaintUnits BorderWidthUnits
     {
@@ -1019,7 +1035,7 @@ public abstract class UiElement
         "EffectSet" => RetainedDirty.Visual | RetainedDirty.Text,
         "BlendMode" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,
-        "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => RetainedDirty.Visual,
+        "BorderColor" or "BorderWidth" or "BorderThickness" or "BorderWidthUnits" or "CornerRadius" => RetainedDirty.Visual,
         "Width" or "Height" or "Margin" or "Padding" or
         "Minimum" or "Maximum" or "Value" or "Orientation" or "Columns" or "Rows" => RetainedDirty.Measure | RetainedDirty.Arrange | RetainedDirty.Visual,
         "HorizontalAlignment" or "VerticalAlignment" => RetainedDirty.Arrange | RetainedDirty.Visual,
@@ -1031,6 +1047,17 @@ public abstract class UiElement
         if (!float.IsFinite(value) || value < 0)
         {
             throw new ArgumentOutOfRangeException(parameterName, "Paint dimensions must be finite and non-negative.");
+        }
+    }
+
+    private static void ValidateNonNegativeThickness(UiThickness value, string parameterName)
+    {
+        if (!float.IsFinite(value.Left) || value.Left < 0 ||
+            !float.IsFinite(value.Top) || value.Top < 0 ||
+            !float.IsFinite(value.Right) || value.Right < 0 ||
+            !float.IsFinite(value.Bottom) || value.Bottom < 0)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, "Thickness values must be finite and non-negative.");
         }
     }
 

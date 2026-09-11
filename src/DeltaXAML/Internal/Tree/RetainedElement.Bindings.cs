@@ -222,7 +222,7 @@ internal partial class UiElement
         "HorizontalAlignment" or "VerticalAlignment" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "Foreground" or "StrokeColor" or "StrokeWidth" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "EffectSet" or "BlendMode" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
-        "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
+        "BorderColor" or "BorderWidth" or "BorderThickness" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
         _ => UiDirtyFlags.Visual,
     };
 

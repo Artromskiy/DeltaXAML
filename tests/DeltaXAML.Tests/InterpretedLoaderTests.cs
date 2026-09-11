@@ -12,6 +12,7 @@ internal static class InterpretedLoaderTests
         LoadsContentChildren();
         LoadsCompositeChildren();
         LoadsAttachedGridPropertiesAndBrushLiterals();
+        LoadsPerSideBorderThickness();
         LoadsRichTextSpans();
         RejectsMalformedSpanContent();
         DiagnosesCompilerOnlyDeclarations();
@@ -91,6 +92,27 @@ internal static class InterpretedLoaderTests
         Assert.Equal(new UiColor(17, 34, 51, 128), grid.BackgroundBrush.Color, "#AARRGGBB is parsed in public color order");
         Assert.Equal(1, child.GetAttachedValue(UiGridAttachedProperties.Row), "Grid.Row is preserved from the qualified XAML attribute");
         Assert.Equal(1, child.GetAttachedValue(UiGridAttachedProperties.Column), "Grid.Column is preserved from the qualified XAML attribute");
+    }
+
+    private static void LoadsPerSideBorderThickness()
+    {
+        var loader = new XamlLoader();
+        var resources = new UiResourceCatalog();
+        var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), resources);
+        var result = loader.Load(
+            "<Border BorderColor=\"#102030\" BorderThickness=\"1,2,3,4\" BorderWidthUnits=\"Device\" />",
+            in context);
+
+        Assert.True(result.Success && result.Root is UiBorder, "interpreted loader accepts per-side border thickness");
+        if (result.Root is not UiBorder border)
+        {
+            throw new InvalidOperationException("per-side border root missing");
+        }
+
+        Assert.Equal(new UiThickness(1, 2, 3, 4), border.BorderThickness, "per-side border values preserve left/top/right/bottom order");
+        Assert.True(resources.TryResolveEffectResource(border.EffectSet.Resource, out var effect), "per-side border lowers to a canonical effect resource");
+        Assert.Equal(new float4(1, 2, 3, 4), effect.Parameters.Stroke.SideWidths, "effect resource carries per-side widths");
+        Assert.Equal(PaintUnits.Device, effect.Parameters.Units, "per-side border preserves the selected paint units");
     }
 
     private static void LoadsRichTextSpans()

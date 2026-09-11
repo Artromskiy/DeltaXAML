@@ -130,6 +130,14 @@ internal static class UiElementPropertiesGenerated
         return true;
     }
 
+    internal static bool TrySetBorderThickness(ref UiElementState state, UiThickness value)
+    {
+        if (!IsNonNegativeThickness(value)) { return false; }
+        if (state.BorderThickness.Equals(value)) { return false; }
+        state.BorderThickness = value;
+        return true;
+    }
+
     internal static bool TrySetBorderWidthUnits(ref UiElementState state, Delta.XAML.Contract.PaintUnits value)
     {
         if (value is not (Delta.XAML.Contract.PaintUnits.Logical or Delta.XAML.Contract.PaintUnits.Device) ||
@@ -141,6 +149,12 @@ internal static class UiElementPropertiesGenerated
         state.BorderWidthUnits = value;
         return true;
     }
+
+    private static bool IsNonNegativeThickness(UiThickness value) =>
+        float.IsFinite(value.Left) && value.Left >= 0 &&
+        float.IsFinite(value.Top) && value.Top >= 0 &&
+        float.IsFinite(value.Right) && value.Right >= 0 &&
+        float.IsFinite(value.Bottom) && value.Bottom >= 0;
 
     internal static bool TrySetCornerRadius(ref UiElementState state, Delta.XAML.UiCornerRadii value)
     {

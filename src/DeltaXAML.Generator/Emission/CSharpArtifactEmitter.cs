@@ -2649,6 +2649,7 @@ internal static class CSharpArtifactEmitter
             "CommandKey" => "global::Delta.XAML.UiKeyGesture",
             "BorderWidthUnits" => "global::Delta.XAML.Contract.PaintUnits",
             "Margin" => "global::Delta.XAML.UiThickness",
+            "BorderThickness" => "global::Delta.XAML.UiThickness",
             "HorizontalAlignment" => "global::Delta.XAML.UiHorizontalAlignment",
             "VerticalAlignment" => "global::Delta.XAML.UiVerticalAlignment",
             "IsFocusScope" => "global::System.Boolean",
@@ -3298,11 +3299,25 @@ internal static class CSharpArtifactEmitter
         SourceId source,
         ref int effectIndex)
     {
-        if (node.InlineEffect is not null || HasMember(node, "EffectSet") ||
-            !TryGetLiteralMember(node, "BorderWidth", out var widthMember) ||
-            widthMember.Kind != XamlValueKind.Single ||
-            !float.TryParse(widthMember.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var width) ||
-            !float.IsFinite(width) || width <= 0)
+        if (node.InlineEffect is not null || HasMember(node, "EffectSet"))
+        {
+            return;
+        }
+
+        var hasSideWidths = TryGetLiteralMember(node, "BorderThickness", out var sideWidthsMember) &&
+            sideWidthsMember.Kind == XamlValueKind.Thickness;
+        var width = 0f;
+        var hasUniformWidth = TryGetLiteralMember(node, "BorderWidth", out var widthMember) &&
+            widthMember.Kind == XamlValueKind.Single &&
+            float.TryParse(widthMember.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out width) &&
+            float.IsFinite(width) && width > 0;
+        if (!hasSideWidths && !hasUniformWidth)
+        {
+            return;
+        }
+
+        var sideWidthsExpression = string.Empty;
+        if (hasSideWidths && !TryThicknessVector(sideWidthsMember.Literal.CanonicalText, out sideWidthsExpression, out _))
         {
             return;
         }
@@ -3337,7 +3352,9 @@ internal static class CSharpArtifactEmitter
             .Append(" = global::Delta.XAML.Contract.UiEffectResource.CreateVisualStroke(")
             .Append(ResourceIdExpression(resource)).Append(", ")
             .Append(color).Append(", ")
-            .Append(width.ToString("R", CultureInfo.InvariantCulture)).Append("f, ")
+            .Append(hasSideWidths
+                ? sideWidthsExpression
+                : width.ToString("R", CultureInfo.InvariantCulture) + "f").Append(", ")
             .Append(units).AppendLine(");");
         writer.Append("        Resources.Set(").Append(variable).AppendLine(");");
         writer.Append("        ").Append(variablePrefix).Append(nodeIndex).Append(".EffectSet = ")
@@ -3352,7 +3369,7 @@ internal static class CSharpArtifactEmitter
         SourceId source,
         ref int effectIndex)
     {
-        if (node.InlineEffect is not null || HasMember(node, "EffectSet") || HasMember(node, "BorderWidth") ||
+        if (node.InlineEffect is not null || HasMember(node, "EffectSet") || HasMember(node, "BorderWidth") || HasMember(node, "BorderThickness") ||
             !TryGetLiteralMember(node, "StrokeWidth", out var widthMember) ||
             widthMember.Kind != XamlValueKind.Single ||
             !float.TryParse(widthMember.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var width) ||
@@ -3581,6 +3598,7 @@ internal static class CSharpArtifactEmitter
             "BlendMode" => "global::Delta.XAML.UiElementProperties.BlendMode",
             "BorderColor" => "global::Delta.XAML.UiElementProperties.BorderColor",
             "BorderWidth" => "global::Delta.XAML.UiElementProperties.BorderWidth",
+            "BorderThickness" => "global::Delta.XAML.UiElementProperties.BorderThickness",
             "BorderWidthUnits" => "global::Delta.XAML.UiElementProperties.BorderWidthUnits",
             "CornerRadius" => "global::Delta.XAML.UiElementProperties.CornerRadius",
             "AutomationName" => "global::Delta.XAML.UiElementProperties.AutomationName",
@@ -3885,6 +3903,21 @@ internal static class CSharpArtifactEmitter
         }
 
         expression = $"new global::Delta.XAML.UiThickness({thickness.Left.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Top.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Right.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Bottom.ToString("R", CultureInfo.InvariantCulture)}f)";
+        return true;
+    }
+
+    private static bool TryThicknessVector(string value, out string expression, out string error)
+    {
+        expression = string.Empty;
+        error = string.Empty;
+        if (!ThicknessLiteralParser.TryParse(value, out var thickness) ||
+            thickness.Left < 0 || thickness.Top < 0 || thickness.Right < 0 || thickness.Bottom < 0)
+        {
+            error = $"Border thickness literal '{value}' must contain finite non-negative values.";
+            return false;
+        }
+
+        expression = $"new global::Delta.float4({thickness.Left.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Top.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Right.ToString("R", CultureInfo.InvariantCulture)}f, {thickness.Bottom.ToString("R", CultureInfo.InvariantCulture)}f)";
         return true;
     }
 

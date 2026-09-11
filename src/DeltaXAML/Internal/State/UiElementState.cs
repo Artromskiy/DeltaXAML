@@ -12,6 +12,7 @@ internal struct UiElementState
     public Delta.XAML.Contract.UiEffectSet EffectSet;
     public Delta.XAML.Contract.UiBlendMode BlendMode;
     public float BorderWidth;
+    public UiThickness BorderThickness;
     public Delta.XAML.Contract.PaintUnits BorderWidthUnits;
     public Delta.XAML.UiCornerRadii CornerRadius;
     public UiThickness Padding;

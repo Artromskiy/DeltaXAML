@@ -166,7 +166,16 @@ internal static class XamlPlanMaterializer
         }
 
         UiEffectResource effect;
-        if (element.BorderWidth > 0)
+        if (HasBorderThickness(element.BorderThickness))
+        {
+            var thickness = element.BorderThickness;
+            effect = UiEffectResource.CreateVisualStroke(
+                XamlImplicitEffectIdentity.Create(source, plan),
+                ToColor(element.BorderColor),
+                new float4(thickness.Left, thickness.Top, thickness.Right, thickness.Bottom),
+                element.BorderWidthUnits);
+        }
+        else if (element.BorderWidth > 0)
         {
             effect = UiEffectResource.CreateVisualStroke(
                 XamlImplicitEffectIdentity.Create(source, plan),
@@ -205,6 +214,9 @@ internal static class XamlPlanMaterializer
         color.G / 255f,
         color.B / 255f,
         color.A / 255f);
+
+    private static bool HasBorderThickness(UiThickness thickness) =>
+        thickness.Left > 0 || thickness.Top > 0 || thickness.Right > 0 || thickness.Bottom > 0;
 
     private static bool TryMaterializeEffect(
         XamlEffectPlan plan,
@@ -556,6 +568,8 @@ internal static class XamlPlanMaterializer
             case "Background" when TryColor(value, out var color): e.Background = color; break;
             case "BorderColor" when TryColor(value, out var borderColor): e.BorderColor = borderColor; break;
             case "BorderWidth" when TryFloat(value, out var borderWidth): e.BorderWidth = borderWidth; break;
+            case "BorderThickness" when TryThickness(value, out var borderThickness): e.BorderThickness = borderThickness; break;
+            case "BorderThickness": d.Add(new("XAML003", $"Invalid BorderThickness '{value}'. Expected one, two or four finite non-negative values.", line, 1)); break;
             case "BorderWidthUnits" when Enum.TryParse(value, true, out Delta.XAML.Contract.PaintUnits borderWidthUnits) &&
                 borderWidthUnits is Delta.XAML.Contract.PaintUnits.Logical or Delta.XAML.Contract.PaintUnits.Device:
                 e.BorderWidthUnits = borderWidthUnits;
@@ -672,7 +686,7 @@ internal static class XamlPlanMaterializer
 
     private static bool SupportsProperty(UiElement element, string name)
     {
-        if (name is "Width" or "Height" or "Margin" or "HorizontalAlignment" or "VerticalAlignment" or "Background" or "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" or "Padding" or
+        if (name is "Width" or "Height" or "Margin" or "HorizontalAlignment" or "VerticalAlignment" or "Background" or "BorderColor" or "BorderWidth" or "BorderThickness" or "BorderWidthUnits" or "CornerRadius" or "Padding" or
             "StyleKey" or "TemplateKey" or "AutomationName" or "AutomationRole" or
             "IsEnabled" or "IsSelected" or "BackgroundBrush" or "EffectSet" or "BlendMode")
         {
@@ -708,6 +722,7 @@ internal static class XamlPlanMaterializer
         "Background" or "BorderColor" or "Foreground" or "StrokeColor" => value is UiColor or Delta.XAML.UiColor,
         "BorderWidth" or "StrokeWidth" => value is
             byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
+        "BorderThickness" => value is UiThickness or Delta.XAML.UiThickness,
         "BorderWidthUnits" => value is Delta.XAML.Contract.PaintUnits,
         "CornerRadius" => value is Delta.XAML.UiCornerRadii,
         "EffectSet" => value is UiEffectSet,
@@ -751,7 +766,7 @@ internal static class XamlPlanMaterializer
         "PlaceholderText" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => UiDirtyFlags.Visual,
         "Foreground" or "StrokeColor" or "StrokeWidth" or "EffectSet" or "BlendMode" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
-        "BorderColor" or "BorderWidth" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
+        "BorderColor" or "BorderWidth" or "BorderThickness" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
         "Width" or "Height" or "Margin" or "Padding" or "Source" => UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "HorizontalAlignment" or "VerticalAlignment" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "Minimum" or "Maximum" or "Step" or "Orientation" or "SelectedIndex" or "IsOpen" => UiDirtyFlags.Measure | UiDirtyFlags.Visual,

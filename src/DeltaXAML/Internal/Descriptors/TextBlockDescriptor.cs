@@ -204,6 +204,8 @@ internal static class UiDescriptorCatalog
                 return UiElementPropertiesGenerated.TrySetBlendMode(ref element.CommonState, blendMode);
             case UiPropertyKey.BorderWidth when value.UntypedValue is float borderWidth:
                 return UiElementPropertiesGenerated.TrySetBorderWidth(ref element.CommonState, borderWidth);
+            case UiPropertyKey.BorderThickness when value.UntypedValue is UiThickness borderThickness:
+                return UiElementPropertiesGenerated.TrySetBorderThickness(ref element.CommonState, borderThickness);
             case UiPropertyKey.BorderWidthUnits when value.UntypedValue is PaintUnits borderWidthUnits:
                 return UiElementPropertiesGenerated.TrySetBorderWidthUnits(ref element.CommonState, borderWidthUnits);
             case UiPropertyKey.CornerRadius when value.UntypedValue is Delta.XAML.UiCornerRadii cornerRadius:
@@ -238,7 +240,7 @@ internal static class UiDescriptorCatalog
                 return true;
             case UiPropertyKey.Width or UiPropertyKey.Height or UiPropertyKey.Margin or UiPropertyKey.HorizontalAlignment or UiPropertyKey.VerticalAlignment or
                 UiPropertyKey.Background or UiPropertyKey.BorderColor or UiPropertyKey.EffectSet or UiPropertyKey.BlendMode or
-                UiPropertyKey.BorderWidth or UiPropertyKey.BorderWidthUnits or UiPropertyKey.CornerRadius or UiPropertyKey.Padding or
+                UiPropertyKey.BorderWidth or UiPropertyKey.BorderThickness or UiPropertyKey.BorderWidthUnits or UiPropertyKey.CornerRadius or UiPropertyKey.Padding or
                 UiPropertyKey.IsEnabled or UiPropertyKey.IsSelected or UiPropertyKey.BackgroundBrush or
                 UiPropertyKey.AutomationName or UiPropertyKey.AutomationRole or UiPropertyKey.Gestures or UiPropertyKey.Command or
                 UiPropertyKey.CommandKey or UiPropertyKey.IsFocusScope:

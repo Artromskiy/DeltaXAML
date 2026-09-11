@@ -80,6 +80,7 @@ internal partial class UiElement
         _properties.InitializeDefault("EffectSet", _state.EffectSet, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BlendMode", _state.BlendMode, UiDirtyFlags.Visual | UiDirtyFlags.Text);
         _properties.InitializeDefault("BorderWidth", _state.BorderWidth, UiDirtyFlags.Visual);
+        _properties.InitializeDefault("BorderThickness", _state.BorderThickness, UiDirtyFlags.Visual);
         _properties.InitializeDefault("BorderWidthUnits", _state.BorderWidthUnits, UiDirtyFlags.Visual);
         _properties.InitializeDefault("CornerRadius", _state.CornerRadius, UiDirtyFlags.Visual);
         _properties.InitializeDefault("Padding", _state.Padding, UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual);
@@ -204,6 +205,19 @@ internal partial class UiElement
         {
             if (!float.IsFinite(value) || value < 0) { throw new ArgumentOutOfRangeException(nameof(value)); }
             SetLocalProperty("BorderWidth", value, UiDirtyFlags.Visual);
+        }
+    }
+    public UiThickness BorderThickness
+    {
+        get => _state.BorderThickness;
+        set
+        {
+            if (!IsNonNegativeThickness(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Border thickness values must be finite and non-negative.");
+            }
+
+            SetLocalProperty("BorderThickness", value, UiDirtyFlags.Visual);
         }
     }
     public Delta.XAML.Contract.PaintUnits BorderWidthUnits
@@ -342,4 +356,10 @@ internal partial class UiElement
     public UiAutomationMetadata Automation => new(AutomationName ?? TypeName, AutomationRole, GetAutomationValueText(), IsEnabled, IsInvalid);
     public UiStateSnapshot VisualState => new(IsEnabled ? IsInvalid ? UiVisualState.Invalid : IsPressed ? UiVisualState.Pressed : IsHovered ? UiVisualState.Hover : IsSelected ? UiVisualState.Selected : IsFocused ? UiVisualState.Focused : UiVisualState.Normal : UiVisualState.Disabled, IsEnabled, IsInvalid, IsSelected, IsFocused, IsHovered, IsPressed);
     public bool IsFocused { get; private set; }
+
+    private static bool IsNonNegativeThickness(UiThickness value) =>
+        float.IsFinite(value.Left) && value.Left >= 0 &&
+        float.IsFinite(value.Top) && value.Top >= 0 &&
+        float.IsFinite(value.Right) && value.Right >= 0 &&
+        float.IsFinite(value.Bottom) && value.Bottom >= 0;
 }
