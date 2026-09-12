@@ -35,11 +35,6 @@
   </RadialGradientBrush>
   <EffectSet x:Key="SpectrumTextEffects" Target="Text">
     <Stroke Color="#FFFFA24A" Width="1" />
-    <OuterShadow Color="#C0000000" Radius="2" Offset="0,2" />
-    <OuterGlow Color="#A87929D8" Radius="3" Intensity="0.7" />
-  </EffectSet>
-  <EffectSet x:Key="InnerTextEffects" Target="Text">
-    <InnerGlow Color="#FFFFA24A" Radius="2" Intensity="0.8" />
   </EffectSet>
   <EffectSet x:Key="InnerVisualEffects" Target="Visual">
     <InnerShadow Color="#C0000000" Radius="2" Offset="0,1" Intensity="0.8" />
@@ -412,7 +407,7 @@
             <Border StyleKey="Inset" EffectSet="{StaticResource InnerVisualEffects}" Margin="0,0,0,8">
               <StackPanel>
                 <TextBlock StyleKey="Label" Text="Spectrum text" ForegroundBrush="{StaticResource SpectrumBrush}" EffectSet="{StaticResource SpectrumTextEffects}" FontWeight="SemiBold"/>
-                <TextBlock StyleKey="Caption" Text="Pointer-aware text paint" EffectSet="{StaticResource InnerTextEffects}" Margin="0,3,0,0"/>
+                <TextBlock StyleKey="Caption" Text="Pointer-aware text paint" Margin="0,3,0,0"/>
               </StackPanel>
             </Border>
             <Border StyleKey="Inset" BackgroundBrush="{StaticResource SoftSpectrumBrush}" Margin="0,0,0,8">
