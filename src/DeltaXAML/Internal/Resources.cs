@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Delta.XAML;
 using Delta.XAML.Contract;
 
 namespace DeltaXAML.Internal;
@@ -185,6 +186,36 @@ internal sealed class UiResourceStore
             if (value is UiEffectResource effect && identities.Add(effect.Set.Resource.Value))
             {
                 resources.Add(effect);
+            }
+        }
+
+        return resources.ToArray();
+    }
+
+    internal (Guid Resource, UiLinearGradient Gradient)[] SnapshotLinearGradients()
+    {
+        var resources = new List<(Guid Resource, UiLinearGradient Gradient)>();
+        foreach (var slot in _slots)
+        {
+            if (slot.Value is UiLinearGradient gradient &&
+                Guid.TryParse(slot.Key, out var resource))
+            {
+                resources.Add((resource, gradient));
+            }
+        }
+
+        return resources.ToArray();
+    }
+
+    internal (Guid Resource, UiRadialGradient Gradient)[] SnapshotRadialGradients()
+    {
+        var resources = new List<(Guid Resource, UiRadialGradient Gradient)>();
+        foreach (var slot in _slots)
+        {
+            if (slot.Value is UiRadialGradient gradient &&
+                Guid.TryParse(slot.Key, out var resource))
+            {
+                resources.Add((resource, gradient));
             }
         }
 

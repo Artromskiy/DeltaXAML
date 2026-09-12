@@ -105,6 +105,32 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
     /// </summary>
     public UiEffectResource[] GetEffectResources() => _store.SnapshotEffectResources();
 
+    /// <summary>Returns detached linear-gradient payloads for renderer setup.</summary>
+    public (UiResourceId Resource, UiLinearGradient Gradient)[] GetLinearGradientResources()
+    {
+        var source = _store.SnapshotLinearGradients();
+        var result = new (UiResourceId Resource, UiLinearGradient Gradient)[source.Length];
+        for (var index = 0; index < source.Length; index++)
+        {
+            result[index] = (new UiResourceId(source[index].Resource), source[index].Gradient);
+        }
+
+        return result;
+    }
+
+    /// <summary>Returns detached radial-gradient payloads for renderer setup.</summary>
+    public (UiResourceId Resource, UiRadialGradient Gradient)[] GetRadialGradientResources()
+    {
+        var source = _store.SnapshotRadialGradients();
+        var result = new (UiResourceId Resource, UiRadialGradient Gradient)[source.Length];
+        for (var index = 0; index < source.Length; index++)
+        {
+            result[index] = (new UiResourceId(source[index].Resource), source[index].Gradient);
+        }
+
+        return result;
+    }
+
     public bool TryResolve(string key, out object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);

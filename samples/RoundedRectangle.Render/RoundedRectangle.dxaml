@@ -10,12 +10,31 @@
             Width="700"
             Height="400"
             Background="#383838"
-            CornerRadius="30,30,30,30">
-        <TextBlock Text="Data"
-                   FontKey="mono"
-                   FontSize="48"
-                   Foreground="#FFFFFF"
-                   HorizontalTextAlignment="Center"
-                   VerticalTextAlignment="Center" />
+            BorderColor="{StaticResource Accent}"
+            BorderThickness="3,6,9,12"
+            CornerRadius="70,25,50,15">
+        <Border Margin="3,6,9,12"
+                Background="#383838"
+                CornerRadius="70,25,50,15">
+            <!--
+            <Border.EffectSet>
+                <EffectSet Target="Visual">
+                    <InnerShadow Color="#CC202020" Radius="1" Offset="0,-3" />
+                </EffectSet>
+            </Border.EffectSet>
+            -->
+            <TextBlock Text="Delta"
+                       FontKey="doto"
+                       FontSize="48"
+                       ForegroundBrush="{StaticResource SpectrumBrush}"
+                       HorizontalTextAlignment="Center"
+                       VerticalTextAlignment="Center">
+                <TextBlock.EffectSet>
+                    <EffectSet Target="Text">
+                        <OuterShadow Color="#CC202020" Radius="1" Offset="0,3" />
+                    </EffectSet>
+                </TextBlock.EffectSet>
+            </TextBlock>
+        </Border>
     </Border>
 </Grid>
