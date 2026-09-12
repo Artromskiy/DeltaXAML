@@ -34,7 +34,7 @@
     <GradientStop Offset="1" Color="#66C43C"/>
   </RadialGradientBrush>
   <EffectSet x:Key="SpectrumTextEffects" Target="Text">
-    <Stroke Color="#FFFFA24A" Width="1" />
+    <Stroke Color="#FF8A00" Width="1" />
   </EffectSet>
   <EffectSet x:Key="InnerVisualEffects" Target="Visual">
     <InnerShadow Color="#C0000000" Radius="2" Offset="0,1" Intensity="0.8" />
