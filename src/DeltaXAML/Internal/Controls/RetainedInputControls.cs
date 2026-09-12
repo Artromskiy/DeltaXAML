@@ -239,6 +239,7 @@ internal class TextBlock : UiElement
     public string GlyphRunKey { get => _state.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_state.Visual.GlyphRunKey == value) { return; } _state.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _state.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _state.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiBrush ForegroundBrush { get => _state.Visual.ForegroundBrush; set => SetLocalProperty("ForegroundBrush", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor StrokeColor { get => _state.Visual.StrokeColor; set => SetLocalProperty("StrokeColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public float StrokeWidth
     {
@@ -290,6 +291,7 @@ internal class TextBox : UiElement, ITextEditorStateOwner
     public string GlyphRunKey { get => _textState.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_textState.Visual.GlyphRunKey == value) { return; } _textState.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _textState.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _textState.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiBrush ForegroundBrush { get => _textState.Visual.ForegroundBrush; set => SetLocalProperty("ForegroundBrush", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor StrokeColor { get => _textState.Visual.StrokeColor; set => SetLocalProperty("StrokeColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public float StrokeWidth
     {
@@ -374,6 +376,7 @@ internal sealed class NumericEditor : UiElement, ITextEditorStateOwner
     public string GlyphRunKey { get => _textState.Visual.GlyphRunKey; set { ArgumentNullException.ThrowIfNull(value); if (_textState.Visual.GlyphRunKey == value) { return; } _textState.Visual.GlyphRunKey = value; InvalidateChanged(UiDirtyFlags.Visual | UiDirtyFlags.Text); } }
     public float FontSize { get => _textState.Visual.FontSize; set => SetLocalProperty("FontSize", value, UiDirtyFlags.Measure | UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor Foreground { get => _textState.Visual.Foreground; set => SetLocalProperty("Foreground", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
+    public Delta.XAML.UiBrush ForegroundBrush { get => _textState.Visual.ForegroundBrush; set => SetLocalProperty("ForegroundBrush", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public UiColor StrokeColor { get => _textState.Visual.StrokeColor; set => SetLocalProperty("StrokeColor", value, UiDirtyFlags.Visual | UiDirtyFlags.Text); }
     public float StrokeWidth
     {

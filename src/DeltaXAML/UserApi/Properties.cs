@@ -143,6 +143,7 @@ public static class TextBlockProperties
     public static UiProperty<string> FontKey { get; } = Create("20000000-0000-4000-8000-000000000002", "FontKey", "default");
     public static UiProperty<float> FontSize { get; } = Create("20000000-0000-4000-8000-000000000003", "FontSize", 14f);
     public static UiProperty<UiColor> Foreground { get; } = Create("20000000-0000-4000-8000-000000000004", "Foreground", new UiColor(255, 255, 255));
+    public static UiProperty<UiBrush> ForegroundBrush { get; } = Create("20000000-0000-4000-8000-000000000011", "ForegroundBrush", UiBrush.None);
     public static UiProperty<UiColor> StrokeColor { get; } = Create<UiColor>("20000000-0000-4000-8000-000000000005", "StrokeColor", default);
     public static UiProperty<float> StrokeWidth { get; } = Create<float>("20000000-0000-4000-8000-000000000006", "StrokeWidth", 0f);
     public static UiProperty<UiTextHorizontalAlignment> HorizontalTextAlignment { get; } = Create("20000000-0000-4000-8000-000000000008", "HorizontalTextAlignment", UiTextHorizontalAlignment.Left);

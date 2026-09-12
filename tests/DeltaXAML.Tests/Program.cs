@@ -2297,6 +2297,10 @@ internal static partial class Program
         theme.Apply(text);
         Assert.Equal(firstColor, text.Foreground, "resource-backed style resolves through the user API");
         Assert.Equal(18f, text.FontSize, "style value uses the retained style source");
+        var foregroundBrush = Library.UiBrush.LinearGradient(new LibraryContract.UiResourceId(new Guid("A4B05D1A-0A47-4E8C-B1B8-5DDA7EA1D498")));
+        text.ForegroundBrush = foregroundBrush;
+        theme.Apply(text);
+        Assert.Equal(foregroundBrush, text.ForegroundBrush, "local text brush remains above a style foreground color");
         var unchangedStyleVersion = text.RetainedElement.OutputVersion;
         style.Set("FontSize", 20f);
         using var styleTextService = new EmptyTextService();

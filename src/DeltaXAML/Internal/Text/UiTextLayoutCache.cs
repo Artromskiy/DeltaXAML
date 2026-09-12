@@ -121,11 +121,18 @@ internal sealed class UiTextLayoutCache : IDisposable
             textLayoutBounds.X + horizontalOffset,
             textLayoutBounds.Y + verticalOffset + cache.Ascent / scale + leading);
         var clip = run.ClipId.Value == 0 ? UiClipId.None : new UiClipId(checked((int)run.ClipId.Value - 1));
+        var paint = new UiTextPaint(ToColor(run.Color), run.EffectSet, run.BlendMode)
+        {
+            FillResource = run.ForegroundBrush.Kind is Delta.XAML.UiBrushKind.LinearGradient or Delta.XAML.UiBrushKind.RadialGradient
+                ? run.ForegroundBrush.Resource
+                : UiResourceId.Empty,
+        };
         draw = UiTextDraw.WithPaint(
             cache.Shaped,
             baseline,
-            new UiTextPaint(ToColor(run.Color), run.EffectSet, run.BlendMode),
-            clip);
+            paint,
+            clip,
+            new float4(textLayoutBounds.X, textLayoutBounds.Y, textLayoutBounds.Width, textLayoutBounds.Height));
         return true;
     }
 

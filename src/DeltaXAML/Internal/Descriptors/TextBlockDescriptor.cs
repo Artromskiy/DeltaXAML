@@ -366,8 +366,10 @@ internal static class UiDescriptorCatalog
                 TextBlockGenerated.TrySetFontSize(ref state, fontSize);
                 return true;
             case UiPropertyKey.Foreground when value.UntypedValue is UiColor foreground:
-                TextBlockGenerated.TrySetForeground(ref state, foreground);
+                TextBlockGenerated.TrySetForeground(ref state, foreground, value.Source);
                 return true;
+            case UiPropertyKey.ForegroundBrush when value.UntypedValue is Delta.XAML.UiBrush foregroundBrush:
+                return TextBlockGenerated.TrySetForegroundBrush(ref state, foregroundBrush, value.Source);
             case UiPropertyKey.StrokeColor when value.UntypedValue is UiColor strokeColor:
                 TextBlockGenerated.TrySetStrokeColor(ref state, strokeColor);
                 return true;
@@ -391,7 +393,7 @@ internal static class UiDescriptorCatalog
                 return TextBlockGenerated.TrySetFontStyle(ref state, style);
             case UiPropertyKey.TextDecorations when value.UntypedValue is Delta.XAML.UiTextDecorations decorations:
                 return TextBlockGenerated.TrySetTextDecorations(ref state, decorations);
-            case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground or
+            case UiPropertyKey.Text or UiPropertyKey.FontKey or UiPropertyKey.FontSize or UiPropertyKey.Foreground or UiPropertyKey.ForegroundBrush or
                 UiPropertyKey.StrokeColor or UiPropertyKey.StrokeWidth or
                 UiPropertyKey.HorizontalTextAlignment or UiPropertyKey.VerticalTextAlignment or UiPropertyKey.TextWrapping or
                 UiPropertyKey.TextTrimming or UiPropertyKey.MaxLines or UiPropertyKey.LineHeight or UiPropertyKey.FontWeight or
@@ -950,8 +952,14 @@ internal static class TextBlockGenerated
         return true;
     }
 
-    internal static bool TrySetForeground(ref TextBlockState state, UiColor value)
+    internal static bool TrySetForeground(ref TextBlockState state, UiColor value, UiValueSource source)
     {
+        if (state.Visual.ForegroundBrush.Kind != Delta.XAML.UiBrushKind.None &&
+            ForegroundSourcePriority(source) >= ForegroundSourcePriority(state.Visual.ForegroundBrushSource))
+        {
+            state.Visual.ForegroundBrush = default;
+            state.Visual.ForegroundBrushSource = default;
+        }
         if (state.Visual.Foreground == value)
         {
             return false;
@@ -960,6 +968,40 @@ internal static class TextBlockGenerated
         state.Visual.Foreground = value;
         return true;
     }
+
+    internal static bool TrySetForegroundBrush(ref TextBlockState state, Delta.XAML.UiBrush value, UiValueSource source)
+    {
+        if (value.Kind is not (Delta.XAML.UiBrushKind.None or Delta.XAML.UiBrushKind.Solid or Delta.XAML.UiBrushKind.LinearGradient or Delta.XAML.UiBrushKind.RadialGradient) ||
+            value.Kind is (Delta.XAML.UiBrushKind.LinearGradient or Delta.XAML.UiBrushKind.RadialGradient) && !value.Resource.IsValid)
+        {
+            return false;
+        }
+
+        if (state.Visual.ForegroundBrush == value)
+        {
+            return false;
+        }
+
+        state.Visual.ForegroundBrush = value;
+        state.Visual.ForegroundBrushSource = source;
+        if (value.Kind is Delta.XAML.UiBrushKind.None or Delta.XAML.UiBrushKind.Solid)
+        {
+            state.Visual.Foreground = new(value.Color.R, value.Color.G, value.Color.B, value.Color.A);
+        }
+
+        return true;
+    }
+
+    private static int ForegroundSourcePriority(UiValueSource source) => source switch
+    {
+        UiValueSource.Animation => 7,
+        UiValueSource.Handle => 6,
+        UiValueSource.Local => 5,
+        UiValueSource.Binding => 4,
+        UiValueSource.Trigger => 3,
+        UiValueSource.Style => 2,
+        _ => 1,
+    };
 
     internal static bool TrySetStrokeColor(ref TextBlockState state, UiColor value)
     {

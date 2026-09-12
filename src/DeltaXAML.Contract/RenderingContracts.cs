@@ -220,6 +220,9 @@ public readonly record struct UiTextPaint(
 {
     /// <summary>Creates fill-only text paint.</summary>
     public static UiTextPaint Solid(float4 color) => new(color, UiEffectSet.None);
+
+    /// <summary>Gets the optional renderer-neutral gradient resource used for the glyph fill.</summary>
+    public UiResourceId FillResource { get; init; }
 }
 
 /// <summary>Stable identity and dirty version of one ordered retained UI item.</summary>
@@ -239,7 +242,7 @@ public readonly record struct UiTextDraw
 {
     /// <summary>Creates a text draw using fill-only paint.</summary>
     public UiTextDraw(ShapedText text, float2 baselineOrigin, float4 color, UiClipId clip)
-        : this(text, baselineOrigin, UiTextPaint.Solid(color), clip)
+        : this(text, baselineOrigin, UiTextPaint.Solid(color), default, clip)
     {
     }
 
@@ -248,18 +251,21 @@ public readonly record struct UiTextDraw
         ShapedText text,
         float2 baselineOrigin,
         UiTextPaint paint,
-        UiClipId clip) =>
-        new(text, baselineOrigin, paint, clip);
+        UiClipId clip,
+        float4 bounds = default) =>
+        new(text, baselineOrigin, paint, bounds, clip);
 
     private UiTextDraw(
         ShapedText text,
         float2 baselineOrigin,
         UiTextPaint paint,
+        float4 bounds,
         UiClipId clip)
     {
         Text = text;
         BaselineOrigin = baselineOrigin;
         Paint = paint;
+        Bounds = bounds;
         Clip = clip;
     }
 
@@ -271,6 +277,9 @@ public readonly record struct UiTextDraw
 
     /// <summary>Gets the fixed-size fill and canonical effect-set reference.</summary>
     public UiTextPaint Paint { get; init; }
+
+    /// <summary>Arranged text bounds in logical coordinates, used to resolve relative brush geometry.</summary>
+    public float4 Bounds { get; init; }
 
     /// <summary>Gets or initializes the fill color for the simple text path.</summary>
     public float4 Color

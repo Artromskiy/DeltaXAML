@@ -585,6 +585,14 @@ internal static class XamlPlanMaterializer
 
                 break;
             case "BackgroundBrush": d.Add(new("XAML003", $"Invalid BackgroundBrush '{value}'.", line, 1)); break;
+            case "ForegroundBrush" when TryBrush(value, out var foregroundBrush):
+                if (!UiDescriptorCatalog.TrySetProperty(e, UiPropertyKey.ForegroundBrush, new UiValue(foregroundBrush, UiValueSource.Local, InvalidationFor(name))))
+                {
+                    d.Add(new("XAML003", $"Invalid ForegroundBrush '{value}' on '{e.TypeName}'.", line, 1));
+                }
+
+                break;
+            case "ForegroundBrush": d.Add(new("XAML003", $"Invalid ForegroundBrush '{value}'.", line, 1)); break;
             case "EffectSet": d.Add(new("XAML003", "EffectSet must be supplied through a typed StaticResource or DynamicResource.", line, 1)); break;
             case "BlendMode" when Enum.TryParse(value, true, out Delta.XAML.Contract.UiBlendMode blendMode) && blendMode is
                 Delta.XAML.Contract.UiBlendMode.Opaque or Delta.XAML.Contract.UiBlendMode.Alpha or
@@ -695,7 +703,7 @@ internal static class XamlPlanMaterializer
         }
 
         if (element is TextBlock or TextBox or NumericEditor &&
-            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundResource" or "StrokeColor" or "StrokeWidth" or
+            name is "Text" or "FontKey" or "FontSize" or "Foreground" or "ForegroundBrush" or "ForegroundResource" or "StrokeColor" or "StrokeWidth" or
             "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextWrapping" or "TextTrimming" or "MaxLines" or "LineHeight" or
             "FontWeight" or "FontStyle" or "TextDecorations")
         {
@@ -728,7 +736,7 @@ internal static class XamlPlanMaterializer
         "CornerRadius" => value is Delta.XAML.UiCornerRadii,
         "EffectSet" => value is UiEffectSet,
         "BlendMode" => value is Delta.XAML.Contract.UiBlendMode,
-        "BackgroundBrush" => value is Delta.XAML.UiBrush,
+        "BackgroundBrush" or "ForegroundBrush" => value is Delta.XAML.UiBrush,
         "Padding" or "Margin" => value is UiThickness or Delta.XAML.UiThickness,
         "Width" or "Height" or "FontSize" or "Minimum" or "Maximum" or "Value" => value is
             byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal,
@@ -766,7 +774,7 @@ internal static class XamlPlanMaterializer
         "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextTrimming" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "PlaceholderText" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => UiDirtyFlags.Visual,
-        "Foreground" or "StrokeColor" or "StrokeWidth" or "EffectSet" or "BlendMode" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
+        "Foreground" or "ForegroundBrush" or "StrokeColor" or "StrokeWidth" or "EffectSet" or "BlendMode" => UiDirtyFlags.Visual | UiDirtyFlags.Text,
         "BorderColor" or "BorderWidth" or "BorderThickness" or "BorderWidthUnits" or "CornerRadius" => UiDirtyFlags.Visual,
         "Width" or "Height" or "Margin" or "Padding" or "Source" => UiDirtyFlags.Measure | UiDirtyFlags.Arrange | UiDirtyFlags.Visual,
         "HorizontalAlignment" or "VerticalAlignment" => UiDirtyFlags.Arrange | UiDirtyFlags.Visual,

@@ -33,6 +33,7 @@ internal enum UiPropertyKey
     FontKey,
     FontSize,
     Foreground,
+    ForegroundBrush,
     StrokeColor,
     StrokeWidth,
     HorizontalTextAlignment,
@@ -95,6 +96,7 @@ internal static class UiPropertyKeys
         "FontKey" => UiPropertyKey.FontKey,
         "FontSize" => UiPropertyKey.FontSize,
         "Foreground" => UiPropertyKey.Foreground,
+        "ForegroundBrush" => UiPropertyKey.ForegroundBrush,
         "StrokeColor" => UiPropertyKey.StrokeColor,
         "StrokeWidth" => UiPropertyKey.StrokeWidth,
         "HorizontalTextAlignment" => UiPropertyKey.HorizontalTextAlignment,
@@ -171,7 +173,7 @@ internal static class UiPropertyKeys
             "FontStyle" => typeof(Delta.XAML.UiFontStyle),
             "TextDecorations" => typeof(Delta.XAML.UiTextDecorations),
             "PlaceholderText" => typeof(string),
-            "BackgroundBrush" => typeof(Delta.XAML.UiBrush),
+            "BackgroundBrush" or "ForegroundBrush" => typeof(Delta.XAML.UiBrush),
             "AutomationName" => typeof(string),
             "AutomationRole" => typeof(Delta.XAML.UiSemanticRole),
             "Gestures" => typeof(Delta.XAML.UiGestureKind),
@@ -256,6 +258,7 @@ internal readonly record struct UiTextRun(
     internal Delta.XAML.UiTextDecorations Decorations { get; init; }
     internal UiEffectSet EffectSet { get; init; }
     internal UiBlendMode BlendMode { get; init; } = UiBlendMode.PremultipliedAlpha;
+    internal Delta.XAML.UiBrush ForegroundBrush { get; init; }
 }
 internal readonly record struct UiMeasureContext(
     UiSize Available,

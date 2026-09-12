@@ -783,7 +783,7 @@ public abstract class UiElement
             throw new KeyNotFoundException($"Resource '{resourceKey}' was not found.");
         }
 
-        ApplyStyleValue(propertyName, value);
+        _retained.SetLocal(propertyName, ToRetainedValue(value), PropertyInvalidation(propertyName));
     }
 
     /// <summary>Assigns the current value of a stable compiled resource identity.</summary>
@@ -801,7 +801,7 @@ public abstract class UiElement
             throw new KeyNotFoundException($"Resource '{resource.Value:D}' was not found.");
         }
 
-        ApplyStyleValue(propertyName, value);
+        _retained.SetLocal(propertyName, ToRetainedValue(value), PropertyInvalidation(propertyName));
     }
 
     /// <summary>Assigns a static resource through a generated typed property descriptor.</summary>
@@ -1038,7 +1038,7 @@ public abstract class UiElement
         "HorizontalTextAlignment" or "VerticalTextAlignment" or "TextTrimming" => RetainedDirty.Arrange | RetainedDirty.Visual,
         "PlaceholderText" => RetainedDirty.Visual | RetainedDirty.Text,
         "IsReadOnly" or "AcceptsReturn" or "MaxLength" => RetainedDirty.Visual,
-        "Foreground" or "StrokeColor" or "StrokeWidth" => RetainedDirty.Visual | RetainedDirty.Text,
+        "Foreground" or "ForegroundBrush" or "StrokeColor" or "StrokeWidth" => RetainedDirty.Visual | RetainedDirty.Text,
         "EffectSet" => RetainedDirty.Visual | RetainedDirty.Text,
         "BlendMode" => RetainedDirty.Visual | RetainedDirty.Text,
         "BackgroundBrush" or "Tint" or "Placeholder" or "ErrorSource" or "Stretch" => RetainedDirty.Visual,

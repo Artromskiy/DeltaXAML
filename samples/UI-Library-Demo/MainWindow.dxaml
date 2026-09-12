@@ -33,6 +33,17 @@
     <GradientStop Offset="0" Color="#28A8BD"/>
     <GradientStop Offset="1" Color="#66C43C"/>
   </RadialGradientBrush>
+  <EffectSet x:Key="SpectrumTextEffects" Target="Text">
+    <Stroke Color="#FFFFA24A" Width="1" />
+    <OuterShadow Color="#C0000000" Radius="2" Offset="0,2" />
+    <OuterGlow Color="#A87929D8" Radius="3" Intensity="0.7" />
+  </EffectSet>
+  <EffectSet x:Key="InnerTextEffects" Target="Text">
+    <InnerGlow Color="#FFFFA24A" Radius="2" Intensity="0.8" />
+  </EffectSet>
+  <EffectSet x:Key="InnerVisualEffects" Target="Visual">
+    <InnerShadow Color="#C0000000" Radius="2" Offset="0,1" Intensity="0.8" />
+  </EffectSet>
   <Style x:Key="Card" TargetType="Border">
     <Setter Property="Background" Value="{StaticResource Surface}"/>
     <Setter Property="BorderColor" Value="{StaticResource Line}"/>
@@ -398,10 +409,10 @@
         <Border StyleKey="Card" AutomationName="Color Styles">
           <StackPanel>
             <TextBlock StyleKey="Heading" Text="COLOR STYLES"/>
-            <Border StyleKey="Inset" Margin="0,0,0,8">
+            <Border StyleKey="Inset" EffectSet="{StaticResource InnerVisualEffects}" Margin="0,0,0,8">
               <StackPanel>
-                <TextBlock StyleKey="Label" Text="Spectrum text" Foreground="#D83CA5" FontWeight="SemiBold"/>
-                <TextBlock StyleKey="Caption" Text="Pointer-aware text paint" Margin="0,3,0,0"/>
+                <TextBlock StyleKey="Label" Text="Spectrum text" ForegroundBrush="{StaticResource SpectrumBrush}" EffectSet="{StaticResource SpectrumTextEffects}" FontWeight="SemiBold"/>
+                <TextBlock StyleKey="Caption" Text="Pointer-aware text paint" EffectSet="{StaticResource InnerTextEffects}" Margin="0,3,0,0"/>
               </StackPanel>
             </Border>
             <Border StyleKey="Inset" BackgroundBrush="{StaticResource SoftSpectrumBrush}" Margin="0,0,0,8">

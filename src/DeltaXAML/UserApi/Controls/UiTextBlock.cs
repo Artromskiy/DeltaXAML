@@ -25,6 +25,12 @@ public class UiTextBlock : UiElement
         set => TextElement.Foreground = ToRetainedColor(value);
     }
 
+    public UiBrush ForegroundBrush
+    {
+        get => TextElement.ForegroundBrush;
+        set => TextElement.ForegroundBrush = value;
+    }
+
     public UiColor StrokeColor { get => ToPublicColor(TextElement.StrokeColor); set => TextElement.StrokeColor = ToRetainedColor(value); }
 
     public float StrokeWidth { get => TextElement.StrokeWidth; set => TextElement.StrokeWidth = value; }

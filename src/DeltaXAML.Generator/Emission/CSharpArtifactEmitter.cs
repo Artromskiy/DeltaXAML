@@ -3899,6 +3899,7 @@ internal static class CSharpArtifactEmitter
             "FontKey" => "global::Delta.XAML.TextBlockProperties.FontKey",
             "FontSize" => "global::Delta.XAML.TextBlockProperties.FontSize",
             "Foreground" => "global::Delta.XAML.TextBlockProperties.Foreground",
+            "ForegroundBrush" => "global::Delta.XAML.TextBlockProperties.ForegroundBrush",
             "StrokeColor" => "global::Delta.XAML.TextBlockProperties.StrokeColor",
             "StrokeWidth" => "global::Delta.XAML.TextBlockProperties.StrokeWidth",
             "HorizontalTextAlignment" => "global::Delta.XAML.TextBlockProperties.HorizontalTextAlignment",

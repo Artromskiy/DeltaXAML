@@ -121,5 +121,6 @@ internal readonly struct TextBlockVisualMixin : IVisualMixin<TextBlockState>
             Weight = state.Visual.Weight,
             Style = state.Visual.Style,
             Decorations = state.Visual.Decorations,
+            ForegroundBrush = state.Visual.ForegroundBrush,
         };
 }
