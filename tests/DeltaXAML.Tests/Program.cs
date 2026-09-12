@@ -966,6 +966,16 @@ internal static partial class Program
             Assert.Equal(effectSet, effectBorder.EffectSet, "XAML applies the immutable EffectSet without creating another paint store");
         }
 
+        var staticEffectResource = LibraryContract.UiEffectResource.CreateTextStroke(
+            new LibraryContract.UiResourceId(new Guid("E8E4BBE8-6A52-4BE9-8BAE-6BBF5A20B2F9")),
+            new float4(1, 128 / 255f, 32 / 255f, 1),
+            2);
+        brushCatalog.Set(staticEffectResource);
+        var staticEffectText = new Library.UiTextBlock();
+        staticEffectText.SetStaticResource(Library.UiElementProperties.EffectSet, brushCatalog, staticEffectResource.Set.Resource);
+        Assert.Equal(staticEffectResource.Set, staticEffectText.EffectSet,
+            "SetStaticResource lowers typed effect resources to their immutable EffectSet value");
+
         using var textDocument = new EmptyTextService();
         var textRoot = loader.Load("<TextBlock Text=\"Hello\" />", in context).Root;
         if (textRoot is null) { throw new InvalidOperationException("library text root missing"); }

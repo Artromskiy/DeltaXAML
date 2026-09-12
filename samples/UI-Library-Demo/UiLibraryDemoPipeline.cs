@@ -28,6 +28,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
     private readonly GraphicsShaderProgram _roundedProgram = UiLibraryDemoShaders.RoundedRectangle();
     private readonly GraphicsShaderProgram _solidStrokeProgram = UiLibraryDemoShaders.SolidStrokeRectangle();
     private readonly GraphicsShaderProgram _roundedStrokeProgram = UiLibraryDemoShaders.RoundedStrokeRectangle();
+    private readonly GraphicsShaderProgram _roundedInnerEffectProgram = UiLibraryDemoShaders.RoundedInnerEffect();
     private readonly GraphicsShaderProgram _linearGradientProgram = UiLibraryDemoShaders.LinearGradient();
     private readonly UiDisplayListResourceRegistry _registry;
     private readonly UiResourceCatalog _resources;
@@ -156,7 +157,7 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
                     throw new InvalidOperationException($"UI library demo gradient resource '{key}' has an invalid payload.");
             }
         }
-        RegisterVisualEffects(resources.GetEffectResources(), registry);
+        RegisterEffects(resources.GetEffectResources(), registry);
 
         return registry;
     }
@@ -169,12 +170,14 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
             return;
         }
 
-        RegisterVisualEffects(_resources.GetEffectResources(), _registry);
+        RegisterEffects(_resources.GetEffectResources(), _registry);
         _registeredEffectVersion = version;
     }
 
-    private void RegisterVisualEffects(UiEffectResource[] effects, UiDisplayListResourceRegistry registry)
+    private void RegisterEffects(UiEffectResource[] effects, UiDisplayListResourceRegistry registry)
     {
+        RegisterTextEffects(effects, registry);
+
         var solid = new UiVisualShaderVariant(
             _solidStrokeProgram,
             UiVisualKind.SolidRectangle,
@@ -192,6 +195,63 @@ internal sealed class UiLibraryDemoPipeline : IAsyncDisposable
                 registry.RegisterVisualEffectResource(effect, solid);
                 registry.RegisterVisualEffectResource(effect, rounded);
             }
+
+            if (effect.Set.Target == UiEffectTarget.Visual &&
+                effect.Set.Quality == UiEffectQuality.Analytic &&
+                effect.Set.Capabilities is UiEffectCapabilities.InnerShadow or UiEffectCapabilities.InnerGlow)
+            {
+                var path = effect.Set.Capabilities == UiEffectCapabilities.InnerShadow
+                    ? UiVisualShaderPath.InnerShadowEffect
+                    : UiVisualShaderPath.InnerGlowEffect;
+                registry.RegisterVisualEffectResource(
+                    effect,
+                    new UiVisualShaderVariant(_roundedInnerEffectProgram, UiVisualKind.SolidRectangle, path));
+                registry.RegisterVisualEffectResource(
+                    effect,
+                    new UiVisualShaderVariant(_roundedInnerEffectProgram, UiVisualKind.RoundedRectangle, path));
+            }
+        }
+    }
+
+    private static void RegisterTextEffects(UiEffectResource[] effects, UiDisplayListResourceRegistry registry)
+    {
+        const UiEffectCapabilities supported = UiEffectCapabilities.Stroke |
+            UiEffectCapabilities.OuterShadow | UiEffectCapabilities.InnerShadow |
+            UiEffectCapabilities.OuterGlow | UiEffectCapabilities.InnerGlow;
+
+        foreach (var effect in effects)
+        {
+            if (effect.Set.Target != UiEffectTarget.Text ||
+                effect.Set.Quality != UiEffectQuality.Analytic ||
+                effect.Set.Capabilities == UiEffectCapabilities.None ||
+                (effect.Set.Capabilities & ~supported) != UiEffectCapabilities.None)
+            {
+                continue;
+            }
+
+            var capabilities = effect.Set.Capabilities;
+            registry.RegisterTextEffectResourceAllLayers(
+                effect,
+                new TextShaderVariant(
+                    capabilities.HasFlag(UiEffectCapabilities.Stroke)
+                        ? UiLibraryDemoShaders.TextStroke()
+                        : UiLibraryDemoShaders.Text(),
+                    GlyphImageMode.Sdf,
+                    capabilities.HasFlag(UiEffectCapabilities.Stroke)
+                        ? TextShaderPath.Stroke
+                        : TextShaderPath.Standard),
+                capabilities.HasFlag(UiEffectCapabilities.OuterShadow)
+                    ? new TextShaderVariant(UiLibraryDemoShaders.TextOuterShadow(), GlyphImageMode.Sdf, TextShaderPath.OuterShadow)
+                    : null,
+                capabilities.HasFlag(UiEffectCapabilities.OuterGlow)
+                    ? new TextShaderVariant(UiLibraryDemoShaders.TextOuterGlowOnly(), GlyphImageMode.Sdf, TextShaderPath.OuterGlowOnly)
+                    : null,
+                capabilities.HasFlag(UiEffectCapabilities.InnerShadow)
+                    ? new TextShaderVariant(UiLibraryDemoShaders.TextInnerShadow(), GlyphImageMode.Sdf, TextShaderPath.InnerShadow)
+                    : null,
+                capabilities.HasFlag(UiEffectCapabilities.InnerGlow)
+                    ? new TextShaderVariant(UiLibraryDemoShaders.TextInnerGlowOnly(), GlyphImageMode.Sdf, TextShaderPath.InnerGlowOnly)
+                    : null);
         }
     }
 }

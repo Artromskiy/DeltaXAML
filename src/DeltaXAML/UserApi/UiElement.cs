@@ -783,7 +783,7 @@ public abstract class UiElement
             throw new KeyNotFoundException($"Resource '{resourceKey}' was not found.");
         }
 
-        _retained.SetLocal(propertyName, ToRetainedValue(value), PropertyInvalidation(propertyName));
+        _retained.SetLocal(propertyName, ToRetainedStaticResourceValue(propertyName, value), PropertyInvalidation(propertyName));
     }
 
     /// <summary>Assigns the current value of a stable compiled resource identity.</summary>
@@ -801,7 +801,7 @@ public abstract class UiElement
             throw new KeyNotFoundException($"Resource '{resource.Value:D}' was not found.");
         }
 
-        _retained.SetLocal(propertyName, ToRetainedValue(value), PropertyInvalidation(propertyName));
+        _retained.SetLocal(propertyName, ToRetainedStaticResourceValue(propertyName, value), PropertyInvalidation(propertyName));
     }
 
     /// <summary>Assigns a static resource through a generated typed property descriptor.</summary>
@@ -1013,6 +1013,11 @@ public abstract class UiElement
             : new Retained.UiResourceReference(reference.Key),
         _ => value,
     };
+
+    private static object? ToRetainedStaticResourceValue(string propertyName, object? value) =>
+        propertyName == "EffectSet" && value is UiEffectResource effectResource
+            ? effectResource.Set
+            : ToRetainedValue(value);
 
     private static object? ToPublicValue(object? value) => value switch
     {
