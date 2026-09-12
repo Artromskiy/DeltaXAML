@@ -279,7 +279,7 @@ public abstract class UiElement
         set => _retained.Background = ToRetainedColor(value);
     }
 
-    /// <summary>Renderer-neutral border color used with <see cref="BorderWidth"/>.</summary>
+    /// <summary>Renderer-neutral border color used with <see cref="BorderWidth"/> or <see cref="BorderThickness"/>.</summary>
     public UiColor BorderColor
     {
         get => ToPublicColor(_retained.BorderColor);

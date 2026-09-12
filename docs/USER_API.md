@@ -244,10 +244,12 @@ selection from the draw record. DeltaXAML does not rasterize glyphs, and
 renderer effect support remains outside this library.
 
 Common elements expose renderer-neutral paint values through `BorderColor`,
-`BorderWidth` and four-corner `CornerRadius` values ordered top-left, top-right,
-bottom-right, bottom-left. A scalar XAML value is expanded uniformly. A radius
-changes the visual primitive to `RoundedRectangle`; it does not implicitly clip
-child content.
+`BorderWidth`, `BorderThickness` and four-corner `CornerRadius` values ordered
+top-left, top-right, bottom-right, bottom-left. `BorderThickness` accepts one
+value for all sides, two values as horizontal/vertical (`left,right` and
+`top,bottom`), or four values in left, top, right, bottom order. A scalar XAML
+value is expanded uniformly. A radius changes the visual primitive to
+`RoundedRectangle`; it does not implicitly clip child content.
 
 New effect authoring uses one typed `EffectSet` property element. Layer names
 select a finite capability set at build time; colors, widths, offsets, radii,

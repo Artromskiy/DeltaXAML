@@ -226,7 +226,7 @@
         <Border StyleKey="Card" AutomationName="Panel Toolbar">
           <StackPanel>
             <TextBlock StyleKey="Heading" Text="PANEL TOOLBAR"/>
-            <Border Height="31" BorderWidth="1" BorderColor="#222429">
+            <Border Height="31" BorderThickness="0,1,0,1" BorderColor="#222429">
               <StackPanel Orientation="Horizontal">
                 <Button StyleKey="Button" BorderWidth="0">
                   <TextBlock StyleKey="Label" Text="+ Create"/>

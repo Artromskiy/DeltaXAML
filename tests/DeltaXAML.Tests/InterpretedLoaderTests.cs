@@ -12,7 +12,7 @@ internal static class InterpretedLoaderTests
         LoadsContentChildren();
         LoadsCompositeChildren();
         LoadsAttachedGridPropertiesAndBrushLiterals();
-        LoadsPerSideBorderThickness();
+        LoadsBorderThicknessShorthands();
         LoadsRichTextSpans();
         RejectsMalformedSpanContent();
         DiagnosesCompilerOnlyDeclarations();
@@ -94,25 +94,35 @@ internal static class InterpretedLoaderTests
         Assert.Equal(1, child.GetAttachedValue(UiGridAttachedProperties.Column), "Grid.Column is preserved from the qualified XAML attribute");
     }
 
-    private static void LoadsPerSideBorderThickness()
+    private static void LoadsBorderThicknessShorthands()
     {
-        var loader = new XamlLoader();
-        var resources = new UiResourceCatalog();
-        var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), resources);
-        var result = loader.Load(
-            "<Border BorderColor=\"#102030\" BorderThickness=\"1,2,3,4\" BorderWidthUnits=\"Device\" />",
-            in context);
-
-        Assert.True(result.Success && result.Root is UiBorder, "interpreted loader accepts per-side border thickness");
-        if (result.Root is not UiBorder border)
+        var cases = new (string Literal, UiThickness Expected)[]
         {
-            throw new InvalidOperationException("per-side border root missing");
-        }
+            ("3", new UiThickness(3, 3, 3, 3)),
+            ("2,4", new UiThickness(2, 4, 2, 4)),
+            ("1,2,3,4", new UiThickness(1, 2, 3, 4)),
+        };
 
-        Assert.Equal(new UiThickness(1, 2, 3, 4), border.BorderThickness, "per-side border values preserve left/top/right/bottom order");
-        Assert.True(resources.TryResolveEffectResource(border.EffectSet.Resource, out var effect), "per-side border lowers to a canonical effect resource");
-        Assert.Equal(new float4(1, 2, 3, 4), effect.Parameters.Stroke.SideWidths, "effect resource carries per-side widths");
-        Assert.Equal(PaintUnits.Device, effect.Parameters.Units, "per-side border preserves the selected paint units");
+        foreach (var (literal, expected) in cases)
+        {
+            var loader = new XamlLoader();
+            var resources = new UiResourceCatalog();
+            var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), resources);
+            var result = loader.Load(
+                $"<Border BorderColor=\"#102030\" BorderThickness=\"{literal}\" BorderWidthUnits=\"Device\" />",
+                in context);
+
+            Assert.True(result.Success && result.Root is UiBorder, $"interpreted loader accepts BorderThickness '{literal}'");
+            if (result.Root is not UiBorder border)
+            {
+                throw new InvalidOperationException("border thickness root missing");
+            }
+
+            Assert.Equal(expected, border.BorderThickness, $"BorderThickness '{literal}' expands in left/top/right/bottom order");
+            Assert.True(resources.TryResolveEffectResource(border.EffectSet.Resource, out var effect), $"BorderThickness '{literal}' lowers to a canonical effect resource");
+            Assert.Equal(new float4(expected.Left, expected.Top, expected.Right, expected.Bottom), effect.Parameters.Stroke.SideWidths, $"BorderThickness '{literal}' reaches the effect resource");
+            Assert.Equal(PaintUnits.Device, effect.Parameters.Units, $"BorderThickness '{literal}' preserves the selected paint units");
+        }
     }
 
     private static void LoadsRichTextSpans()
