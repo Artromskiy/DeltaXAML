@@ -76,9 +76,10 @@ in [IDEAS.md](IDEAS.md).
 
 ### Очерёдность и границы
 
-Все пункты ниже открыты. Названия предлагаемых новых properties — design
-names, не текущий синтаксис. Внешние пункты — handoff requirements, а не
-выданные коллегам задания и не разрешение менять их репозитории.
+Ниже перечислены оставшиеся открытые пункты. Названия предлагаемых новых
+properties — design names, не текущий синтаксис. Внешние пункты — handoff
+requirements, а не выданные коллегам задания и не разрешение менять их
+репозитории.
 
 | Этап / ID | Результат | Владелец / зависимость |
 | --- | --- | --- |
@@ -190,16 +191,18 @@ Gap count равен `max(0, n - 1)` для непустой последова�
 
 ### UI-04 — меньше повторов: styles и typed content slots
 
-**Факт:** styles/templates/TemplateBinding уже есть. Но `XamlStylePlan`
-требует key, `UiTheme.FindStyle` ищет explicit style, а `ApplyTemplate`
-применяет template только при отсутствии children. Поэтому нельзя просто
-пообещать HeaderedContentControl поверх текущего empty-content ограничения.
+**Факт:** styles/templates/TemplateBinding уже есть. `BasedOn` уже сохраняет
+stable style reference, проверяет missing/cycle/incompatible target и передаёт
+изменения базового стиля производным instances; runtime tests покрывают
+наследование и variant. `XamlStylePlan` всё ещё требует key, `UiTheme.FindStyle`
+ищет explicit style, а `ApplyTemplate` применяет template только при отсутствии
+children. Поэтому нельзя просто пообещать HeaderedContentControl поверх
+текущего empty-content ограничения.
 
-- [ ] Добавить compile-time `BasedOn` reference: разрешить stable style IDs,
-  проверить cycles, missing base и несовместимый target. Flatten typed setter
-  ranges при компиляции: base сначала, derived overrides затем. Это одна
-  Style/Trigger source layer, не новая precedence ступень и не inheritance
-  control classes. DynamicResource slots остаются зависимостями, не literals.
+- [ ] Довести compile-time `BasedOn` до flatten typed setter ranges: base
+  применяется первым, derived overrides — затем. Это одна Style/Trigger source
+  layer, не новая precedence ступень и не inheritance control classes.
+  DynamicResource slots остаются зависимостями, не literals.
 - [ ] Для реально общих TextBlock/Border defaults разрешить implicit style
   по target type и resource scope. Построить compact type/scope→style table
   при construction/изменении scope; ближайший scope выигрывает, explicit
@@ -299,30 +302,23 @@ line/advance alignment, не требовать прижатия actual ink к �
 
 ### UI-07 — gradient paint целиком до renderer
 
-**Факт:** `BrushApi.cs` уже содержит linear/radial resource types и
-`UiKnownVisuals`. `UiVisualStage` для `HasCustomVisual` использует
-`UiVisualPaint.Solid`, обходя border/radii/units extraction. Renderer registry
-сейчас регистрирует visual programs и images; наличие Custom Resource GUID
-само по себе не передаёт gradient stops программе.
+**Факт:** `BrushApi.cs` содержит linear/radial resource types, stable source
+IDs и копируемые validated stops. `UiVisualStage` сохраняет semantic gradient
+kind, resource identity и normalized corner radii. `DeltaRender.XAML` уже имеет
+neutral gradient registration, validation, linear/radial packing и generated
+two-to-four-stop shader paths, включая gradient text. Остались согласование
+общего paint payload/host resource synchronization и фактическая headless
+readback-приёмка; наличие API или shader artifact само по себе их не закрывает.
 
 - [ ] В XAML отделить resolved common paint от выбора kind. Для известных
   gradient brushes передать fill/tint, normalized radii, stroke и units
   через уже существующий `UiVisualPaint`; не изменять семантику произвольного
   custom visual молча и не добавлять его скрытую paint reinterpretation.
-- [ ] С Rend определить один neutral resource payload/registration для
-  linear stops/endpoints и version/lifetime. Сейчас эти resource declarations
-  находятся в library API, а не frozen packet assembly: зафиксировать
-  владельца перед переносом/публикацией. Не копировать `UiLinearGradient`
-  в Render и не пропускать `object` resource graph в hot loop.
-- [ ] Generated gradient declarations создают stable resource IDs, typed
-  stop storage и direct setters. Stop arrays копируются/валидируются один
-  раз; mutation version queues только dependents. Это resource update,
-  не причина переписывать all nodes или reshaping text.
-- [ ] Rend реализует resource binding/upload/cache, Shad — стандартный
-  gradient shader и generated typed packing. Согласовать normalized brush
-  coordinates, linear RGBA/interpolation, alpha и logical/device metrics.
-  UI никогда не знает offsets/padding/std430. Нужны multistop linear gradients;
-  radial API не переписывать и не считать renderer support автоматически.
+- [ ] Завершить общий paint payload и host-level synchronization для известных
+  gradient resources: один владелец регистрации/version/lifetime, без
+  `object` resource graph в hot loop. Gradient geometry/stops должны оставаться
+  renderer resources, а XAML — передавать только typed identity и common paint
+  semantics.
 - [ ] Заменить solid substitutes Primary/Active/Spectrum/акцентных полос и
   selected asset в sample; shader не должен быть уникальным для этой галереи.
 
@@ -333,46 +329,28 @@ dynamic stop change не пересоздаёт identity. Renderer провер�
 
 ### UI-08 — border sides, dash pattern и canonical effect variants
 
-Это три отдельных paint возможности, не изменение общего box model.
+Dash, prepared GPU variants и composite order — три оставшиеся paint
+возможности, не изменение общего box model.
 Базовый `UiEffectSet` является общим visual/text reference-каналом: typed
 resource payload, `Units`, lowering convenience-свойств Border/Text и передача
 в display list завершены. Оба target используют один словарь `Stroke`,
 `OuterShadow`, `InnerShadow`, `OuterGlow`, `InnerGlow`; старые `Outline`,
 `InsetShadow` и неоднозначный `Glow` не являются aliases. Это не закрывает
-per-side widths, dash pattern или GPU-варианты эффектов.
+dash pattern или GPU-варианты эффектов; per-side widths закрыты ниже.
 
-- [ ] **Sides:** выбрать canonical four-side width value, переиспользуя
-  существующий four-side value type/parser там, где семантика совпадает.
-  Target authoring принимает uniform и четыре значения; порядок сторон
-  документирован. Не менять float property type молча и не заводить два
-  независимых source slots scalar/four-side. Breaking public migration
-  требует отдельной ревизии с удалением старого пути.
-- [ ] Сохранить текущую paint-only semantics: border рисуется внутрь bounds
-  и сам не меняет DesiredSize/content inset. Для дополнительного inset есть
-  Padding. Logical/Device относится к ширине; corner radii остаются logical.
-  Producer проверяет finite/nonnegative и derived допустимость по bounds.
-- [ ] Для простых прямых top/bottom линий достаточно существующих Border
-  children — это уже доступная композиция. Не объявлять полную rounded
-  per-side поддержку через четыре накладывающихся прямоугольника. С Rend/Shad
-  согласовать нейтральные corner joins и encoding varying side widths.
+Per-side widths, paint-only semantics, corner-radius normalization и
+top/bottom composition уже закрыты parser/materializer, generated/interpreted
+tests и solid/rounded shader packing. Они остаются частью общей приёмки, но не
+открытыми implementation tasks.
 - [ ] **Dash:** immutable normalized dash pattern resource + phase/units,
   deterministic traversal perimeter и corner continuity. Validate source
   once; отдельная семантика нулевого/пустого pattern. Не создавать UI child
   на каждый dash и не вычислять строковый pattern в shader/render loop.
-- [x] **Effect authoring:** visual и text принимают одинаковые пять typed
-  слоёв, включая отдельные `InnerShadow` и `InnerGlow`. Inner-слои не дают
-  outsets; outer-слои влияют только на paint/damage bounds. Bindings компилируются
-  в typed resource update без per-element delegates или string traversal.
 - [ ] **Prepared variants:** Render/Shader реализуют finite allowlist для всех
   пяти одиночных слоёв и заявленных комбинаций. Inner shadow и inner glow имеют
   разные coverage-функции; неподготовленная комбинация даёт стабильную
   preparation diagnostic, а не runtime fallback. Нулевая стоимость
   дополнительных buffers для элементов без эффекта.
-- [x] Минимальная neutral resource/paint ревизия для общего effect reference
-  утверждена: `UiEffectSet` использует существующий `UiResourceId`, typed
-  parameters имеют явные owner/consumer lifetime и `Units`; изменения
-  зафиксированы в contract increment `0.0.15`. Не называть новые payload под
-  `Custom` обходом contract review.
 - [ ] Composite painter сохраняет canonical target order: visual — outer
   shadow → outer glow → fill → inner shadow → inner glow → stroke; text —
   outer shadow → outer glow → stroke → fill → inner shadow → inner glow.
@@ -382,8 +360,10 @@ per-side widths, dash pattern или GPU-варианты эффектов.
 
 **Точки XAML:** common visual state/properties, `UiVisualStage`, compiler
 typed literals/resources; shader/renderer implementation остаётся коллегам.
-**Приёмка:** только top/bottom, zero sides, rounded uneven widths, DPI 1/2
-Device hairline, translucent corners, phase changes и pattern replacement.
+**Приёмка remaining:** phase changes и pattern replacement, finite prepared
+variants, canonical order и сохранение clipping/ordered identities. Уже
+закрытые per-side cases включают top/bottom, zero sides, rounded uneven widths
+и DPI 1/2 Device hairline.
 Inner effects не вылезают за source shape; outer effects не режутся source
 bounds. Не заменять stroke/AA semantics pixel hacks.
 

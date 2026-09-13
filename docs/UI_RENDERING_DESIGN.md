@@ -242,14 +242,15 @@ XAML runtime.
 ## Integration status and remaining consumer work
 
 The producer-side boundary and the first consumer path are present: the
-adapter consumes canonical order, clips, solid/rounded visual records and
-neutral text records, and headless checks cover order, resource identity and
-lifetime. Remaining support is consumer-side and must not be implemented by
-adding renderer code to DeltaXAML:
+adapter consumes canonical order, clips, solid/rounded/linear-gradient and
+radial-gradient visual records, plus neutral text records. Headless checks
+cover order, gradient resource identity/packing and lifetime. Remaining support
+is consumer-side and must not be implemented by adding renderer code to
+DeltaXAML:
 
-1. Validate and submit every resource-backed/custom visual kind (including
-   gradients and images) with an explicit unsupported diagnostic when an
-   artifact is unavailable.
+1. Validate and submit image and arbitrary custom visual kinds with an explicit
+   unsupported diagnostic when an artifact is unavailable. Canonical
+   linear/radial gradients already use their dedicated registered resource path.
 2. Add text mask/run mapping and a renderer-owned text mask cache before
    enabling text `CachedMask`; do not reuse the visual rectangle mask artifact.
 
