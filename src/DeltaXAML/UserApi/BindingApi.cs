@@ -24,6 +24,18 @@ public interface IUiBindingResolver
     bool TryResolveConverter(string key, [NotNullWhen(true)] out IUiValueConverter? converter);
 }
 
+/// <summary>Optional cold-path resolver for named multi-binding functions.</summary>
+public interface IUiBindingFunctionResolver
+{
+    bool TryInvokeFunction(string key, IReadOnlyList<object?> values, out object? result);
+}
+
+/// <summary>Optional cold-path resolver for named item-template selectors.</summary>
+public interface IUiTemplateSelectorResolver
+{
+    bool TrySelectTemplate(string key, object? item, [NotNullWhen(true)] out string? templateKey);
+}
+
 /// <summary>Optional change notification implemented by programmatic bindings.</summary>
 public interface IUiBindingChanged
 {

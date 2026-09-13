@@ -283,11 +283,40 @@ internal readonly record struct UiBindingSpec(
     UiBindingMode Mode,
     string? ConverterKey,
     string? StringFormat,
+    string? CultureName,
+    Delta.XAML.UiBindingSourceKind SourceKind = Delta.XAML.UiBindingSourceKind.Context,
+    string? SourceArgument = null);
+
+internal readonly record struct UiCollectionBindingSpec(
+    string Path,
+    UiBindingMode Mode,
+    string? ItemTemplate,
+    string? ItemTemplateSelector,
+    int VirtualizationStart,
+    int VirtualizationCount,
+    float ItemExtent,
+    bool IsPicker);
+
+internal readonly record struct UiMultiBindingSourceSpec(
+    Delta.XAML.UiBindingSourceKind SourceKind,
+    string? SourceArgument,
+    string Path);
+
+internal readonly record struct UiMultiBindingSpec(
+    string Property,
+    UiMultiBindingSourceSpec[] Sources,
+    string? FunctionKey,
+    string? StringFormat,
     string? CultureName);
 
 internal interface IUiRelationBindingMetadata
 {
     Delta.XAML.UiBindingSourceKind SourceKind { get; }
+}
+
+internal interface IUiBindingContextAware
+{
+    void SetContext(object? context);
 }
 
 internal enum UiRoutedEventPhase { Preview, Bubble }

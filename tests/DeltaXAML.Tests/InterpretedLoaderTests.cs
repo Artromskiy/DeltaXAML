@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Delta;
 using Delta.XAML;
 using Delta.XAML.Contract;
@@ -12,12 +13,16 @@ internal static class InterpretedLoaderTests
         LoadsContentChildren();
         LoadsCompositeChildren();
         LoadsAttachedGridPropertiesAndBrushLiterals();
+        LoadsInlineScalarAndGradientResources();
+        LoadsInlineStylesAndTemplates();
+        LoadsInlineObjectResourcesAndTemplates();
         LoadsBorderThicknessShorthands();
         LoadsRichTextSpans();
         RejectsMalformedSpanContent();
         DiagnosesCompilerOnlyDeclarations();
         DiagnosesGeneratedOnlyBindings();
         DiagnosesGeneratedOnlyCollectionProperties();
+        LoadsCollectionTemplateSelectors();
         GeneratedAndInterpretedToggleButtonHaveMatchingOutput();
         GeneratedAndInterpretedRichTextHaveMatchingOutput();
         GeneratedAndInterpretedDynamicResourceHaveMatchingOutput();
@@ -123,6 +128,12 @@ internal static class InterpretedLoaderTests
             Assert.Equal(new float4(expected.Left, expected.Top, expected.Right, expected.Bottom), effect.Parameters.Stroke.SideWidths, $"BorderThickness '{literal}' reaches the effect resource");
             Assert.Equal(PaintUnits.Device, effect.Parameters.Units, $"BorderThickness '{literal}' preserves the selected paint units");
         }
+
+        var implicitLoader = new XamlLoader();
+        var coldContext = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
+        var implicitStore = implicitLoader.Load("<Border BorderWidth=\"1\" />", in coldContext);
+        Assert.True(implicitStore.Success && implicitStore.Resources is not null, "literal border sugar creates a cold resource store when the caller has no mutable catalog");
+        Assert.True(implicitStore.Root is UiBorder { EffectSet.IsValid: true }, "literal border sugar still materializes its implicit stroke without a supplied catalog");
     }
 
     private static void LoadsRichTextSpans()
@@ -161,18 +172,85 @@ internal static class InterpretedLoaderTests
     {
         var loader = new XamlLoader();
         var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
-        var result = loader.Load("<ResourceDictionary />", in context);
+        var result = loader.Load("<ResourceDictionary><Resource x:Key=\"Accent\" Type=\"Color\" Value=\"#FF8040\" /></ResourceDictionary>", in context);
 
-        Assert.True(!result.Success && result.Diagnostics.Length == 1, "interpreted loader rejects compiler-only declaration roots");
-        Assert.Equal("XAML020", result.Diagnostics.Span[0].Code.Value, "compiler-only declarations have a stable diagnostic code");
+        Assert.True(result.Success && result.Root is null && result.Resources is not null, "interpreted loader materializes resource-only declaration roots");
+        Assert.True(result.Resources!.TryResolve("Accent", out var accent) && accent is UiColor { R: 255, G: 128, B: 64 }, "resource-only declarations publish their catalog");
+        var empty = loader.Load("<ResourceDictionary />", in context);
+        Assert.True(empty.Success && empty.Root is null && empty.Resources is not null, $"an empty resource dictionary is a valid cold declaration document ({DescribeDiagnostics(empty)})");
 
         var declarations = new[] { "Resource", "Style", "Setter", "Template", "Trigger", "Behavior", "VisualState" };
         for (var i = 0; i < declarations.Length; i++)
         {
             var declaration = loader.Load($"<{declarations[i]} />", in context);
-            Assert.True(!declaration.Success && declaration.Diagnostics.Length == 1, $"interpreted loader rejects {declarations[i]} without a partial tree");
-            Assert.Equal("XAML020", declaration.Diagnostics.Span[0].Code.Value, $"{declarations[i]} has the stable generated-path diagnostic");
+            Assert.True(!declaration.Success && declaration.Diagnostics.Length != 0, $"interpreted loader diagnoses malformed {declarations[i]} without a partial tree");
         }
+
+        var validTrigger = loader.Load(
+            "<Panel><TextBlock x:Name=\"Source\" Text=\"on\" /><Trigger Target=\"Source\" Sources=\"Source.Text\" Values=\"on\" Property=\"Foreground\" Set=\"#FF8040\" /></Panel>",
+            in context);
+        Assert.True(!validTrigger.Success && ContainsDiagnostic(validTrigger, "Triggers and Behaviors require the generated XAML path."), "interpreted loader diagnoses valid trigger declarations instead of silently dropping them");
+    }
+
+    private static void LoadsInlineScalarAndGradientResources()
+    {
+        var loader = new XamlLoader();
+        var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
+        var result = loader.Load(
+            "<Panel><Resource x:Key=\"Accent\" Type=\"Color\" Value=\"#FF8040\" /><LinearGradientBrush x:Key=\"Spectrum\" Angle=\"110\"><GradientStop Offset=\"0\" Color=\"{StaticResource Accent}\" /><GradientStop Offset=\"1\" Color=\"#40D8FF\" /></LinearGradientBrush><TextBlock Text=\"Gradient\" ForegroundBrush=\"{StaticResource Spectrum}\" /></Panel>",
+            in context);
+
+        Assert.True(result.Success && result.Root is UiPanel { Children.Count: 1 } && result.Resources is not null, $"interpreted loader materializes inline gradient resources ({DescribeDiagnostics(result)})");
+        if (result.Root is not UiPanel { Children: [UiTextBlock text] } || result.Resources is null)
+        {
+            throw new InvalidOperationException("inline gradient fixture root is missing");
+        }
+
+        Assert.True(text.ForegroundBrush.Kind == UiBrushKind.LinearGradient, "inline gradient reference becomes a linear brush");
+        Assert.True(result.Resources.TryResolve(text.ForegroundBrush.Resource, out var gradient) && gradient is UiLinearGradient { Stops.Length: 2, IsRelativeToBounds: true }, "inline linear gradient payload is present and relative");
+        Assert.True(result.Resources.TryResolve("Accent", out var accent) && accent is UiColor { R: 255, G: 128, B: 64 }, "static gradient stop resolves a local scalar resource");
+    }
+
+    private static void LoadsInlineStylesAndTemplates()
+    {
+        var loader = new XamlLoader();
+        var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
+        var result = loader.Load(
+            "<Panel><Resource x:Key=\"Accent\" Type=\"Color\" Value=\"#204060\" /><Style x:Key=\"Primary\" TargetType=\"Button\"><Setter Property=\"Background\" Value=\"{StaticResource Accent}\" /><Setter Property=\"BorderThickness\" Value=\"1,2,3,4\" /></Style><Style x:Key=\"GridLayout\" TargetType=\"Grid\"><Setter Property=\"Rows\" Value=\"Auto,2*\" /></Style><Button StyleKey=\"Primary\" /><Grid StyleKey=\"GridLayout\" /></Panel>",
+            in context);
+
+        Assert.True(result.Success && result.Root is UiPanel { Children: [UiButton, UiGrid] } && result.Theme is not null, $"interpreted loader materializes inline styles ({DescribeDiagnostics(result)})");
+        if (result.Root is not UiPanel { Children: [UiButton button, UiGrid grid] } || result.Theme is null)
+        {
+            throw new InvalidOperationException("inline style fixture root is missing");
+        }
+
+        using var document = new UiDocument(result.Root, new CountingTextService(), null, result.Theme);
+        document.Layout(new float2(120, 40), 1);
+        Assert.Equal(new UiColor(32, 64, 96), button.Background, "cold style applies literal values during document layout");
+        Assert.Equal(new UiThickness(1, 2, 3, 4), button.BorderThickness, "cold style applies shorthand side values");
+        var rows = grid.GetValue((IUiProperty)UiGridProperties.Rows);
+        Assert.True(rows is Array { Length: 2 }, "cold style materializes grid length list values");
+    }
+
+    private static void LoadsInlineObjectResourcesAndTemplates()
+    {
+        var loader = new XamlLoader();
+        var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
+        var result = loader.Load(
+            "<Panel><Border x:Key=\"Card\" Width=\"20\" Height=\"10\" /><Template x:Key=\"CardTemplate\"><Border Width=\"40\" Height=\"20\"><TextBlock Text=\"Template\" /></Border></Template><Button TemplateKey=\"CardTemplate\" /></Panel>",
+            in context);
+
+        Assert.True(result.Success && result.Root is UiPanel { Children: [UiButton] } && result.Resources is not null && result.Theme is not null, $"interpreted loader materializes object resources and templates ({DescribeDiagnostics(result)})");
+        if (result.Root is not UiPanel { Children: [UiButton button] } || result.Resources is null || result.Theme is null)
+        {
+            throw new InvalidOperationException("inline object resource fixture root is missing");
+        }
+
+        Assert.True(result.Resources.TryResolve("Card", out var card) && card is UiBorder { Width: 20, Height: 10 }, "object resources are retained as reusable public elements");
+        using var document = new UiDocument(result.Root, new CountingTextService(), null, result.Theme);
+        document.Layout(new float2(120, 40), 1);
+        Assert.True(button.Children.Count == 1 && button.Children[0] is UiBorder { Children.Count: 1 }, "cold templates add their materialized subtree during style layout");
     }
 
     private static void DiagnosesGeneratedOnlyBindings()
@@ -182,13 +260,14 @@ internal static class InterpretedLoaderTests
         var templateBinding = loader.Load("<TextBlock Text=\"{TemplateBinding Foreground}\" />", in context);
         var multiBinding = loader.Load("<TextBlock Text=\"{MultiBinding Sources=Self.Text|Self.FontKey, StringFormat='{0}', Culture=en-US}\" />", in context);
         var relativeBinding = loader.Load("<TextBlock Text=\"{Binding Path=Text, RelativeSource=Self}\" />", in context);
+        var namedBinding = loader.Load("<Grid><TextBlock x:Name=\"Source\" Text=\"source\" /><TextBlock Text=\"{Binding Path=Text, ElementName=Source}\" /></Grid>", in context);
+        var formattedMultiBinding = loader.Load("<Grid><TextBlock x:Name=\"First\" Text=\"one\" /><TextBlock x:Name=\"Second\" Text=\"two\" /><TextBlock Text=\"{MultiBinding Sources=First.Text|Second.Text, StringFormat='{0}-{1}', Culture=en-US}\" /></Grid>", in context);
 
-        Assert.True(!templateBinding.Success && templateBinding.Diagnostics.Length == 1, "interpreted loader rejects TemplateBinding without a partial fallback tree");
-        Assert.Equal("XAML020", templateBinding.Diagnostics.Span[0].Code.Value, "TemplateBinding has a stable generated-path diagnostic");
-        Assert.True(!multiBinding.Success && multiBinding.Diagnostics.Length == 1, "interpreted loader rejects MultiBinding without a partial fallback tree");
-        Assert.Equal("XAML020", multiBinding.Diagnostics.Span[0].Code.Value, "MultiBinding has a stable generated-path diagnostic");
-        Assert.True(!relativeBinding.Success && relativeBinding.Diagnostics.Length == 1, "interpreted loader diagnoses relation-source bindings instead of silently treating them as context bindings");
-        Assert.Equal("XAML008", relativeBinding.Diagnostics.Span[0].Code.Value, "cold relation-source bindings have a stable diagnostic");
+        Assert.True(templateBinding.Success && templateBinding.Root is UiTextBlock, "interpreted loader accepts TemplateBinding syntax through the relation runtime");
+        Assert.True(multiBinding.Success && multiBinding.Root is UiTextBlock, "interpreted loader accepts formatted MultiBinding through the relation runtime");
+        Assert.True(relativeBinding.Success && relativeBinding.Root is UiTextBlock, "interpreted loader accepts Self relation bindings through the relation runtime");
+        Assert.True(namedBinding.Success && namedBinding.Root is UiGrid { Children: [UiTextBlock, UiTextBlock { Text: "source" }] }, "interpreted loader resolves ElementName bindings through the cold namescope");
+        Assert.True(formattedMultiBinding.Success && formattedMultiBinding.Root is UiGrid { Children: [UiTextBlock, UiTextBlock, UiTextBlock { Text: "one-two" }] }, "interpreted loader formats MultiBinding values from named sources");
     }
 
     private static void DiagnosesGeneratedOnlyCollectionProperties()
@@ -196,13 +275,88 @@ internal static class InterpretedLoaderTests
         var loader = new XamlLoader();
         var context = new XamlLoadContext(new EmptyLibraryTypeResolver(), new EmptyLibraryResourceResolver());
         var source = loader.Load(
-            "<CollectionView ItemsSource=\"{Binding Items}\" ItemTemplate=\"Row\" ItemTemplateSelector=\"Kind\" VirtualizationStart=\"2\" VirtualizationCount=\"8\" ItemExtent=\"24\" />",
+            "<Panel><Template x:Key=\"Row\"><TextBlock Text=\"{Binding Label}\" /></Template><CollectionView ItemsSource=\"{Binding Items}\" ItemTemplate=\"Row\" VirtualizationStart=\"1\" VirtualizationCount=\"2\" ItemExtent=\"24\" /></Panel>",
             in context);
 
-        Assert.True(!source.Success && source.Diagnostics.Length == 6, "cold collection markup reports every generated-only property");
-        for (var i = 0; i < source.Diagnostics.Length; i++)
+        Assert.True(source.Success && source.Root is UiPanel { Children: [UiCollectionView] }, $"cold collection markup materializes without generated artifacts ({DescribeDiagnostics(source)})");
+        if (source.Root is not UiPanel { Children: [UiCollectionView collection] })
         {
-            Assert.Equal("XAML020", source.Diagnostics.Span[i].Code.Value, "collection properties use the generated-path diagnostic");
+            throw new InvalidOperationException("cold collection fixture root is missing");
+        }
+
+        collection.BindingContext = new TestCollectionModel(new TestItem("first"), new TestItem("second"), new TestItem("third"));
+        using var document = new UiDocument(source.Root, new CountingTextService(), null, source.Theme);
+        document.Layout(new float2(120, 80), 1);
+        Assert.Equal(2, collection.ItemsHost.Children.Count, "cold collection realization honors the requested virtualization range");
+        Assert.True(collection.ItemsHost.Children[0] is UiTextBlock { Text: "second" }, "cold collection templates inherit the item binding context");
+
+        var itemsControlResult = loader.Load(
+            "<Panel><Template x:Key=\"Row\"><TextBlock Text=\"{Binding Label}\" /></Template><ItemsControl ItemsSource=\"{Binding Items}\" ItemTemplate=\"Row\" VirtualizationStart=\"1\" VirtualizationCount=\"1\" /> </Panel>",
+            in context);
+        Assert.True(itemsControlResult.Success && itemsControlResult.Root is UiPanel { Children: [UiItemsControl] }, $"cold ItemsControl markup materializes without generated artifacts ({DescribeDiagnostics(itemsControlResult)})");
+        if (itemsControlResult.Root is not UiPanel { Children: [UiItemsControl itemsControl] })
+        {
+            throw new InvalidOperationException("cold ItemsControl fixture root is missing");
+        }
+
+        itemsControl.BindingContext = new TestCollectionModel(new TestItem("first"), new TestItem("second"));
+        using var itemsControlDocument = new UiDocument(itemsControlResult.Root, new CountingTextService(), null, itemsControlResult.Theme);
+        itemsControlDocument.Layout(new float2(120, 80), 1);
+        Assert.True(itemsControl.Children.Count == 1 && itemsControl.Children[0] is UiTextBlock { Text: "second" }, "cold ItemsControl realizes its declared item template and range");
+    }
+
+    private static void LoadsCollectionTemplateSelectors()
+    {
+        var loader = new XamlLoader();
+        var selector = new TestTemplateSelector();
+        var context = new XamlLoadContext(
+            new EmptyLibraryTypeResolver(),
+            new EmptyLibraryResourceResolver(),
+            TemplateSelectors: selector);
+        var result = loader.Load(
+            "<Panel><Template x:Key=\"First\"><TextBlock Text=\"first row\" /></Template><Template x:Key=\"Other\"><TextBlock Text=\"other row\" /></Template><ItemsControl ItemsSource=\"{Binding Items}\" ItemTemplateSelector=\"Kind\" /></Panel>",
+            in context);
+
+        Assert.True(result.Success && result.Root is UiPanel { Children: [UiItemsControl] }, $"cold collection markup accepts resolver-backed template selectors ({DescribeDiagnostics(result)})");
+        if (result.Root is not UiPanel { Children: [UiItemsControl itemsControl] })
+        {
+            throw new InvalidOperationException("template selector fixture root is missing");
+        }
+
+        itemsControl.BindingContext = new TestCollectionModel(new TestItem("first"), new TestItem("second"));
+        using var document = new UiDocument(result.Root, new CountingTextService(), null, result.Theme);
+        document.Layout(new float2(160, 80), 1);
+        Assert.True(itemsControl.Children.Count == 2, "cold selector realizes each item");
+        Assert.True(itemsControl.Children[0] is UiTextBlock { Text: "first row" } && itemsControl.Children[1] is UiTextBlock { Text: "other row" }, "cold selector chooses the declared template for each item");
+    }
+
+    private sealed record TestItem(string Label);
+
+    private sealed class TestCollectionModel(params TestItem[] items)
+    {
+        public TestItems Items { get; } = new(items);
+    }
+
+    private sealed class TestItems(params TestItem[] items) : IUiItemsSource<TestItem>
+    {
+        private readonly TestItem[] _items = items;
+        public int Count => _items.Length;
+        public ulong Version => 1;
+        public ulong GetKey(int index) => (ulong)index + 1;
+        public TestItem GetItem(int index) => _items[index];
+        public bool TryGetChange(ulong previousVersion, out UiCollectionChange change)
+        {
+            change = default;
+            return false;
+        }
+    }
+
+    private sealed class TestTemplateSelector : IUiTemplateSelectorResolver
+    {
+        public bool TrySelectTemplate(string key, object? item, [NotNullWhen(true)] out string? templateKey)
+        {
+            templateKey = key == "Kind" && item is TestItem { Label: "first" } ? "First" : "Other";
+            return key == "Kind" && item is TestItem;
         }
     }
 

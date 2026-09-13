@@ -1,13 +1,19 @@
 using System.Globalization;
+using System.Collections.Immutable;
+using System.ComponentModel;
 using Delta;
 using Delta.Diagnostics;
 using DeltaXAML.Compiler;
 using Delta.XAML.Contract;
+using Delta.XAML;
 using UiDirtyFlags = DeltaXAML.Internal.UiDirtyMask;
 namespace DeltaXAML.Internal;
 
 internal readonly record struct XamlMaterializerDiagnostic(string Code, string Message, int Line, int Column);
-internal sealed record XamlMaterializerResult(UiElement? Root, IReadOnlyList<XamlMaterializerDiagnostic> Diagnostics);
+internal sealed record XamlMaterializerResult(
+    UiElement? Root,
+    IReadOnlyList<XamlMaterializerDiagnostic> Diagnostics,
+    IReadOnlyDictionary<string, UiElement>? Names = null);
 /// <summary>Cold materializer selected only by the explicit <c>IXamlLoader</c> API.</summary>
 /// <remarks>It consumes the compiler's semantic plan and constructs canonical descriptor-backed elements; generated production artifacts bypass XML inflation.</remarks>
 internal static class XamlPlanMaterializer
@@ -15,28 +21,178 @@ internal static class XamlPlanMaterializer
     internal static XamlMaterializerResult Read(
         XamlDocumentPlan plan,
         Func<string, string, UiElement?>? factory,
-        UiResourceStore? resources)
+        UiResourceStore? resources,
+        Dictionary<UiElement, Delta.XAML.UiElement>? views = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         var diagnostics = new List<XamlMaterializerDiagnostic>();
+        var names = new Dictionary<string, UiElement>(StringComparer.Ordinal);
+        MaterializeResourceDeclarations(plan, factory, resources, diagnostics, views);
         if (plan.Root is null)
         {
-            return new(null, diagnostics);
+            return new(null, diagnostics, names);
+        }
+
+        if (string.Equals(plan.Root.Name.LocalName, "ResourceDictionary", StringComparison.Ordinal))
+        {
+            return new(null, diagnostics, names);
+        }
+
+        var root = Materialize(plan.Source, plan.Root, factory, resources, diagnostics, names);
+        return new(root, diagnostics, names);
+    }
+
+    /// <summary>Materializes styles and templates declared by a cold document into its resource-backed theme.</summary>
+    internal static UiTheme? MaterializeTheme(
+        XamlDocumentPlan plan,
+        UiResourceCatalog catalog,
+        List<Diagnostic> diagnostics,
+        Func<string, string, UiElement?>? factory = null,
+        Dictionary<UiElement, Delta.XAML.UiElement>? views = null,
+        IUiBindingResolver? bindings = null,
+        IUiTemplateSelectorResolver? selectors = null)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(diagnostics);
+        if (plan.Styles.Length == 0 && plan.Templates.Length == 0 &&
+            plan.Triggers.Length == 0 && plan.Behaviors.Length == 0)
+        {
+            return null;
+        }
+
+        var theme = new UiTheme(catalog);
+        if (plan.Triggers.Length != 0 || plan.Behaviors.Length != 0)
+        {
+            diagnostics.Add(new Diagnostic(new DiagnosticCode("XAML020"), DiagnosticSeverity.Error,
+                "Triggers and Behaviors require the generated XAML path.", null));
+        }
+
+        var styles = new UiStyle[plan.Styles.Length];
+        for (var styleIndex = 0; styleIndex < plan.Styles.Length; styleIndex++)
+        {
+            var stylePlan = plan.Styles[styleIndex];
+            styles[styleIndex] = stylePlan.TargetTypeId.IsValid
+                ? new UiStyle(stylePlan.Key, stylePlan.TargetTypeId, catalog)
+                : new UiStyle(stylePlan.Key, stylePlan.TargetType.LocalName, catalog);
+            if (stylePlan.Variant is { } variant)
+            {
+                styles[styleIndex].SetVariant(variant);
+            }
+        }
+
+        for (var styleIndex = 0; styleIndex < plan.Styles.Length; styleIndex++)
+        {
+            var stylePlan = plan.Styles[styleIndex];
+            if (stylePlan.BasedOn is { } basedOn)
+            {
+                var baseIndex = FindStyle(plan.Styles, basedOn, null);
+                if (baseIndex < 0)
+                {
+                    baseIndex = FindStyle(plan.Styles, basedOn, stylePlan.Variant);
+                }
+
+                if (baseIndex < 0)
+                {
+                    diagnostics.Add(new Diagnostic(new DiagnosticCode("XAML036"), DiagnosticSeverity.Error,
+                        $"Style '{stylePlan.Key}' is BasedOn '{basedOn}', but that style is not declared.", null));
+                }
+                else
+                {
+                    styles[styleIndex].SetBasedOn(styles[baseIndex]);
+                }
+            }
+
+            ApplyStyleSetters(styles[styleIndex], stylePlan.Setters, catalog, diagnostics);
+            for (var stateIndex = 0; stateIndex < stylePlan.VisualStates.Length; stateIndex++)
+            {
+                var state = stylePlan.VisualStates[stateIndex];
+                var stateValue = ToStyleState(state.State);
+                if (stateValue is UiStyleState.None or UiStyleState.Unknown)
+                {
+                    continue;
+                }
+
+                ApplyStyleSetters(styles[styleIndex], stateValue, state.Setters, catalog, diagnostics);
+            }
+
+            theme.Add(styles[styleIndex]);
+        }
+
+        for (var templateIndex = 0; templateIndex < plan.Templates.Length; templateIndex++)
+        {
+            var templatePlan = plan.Templates[templateIndex];
+            theme.RegisterTemplate(templatePlan.Key, new UiTemplate(new ColdTemplateFactory(templatePlan, factory, views, bindings, selectors, theme)));
+        }
+
+        return theme;
+    }
+
+    private static void MaterializeResourceDeclarations(
+        XamlDocumentPlan plan,
+        Func<string, string, UiElement?>? factory,
+        UiResourceStore? resources,
+        List<XamlMaterializerDiagnostic> diagnostics,
+        Dictionary<UiElement, Delta.XAML.UiElement>? views)
+    {
+        var hasDeclarations = plan.Resources.Length != 0 || plan.ScalarResources.Length != 0 ||
+            plan.GradientResources.Length != 0 || plan.EffectResources.Length != 0;
+        if (!hasDeclarations)
+        {
+            return;
+        }
+
+        if (resources is null)
+        {
+            diagnostics.Add(new("XAML020", "Inline resources require a mutable UiResourceCatalog in the cold loader or the generated XAML path.", 1, 1));
+            return;
+        }
+
+        for (var scalarIndex = 0; scalarIndex < plan.ScalarResources.Length; scalarIndex++)
+        {
+            var scalar = plan.ScalarResources[scalarIndex];
+            if (!TryMaterializeLiteral(scalar.Value, scalar.Key, out var value))
+            {
+                diagnostics.Add(new("XAML035", $"Scalar Resource '{scalar.Key}' has an unsupported value.", scalar.Range.Start.Line + 1, scalar.Range.Start.Column + 1));
+                continue;
+            }
+
+            resources.Set(scalar.Id.Value, value);
+            resources.Set(scalar.Key, new UiResourceReference(scalar.Id.Value));
+        }
+
+        for (var gradientIndex = 0; gradientIndex < plan.GradientResources.Length; gradientIndex++)
+        {
+            var gradient = plan.GradientResources[gradientIndex];
+            if (!TryMaterializeGradient(gradient, resources, out var value, out var error))
+            {
+                diagnostics.Add(new("XAML057", error, gradient.Range.Start.Line + 1, gradient.Range.Start.Column + 1));
+                continue;
+            }
+
+            resources.Set(gradient.PayloadId.Value, value);
+            resources.Set(gradient.Key, new UiResourceReference(gradient.Id.Value));
+            resources.Set(gradient.Id.Value, gradient.Kind == XamlGradientKind.Linear
+                ? UiBrush.LinearGradient(gradient.PayloadId)
+                : UiBrush.RadialGradient(gradient.PayloadId));
+        }
+
+        for (var resourceIndex = 0; resourceIndex < plan.Resources.Length; resourceIndex++)
+        {
+            var resourcePlan = plan.Resources[resourceIndex];
+            var resourceRoot = Materialize(plan.Source, resourcePlan.Value, factory, resources, diagnostics, names: null);
+            if (resourceRoot is null)
+            {
+                continue;
+            }
+
+            resources.Set(resourcePlan.Id.Value, Delta.XAML.UiElement.Wrap(resourceRoot, views));
+            resources.Set(resourcePlan.Key, new UiResourceReference(resourcePlan.Id.Value));
         }
 
         for (var effectIndex = 0; effectIndex < plan.EffectResources.Length; effectIndex++)
         {
             var effectPlan = plan.EffectResources[effectIndex];
-            if (resources is null)
-            {
-                diagnostics.Add(new(
-                    "XAML020",
-                    "EffectSet resources require a mutable UiResourceCatalog in the cold loader or the generated XAML path.",
-                    effectPlan.Range.Start.Line + 1,
-                    effectPlan.Range.Start.Column + 1));
-                continue;
-            }
-
             if (TryMaterializeEffect(effectPlan, diagnostics, out var effect))
             {
                 resources.Set(effect.Set.Resource.Value, effect);
@@ -46,9 +202,755 @@ internal static class XamlPlanMaterializer
                 }
             }
         }
+    }
 
-        var root = Materialize(plan.Source, plan.Root, factory, resources, diagnostics);
-        return new(root, diagnostics);
+    private static int FindStyle(IReadOnlyList<XamlStylePlan> styles, string key, string? variant)
+    {
+        for (var index = 0; index < styles.Count; index++)
+        {
+            if (string.Equals(styles[index].Key, key, StringComparison.Ordinal) &&
+                string.Equals(styles[index].Variant, variant, StringComparison.Ordinal))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static void ApplyStyleSetters(
+        UiStyle style,
+        ImmutableArray<XamlMemberPlan> setters,
+        UiResourceCatalog resources,
+        List<Diagnostic> diagnostics) => ApplyStyleSetters(style, UiStyleState.None, setters, resources, diagnostics);
+
+    private static void ApplyStyleSetters(
+        UiStyle style,
+        UiStyleState state,
+        ImmutableArray<XamlMemberPlan> setters,
+        UiResourceCatalog resources,
+        List<Diagnostic> diagnostics)
+    {
+        for (var setterIndex = 0; setterIndex < setters.Length; setterIndex++)
+        {
+            var setter = setters[setterIndex];
+            if (setter.Value.Kind == XamlValueKind.ResourceReference)
+            {
+                var resource = setter.Value.Resource;
+                if (state == UiStyleState.None)
+                {
+                    if (resource.IsDynamic)
+                    {
+                        style.SetResource(setter.Name, resource.Key);
+                    }
+                    else
+                    {
+                        style.SetStaticResource(setter.Name, resource.Key);
+                    }
+                }
+                else if (resource.IsDynamic)
+                {
+                    style.SetStateResource(state, setter.Name, resource.Key);
+                }
+                else
+                {
+                    style.SetStateStaticResource(state, setter.Name, resource.Key);
+                }
+
+                continue;
+            }
+
+            if (!TryMaterializeLiteral(setter.Value, setter.Name, out var value))
+            {
+                diagnostics.Add(new Diagnostic(new DiagnosticCode("XAML002"), DiagnosticSeverity.Error,
+                    $"Style setter '{setter.Name}' has an unsupported value.", null));
+                continue;
+            }
+
+            if (state == UiStyleState.None)
+            {
+                style.Set(setter.Name, value);
+            }
+            else
+            {
+                style.SetState(state, setter.Name, value);
+            }
+        }
+    }
+
+    private static UiStyleState ToStyleState(XamlVisualStateName state) => state switch
+    {
+        XamlVisualStateName.Normal => UiStyleState.Normal,
+        XamlVisualStateName.Hover => UiStyleState.Hover,
+        XamlVisualStateName.Pressed => UiStyleState.Pressed,
+        XamlVisualStateName.Focused => UiStyleState.Focused,
+        XamlVisualStateName.Disabled => UiStyleState.Disabled,
+        XamlVisualStateName.Invalid => UiStyleState.Invalid,
+        XamlVisualStateName.Selected => UiStyleState.Selected,
+        _ => UiStyleState.Unknown,
+    };
+
+    private sealed class ColdTemplateFactory(
+        XamlTemplatePlan plan,
+        Func<string, string, UiElement?>? factory,
+        Dictionary<UiElement, Delta.XAML.UiElement>? views,
+        IUiBindingResolver? bindings,
+        IUiTemplateSelectorResolver? selectors,
+        UiTheme theme) : IUiTemplateFactory
+    {
+        public Delta.XAML.UiElement Create(Delta.XAML.UiElement owner, UiResourceCatalog resources)
+        {
+            var diagnostics = new List<XamlMaterializerDiagnostic>();
+            var names = new Dictionary<string, UiElement>(StringComparer.Ordinal);
+            var root = Materialize(SourceId.Empty, plan.Root, factory, resources.Store, diagnostics, names);
+            if (root is null || diagnostics.Count != 0)
+            {
+                throw new InvalidOperationException($"Template '{plan.Key}' failed to materialize.");
+            }
+
+            var wrapped = Delta.XAML.UiElement.Wrap(root, views);
+            wrapped.BindingContext = owner.BindingContext;
+            AttachBindingSpecs(root, bindings, diagnostics, names, owner.RetainedElement, theme, resources, selectors);
+            if (diagnostics.Count != 0)
+            {
+                throw new InvalidOperationException($"Template '{plan.Key}' failed to attach interpreted bindings.");
+            }
+
+            return wrapped;
+        }
+    }
+
+    /// <summary>Interpreted collection adapter. It keeps the source contract typed at the boundary and realizes a bounded range.</summary>
+    internal sealed class UiInterpretedCollectionBinding : IDisposable
+    {
+        private readonly UiElement _target;
+        private readonly UiCollectionBindingSpec _spec;
+        private readonly UiTheme _theme;
+        private readonly UiResourceCatalog _resources;
+        private readonly IUiTemplateSelectorResolver? _selectors;
+        private object? _context;
+        private INotifyPropertyChanged? _observable;
+        private ulong _version = ulong.MaxValue;
+        private object? _source;
+        private bool _pending;
+        private bool _stageManaged;
+        private bool _disposed;
+
+        internal UiInterpretedCollectionBinding(
+            UiElement target,
+            UiCollectionBindingSpec spec,
+            UiTheme theme,
+            UiResourceCatalog resources,
+            IUiTemplateSelectorResolver? selectors = null)
+        {
+            _target = target;
+            _spec = spec;
+            _theme = theme;
+            _resources = resources;
+            _selectors = selectors;
+        }
+
+        internal void Attach(UiElement owner)
+        {
+            _ = owner;
+            SetContext(_target.BindingContext);
+        }
+
+        internal void SetContext(object? context)
+        {
+            if (ReferenceEquals(_context, context))
+            {
+                QueueRefresh();
+                return;
+            }
+
+            if (_observable is not null)
+            {
+                _observable.PropertyChanged -= OnPropertyChanged;
+            }
+
+            _context = context;
+            _observable = context as INotifyPropertyChanged;
+            if (_observable is not null)
+            {
+                _observable.PropertyChanged += OnPropertyChanged;
+            }
+
+            QueueRefresh();
+        }
+
+        internal void EnableStageManagement() => _stageManaged = true;
+
+        internal void ApplyPending()
+        {
+            if (!_pending || _disposed)
+            {
+                return;
+            }
+
+            _pending = false;
+            Apply();
+        }
+
+        internal void Poll()
+        {
+            if (_disposed || _spec.Mode == UiBindingMode.OneTime || _pending)
+            {
+                return;
+            }
+
+            var source = ReadPath(_context, _spec.Path);
+            var sourceType = source?.GetType().GetInterfaces().FirstOrDefault(static type =>
+                type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IUiItemsSource<>));
+            if (source is null || sourceType is null)
+            {
+                if (_source is not null)
+                {
+                    QueueRefresh();
+                }
+
+                return;
+            }
+
+            var version = ReadUInt64(sourceType.GetProperty("Version")?.GetValue(source));
+            if (!ReferenceEquals(_source, source) || _version != version)
+            {
+                QueueRefresh();
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            if (_observable is not null)
+            {
+                _observable.PropertyChanged -= OnPropertyChanged;
+            }
+        }
+
+        private void QueueRefresh()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (!_stageManaged)
+            {
+                Apply();
+                return;
+            }
+
+            _pending = true;
+            _target.Invalidate(UiDirtyFlags.Binding);
+        }
+
+        private void Apply()
+        {
+            var source = ReadPath(_context, _spec.Path);
+            var sourceType = source?.GetType().GetInterfaces().FirstOrDefault(static type =>
+                type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IUiItemsSource<>));
+            if (source is null || sourceType is null)
+            {
+                if (_source is not null)
+                {
+                    SetItems(Array.Empty<object?>());
+                    _source = null;
+                    _version = ulong.MaxValue;
+                }
+
+                return;
+            }
+
+            var version = ReadUInt64(sourceType.GetProperty("Version")?.GetValue(source));
+            if (ReferenceEquals(_source, source) && _version == version)
+            {
+                return;
+            }
+
+            var count = Convert.ToInt32(sourceType.GetProperty("Count")?.GetValue(source) ?? 0, CultureInfo.InvariantCulture);
+            var start = Maths.Clamp(_spec.VirtualizationStart, 0, count);
+            var requested = _spec.VirtualizationCount < 0 ? count - start : Maths.Min(_spec.VirtualizationCount, count - start);
+            var values = new object?[Maths.Max(0, requested)];
+            var getItem = sourceType.GetMethod("GetItem") ?? throw new InvalidOperationException($"Items source '{sourceType.Name}' does not expose GetItem.");
+            for (var index = 0; index < values.Length; index++)
+            {
+                values[index] = getItem.Invoke(source, [start + index]);
+            }
+
+            _source = source;
+            _version = version;
+            SetItems(values);
+        }
+
+        private void SetItems(IReadOnlyList<object?> values)
+        {
+            var items = FindItemsHost();
+            if (items is null)
+            {
+                return;
+            }
+
+            UiTemplate? staticTemplate = null;
+            if (_spec.ItemTemplateSelector is { Length: > 0 } selectorKey)
+            {
+                if (_selectors is null)
+                {
+                    throw new InvalidOperationException($"Interpreted item-template selector '{selectorKey}' requires a registered selector resolver.");
+                }
+            }
+            else if (_spec.ItemTemplate is not { Length: > 0 } templateKey || !_theme.TryGetTemplate(templateKey, out staticTemplate))
+            {
+                throw new InvalidOperationException($"Interpreted collection markup requires a declared template '{_spec.ItemTemplate ?? string.Empty}'.");
+            }
+
+            items.SetItems(values, item =>
+            {
+                var selectedTemplate = staticTemplate;
+                if (_spec.ItemTemplateSelector is { Length: > 0 } selectorKey)
+                {
+                    if (_selectors is null || !_selectors.TrySelectTemplate(selectorKey, item, out var selectedKey) ||
+                        string.IsNullOrWhiteSpace(selectedKey) || !_theme.TryGetTemplate(selectedKey, out selectedTemplate))
+                    {
+                        throw new InvalidOperationException($"Interpreted item-template selector '{selectorKey}' did not select a declared template.");
+                    }
+                }
+
+                var owner = Delta.XAML.UiElement.Wrap(_target);
+                var created = selectedTemplate!.Build(owner, _resources);
+                created.BindingContext = item;
+                return created.RetainedElement;
+            });
+        }
+
+        private ItemsControl? FindItemsHost()
+        {
+            if (_target is ItemsControl itemsControl)
+            {
+                return itemsControl;
+            }
+
+            if (_target is CollectionView && _target.Children.Count > 0 && _target.Children[0] is ScrollViewer { Content: ItemsControl items })
+            {
+                return items;
+            }
+
+            if (_target is Picker && _target.Children.Count > 1 && _target.Children[1] is Overlay { Children.Count: > 0 } overlay &&
+                overlay.Children[0] is CollectionView collection && collection.Children.Count > 0 &&
+                collection.Children[0] is ScrollViewer { Content: ItemsControl pickerItems })
+            {
+                return pickerItems;
+            }
+
+            return null;
+        }
+
+        private static object? ReadPath(object? source, string path)
+        {
+            var value = source;
+            var segments = path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            for (var index = 0; index < segments.Length; index++)
+            {
+                if (value is null)
+                {
+                    return null;
+                }
+
+                var property = value.GetType().GetProperty(segments[index]);
+                if (property is null || !property.CanRead)
+                {
+                    return null;
+                }
+
+                value = property.GetValue(value);
+            }
+
+            return value;
+        }
+
+        private static ulong ReadUInt64(object? value) => value switch
+        {
+            ulong result => result,
+            uint result => result,
+            int result when result >= 0 => (ulong)result,
+            _ => 0,
+        };
+
+        private void OnPropertyChanged(object? sender, PropertyChangedEventArgs args)
+        {
+            _ = sender;
+            if (_spec.Mode != UiBindingMode.OneTime &&
+                (string.IsNullOrEmpty(args.PropertyName) || args.PropertyName == _spec.Path.Split('.')[0]))
+            {
+                QueueRefresh();
+            }
+        }
+    }
+
+    private static void AttachBindingSpecs(
+        UiElement element,
+        IUiBindingResolver? resolver,
+        List<XamlMaterializerDiagnostic> diagnostics,
+        IReadOnlyDictionary<string, UiElement>? names = null,
+        UiElement? templateOwner = null,
+        UiTheme? theme = null,
+        UiResourceCatalog? resources = null,
+        IUiTemplateSelectorResolver? selectors = null)
+    {
+        foreach (var spec in element.BindingSpecs)
+        {
+            IUiValueConverter? converter = null;
+            if (spec.ConverterKey is not null && (resolver is null || !resolver.TryResolveConverter(spec.ConverterKey, out converter)))
+            {
+                diagnostics.Add(new("XAML009", $"Binding converter '{spec.ConverterKey}' was not registered.", 1, 1));
+                continue;
+            }
+
+            var expression = new UiBindingExpression(
+                spec.Path,
+                BindingModeMap.ToPublic(spec.Mode),
+                converter,
+                spec.StringFormat,
+                spec.CultureName is null ? null : CultureInfo.GetCultureInfo(spec.CultureName));
+            if (spec.SourceKind == Delta.XAML.UiBindingSourceKind.Context)
+            {
+                element.AttachBinding(new UiInterpretedBinding(spec.Property, expression));
+            }
+            else
+            {
+                element.AttachExternalBinding(
+                    spec.Property,
+                    new UiInterpretedRelationBinding(
+                        element,
+                        spec.SourceKind,
+                        spec.SourceArgument,
+                        spec.Path,
+                        BindingModeMap.ToPublic(spec.Mode),
+                        converter,
+                        spec.StringFormat,
+                        spec.CultureName is null ? null : CultureInfo.GetCultureInfo(spec.CultureName),
+                        names,
+                        templateOwner));
+            }
+        }
+
+        for (var bindingIndex = 0; bindingIndex < element.MultiBindingSpecs.Count; bindingIndex++)
+        {
+            var spec = element.MultiBindingSpecs[bindingIndex];
+            if (spec.FunctionKey is not null && resolver is not IUiBindingFunctionResolver)
+            {
+                diagnostics.Add(new("XAML020", $"MultiBinding function '{spec.FunctionKey}' is not registered for the cold path.", 1, 1));
+                continue;
+            }
+
+            element.AttachExternalBinding(
+                spec.Property,
+                new UiInterpretedMultiBinding(
+                    element,
+                    spec.Sources,
+                    spec.FunctionKey,
+                    spec.StringFormat,
+                    spec.CultureName is null ? null : CultureInfo.GetCultureInfo(spec.CultureName),
+                    names,
+                    templateOwner,
+                    resolver as IUiBindingFunctionResolver));
+        }
+
+        for (var collectionIndex = 0; collectionIndex < element.CollectionBindingSpecs.Count; collectionIndex++)
+        {
+            if (theme is null || resources is null)
+            {
+                diagnostics.Add(new("XAML020", "Collection markup requires a materialized theme and resource catalog in the cold path.", 1, 1));
+                continue;
+            }
+
+            var collection = element.CollectionBindingSpecs[collectionIndex];
+            if (collection.ItemTemplate is null && collection.ItemTemplateSelector is null)
+            {
+                diagnostics.Add(new("XAML020", "Interpreted collection markup requires ItemTemplate or ItemTemplateSelector.", 1, 1));
+                continue;
+            }
+
+            if (collection.ItemTemplate is not null && !theme.TryGetTemplate(collection.ItemTemplate, out _))
+            {
+                diagnostics.Add(new("XAML020", $"Interpreted collection markup references undeclared ItemTemplate '{collection.ItemTemplate}'.", 1, 1));
+                continue;
+            }
+
+            if (collection.ItemTemplateSelector is not null && selectors is null)
+            {
+                diagnostics.Add(new("XAML020", $"Interpreted item-template selector '{collection.ItemTemplateSelector}' requires a registered selector resolver.", 1, 1));
+                continue;
+            }
+
+            element.AttachCollectionBinding(new UiInterpretedCollectionBinding(
+                element,
+                collection,
+                theme,
+                resources,
+                selectors));
+        }
+
+        for (var index = 0; index < element.Children.Count; index++)
+        {
+            AttachBindingSpecs((UiElement)element.Children[index], resolver, diagnostics, names, templateOwner, theme, resources, selectors);
+        }
+    }
+
+    private static bool TryMaterializeLiteral(
+        XamlValuePlan value,
+        string propertyName,
+        out object? result)
+    {
+        result = null;
+        var literal = value.Literal.CanonicalText;
+        switch (value.Kind)
+        {
+            case XamlValueKind.String:
+                result = literal;
+                return true;
+            case XamlValueKind.Boolean when bool.TryParse(literal, out var boolean):
+                result = boolean;
+                return true;
+            case XamlValueKind.Single when float.TryParse(literal, NumberStyles.Float, CultureInfo.InvariantCulture, out var single) && float.IsFinite(single):
+                result = single;
+                return true;
+            case XamlValueKind.Double when double.TryParse(literal, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue) && double.IsFinite(doubleValue):
+                result = doubleValue;
+                return true;
+            case XamlValueKind.Integer when int.TryParse(literal, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer):
+                result = integer;
+                return true;
+            case XamlValueKind.ResourceId when Guid.TryParse(literal, out var resourceId) && resourceId != Guid.Empty:
+                result = new UiResourceId(resourceId);
+                return true;
+            case XamlValueKind.Color when TryColor(literal, out var color):
+                result = new Delta.XAML.UiColor(color.R, color.G, color.B, color.A);
+                return true;
+            case XamlValueKind.Brush when TryBrush(literal, out var brush):
+                result = brush;
+                return true;
+            case XamlValueKind.Thickness when TryThickness(literal, out var thickness):
+                result = thickness;
+                return true;
+            case XamlValueKind.GridLengthList when TryGridLengths(literal, out var gridLengths):
+                result = gridLengths;
+                return true;
+            case XamlValueKind.CornerRadii when TryCornerRadii(literal, out var radii):
+                result = radii;
+                return true;
+            case XamlValueKind.Enum:
+                return TryMaterializeEnum(propertyName, literal, out result);
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryMaterializeEnum(string propertyName, string literal, out object? result)
+    {
+        result = null;
+        switch (propertyName)
+        {
+            case "Orientation" when Enum.TryParse(literal, true, out UiOrientation orientation):
+                result = orientation;
+                return true;
+            case "BorderWidthUnits" when Enum.TryParse(literal, true, out PaintUnits units) && units is PaintUnits.Logical or PaintUnits.Device:
+                result = units;
+                return true;
+            case "BlendMode" when Enum.TryParse(literal, true, out UiBlendMode blendMode) && blendMode is UiBlendMode.Opaque or UiBlendMode.Alpha or UiBlendMode.PremultipliedAlpha or UiBlendMode.Additive or UiBlendMode.Multiply:
+                result = blendMode;
+                return true;
+            case "HorizontalAlignment" when Enum.TryParse(literal, true, out Delta.XAML.UiHorizontalAlignment horizontal) && horizontal != Delta.XAML.UiHorizontalAlignment.Unknown:
+                result = horizontal;
+                return true;
+            case "VerticalAlignment" when Enum.TryParse(literal, true, out Delta.XAML.UiVerticalAlignment vertical) && vertical != Delta.XAML.UiVerticalAlignment.Unknown:
+                result = vertical;
+                return true;
+            case "HorizontalTextAlignment" when Enum.TryParse(literal, true, out Delta.XAML.UiTextHorizontalAlignment horizontalText) && horizontalText != Delta.XAML.UiTextHorizontalAlignment.Unknown:
+                result = horizontalText;
+                return true;
+            case "VerticalTextAlignment" when Enum.TryParse(literal, true, out Delta.XAML.UiTextVerticalAlignment verticalText) && verticalText != Delta.XAML.UiTextVerticalAlignment.Unknown:
+                result = verticalText;
+                return true;
+            case "TextWrapping" when Enum.TryParse(literal, true, out Delta.XAML.UiTextWrapping wrapping) && wrapping != Delta.XAML.UiTextWrapping.Unknown:
+                result = wrapping;
+                return true;
+            case "TextTrimming" when Enum.TryParse(literal, true, out Delta.XAML.UiTextTrimming trimming) && trimming != Delta.XAML.UiTextTrimming.Unknown:
+                result = trimming;
+                return true;
+            case "FontWeight" when Enum.TryParse(literal, true, out Delta.XAML.UiFontWeight weight) && weight != Delta.XAML.UiFontWeight.Unknown:
+                result = weight;
+                return true;
+            case "FontStyle" when Enum.TryParse(literal, true, out Delta.XAML.UiFontStyle style) && style != Delta.XAML.UiFontStyle.Unknown:
+                result = style;
+                return true;
+            case "TextDecorations" when TryTextDecorations(literal, out var decorations):
+                result = decorations;
+                return true;
+            case "AutomationRole" when Enum.TryParse(literal, true, out Delta.XAML.UiSemanticRole role):
+                result = role;
+                return true;
+            case "Gestures" when TryGestureKind(literal, out var gestures):
+                result = gestures;
+                return true;
+            case "Stretch" when Enum.TryParse(literal, true, out Delta.XAML.UiImageStretch stretch):
+                result = stretch;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryMaterializeGradient(
+        XamlGradientResourcePlan plan,
+        UiResourceStore resources,
+        out object value,
+        out string error)
+    {
+        value = default!;
+        error = string.Empty;
+        var stops = new UiGradientStop[plan.Stops.Length];
+        for (var index = 0; index < stops.Length; index++)
+        {
+            var stop = plan.Stops[index];
+            if (!TryGradientColor(stop.Color, resources, out var color))
+            {
+                error = $"Gradient stop at offset {stop.Offset.ToString(CultureInfo.InvariantCulture)} is not a color.";
+                return false;
+            }
+
+            stops[index] = new(stop.Offset, color);
+        }
+
+        try
+        {
+            if (plan.Kind == XamlGradientKind.Linear)
+            {
+                UiLinearGradient gradient;
+                if (plan.StartPoint is { } start && plan.EndPoint is { } end &&
+                    TryGradientVector(start.Literal.CanonicalText, out var startX, out var startY) &&
+                    TryGradientVector(end.Literal.CanonicalText, out var endX, out var endY))
+                {
+                    gradient = new UiLinearGradient(startX, startY, endX, endY, stops);
+                }
+                else
+                {
+                    var angle = plan.Angle is { } anglePlan && float.TryParse(anglePlan.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedAngle)
+                        ? parsedAngle
+                        : 180;
+                    gradient = UiLinearGradient.Relative(angle, stops);
+                }
+
+                if (plan.OutlineColor is { } outline && TryGradientColor(outline, resources, out var outlineColor))
+                {
+                    var width = plan.OutlineWidth is { } widthPlan && float.TryParse(widthPlan.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedWidth)
+                        ? parsedWidth
+                        : 1;
+                    gradient = gradient.WithOutline(outlineColor, width);
+                }
+
+                value = gradient;
+                return true;
+            }
+
+            if (plan.Center is not { } center || plan.Radius is not { } radius ||
+                !TryGradientVector(center.Literal.CanonicalText, out var centerX, out var centerY) ||
+                !TryGradientVector(radius.Literal.CanonicalText, out var radiusX, out var radiusY))
+            {
+                error = "Radial gradient geometry is invalid.";
+                return false;
+            }
+
+            var radial = new UiRadialGradient(centerX, centerY, radiusX, radiusY, stops, plan.Units);
+            if (plan.OutlineColor is { } radialOutline && TryGradientColor(radialOutline, resources, out var radialOutlineColor))
+            {
+                var width = plan.OutlineWidth is { } widthPlan && float.TryParse(widthPlan.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedWidth)
+                    ? parsedWidth
+                    : 1;
+                radial = radial.WithOutline(radialOutlineColor, width);
+            }
+
+            value = radial;
+            return true;
+        }
+        catch (ArgumentException exception)
+        {
+            error = exception.Message;
+            return false;
+        }
+    }
+
+    private static bool TryGradientColor(XamlValuePlan value, UiResourceStore resources, out Delta.XAML.UiColor color)
+    {
+        if (value.Kind == XamlValueKind.ResourceReference)
+        {
+            if (value.Resource.IsDynamic || !resources.TryResolve(new UiResourceReference(value.Resource.Key, value.Resource.Id.Value), out var resolved, out _))
+            {
+                color = default;
+                return false;
+            }
+
+            return TryPublicColor(resolved, out color);
+        }
+
+        if (TryColor(value.Literal.CanonicalText, out var parsed))
+        {
+            color = new(parsed.R, parsed.G, parsed.B, parsed.A);
+            return true;
+        }
+
+        color = default;
+        return false;
+    }
+
+    private static bool TryPublicColor(object? value, out Delta.XAML.UiColor color)
+    {
+        switch (value)
+        {
+            case Delta.XAML.UiColor publicColor:
+                color = publicColor;
+                return true;
+            case UiColor retainedColor:
+                color = new(retainedColor.R, retainedColor.G, retainedColor.B, retainedColor.A);
+                return true;
+            default:
+                color = default;
+                return false;
+        }
+    }
+
+    private static bool TryGradientVector(string value, out float x, out float y)
+    {
+        var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        x = y = float.NaN;
+        if (parts.Length is not (1 or 2) || !TryGradientComponent(parts[0], out x))
+        {
+            return false;
+        }
+
+        y = parts.Length == 1 ? x : float.NaN;
+        return parts.Length == 1 || TryGradientComponent(parts[1], out y);
+    }
+
+    private static bool TryGradientComponent(string value, out float component)
+    {
+        var percent = value.EndsWith('%');
+        var numeric = percent ? value[..^1].Trim() : value;
+        if (!float.TryParse(numeric, NumberStyles.Float, CultureInfo.InvariantCulture, out component) || !float.IsFinite(component))
+        {
+            return false;
+        }
+
+        if (percent)
+        {
+            component /= 100;
+        }
+        return float.IsFinite(component);
     }
 
     private static UiElement? Materialize(
@@ -56,7 +958,8 @@ internal static class XamlPlanMaterializer
         XamlObjectPlan plan,
         Func<string, string, UiElement?>? factory,
         UiResourceStore? resources,
-        List<XamlMaterializerDiagnostic> diagnostics)
+        List<XamlMaterializerDiagnostic> diagnostics,
+        Dictionary<string, UiElement>? names)
     {
         var element = UiBuiltInElementFactory.TryCreate(plan.Name.LocalName) ??
             factory?.Invoke(plan.Name.Namespace, plan.Name.LocalName);
@@ -68,6 +971,12 @@ internal static class XamlPlanMaterializer
                 plan.Range.Start.Line + 1,
                 plan.Range.Start.Column + 1));
             return null;
+        }
+
+        ConfigureCollectionBinding(element, plan, diagnostics);
+        if (plan.ScopeName is { Length: > 0 } name && names is not null)
+        {
+            names[name] = element;
         }
 
         for (var i = 0; i < plan.Members.Length; i++)
@@ -98,7 +1007,7 @@ internal static class XamlPlanMaterializer
 
         for (var i = 0; i < plan.Children.Length; i++)
         {
-            var child = Materialize(source, plan.Children[i], factory, resources, diagnostics);
+            var child = Materialize(source, plan.Children[i], factory, resources, diagnostics, names);
             if (child is not null && !TryAttachChild(element, child))
             {
                 diagnostics.Add(new(
@@ -151,6 +1060,77 @@ internal static class XamlPlanMaterializer
         }
 
         return element;
+    }
+
+    private static void ConfigureCollectionBinding(
+        UiElement element,
+        XamlObjectPlan plan,
+        List<XamlMaterializerDiagnostic> diagnostics)
+    {
+        XamlMemberPlan? sourceMember = null;
+        string? templateKey = null;
+        string? selectorKey = null;
+        var start = 0;
+        var count = -1;
+        var extent = 24f;
+        for (var index = 0; index < plan.Members.Length; index++)
+        {
+            var member = plan.Members[index];
+            switch (member.Name)
+            {
+                case "ItemsSource": sourceMember = member; break;
+                case "ItemTemplate" when member.Value.Kind == XamlValueKind.String:
+                    templateKey = member.Value.Literal.CanonicalText;
+                    break;
+                case "ItemTemplateSelector" when member.Value.Kind == XamlValueKind.String:
+                    selectorKey = member.Value.Literal.CanonicalText;
+                    break;
+                case "VirtualizationStart" when int.TryParse(member.Value.Literal.CanonicalText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedStart):
+                    start = parsedStart;
+                    break;
+                case "VirtualizationCount" when int.TryParse(member.Value.Literal.CanonicalText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedCount):
+                    count = parsedCount;
+                    break;
+                case "ItemExtent" when float.TryParse(member.Value.Literal.CanonicalText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedExtent):
+                    extent = parsedExtent;
+                    break;
+            }
+        }
+
+        if (sourceMember is null)
+        {
+            return;
+        }
+
+        var source = sourceMember.Value;
+
+        if (element is not (ItemsControl or CollectionView or Picker))
+        {
+            diagnostics.Add(new("XAML020", "Property 'ItemsSource' is supported only on ItemsControl, CollectionView and Picker in the cold path.", source.Range.Start.Line + 1, source.Range.Start.Column + 1));
+            return;
+        }
+
+        if (source.Value.Kind != XamlValueKind.ItemsSource || source.Value.Binding.SourceKind != XamlBindingSourceKind.Context)
+        {
+            diagnostics.Add(new("XAML008", "Cold collection loading supports a Context ItemsSource binding.", source.Range.Start.Line + 1, source.Range.Start.Column + 1));
+            return;
+        }
+
+        if (start < 0 || count == 0 || count < -1 || !float.IsFinite(extent) || extent <= 0)
+        {
+            diagnostics.Add(new("XAML003", "VirtualizationStart must be non-negative, VirtualizationCount positive when specified and ItemExtent finite and positive.", source.Range.Start.Line + 1, source.Range.Start.Column + 1));
+            return;
+        }
+
+        element.AddCollectionBindingSpec(new(
+            source.Value.Binding.Path,
+            ToRetainedBindingMode(source.Value.Binding.Mode),
+            templateKey,
+            selectorKey,
+            start,
+            count,
+            extent,
+            element is Picker));
     }
 
     private static void ApplyImplicitEffect(
@@ -392,31 +1372,48 @@ internal static class XamlPlanMaterializer
         switch (member.Value.Kind)
         {
             case XamlValueKind.Binding:
-                if (member.Value.Binding.SourceKind != XamlBindingSourceKind.Context)
-                {
-                    var code = member.Value.Binding.SourceKind == XamlBindingSourceKind.TemplateOwner ? "XAML020" : "XAML008";
-                    var message = member.Value.Binding.SourceKind == XamlBindingSourceKind.TemplateOwner
-                        ? "TemplateBinding requires the generated XAML path."
-                        : "Cold loading supports only Context bindings; use the generated relation binding path.";
-                    diagnostics.Add(new(code, message, line, column));
-                }
-                else
-                {
-                    element.AddBindingSpec(new(
-                        member.Name,
-                        member.Value.Binding.Path,
-                        ToRetainedBindingMode(member.Value.Binding.Mode),
-                        member.Value.Binding.ConverterKey,
-                        member.Value.Binding.StringFormat,
-                        member.Value.Binding.CultureName));
-                }
-
+                element.AddBindingSpec(new(
+                    member.Name,
+                    member.Value.Binding.Path,
+                    ToRetainedBindingMode(member.Value.Binding.Mode),
+                    member.Value.Binding.ConverterKey,
+                    member.Value.Binding.StringFormat,
+                    member.Value.Binding.CultureName,
+                    member.Value.Binding.SourceKind switch
+                    {
+                        XamlBindingSourceKind.Context => Delta.XAML.UiBindingSourceKind.Context,
+                        XamlBindingSourceKind.Self => Delta.XAML.UiBindingSourceKind.Self,
+                        XamlBindingSourceKind.TemplateOwner => Delta.XAML.UiBindingSourceKind.TemplateOwner,
+                        XamlBindingSourceKind.Name => Delta.XAML.UiBindingSourceKind.Name,
+                        XamlBindingSourceKind.Ancestor => Delta.XAML.UiBindingSourceKind.Ancestor,
+                        _ => Delta.XAML.UiBindingSourceKind.Context,
+                    },
+                    member.Value.Binding.SourceArgument));
                 return;
             case XamlValueKind.MultiBinding:
-                diagnostics.Add(new("XAML020", "MultiBinding requires the generated XAML path.", line, column));
+                element.AddMultiBindingSpec(new(
+                    member.Name,
+                    member.Value.MultiBinding.Sources.Select(static source => new UiMultiBindingSourceSpec(
+                        source.SourceKind switch
+                        {
+                            XamlBindingSourceKind.Context => Delta.XAML.UiBindingSourceKind.Context,
+                            XamlBindingSourceKind.Self => Delta.XAML.UiBindingSourceKind.Self,
+                            XamlBindingSourceKind.TemplateOwner => Delta.XAML.UiBindingSourceKind.TemplateOwner,
+                            XamlBindingSourceKind.Name => Delta.XAML.UiBindingSourceKind.Name,
+                            XamlBindingSourceKind.Ancestor => Delta.XAML.UiBindingSourceKind.Ancestor,
+                            _ => Delta.XAML.UiBindingSourceKind.Context,
+                        },
+                        source.SourceArgument,
+                        source.Path)).ToArray(),
+                    member.Value.MultiBinding.FunctionKey,
+                    member.Value.MultiBinding.StringFormat,
+                    member.Value.MultiBinding.CultureName));
                 return;
             case XamlValueKind.ItemsSource:
-                diagnostics.Add(new("XAML020", "Property 'ItemsSource' requires the generated XAML path.", line, column));
+                if (element is not (ItemsControl or CollectionView or Picker))
+                {
+                    diagnostics.Add(new("XAML020", "Property 'ItemsSource' is supported only on ItemsControl, CollectionView and Picker in the cold path.", line, column));
+                }
                 return;
             case XamlValueKind.ResourceReference:
                 ApplyResourceMember(element, member, resources, diagnostics, line, column);
@@ -541,7 +1538,6 @@ internal static class XamlPlanMaterializer
 
         if (IsGeneratedOnlyProperty(name))
         {
-            d.Add(new("XAML020", $"Property '{name}' requires the generated XAML path.", line, 1));
             return;
         }
 

@@ -32,9 +32,15 @@ internal partial class UiElement
                 binding.Dispose();
             }
 
+            for (var bindingIndex = 0; bindingIndex < element._collectionBindingRuntimes.Count; bindingIndex++)
+            {
+                element._collectionBindingRuntimes[bindingIndex].Dispose();
+            }
+
             element._bindingRuntimes.Clear();
             element._externalBindingRuntimes.Clear();
             element._compiledBindingRuntimes.Clear();
+            element._collectionBindingRuntimes.Clear();
             for (var childIndex = 0; childIndex < element.Children.Count; childIndex++)
             {
                 traversal.Add(element.Children[childIndex]);

@@ -134,7 +134,8 @@ public interface IXamlTypeResolver
 public readonly record struct XamlLoadContext(
     IXamlTypeResolver Types,
     IUiResourceResolver Resources,
-    IUiBindingResolver? Bindings = null);
+    IUiBindingResolver? Bindings = null,
+    IUiTemplateSelectorResolver? TemplateSelectors = null);
 
 /// <summary>Stable user-facing identity and accessor shell for one retained node.</summary>
 public abstract class UiElement

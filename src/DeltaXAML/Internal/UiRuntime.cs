@@ -134,6 +134,7 @@ internal sealed class UiRuntime
         _inputTextCount = 0;
         AppliedMutationCount = applied;
         RejectedMutationCount = rejected;
+        _retainedRoot.PollCollectionBindings();
         var bindingTreeChanged = _bindingTreeVersion != _retainedRoot.TreeVersion;
         UiBindingStage.Run(_nodes, _retainedRoot, _stageTraversal, _childOrder, bindingTreeChanged);
         _bindingTreeVersion = _retainedRoot.TreeVersion;

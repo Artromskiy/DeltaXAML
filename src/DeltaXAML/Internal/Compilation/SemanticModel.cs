@@ -754,7 +754,14 @@ internal sealed class XamlSemanticRegistry
             common.AddRange(ImmutableArray.Create(
                 Property("Columns", "40000000-0000-4000-8000-000000000002", XamlValueKind.GridLengthList),
                 Property("Rows", "40000000-0000-4000-8000-000000000003", XamlValueKind.GridLengthList))));
-        Register(registry, "ItemsControl", "22222222-2222-2222-2222-222222222207", XamlContentKind.Children, common);
+        Register(registry, "ItemsControl", "22222222-2222-2222-2222-222222222207", XamlContentKind.Children,
+            common.AddRange(ImmutableArray.Create(
+                Property("ItemsSource", "73000000-0000-4000-8000-00000000000D", XamlValueKind.ItemsSource),
+                Property("ItemTemplate", "73000000-0000-4000-8000-00000000000E", XamlValueKind.String),
+                Property("ItemTemplateSelector", "73000000-0000-4000-8000-00000000000F", XamlValueKind.String),
+                Property("VirtualizationStart", "73000000-0000-4000-8000-000000000010", XamlValueKind.Integer),
+                Property("VirtualizationCount", "73000000-0000-4000-8000-000000000011", XamlValueKind.Integer),
+                Property("ItemExtent", "73000000-0000-4000-8000-000000000012", XamlValueKind.Single))));
         Register(registry, "Button", "22222222-2222-2222-2222-222222222208", XamlContentKind.SingleContent, common);
         Register(registry, "ToggleButton", "22222222-2222-2222-2222-222222222209", XamlContentKind.SingleContent, common);
 

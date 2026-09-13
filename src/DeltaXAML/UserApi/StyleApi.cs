@@ -18,6 +18,14 @@ public sealed class UiResourceCatalog : IUiResourceResolver, IUiNamedResourceRes
 {
     private readonly Retained.UiResourceStore _store = new();
 
+    public UiResourceCatalog() { }
+
+    internal UiResourceCatalog(Retained.UiResourceStore store)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        _store = store;
+    }
+
     internal Retained.UiResourceStore Store => _store;
 
     public void Set(string key, object? value)

@@ -5,10 +5,23 @@ namespace DeltaXAML.Internal;
 internal partial class UiElement
 {
     internal IReadOnlyList<UiBindingSpec> BindingSpecs => _bindingSpecs;
+    internal IReadOnlyList<UiCollectionBindingSpec> CollectionBindingSpecs => _collectionBindingSpecs;
+    internal IReadOnlyList<UiMultiBindingSpec> MultiBindingSpecs => _multiBindingSpecs;
     internal object? BindingContext => _bindingContext;
     internal bool HasExplicitBindingContext => _hasExplicitBindingContext;
 
     internal void AddBindingSpec(in UiBindingSpec spec) => _bindingSpecs.Add(spec);
+
+    internal void AddCollectionBindingSpec(in UiCollectionBindingSpec spec) => _collectionBindingSpecs.Add(spec);
+
+    internal void AddMultiBindingSpec(in UiMultiBindingSpec spec) => _multiBindingSpecs.Add(spec);
+
+    internal void AttachCollectionBinding(XamlPlanMaterializer.UiInterpretedCollectionBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(binding);
+        _collectionBindingRuntimes.Add(binding);
+        binding.Attach(this);
+    }
 
     internal void AttachBinding(UiInterpretedBinding binding)
     {
@@ -175,6 +188,24 @@ internal partial class UiElement
         {
             binding.ApplyPending();
         }
+
+        for (var i = 0; i < _collectionBindingRuntimes.Count; i++)
+        {
+            _collectionBindingRuntimes[i].ApplyPending();
+        }
+    }
+
+    internal void PollCollectionBindings()
+    {
+        for (var i = 0; i < _collectionBindingRuntimes.Count; i++)
+        {
+            _collectionBindingRuntimes[i].Poll();
+        }
+
+        for (var i = 0; i < Children.Count; i++)
+        {
+            Children[i].PollCollectionBindings();
+        }
     }
 
     internal bool NeedsBindingStage => !_bindingStageManaged || (DirtyFlags & (UiDirtyFlags.Binding | UiDirtyFlags.BindingSubtree)) != 0;
@@ -191,6 +222,11 @@ internal partial class UiElement
         foreach (var binding in _externalBindingRuntimes.Values)
         {
             binding.EnableStageManagement();
+        }
+
+        for (var i = 0; i < _collectionBindingRuntimes.Count; i++)
+        {
+            _collectionBindingRuntimes[i].EnableStageManagement();
         }
     }
 
@@ -263,6 +299,16 @@ internal partial class UiElement
         foreach (var binding in _bindingRuntimes.Values)
         {
             binding.SetContext(value);
+        }
+
+        foreach (var binding in _externalBindingRuntimes.Values)
+        {
+            binding.SetContext(value);
+        }
+
+        for (var i = 0; i < _collectionBindingRuntimes.Count; i++)
+        {
+            _collectionBindingRuntimes[i].SetContext(value);
         }
     }
 }

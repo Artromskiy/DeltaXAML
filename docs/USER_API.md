@@ -125,17 +125,18 @@ factories and typed setters construct the retained document without reflection.
 library contract. It constructs the same retained elements, descriptors,
 property store and node store as generated code. Generated production
 artifacts never silently call it and never fall back to reflection. The cold
-reader currently covers the built-in controls, literal colors/brushes,
-qualified grid placement, rich-text spans, simple bindings and external
-named/GUID resources. Resource/style/template/trigger/behavior declaration
-blocks, collection item markup and typed collection properties (`ItemsSource`,
-`ItemTemplate`, `ItemTemplateSelector`, `VirtualizationStart`,
-`VirtualizationCount` and `ItemExtent`) remain compiler-only and return stable
-`XAML020` diagnostics when passed to this reader; they do not produce a
-partial fallback tree.
-Generated-only relation bindings (`Source`, `RelativeSource`, `ElementName`,
-`TemplateBinding` and `MultiBinding`) likewise return `XAML008` or `XAML020`
-from the cold reader; they never fall back to string traversal.
+reader covers the built-in controls, literal colors/brushes, resource and
+effect declarations, styles, visual states, templates, qualified grid
+placement, rich-text spans, ordinary and relation bindings, formatted
+`MultiBinding`, and named/GUID resources. `ItemsControl`, `CollectionView` and
+`Picker` also support a typed `ItemsSource` with a declared `ItemTemplate` or a
+resolver-backed `ItemTemplateSelector` and an explicit realization range; the
+adapter uses reflection only at this cold boundary and polls the source version
+between document layouts. Register an `IUiTemplateSelectorResolver` in
+`XamlLoadContext.TemplateSelectors` when the selector form is used. Triggers,
+behaviors and generated-only binding functions still require a generated
+artifact (an `IUiBindingFunctionResolver` can supply named multi-binding
+functions to the cold loader).
 
 ### Unsupported cold syntax and its DeltaXAML alternative
 
@@ -144,10 +145,10 @@ constructed document. The stable alternatives are:
 
 | Cold syntax | Diagnostic | Generated/library alternative |
 | --- | --- | --- |
-| `Resource`, `LinearGradientBrush`, `RadialGradientBrush`, `GradientStop`, `Style`, `Setter`, `Template`, `Trigger`, `Behavior`, `VisualState` and `ResourceDictionary` declarations | `XAML020` | Compile the declaration in the same generated artifact; use `UiResourceCatalog`, `UiStyle`, `UiTemplate`, `UiLinearGradient` and typed plans from code when constructing documents directly. |
-| `TemplateBinding` and `MultiBinding` | `XAML020` | Use generated typed relation/multi-binding plans. |
-| `Source`, `RelativeSource` and `ElementName` binding forms | `XAML008` | Use generated cached relation-source plans and stable namescope identities. |
-| `ItemsSource`, `ItemTemplate`, `ItemTemplateSelector` and virtualization properties | `XAML020` | Use `IUiItemsSource<TItem>`, `IUiItemTemplatePlan<TPlan,TItem>` and the generated virtualizing presenter. |
+| `Trigger`, `Behavior` and generated-only binding functions | `XAML020` | Compile the declaration or function in the generated artifact; use a `IUiBindingFunctionResolver` for named cold-path multi-binding functions. |
+| `ItemsSource` on controls without a collection host | `XAML020` | Use the generated virtualizing presenter for the control's typed collection plan. |
+| `ItemsSource` without a declared `ItemTemplate` or `ItemTemplateSelector` | `XAML020` | Declare a keyed `Template`, register an `IUiTemplateSelectorResolver`, or use a generated item-template plan. |
+| Unsupported relation source or non-context `ItemsSource` form | `XAML008` | Use a generated cached relation-source plan or a context `IUiItemsSource<TItem>` binding. |
 
 These diagnostics are part of the loader boundary, not a claim of source
 compatibility with MAUI, WPF or Avalonia.

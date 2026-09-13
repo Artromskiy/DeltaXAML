@@ -13,6 +13,9 @@ internal partial class UiElement
     private readonly UiElementChildrenView _children;
     private readonly string _typeName;
     private readonly List<UiBindingSpec> _bindingSpecs = new();
+    private readonly List<UiCollectionBindingSpec> _collectionBindingSpecs = new();
+    private readonly List<XamlPlanMaterializer.UiInterpretedCollectionBinding> _collectionBindingRuntimes = new();
+    private readonly List<UiMultiBindingSpec> _multiBindingSpecs = new();
     private readonly Dictionary<string, UiInterpretedBinding> _bindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiExternalBindingRuntime> _externalBindingRuntimes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IUiCompiledBindingRuntime> _compiledBindingRuntimes = new(StringComparer.Ordinal);

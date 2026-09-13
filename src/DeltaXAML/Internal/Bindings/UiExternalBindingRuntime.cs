@@ -43,6 +43,14 @@ internal sealed class UiExternalBindingRuntime : IDisposable
     internal bool IsTemplateOwnerRelation =>
         _binding is IUiRelationBindingMetadata { SourceKind: Delta.XAML.UiBindingSourceKind.TemplateOwner };
 
+    internal void SetContext(object? context)
+    {
+        if (_binding is IUiBindingContextAware aware)
+        {
+            aware.SetContext(context);
+        }
+    }
+
     internal void Attach()
     {
         ApplyValue();
